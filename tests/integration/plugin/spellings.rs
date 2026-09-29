@@ -15,18 +15,15 @@ use super::install::{normalize_home_separators, redact, redact_target};
 use crate::support::plugin_levels::{GlobalLevel, global_level};
 
 /// A gzipped tarball holding a `supergraph` binary where the installer looks
-/// for one.
-fn supergraph_tarball() -> Vec<u8> {
+/// for one, with `contents` as the binary.
+pub(super) fn supergraph_tarball(contents: &[u8]) -> Vec<u8> {
     let binary = format!("dist/supergraph{}", std::env::consts::EXE_SUFFIX);
-    let contents = b"#!/bin/sh\n";
     let mut header = tar::Header::new_gnu();
     header.set_size(contents.len() as u64);
     header.set_mode(0o755);
     header.set_cksum();
     let mut archive = tar::Builder::new(Vec::new());
-    archive
-        .append_data(&mut header, binary, &contents[..])
-        .unwrap();
+    archive.append_data(&mut header, binary, contents).unwrap();
     let mut gzipped = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
     gzipped.write_all(&archive.into_inner().unwrap()).unwrap();
     gzipped.finish().unwrap()
@@ -40,7 +37,7 @@ fn install(level: &GlobalLevel, args: &[&str]) -> (Value, String) {
         when.method(Method::GET)
             .path_includes("/tar/supergraph/")
             .path_includes("/v2.9.3");
-        then.status(200).body(supergraph_tarball());
+        then.status(200).body(supergraph_tarball(b"#!/bin/sh\n"));
     });
     let host = format!("http://{}", server.address());
 
