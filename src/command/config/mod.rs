@@ -64,7 +64,9 @@ impl Config {
             Command::Show(command) => Ok(RoverOutput::CliOutput(Box::new(
                 command.run(rover, profile)?,
             ))),
-            Command::Unset(command) => command.run(rover.get_client_config().await?.config, profile),
+            Command::Unset(command) => {
+                command.run(rover.get_client_config().await?.config, profile)
+            }
             Command::Whoami(command) => {
                 command
                     .run(
