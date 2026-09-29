@@ -324,6 +324,11 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
   3. The project file spelled one setting both ways (FR70).
 - **FR87**: All three codes must be documented in the generated error reference, with the same page-per-code treatment every other Rover error code gets.
 - **FR88**: Rover must never check a setting's value for reachability. A URL that parses is accepted; whether anything answers at it is the invocation's problem, reported by whatever fails when Rover tries.
+- **FR103**: A `Url`-typed setting must additionally use the `http` or `https` scheme (FR43). A value that parses as a URL but uses a different scheme — `ftp://`, `file://`, `data:`, and so on — is rejected the same way an unparseable one is, with its own message distinguishing "not a URL at all" from "a URL, but not one Rover can send a request to." This does not weaken FR88: the scheme is read from the value itself, never checked against anything the URL points at.
+
+  Required text, profile source:
+  > `APOLLO_REGISTRY_URL` in profile `staging` is set to `ftp://mirror.example.com`, which isn't a valid URL. Rover only accepts `http`/`https` URLs for this setting. Run `rover config set APOLLO_REGISTRY_URL <value> --profile staging` to correct it.
+
 - **FR89**: An unrecognized setting name warns and is ignored, at every level (FR38, FR72). An unrecognized name is never an error, because that is what allows one configuration directory or one repository to be shared across Rover versions.
 
 ### 3.13 Child-process forwarding (A2, B2)
