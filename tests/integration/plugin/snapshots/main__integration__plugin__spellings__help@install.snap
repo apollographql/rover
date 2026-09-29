@@ -1,0 +1,15 @@
+---
+source: tests/integration/plugin/spellings.rs
+expression: own
+---
+Installs Rover
+
+Usage: rover install [OPTIONS]
+
+Options:
+  -f, --force
+          Overwrite any existing binary without prompting for confirmation
+      --plugin <PLUGIN>
+          Deprecated: use `rover plugin install` instead
+      --elv2-license <ELV2_LICENSE_ACCEPTED>
+          Accept the terms and conditions of the ELv2 License without prompting for confirmation. Expected value: `accept` [env: APOLLO_ELV2_LICENSE=]
