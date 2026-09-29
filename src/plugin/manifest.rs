@@ -19,6 +19,10 @@ use serde::{
 
 use super::version::{ACCEPTED_FORMS, PluginName, VersionRequest};
 
+mod load;
+
+pub use load::MANIFEST_FILE;
+
 /// The contents of one `rover.yaml`, at either the global or the project level.
 ///
 /// Unknown top-level keys are ignored rather than rejected; see the module
