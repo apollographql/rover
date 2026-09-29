@@ -83,6 +83,15 @@ impl PluginLockfile {
         self.0.is_empty()
     }
 
+    /// This lockfile with `entry` in place of whatever it recorded for that
+    /// plugin, and every other entry as it was. Installing one plugin never
+    /// re-resolves another: a floating request another entry records keeps
+    /// the release it was locked at.
+    pub fn with(mut self, entry: LockedPlugin) -> Self {
+        self.0.insert(entry.name, entry);
+        self
+    }
+
     /// The file's contents, exactly as Rover writes them to disk.
     pub fn render(&self) -> String {
         let body =
@@ -243,6 +252,58 @@ mod tests {
             requested = "latest"
             resolved = "1.0.0"
         "#});
+    }
+
+    #[rstest]
+    fn recording_one_plugin_leaves_every_other_entry_as_it_was() {
+        let supergraph = LockedPlugin {
+            checksum: Some("sha256:0a1b".to_string()),
+            ..locked(
+                PluginName::Supergraph,
+                VersionRequest::Major(2),
+                Version::new(2, 9, 3),
+            )
+        };
+        let mcp_server = locked(
+            PluginName::ApolloMcpServer,
+            VersionRequest::Latest,
+            Version::new(1, 0, 0),
+        );
+        let lockfile = PluginLockfile::from_iter([
+            supergraph.clone(),
+            locked(
+                PluginName::Router,
+                VersionRequest::Latest,
+                Version::new(2, 1, 0),
+            ),
+            mcp_server.clone(),
+        ]);
+        let router = locked(
+            PluginName::Router,
+            VersionRequest::Major(2),
+            Version::new(2, 2, 0),
+        );
+
+        assert_that!(
+            lockfile
+                .with(router.clone())
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>()
+        )
+        .is_equal_to(vec![supergraph, router, mcp_server]);
+    }
+
+    #[rstest]
+    fn recording_a_plugin_the_lockfile_lacks_adds_it() {
+        let router = locked(
+            PluginName::Router,
+            VersionRequest::Major(2),
+            Version::new(2, 2, 0),
+        );
+
+        assert_that!(PluginLockfile::default().with(router.clone()))
+            .is_equal_to(PluginLockfile::from_iter([router]));
     }
 
     #[rstest]
