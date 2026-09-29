@@ -22,7 +22,9 @@ pub struct Set {
 
 impl Set {
     pub fn run(&self, config: config::Config, profile: &ProfileOpt) -> RoverResult<RoverOutput> {
-        let name = SettingName::try_from(self.setting.as_str())
+        let name: SettingName = self
+            .setting
+            .parse()
             .map_err(|error| RoverError::new(anyhow!("{error}")))?;
         name.setting_type()
             .validate(&self.value)

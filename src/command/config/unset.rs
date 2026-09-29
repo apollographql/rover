@@ -19,7 +19,9 @@ pub struct Unset {
 
 impl Unset {
     pub fn run(&self, config: config::Config, profile: &ProfileOpt) -> RoverResult<RoverOutput> {
-        let name = SettingName::try_from(self.setting.as_str())
+        let name: SettingName = self
+            .setting
+            .parse()
             .map_err(|error| RoverError::new(anyhow!("{error}")))?;
 
         let removed = Profile::new(&profile.profile_name, &config).unset_setting(name.as_str())?;
