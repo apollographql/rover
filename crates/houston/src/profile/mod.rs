@@ -179,7 +179,7 @@ impl Profile {
     /// `config.override_api_key`/`override_client_credentials_token`, since a caller only
     /// asks this after already knowing (via `CredentialOrigin`) that the active credential is
     /// this profile's stored OAuth login.
-    pub fn get_oauth_grant_type(&self) -> Result<Option<OauthGrantType>, HoustonProblem> {
+    pub fn oauth_grant_type(&self) -> Result<Option<OauthGrantType>, HoustonProblem> {
         let opts = LoadOpts { sensitive: true };
         let sensitive = self.load(opts)?;
         Ok(match sensitive {
@@ -530,7 +530,7 @@ mod tests {
             profile.name().to_string(),
         ));
         assert_that!(credential.expires_at).is_equal_to(Some(1_700_000_000));
-        assert_that!(profile.get_oauth_grant_type().unwrap())
+        assert_that!(profile.oauth_grant_type().unwrap())
             .is_equal_to(Some(OauthGrantType::DeviceCode));
     }
 
@@ -538,7 +538,7 @@ mod tests {
     // never an error - spec `rover-431` FR33/FR36.
     #[rstest]
     #[serial]
-    fn get_oauth_grant_type_is_none_when_not_recorded(test_config: (Config, TempDir)) {
+    fn oauth_grant_type_is_none_when_not_recorded(test_config: (Config, TempDir)) {
         let (config, _tmp_home) = test_config;
         let profile = Profile::new("grant-type-not-recorded", &config);
         // Bypasses `set_oauth_tokens` (which always records a grant type now) to simulate a
@@ -552,18 +552,18 @@ mod tests {
         .save(profile.name(), &config)
         .unwrap();
 
-        assert_that!(profile.get_oauth_grant_type().unwrap()).is_none();
+        assert_that!(profile.oauth_grant_type().unwrap()).is_none();
     }
 
     // A stored legacy API key has no grant type at all - not an OAuth login, so `None`.
     #[rstest]
     #[serial]
-    fn get_oauth_grant_type_is_none_for_a_legacy_api_key(test_config: (Config, TempDir)) {
+    fn oauth_grant_type_is_none_for_a_legacy_api_key(test_config: (Config, TempDir)) {
         let (config, _tmp_home) = test_config;
         let profile = Profile::new("grant-type-for-api-key", &config);
         profile.set_api_key("profile-key").unwrap();
 
-        assert_that!(profile.get_oauth_grant_type().unwrap()).is_none();
+        assert_that!(profile.oauth_grant_type().unwrap()).is_none();
     }
 
     // With no OAuth token stored, `get_credential` should fall back to a legacy API key.

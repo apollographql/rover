@@ -123,7 +123,7 @@ impl WhoAmI {
         .map_err(map_whoami_error)?;
 
         let grant_type = Profile::new(profile_name, &client_config.config)
-            .get_oauth_grant_type()?
+            .oauth_grant_type()?
             .map_or(GrantTypeReport::Unknown, GrantTypeReport::from);
 
         Ok(RoverOutput::CliOutput(Box::new(AuthWhoAmIOutput {

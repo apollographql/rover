@@ -116,7 +116,7 @@ fn it_can_set_and_get_an_oauth_session() {
     assert_that!(session.refresh_token).is_equal_to(Some("refresh-token".to_string()));
 
     assert_that!(profile_handle
-        .get_oauth_grant_type()
+        .oauth_grant_type()
         .expect("retrieving oauth grant type failed"))
     .is_equal_to(Some(config::OauthGrantType::DeviceCode));
 }
