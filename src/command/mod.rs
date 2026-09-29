@@ -52,7 +52,7 @@ pub use license::License;
 pub use lsp::Lsp;
 pub use output::{CliOutput, RoverOutput};
 pub use persisted_queries::PersistedQueries;
-pub use plugin::Plugins;
+pub use plugin::{LockfileWrite, Plugins};
 pub use readme::Readme;
 pub use schema::Schema;
 pub use subgraph::Subgraph;

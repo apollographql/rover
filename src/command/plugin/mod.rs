@@ -7,6 +7,24 @@ use serde::Serialize;
 pub(crate) use self::install::PluginInstall;
 use crate::{RoverOutput, RoverResult, utils::client::StudioClientConfig};
 
+/// Permission to write a plugin lockfile, which only the `rover plugin` verbs
+/// that install or remove plugins can grant: a lockfile changes on an
+/// explicit install or removal and at no other time.
+///
+/// Its field is private to this module, so nothing outside it can make one.
+/// Commands that install plugins on the fly, such as `rover supergraph
+/// compose`, share the installer but not this module, and so cannot write a
+/// lockfile by accident.
+pub struct LockfileWrite(());
+
+#[cfg(test)]
+impl LockfileWrite {
+    /// A permit for tests of the lockfile itself, outside this module.
+    pub(crate) const fn for_tests() -> Self {
+        Self(())
+    }
+}
+
 #[derive(Debug, Serialize, Parser)]
 pub struct Plugins {
     #[clap(subcommand)]

@@ -13,16 +13,8 @@ use camino::Utf8Path;
 use rover_std::Fs;
 use serde::Deserialize;
 
-use super::{FORMAT_VERSION, PluginLockfile};
+use super::{FORMAT_VERSION, PluginLockfile, unusable};
 use crate::plugin::error::{LockfileProblem, NotUtf8, PluginFailure};
-
-/// A lockfile at `path` that cannot be used, for `problem`.
-fn unusable(path: &Utf8Path, problem: LockfileProblem) -> Box<PluginFailure> {
-    Box::new(PluginFailure::Lockfile {
-        path: path.to_path_buf(),
-        problem,
-    })
-}
 
 impl PluginLockfile {
     /// Read the lockfile at `path`, or `None` if there is no file there.
