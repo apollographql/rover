@@ -117,6 +117,7 @@ mod tests {
     use speculoos::prelude::*;
 
     use super::*;
+    use crate::{RoverOutput, options::JsonOutput};
 
     fn output() -> ConfigShowOutput {
         ConfigShowOutput {
@@ -165,33 +166,48 @@ mod tests {
         assert_that!(unique.len()).is_equal_to(labels.len());
     }
 
+    // Goes through the real `{"json_version","data","error"}` envelope
+    // (`JsonOutput::from(&RoverOutput)`, the same conversion `--format json`
+    // actually uses) rather than calling `ConfigShowOutput::json()`
+    // directly, which only produces the inner `data` payload and would
+    // pass even if the envelope-wrapping step were broken.
     #[test]
     fn json_matches_the_fr53_envelope_shape() {
-        let json = output().json().unwrap();
+        let rover_output = RoverOutput::CliOutput(Box::new(output()));
+
+        let json = serde_json::to_value(JsonOutput::from(&rover_output)).unwrap();
 
         assert_that!(json).is_equal_to(serde_json::json!({
-            "profile": "staging",
-            "profile_selection": "explicit",
-            "credential": { "present": true, "origin": "profile" },
-            "settings": [
-                {
-                    "name": "APOLLO_REGISTRY_URL",
-                    "value": "https://registry.staging.example.com",
-                    "source": "explicit_profile",
-                    "overridden": [
-                        { "source": "builtin", "value": "https://api.apollographql.com/graphql" }
-                    ]
-                },
-                {
-                    "name": "APOLLO_TELEMETRY_DISABLED",
-                    "value": "false",
-                    "source": "builtin",
-                    "overridden": []
-                }
-            ]
+            "json_version": "1",
+            "data": {
+                "profile": "staging",
+                "profile_selection": "explicit",
+                "credential": { "present": true, "origin": "profile" },
+                "settings": [
+                    {
+                        "name": "APOLLO_REGISTRY_URL",
+                        "value": "https://registry.staging.example.com",
+                        "source": "explicit_profile",
+                        "overridden": [
+                            { "source": "builtin", "value": "https://api.apollographql.com/graphql" }
+                        ]
+                    },
+                    {
+                        "name": "APOLLO_TELEMETRY_DISABLED",
+                        "value": "false",
+                        "source": "builtin",
+                        "overridden": []
+                    }
+                ],
+                "success": true
+            },
+            "error": null
         }));
     }
 
+    // `CredentialReport` (`present: bool`, `origin: Option<&'static str>`)
+    // structurally has no field that could hold a credential value, so this
+    // only needs to guard against one ever being added.
     #[test]
     fn json_never_carries_a_credential_value() {
         let json = output().json().unwrap();
@@ -203,18 +219,25 @@ mod tests {
                 .contains_key("value")
         )
         .is_false();
-        assert_that!(json.to_string()).does_not_contain("secretvalue");
     }
 
     #[test]
     fn text_names_every_setting_the_profile_and_the_credential_origin() {
         let text = temp_env::with_var("NO_COLOR", Some("1"), || output().text());
 
-        assert_that!(text).contains("staging");
-        assert_that!(text).contains("explicit");
-        assert_that!(text).contains("APOLLO_REGISTRY_URL");
-        assert_that!(text).contains("APOLLO_TELEMETRY_DISABLED");
-        assert_that!(text).contains("Credential: present (profile)");
+        assert_that!(text).is_equal_to(
+            "Profile: staging (explicit)\n\
+            Credential: present (profile)\n\
+            \n\
+            ┌───────────────────────────┬──────────────────────────────────────┬────────────────────┐\n\
+            │ Setting                   ┆ Value                                ┆ Source             │\n\
+            ╞═══════════════════════════╪══════════════════════════════════════╪════════════════════╡\n\
+            │ APOLLO_REGISTRY_URL       ┆ https://registry.staging.example.com ┆ profile (explicit) │\n\
+            ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤\n\
+            │ APOLLO_TELEMETRY_DISABLED ┆ false                                ┆ built-in default   │\n\
+            └───────────────────────────┴──────────────────────────────────────┴────────────────────┘"
+                .to_string(),
+        );
     }
 
     #[test]

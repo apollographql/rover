@@ -475,18 +475,20 @@ mod tests {
             .unwrap();
         assert_that!(&registry.value).is_equal_to("https://flag.example.com".to_string());
         assert_that!(registry.source).is_equal_to(Source::Flag);
-        assert_that!(registry.overridden.len()).is_equal_to(2);
         assert_that!(
             registry
                 .overridden
                 .iter()
-                .any(|o| o.source == Source::Environment && o.value == "https://env.example.com")
+                .map(|o| (o.source, o.value.clone()))
+                .collect::<Vec<_>>()
         )
-        .is_true();
-        assert_that!(registry.overridden.iter().any(
-            |o| o.source == Source::ExplicitProfile && o.value == "https://profile.example.com"
-        ))
-        .is_true();
+        .is_equal_to(vec![
+            (Source::Environment, "https://env.example.com".to_string()),
+            (
+                Source::ExplicitProfile,
+                "https://profile.example.com".to_string(),
+            ),
+        ]);
     }
 
     #[test]

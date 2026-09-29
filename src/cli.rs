@@ -453,7 +453,7 @@ impl Rover {
 
     /// The raw, clap-merged `--registry-url`/`APOLLO_REGISTRY_URL` value
     /// (flag beats env, whichever supplied it) - before the profile tier
-    /// applies. `rover config show` (`src/command/config/show.rs`) uses this
+    /// applies. `rover config show` (`src/command/config/show/mod.rs`) uses this
     /// to tell a flag/env source apart from a profile one; every other
     /// caller wants `get_client_config`'s fully-resolved value instead.
     pub(crate) fn registry_url_flag_or_env(&self) -> Option<String> {
