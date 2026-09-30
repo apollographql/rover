@@ -100,6 +100,23 @@ mod tests {
     }
 
     #[test]
+    fn json_matches_the_expected_shape_when_not_removed() {
+        let output = UnsetOutput {
+            setting: "APOLLO_REGISTRY_URL",
+            profile: "staging".to_string(),
+            removed: false,
+        };
+
+        assert_that!(output.json())
+            .is_ok()
+            .is_equal_to(serde_json::json!({
+                "setting": "APOLLO_REGISTRY_URL",
+                "profile": "staging",
+                "removed": false,
+            }));
+    }
+
+    #[test]
     fn unset_removes_a_stored_value_and_confirms_it() {
         let (config, _tmp_home) = test_config();
         let profile = Profile::new("staging", &config);
@@ -149,6 +166,23 @@ mod tests {
             "error: invalid value 'APOLLO_NOT_A_SETTING' for '<SETTING>': \
             `APOLLO_NOT_A_SETTING` isn't a Rover setting. Run `rover config show` to list the \
             settings Rover recognizes.\n\nFor more information, try '--help'.\n"
+                .to_string(),
+        );
+    }
+
+    // Same parsing-level rationale as `unset_rejects_an_unrecognized_setting_name` -
+    // `SettingName::from_str`'s lowercase-alias rejection is covered exhaustively in
+    // `options::settings`'s tests; this only confirms `unset` wires the same parser in.
+    #[test]
+    fn unset_rejects_the_lowercase_project_file_alias() {
+        let error = Unset::try_parse_from(["config unset", "apollo_registry_url"])
+            .expect_err("expected the lowercase alias to be rejected here");
+
+        assert_that!(error.to_string()).is_equal_to(
+            "error: invalid value 'apollo_registry_url' for '<SETTING>': \
+            `apollo_registry_url` isn't a Rover setting name. Settings are named as their \
+            environment variables are, so use `APOLLO_REGISTRY_URL`. The lowercase spelling is \
+            accepted in `.rover/rover.yaml` only.\n\nFor more information, try '--help'.\n"
                 .to_string(),
         );
     }

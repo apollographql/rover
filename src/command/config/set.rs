@@ -124,6 +124,28 @@ mod tests {
         );
     }
 
+    // `validate` deliberately doesn't lowercase a bool setting's value, so
+    // the exact casing the user typed must round-trip through storage
+    // unchanged - `is_telemetry_disabled`'s `eq_ignore_ascii_case` read is
+    // what makes that safe to store as-is.
+    #[test]
+    fn set_stores_a_bool_value_with_its_original_casing() {
+        let (config, _tmp_home) = test_config();
+        let set = Set {
+            setting: SettingName::TelemetryDisabled,
+            value: "TRUE".to_string(),
+        };
+
+        set.run(config.clone(), &profile_opt("staging")).unwrap();
+
+        assert_that!(
+            Profile::new("staging", &config)
+                .get_setting("APOLLO_TELEMETRY_DISABLED")
+                .unwrap()
+        )
+        .is_equal_to(Some("TRUE".to_string()));
+    }
+
     #[test]
     fn set_creates_a_settings_only_profile() {
         let (config, _tmp_home) = test_config();
@@ -135,6 +157,11 @@ mod tests {
         set.run(config.clone(), &profile_opt("staging")).unwrap();
 
         assert_that!(Profile::list(&config).unwrap()).contains("staging".to_string());
+        // FR45: a settings-only profile created by `set` has no credential.
+        // `HoustonProblem`'s dedicated `NoCredential` variant (FR37) arrives
+        // later in the stack (`settings-only-credential-error`), which
+        // tightens this to the specific variant.
+        assert_that!(Profile::new("staging", &config).get_credential()).is_err();
     }
 
     #[test]
