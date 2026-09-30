@@ -1592,13 +1592,13 @@ mod tests {
             .expect_err("expected an invalid stored templates API URL to fail the command");
 
         assert_that!(error.to_string()).is_equal_to(
-            "error[E053]: `APOLLO_TEMPLATES_API` in profile `staging` is set to \
+            "error[E054]: `APOLLO_TEMPLATES_API` in profile `staging` is set to \
             `templates.example.com`, which isn't a valid URL. URLs must include a scheme, for \
             example `https://registry.example.com`. Run `rover config set APOLLO_TEMPLATES_API \
             <value> --profile staging` to correct it.\n"
                 .to_string(),
         );
-        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E053));
+        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
     }
 
     #[tokio::test]
