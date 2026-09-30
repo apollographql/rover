@@ -186,7 +186,7 @@ mockall = "0.15.0"
 nix = "0.31.3"
 notify = "8"
 oauth2 = { version = "5.0.0", default-features = false }
-opener = "0.8"
+opener = "0.9"
 os_info = "3"
 os_type = "2"
 pathfinding = "4"
