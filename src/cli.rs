@@ -294,6 +294,9 @@ impl Rover {
         }
 
         let profile_opt = self.get_profile_opt();
+        for message in self.unrecognized_setting_warnings(&profile_opt) {
+            self.print_unrecognized_setting_warning(message);
+        }
 
         match &self.command {
             Command::Init(command) => {
@@ -809,6 +812,59 @@ impl Rover {
         use rover_print::{print::Print, style::StyledText};
 
         rover_print::print::stderr::default().print(&StyledText::plain(format!("Note: {message}")));
+    }
+
+    /// Prints the FR38 warning text a call to `unrecognized_setting_warnings`
+    /// decided on.
+    fn print_unrecognized_setting_warning(&self, message: String) {
+        use rover_print::{print::Print, style::StyledText};
+
+        rover_print::print::stderr::default().print(&StyledText::plain(message));
+    }
+
+    /// Decides the FR38 warning text for any setting `profile` carries that
+    /// this version of Rover doesn't recognize - so a config directory
+    /// shared between Rover versions doesn't break the older one. The
+    /// decision is split from printing so it can be unit tested without
+    /// depending on `rover-print`'s real terminal writer; the caller must
+    /// print every message this returns.
+    ///
+    /// Meant to run once per invocation, for every command, regardless of
+    /// whether it goes on to use any setting - the same "every part of the
+    /// invocation" scope as the active profile resolution this rides
+    /// alongside (FR15). Best-effort: a config-home or read failure here is
+    /// either reported elsewhere (when the command that follows also needs
+    /// the profile) or harmless to skip (a command that doesn't touch
+    /// settings at all).
+    ///
+    /// Uses `get_rover_config_read_only` (not `get_rover_config`) because
+    /// this runs before *every* command, including read-only ones like
+    /// `rover config show` (FR18/FR57) - creating the config home here would
+    /// undo that verb's own no-creation guarantee.
+    ///
+    /// `#[cfg(feature = "oauth")]` `SettingName` variants don't exist in a
+    /// non-oauth build, so a config directory written by an oauth-enabled
+    /// build and read by a non-oauth build of the same version warns about
+    /// settings that build simply can't compile in - not the "future
+    /// version" case FR38 is meant to catch. Low impact, not corrected here.
+    fn unrecognized_setting_warnings(&self, profile: &ProfileOpt) -> Vec<String> {
+        let Ok(houston_config) = self.get_rover_config_read_only() else {
+            return Vec::new();
+        };
+        let Ok(settings) = Profile::new(&profile.profile_name, &houston_config).settings() else {
+            return Vec::new();
+        };
+        settings
+            .keys()
+            .filter(|key| key.parse::<SettingName>().is_err())
+            .map(|key| {
+                format!(
+                    "Warning: profile `{profile_name}` sets `{key}`, which this version of \
+                    Rover doesn't recognize. It will be ignored.",
+                    profile_name = profile.profile_name,
+                )
+            })
+            .collect()
     }
 
     #[cfg(feature = "oauth")]
@@ -2140,6 +2196,123 @@ mod tests {
         .unwrap();
 
         assert_that!(message).is_none();
+    }
+
+    fn rover_for_staging(home_path: &camino::Utf8Path) -> Rover {
+        Rover::parse_from([
+            PKG_NAME,
+            "--config-home",
+            home_path.as_str(),
+            "--profile",
+            "staging",
+            "config",
+            "list",
+        ])
+    }
+
+    // Regression test: this check used to build its `Config` via
+    // `get_rover_config`, which creates the config home if it's missing.
+    // Since it now runs before every command (including `rover config
+    // show`, FR18/FR57), that broke `config show`'s own no-creation
+    // guarantee whenever the update check that used to mask this was
+    // skipped. `tempfile::tempdir()` (used by every other test here) creates
+    // the directory immediately, which would mask this too - the path here
+    // is never actually created.
+    #[test]
+    fn unrecognized_setting_warnings_creates_nothing_on_a_fresh_config_home() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let home_path = temp_dir.path().join("nonexistent");
+        let home_path = camino::Utf8Path::from_path(&home_path).unwrap();
+        let rover = rover_for_staging(home_path);
+
+        let warnings = rover.unrecognized_setting_warnings(&rover.get_profile_opt());
+
+        assert_that!(warnings).is_empty();
+        assert_that!(home_path.exists()).is_false();
+    }
+
+    #[test]
+    fn unrecognized_setting_warnings_is_empty_when_nothing_is_stored() {
+        let home = tempfile::tempdir().unwrap();
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = rover_for_staging(home_path);
+
+        let warnings = rover.unrecognized_setting_warnings(&rover.get_profile_opt());
+
+        assert_that!(warnings).is_empty();
+    }
+
+    #[test]
+    fn unrecognized_setting_warnings_is_empty_for_only_recognized_settings() {
+        let home = config_home_with_setting(
+            "staging",
+            "APOLLO_REGISTRY_URL",
+            "https://registry.example.com",
+        );
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = rover_for_staging(home_path);
+
+        let warnings = rover.unrecognized_setting_warnings(&rover.get_profile_opt());
+
+        assert_that!(warnings).is_empty();
+    }
+
+    // FR38: a profile carrying a setting this version of Rover doesn't
+    // recognize gets one warning naming it, and is otherwise ignored.
+    #[test]
+    fn unrecognized_setting_warnings_names_an_unrecognized_key() {
+        let home = config_home_with_setting("staging", "APOLLO_FUTURE_SETTING", "anything");
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = rover_for_staging(home_path);
+
+        let warnings = rover.unrecognized_setting_warnings(&rover.get_profile_opt());
+
+        assert_that!(warnings).is_equal_to(vec![
+            "Warning: profile `staging` sets `APOLLO_FUTURE_SETTING`, which this version of \
+            Rover doesn't recognize. It will be ignored."
+                .to_string(),
+        ]);
+    }
+
+    #[test]
+    fn unrecognized_setting_warnings_ignores_recognized_settings_alongside_an_unrecognized_one() {
+        let home = config_home_with_setting(
+            "staging",
+            "APOLLO_REGISTRY_URL",
+            "https://registry.example.com",
+        );
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let houston_config = houston::Config::new(Some(&home_path), None).unwrap();
+        houston::Profile::new("staging", &houston_config)
+            .set_setting("APOLLO_FUTURE_SETTING", "anything")
+            .unwrap();
+        let rover = rover_for_staging(home_path);
+
+        let warnings = rover.unrecognized_setting_warnings(&rover.get_profile_opt());
+
+        assert_that!(warnings).is_equal_to(vec![
+            "Warning: profile `staging` sets `APOLLO_FUTURE_SETTING`, which this version of \
+            Rover doesn't recognize. It will be ignored."
+                .to_string(),
+        ]);
+    }
+
+    // FR69 only allows the lowercase alias in the project file - a
+    // lowercase-spelled key stored in a profile is a different, unrecognized
+    // name at this tier, not the canonical setting it resembles.
+    #[test]
+    fn unrecognized_setting_warnings_names_a_lowercase_spelled_key() {
+        let home = config_home_with_setting("staging", "apollo_registry_url", "anything");
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = rover_for_staging(home_path);
+
+        let warnings = rover.unrecognized_setting_warnings(&rover.get_profile_opt());
+
+        assert_that!(warnings).is_equal_to(vec![
+            "Warning: profile `staging` sets `apollo_registry_url`, which this version of \
+            Rover doesn't recognize. It will be ignored."
+                .to_string(),
+        ]);
     }
 
     #[test]

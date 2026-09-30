@@ -56,6 +56,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   A one-line `Note:` to stderr when a profile sets `APOLLO_REGISTRY_URL`/`APOLLO_TELEMETRY_URL` away from their defaults, or when an environment variable silently overrides one of `APOLLO_REGISTRY_URL`/`APOLLO_TELEMETRY_URL`/`APOLLO_TELEMETRY_DISABLED` on an explicitly selected profile (`--profile <name>`). At most one notice per setting per process; suppress all of them with the new `--no-config-notices` flag or `APOLLO_ROVER_NO_CONFIG_NOTICES` environment variable (neither a profile nor a project file can suppress them). Notices never appear in `--format json` output and never affect the exit code.
 
+- **A profile setting this version of Rover doesn't recognize now warns instead of being silently skipped - @dotdat**
+
+  For example, one written by a newer Rover version, or a typo. Rover warns once on stderr and otherwise ignores it, rather than silently doing nothing - so a config directory shared across Rover versions doesn't break the older one.
+
 - **`rover dev` gains `--router-version`/`--composition-version`; `rover template` gains `--templates-api` - @dotdat**
 
   `--router-version`/`APOLLO_ROVER_DEV_ROUTER_VERSION` and `--composition-version`/`APOLLO_ROVER_DEV_COMPOSITION_VERSION` are scoped to `rover dev`, matching the existing `--mcp-version` pairing; `--federation-version` still takes precedence over `--composition-version`, as it did over the env var before. `--templates-api`/`APOLLO_TEMPLATES_API` is scoped to `rover template` (`rover init` doesn't use the templates API - it fetches templates from GitHub - so it doesn't get this flag). All three were previously env-var-only.
