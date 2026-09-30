@@ -1788,7 +1788,7 @@ mod tests {
             .expect_err("expected an invalid stored graph ref to fail the command");
 
         assert_that!(error.to_string()).is_equal_to(
-            "error[E053]: `APOLLO_GRAPH_REF` in profile `staging` is set to `not a graph ref!`, \
+            "error[E054]: `APOLLO_GRAPH_REF` in profile `staging` is set to `not a graph ref!`, \
             which isn't a valid graph ref. Graph refs must be in the format `<NAME>` or \
             `<NAME>@<VARIANT>`, where `<NAME>` can only contain letters, numbers, or the \
             characters `-` or `_`, and must be 64 characters or less; `<VARIANT>` must be 64 \
@@ -1796,7 +1796,7 @@ mod tests {
             staging` to correct it.\n"
                 .to_string(),
         );
-        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E053));
+        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
     }
 
     #[tokio::test]
