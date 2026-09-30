@@ -305,9 +305,12 @@ mod tests {
             .validate_arguments()
             .expect_err("expected a missing --graph-id to be rejected");
 
-        assert_that!(error.to_string()).is_equal_to(
-            "error: --graph-id is required when creating a client-credentials pair\n".to_string(),
-        );
+        // `.contains`, not exact equality: `RoverError`'s `Display` formats the underlying
+        // error with `{:?}`, and `anyhow`'s `Debug` appends a "Stack backtrace:" section
+        // whenever `RUST_BACKTRACE` is set (as CI's `mise run test` does) - matches the
+        // established pattern for this error type elsewhere (e.g. `auth::logout`'s tests).
+        assert_that!(error.to_string())
+            .contains("--graph-id is required when creating a client-credentials pair");
     }
 
     #[test]
@@ -321,9 +324,8 @@ mod tests {
             .validate_arguments()
             .expect_err("expected --subgraph-config to be rejected for client-credentials");
 
-        assert_that!(error.to_string()).is_equal_to(
-            "error: --subgraph-config isn't accepted with `client-credentials`\n".to_string(),
-        );
+        assert_that!(error.to_string())
+            .contains("--subgraph-config isn't accepted with `client-credentials`");
     }
 
     #[test]
@@ -337,9 +339,8 @@ mod tests {
             .validate_arguments()
             .expect_err("expected --graph-id to be rejected for a non-pair type");
 
-        assert_that!(error.to_string()).is_equal_to(
-            "error: --graph-id is only accepted with `client-credentials`\n".to_string(),
-        );
+        assert_that!(error.to_string())
+            .contains("--graph-id is only accepted with `client-credentials`");
     }
 
     #[test]
@@ -353,10 +354,8 @@ mod tests {
             .validate_arguments()
             .expect_err("expected --secret-lifetime-days to be rejected for a non-pair type");
 
-        assert_that!(error.to_string()).is_equal_to(
-            "error: --secret-lifetime-days is only accepted with `client-credentials`\n"
-                .to_string(),
-        );
+        assert_that!(error.to_string())
+            .contains("--secret-lifetime-days is only accepted with `client-credentials`");
     }
 
     #[test]
