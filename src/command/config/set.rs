@@ -117,8 +117,10 @@ mod tests {
         )
         .is_equal_to(Some("https://registry.staging.example.com".to_string()));
         let text = temp_env::with_var("NO_COLOR", Some("1"), || output.get_stdout().unwrap());
-        assert_that!(text.unwrap()).contains(
-            "Set `APOLLO_REGISTRY_URL` to `https://registry.staging.example.com` in profile `staging`",
+        assert_that!(text.unwrap()).is_equal_to(
+            "Set `APOLLO_REGISTRY_URL` to `https://registry.staging.example.com` in profile \
+            `staging`."
+                .to_string(),
         );
     }
 
@@ -147,7 +149,11 @@ mod tests {
             .run(config.clone(), &profile_opt("staging"))
             .expect_err("expected an invalid URL to be rejected");
 
-        assert_that!(error.to_string()).contains("isn't a valid URL");
+        assert_that!(error.to_string()).is_equal_to(
+            "error[E054]: `registry.example.com` isn't a valid URL. URLs must include a scheme, \
+            for example `https://example.com`.\n"
+                .to_string(),
+        );
         assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
         assert_that!(
             Profile::new("staging", &config)
@@ -166,7 +172,12 @@ mod tests {
         let error = Set::try_parse_from(["config set", "APOLLO_NOT_A_SETTING", "anything"])
             .expect_err("expected an unrecognized setting name to be rejected");
 
-        assert_that!(error.to_string()).contains("isn't a Rover setting");
+        assert_that!(error.to_string()).is_equal_to(
+            "error: invalid value 'APOLLO_NOT_A_SETTING' for '<SETTING>': \
+            `APOLLO_NOT_A_SETTING` isn't a Rover setting. Run `rover config show` to list the \
+            settings Rover recognizes.\n\nFor more information, try '--help'.\n"
+                .to_string(),
+        );
     }
 
     #[test]
@@ -178,7 +189,12 @@ mod tests {
         ])
         .expect_err("expected the lowercase alias to be rejected here");
 
-        assert_that!(error.to_string()).contains("APOLLO_REGISTRY_URL");
-        assert_that!(error.to_string()).contains(".rover/rover.yaml");
+        assert_that!(error.to_string()).is_equal_to(
+            "error: invalid value 'apollo_registry_url' for '<SETTING>': \
+            `apollo_registry_url` isn't a Rover setting name. Settings are named as their \
+            environment variables are, so use `APOLLO_REGISTRY_URL`. The lowercase spelling is \
+            accepted in `.rover/rover.yaml` only.\n\nFor more information, try '--help'.\n"
+                .to_string(),
+        );
     }
 }

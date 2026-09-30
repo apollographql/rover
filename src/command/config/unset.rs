@@ -115,7 +115,7 @@ mod tests {
         assert_that!(profile.get_setting("APOLLO_REGISTRY_URL").unwrap()).is_none();
         let text = temp_env::with_var("NO_COLOR", Some("1"), || output.get_stdout().unwrap());
         assert_that!(text.unwrap())
-            .contains("Removed `APOLLO_REGISTRY_URL` from profile `staging`");
+            .is_equal_to("Removed `APOLLO_REGISTRY_URL` from profile `staging`.".to_string());
     }
 
     // FR46: unsetting an absent key is a no-op that says so and exits 0,
@@ -131,8 +131,9 @@ mod tests {
 
         assert_that!(output.exit_code()).is_equal_to(0);
         let text = temp_env::with_var("NO_COLOR", Some("1"), || output.get_stdout().unwrap());
-        assert_that!(text.unwrap())
-            .contains("`APOLLO_REGISTRY_URL` isn't set in profile `staging`. Nothing to remove.");
+        assert_that!(text.unwrap()).is_equal_to(
+            "`APOLLO_REGISTRY_URL` isn't set in profile `staging`. Nothing to remove.".to_string(),
+        );
     }
 
     // `setting`'s clap `value_parser` (`SettingName::from_str`) rejects this before `Unset`
@@ -144,6 +145,11 @@ mod tests {
         let error = Unset::try_parse_from(["config unset", "APOLLO_NOT_A_SETTING"])
             .expect_err("expected an unrecognized setting name to be rejected");
 
-        assert_that!(error.to_string()).contains("isn't a Rover setting");
+        assert_that!(error.to_string()).is_equal_to(
+            "error: invalid value 'APOLLO_NOT_A_SETTING' for '<SETTING>': \
+            `APOLLO_NOT_A_SETTING` isn't a Rover setting. Run `rover config show` to list the \
+            settings Rover recognizes.\n\nFor more information, try '--help'.\n"
+                .to_string(),
+        );
     }
 }
