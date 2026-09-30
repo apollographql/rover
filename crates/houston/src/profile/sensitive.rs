@@ -80,21 +80,6 @@ impl Sensitive {
         )?)
     }
 
-    /// Whether *any* credential is stored for `profile_name`, in either the
-    /// secret store or the legacy plaintext file - without loading,
-    /// validating, or migrating it. Used to tell "this profile genuinely has
-    /// no credential" (spec.md FR37) apart from other load failures.
-    pub(crate) fn exists(profile_name: &str, config: &Config) -> Result<bool, HoustonProblem> {
-        let store = Sensitive::store(config)?;
-        if store
-            .read::<Sensitive>(&Sensitive::key(profile_name))?
-            .is_some()
-        {
-            return Ok(true);
-        }
-        Ok(Sensitive::legacy_path(profile_name, config).exists())
-    }
-
     /// Saves a credential to the OS keychain (or its secure file-based fallback),
     /// keyed by profile name.
     pub fn save(&self, profile_name: &str, config: &Config) -> Result<(), HoustonProblem> {
@@ -126,6 +111,13 @@ impl Sensitive {
         }
 
         let legacy_path = Sensitive::legacy_path(profile_name, config);
+        if !legacy_path.exists() {
+            // Nothing in the store, nothing on disk either - a single read
+            // (rather than a separate `exists` pre-check plus this one) is
+            // enough to tell "genuinely no credential" (spec.md FR37) apart
+            // from every other load failure below.
+            return Err(HoustonProblem::NoCredential(profile_name.to_string()));
+        }
         let data = Fs::read_file(&legacy_path)?;
         tracing::debug!(path = ?legacy_path, data_len = ?data.len());
         let sensitive: Self = toml::from_str(&data)?;

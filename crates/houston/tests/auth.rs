@@ -121,6 +121,28 @@ fn it_can_set_and_get_an_oauth_session() {
         .is_equal_to(config::OauthGrantType::DeviceCode);
 }
 
+// FR37, exercised through the same path `rover auth logout`/`whoami` use
+// (`get_oauth_session`/`oauth_grant_type`), not just `get_credential`
+// directly - confirms `Sensitive::load`'s single-read `NoCredential` short
+// circuit (replacing the removed `Sensitive::exists` pre-check) still reads
+// sensibly from these call sites, not just from `get_credential`.
+#[test]
+#[serial]
+fn it_names_a_settings_only_profile_with_no_credential_from_get_oauth_session() {
+    let config = get_config(None);
+    let profile = "settings-only-oauth-session";
+    let profile_handle = config::Profile::new(profile, &config);
+    profile_handle
+        .set_setting("APOLLO_REGISTRY_URL", "https://registry.example.com")
+        .expect("storing a setting failed");
+
+    let error = profile_handle
+        .get_oauth_session()
+        .expect_err("expected a settings-only profile to have no oauth session");
+
+    assert!(matches!(error, config::HoustonProblem::NoCredential(_)));
+}
+
 #[test]
 #[serial]
 fn it_returns_no_oauth_session_for_a_legacy_api_key_profile() {

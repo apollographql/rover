@@ -215,12 +215,8 @@ impl Profile {
                 // A known profile (it has an index directory - e.g. from
                 // `rover config set`) with no credential in either the
                 // secret store or the legacy file gets its own message
-                // (FR37) instead of `Profile::load`'s generic load failure.
-                if Profile::dir(&self.name, &self.config).exists()
-                    && !Sensitive::exists(&self.name, &self.config)?
-                {
-                    return Err(HoustonProblem::NoCredential(self.name.clone()));
-                }
+                // (FR37, via `Sensitive::load`) instead of a generic load
+                // failure.
                 let opts = LoadOpts { sensitive: true };
                 let sensitive = self.load(opts)?;
                 match sensitive {
