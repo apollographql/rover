@@ -1,12 +1,16 @@
-// This catalogue is a foundation layer: nothing in the CLI wires it up yet
-// (that lands with the settings-resolution and `rover config show`/`set`/
-// `unset` slices). Until then its `pub(crate)` items have no in-crate
-// caller, which `dead_code` can't tell apart from genuinely unused code -
-// remove this once a consumer lands.
+// The registry/telemetry/OAuth-endpoint group (ROVER-451 Part A slice one)
+// is already wired up. This slice's own additions - checks timeout,
+// download host, templates API, graph ref - are a foundation layer: nothing
+// in the CLI resolves them yet (that lands with this slice's own
+// settings-resolution and `config show`/`set`/`unset` wiring). Until then
+// their `pub(crate)` items have no in-crate caller, which `dead_code` can't
+// tell apart from genuinely unused code - remove this once every variant
+// added here has a consumer.
 #![allow(dead_code)]
 
 use std::{fmt, str::FromStr};
 
+use rover_studio::types::GraphRef;
 use serde::{Serialize, Serializer};
 use url::Url;
 
@@ -23,26 +27,35 @@ use super::oauth::{
 // lives in exactly one place.
 const DEFAULT_REGISTRY_URL: &str = "https://api.apollographql.com/graphql";
 const DEFAULT_TELEMETRY_URL: &str = "https://rover.apollo.dev/telemetry";
+const DEFAULT_CHECKS_TIMEOUT_SECONDS: &str = "300";
+const DEFAULT_DOWNLOAD_HOST: &str = "https://rover.apollo.dev";
+const DEFAULT_TEMPLATES_API: &str = "https://rover.apollo.dev/templates";
 
 /// This slice's subset of the full settings catalogue (spec.md §3.1/FR1):
-/// the registry/telemetry/OAuth-endpoint group that ROVER-451 Part A's first
-/// slice covers. Every setting here is profile-eligible. The OAuth endpoints
-/// only exist when the `oauth` feature is compiled in - the whole
-/// `rover auth login` machinery they configure is gated the same way, so a
-/// stored value for one would otherwise have nothing to affect.
+/// the registry/telemetry/OAuth-endpoint group ROVER-451 Part A's first
+/// slice covers, plus the checks-timeout/download-host/templates-api/graph-ref
+/// group its second slice adds. Every setting here is profile-eligible. The
+/// OAuth endpoints only exist when the `oauth` feature is compiled in - the
+/// whole `rover auth login` machinery they configure is gated the same way,
+/// so a stored value for one would otherwise have nothing to affect.
 ///
-/// A setting from the full catalogue that isn't a variant here (VCS context,
-/// graph ref, checks timeout, download host, templates API) isn't
-/// unsupported forever - it's simply out of scope for this slice, per the
-/// PRD's delivery plan. `SettingName::from_str` can't yet distinguish "known
-/// to Rover but not profile-eligible" (FR42's first required-text example)
-/// from "not a Rover setting at all" for one of those - that distinction
-/// needs the full catalogue and is deferred to the slice that adds it.
+/// A setting from the full catalogue that isn't a variant here (VCS context)
+/// isn't unsupported forever - it's simply out of scope for this slice, per
+/// the PRD's delivery plan (VCS context is additionally never profile- or
+/// project-eligible at all, per spec FR5). `SettingName::from_str` can't yet
+/// distinguish "known to Rover but not profile-eligible" (FR42's first
+/// required-text example) from "not a Rover setting at all" for one of
+/// those - that distinction needs the full catalogue and is deferred to the
+/// slice that adds it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SettingName {
     RegistryUrl,
     TelemetryUrl,
     TelemetryDisabled,
+    ChecksTimeoutSeconds,
+    DownloadHost,
+    TemplatesApi,
+    GraphRef,
     #[cfg(feature = "oauth")]
     OauthAuthorizationUrl,
     #[cfg(feature = "oauth")]
@@ -73,6 +86,14 @@ pub(crate) enum SettingType {
     Bool,
     /// An opaque string with no further syntactic constraint.
     String,
+    /// A non-negative whole number of seconds.
+    WholeSeconds,
+    /// A GraphOS graph ref (`<NAME>` or `<NAME>@<VARIANT>`), validated the
+    /// same way the `GRAPH_REF` positional argument is
+    /// (`rover_studio::types::GraphRef`) - this setting only ever drives
+    /// router-feature enablement (FR6), never schema retrieval, so it's
+    /// otherwise unrelated to that argument.
+    GraphRef,
 }
 
 impl SettingName {
@@ -84,6 +105,10 @@ impl SettingName {
             SettingName::RegistryUrl,
             SettingName::TelemetryUrl,
             SettingName::TelemetryDisabled,
+            SettingName::ChecksTimeoutSeconds,
+            SettingName::DownloadHost,
+            SettingName::TemplatesApi,
+            SettingName::GraphRef,
         ];
         #[cfg(feature = "oauth")]
         all.extend([
@@ -105,6 +130,10 @@ impl SettingName {
             SettingName::RegistryUrl => "APOLLO_REGISTRY_URL",
             SettingName::TelemetryUrl => "APOLLO_TELEMETRY_URL",
             SettingName::TelemetryDisabled => "APOLLO_TELEMETRY_DISABLED",
+            SettingName::ChecksTimeoutSeconds => "APOLLO_CHECKS_TIMEOUT_SECONDS",
+            SettingName::DownloadHost => "APOLLO_ROVER_DOWNLOAD_HOST",
+            SettingName::TemplatesApi => "APOLLO_TEMPLATES_API",
+            SettingName::GraphRef => "APOLLO_GRAPH_REF",
             #[cfg(feature = "oauth")]
             SettingName::OauthAuthorizationUrl => "APOLLO_OAUTH_AUTHORIZATION_URL",
             #[cfg(feature = "oauth")]
@@ -123,8 +152,13 @@ impl SettingName {
     /// The setting's syntactic type.
     pub(crate) const fn setting_type(self) -> SettingType {
         match self {
-            SettingName::RegistryUrl | SettingName::TelemetryUrl => SettingType::Url,
+            SettingName::RegistryUrl
+            | SettingName::TelemetryUrl
+            | SettingName::DownloadHost
+            | SettingName::TemplatesApi => SettingType::Url,
             SettingName::TelemetryDisabled => SettingType::Bool,
+            SettingName::ChecksTimeoutSeconds => SettingType::WholeSeconds,
+            SettingName::GraphRef => SettingType::GraphRef,
             #[cfg(feature = "oauth")]
             SettingName::OauthAuthorizationUrl
             | SettingName::OauthTokenUrl
@@ -141,8 +175,13 @@ impl SettingName {
     /// is what gates the case-(b) override notice (FR59) once notices ship.
     pub(crate) const fn is_network_destination(self) -> bool {
         match self {
-            SettingName::RegistryUrl | SettingName::TelemetryUrl => true,
-            SettingName::TelemetryDisabled => false,
+            SettingName::RegistryUrl
+            | SettingName::TelemetryUrl
+            | SettingName::DownloadHost
+            | SettingName::TemplatesApi => true,
+            SettingName::TelemetryDisabled
+            | SettingName::ChecksTimeoutSeconds
+            | SettingName::GraphRef => false,
             #[cfg(feature = "oauth")]
             SettingName::OauthAuthorizationUrl
             | SettingName::OauthTokenUrl
@@ -156,26 +195,35 @@ impl SettingName {
 
     /// The setting's built-in default, spelled the way its environment
     /// variable would spell it (FR54) - this is what `rover config show`
-    /// reports as `value` when nothing overrides it.
-    pub(crate) fn builtin_default(self) -> String {
+    /// reports as `value` when nothing overrides it. `None` means the
+    /// setting has no default at all (spec.md FR1: `APOLLO_GRAPH_REF`'s
+    /// default is "none") - `resolve_setting`'s fallback and `config show`'s
+    /// builtin-tier reporting both treat that the same way an absent
+    /// credential is already reported, rather than falling back to an empty
+    /// string.
+    pub(crate) fn builtin_default(self) -> Option<String> {
         match self {
-            SettingName::RegistryUrl => DEFAULT_REGISTRY_URL.to_string(),
-            SettingName::TelemetryUrl => DEFAULT_TELEMETRY_URL.to_string(),
-            SettingName::TelemetryDisabled => "false".to_string(),
+            SettingName::RegistryUrl => Some(DEFAULT_REGISTRY_URL.to_string()),
+            SettingName::TelemetryUrl => Some(DEFAULT_TELEMETRY_URL.to_string()),
+            SettingName::TelemetryDisabled => Some("false".to_string()),
+            SettingName::ChecksTimeoutSeconds => Some(DEFAULT_CHECKS_TIMEOUT_SECONDS.to_string()),
+            SettingName::DownloadHost => Some(DEFAULT_DOWNLOAD_HOST.to_string()),
+            SettingName::TemplatesApi => Some(DEFAULT_TEMPLATES_API.to_string()),
+            SettingName::GraphRef => None,
             #[cfg(feature = "oauth")]
-            SettingName::OauthAuthorizationUrl => DEFAULT_AUTHORIZATION_URL.to_string(),
+            SettingName::OauthAuthorizationUrl => Some(DEFAULT_AUTHORIZATION_URL.to_string()),
             #[cfg(feature = "oauth")]
-            SettingName::OauthTokenUrl => DEFAULT_TOKEN_URL.to_string(),
+            SettingName::OauthTokenUrl => Some(DEFAULT_TOKEN_URL.to_string()),
             #[cfg(feature = "oauth")]
             SettingName::OauthDeviceAuthorizationUrl => {
-                DEFAULT_DEVICE_AUTHORIZATION_URL.to_string()
+                Some(DEFAULT_DEVICE_AUTHORIZATION_URL.to_string())
             }
             #[cfg(feature = "oauth")]
-            SettingName::OauthRevocationUrl => DEFAULT_REVOCATION_URL.to_string(),
+            SettingName::OauthRevocationUrl => Some(DEFAULT_REVOCATION_URL.to_string()),
             #[cfg(feature = "oauth")]
-            SettingName::OauthWhoamiUrl => DEFAULT_WHOAMI_URL.to_string(),
+            SettingName::OauthWhoamiUrl => Some(DEFAULT_WHOAMI_URL.to_string()),
             #[cfg(feature = "oauth")]
-            SettingName::OauthClientId => DEFAULT_CLIENT_ID.to_string(),
+            SettingName::OauthClientId => Some(DEFAULT_CLIENT_ID.to_string()),
         }
     }
 }
@@ -259,6 +307,14 @@ pub(crate) enum SettingValueError {
     UnsupportedUrlScheme { input: String },
     #[error("`{input}` isn't a valid boolean. Use `true` or `false`.")]
     InvalidBool { input: String },
+    #[error("`{input}` isn't a whole number of seconds.")]
+    InvalidWholeSeconds { input: String },
+    #[error(
+        "`{input}` isn't a valid graph ref. Graph refs must be in the format `<NAME>` or \
+        `<NAME>@<VARIANT>`, where `<NAME>` can only contain letters, numbers, or the characters \
+        `-` or `_`, and must be 64 characters or less; `<VARIANT>` must be 64 characters or less."
+    )]
+    InvalidGraphRef { input: String },
 }
 
 impl SettingType {
@@ -292,6 +348,14 @@ impl SettingType {
                 }
             }
             SettingType::String => Ok(value),
+            SettingType::WholeSeconds => match value.parse::<u64>() {
+                Ok(_) => Ok(value),
+                Err(_) => Err(SettingValueError::InvalidWholeSeconds { input: value }),
+            },
+            SettingType::GraphRef => match GraphRef::from_str(&value) {
+                Ok(_) => Ok(value),
+                Err(_) => Err(SettingValueError::InvalidGraphRef { input: value }),
+            },
         }
     }
 }
@@ -452,6 +516,10 @@ mod tests {
         assert_that!(SettingName::RegistryUrl.is_network_destination()).is_true();
         assert_that!(SettingName::TelemetryUrl.is_network_destination()).is_true();
         assert_that!(SettingName::TelemetryDisabled.is_network_destination()).is_false();
+        assert_that!(SettingName::DownloadHost.is_network_destination()).is_true();
+        assert_that!(SettingName::TemplatesApi.is_network_destination()).is_true();
+        assert_that!(SettingName::ChecksTimeoutSeconds.is_network_destination()).is_false();
+        assert_that!(SettingName::GraphRef.is_network_destination()).is_false();
     }
 
     #[cfg(feature = "oauth")]
@@ -485,9 +553,75 @@ mod tests {
     fn every_builtin_default_is_valid_for_its_own_type() {
         for name in SettingName::all() {
             let description = format!("{name:?}");
-            assert_that!(name.setting_type().validate(name.builtin_default()))
+            let Some(default) = name.builtin_default() else {
+                continue;
+            };
+            assert_that!(name.setting_type().validate(default.clone()))
                 .named(&description)
-                .is_ok_containing(name.builtin_default());
+                .is_ok_containing(default);
         }
+    }
+
+    #[test]
+    fn graph_ref_has_no_builtin_default() {
+        assert_that!(SettingName::GraphRef.builtin_default()).is_none();
+    }
+
+    #[rstest]
+    #[case::whole_number("300", true)]
+    #[case::zero("0", true)]
+    #[case::negative("-1", false)]
+    #[case::decimal("1.5", false)]
+    #[case::empty("", false)]
+    #[case::garbage("soon", false)]
+    fn whole_seconds_validation(#[case] value: &str, #[case] valid: bool) {
+        assert_that!(
+            SettingType::WholeSeconds
+                .validate(value.to_string())
+                .is_ok()
+        )
+        .is_equal_to(valid);
+    }
+
+    #[test]
+    fn invalid_whole_seconds_message_names_the_input() {
+        let error = SettingType::WholeSeconds
+            .validate("soon".to_string())
+            .unwrap_err();
+
+        assert_that!(error.to_string())
+            .is_equal_to("`soon` isn't a whole number of seconds.".to_string());
+    }
+
+    #[rstest]
+    #[case::name_only("my-graph", true)]
+    #[case::name_and_variant("my-graph@staging", true)]
+    #[case::empty("", false)]
+    #[case::invalid_characters("my graph!", false)]
+    fn graph_ref_validation(#[case] value: &str, #[case] valid: bool) {
+        assert_that!(SettingType::GraphRef.validate(value.to_string()).is_ok()).is_equal_to(valid);
+    }
+
+    #[test]
+    fn a_valid_graph_ref_is_handed_back_unchanged() {
+        // Not normalized to `<NAME>@current` - matches `validate`'s doc
+        // comment on handing back the original spelling (FR54).
+        assert_that!(SettingType::GraphRef.validate("my-graph".to_string()))
+            .is_ok_containing("my-graph".to_string());
+    }
+
+    #[test]
+    fn invalid_graph_ref_message_names_the_input() {
+        let error = SettingType::GraphRef
+            .validate("my graph!".to_string())
+            .unwrap_err();
+
+        assert_that!(error.to_string()).is_equal_to(
+            "`my graph!` isn't a valid graph ref. Graph refs must be in the format `<NAME>` or \
+            `<NAME>@<VARIANT>`, where `<NAME>` can only contain letters, numbers, or the \
+            characters `-` or `_`, and must be 64 characters or less; `<VARIANT>` must be 64 \
+            characters or less."
+                .to_string(),
+        );
     }
 }

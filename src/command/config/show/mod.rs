@@ -125,7 +125,10 @@ fn resolve_string_setting(
 
     Ok(SettingReport {
         name: name.as_str(),
-        value: name.builtin_default(),
+        // A setting with no builtin default at all (only `APOLLO_GRAPH_REF`
+        // today) reports "none" here, the same way an absent credential is
+        // already reported elsewhere in this output.
+        value: name.builtin_default().unwrap_or_else(|| "none".to_string()),
         source: Source::Builtin,
         overridden: vec![],
     })
@@ -201,7 +204,7 @@ fn resolve_telemetry_disabled(
 
     Ok(SettingReport {
         name: name.as_str(),
-        value: name.builtin_default(),
+        value: "false".to_string(),
         source: Source::Builtin,
         overridden: vec![],
     })
@@ -327,7 +330,8 @@ mod tests {
             .iter()
             .find(|s| s.name == "APOLLO_REGISTRY_URL")
             .unwrap();
-        assert_that!(&registry.value).is_equal_to(SettingName::RegistryUrl.builtin_default());
+        assert_that!(&registry.value)
+            .is_equal_to(SettingName::RegistryUrl.builtin_default().unwrap());
     }
 
     #[test]
@@ -886,7 +890,8 @@ mod tests {
             .find(|s| s.name == "APOLLO_TELEMETRY_URL")
             .unwrap();
         assert_that!(telemetry_url.source).is_equal_to(Source::Builtin);
-        assert_that!(&telemetry_url.value).is_equal_to(SettingName::TelemetryUrl.builtin_default());
+        assert_that!(&telemetry_url.value)
+            .is_equal_to(SettingName::TelemetryUrl.builtin_default().unwrap());
     }
 
     // Same as above, for APOLLO_TELEMETRY_DISABLED
@@ -919,6 +924,6 @@ mod tests {
             .unwrap();
         assert_that!(telemetry_disabled.source).is_equal_to(Source::Builtin);
         assert_that!(&telemetry_disabled.value)
-            .is_equal_to(SettingName::TelemetryDisabled.builtin_default());
+            .is_equal_to(SettingName::TelemetryDisabled.builtin_default().unwrap());
     }
 }
