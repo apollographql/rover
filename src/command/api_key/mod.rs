@@ -58,13 +58,23 @@ impl ApiKeys {
 pub enum ApiKeyType {
     Operator,
     Subgraph,
+    /// A pair of credentials for the OAuth 2.0 client-credentials grant
+    // A fully separate GraphQL mutation (`createOAuthClient`) from the other two, which share
+    // `createApiKey`/`GraphOsKeyType` - see `into_query_enum`'s own doc comment.
+    ClientCredentials,
 }
 
 impl ApiKeyType {
-    const fn into_query_enum(self) -> GraphOsKeyType {
+    /// Only ever called for [`Self::Operator`]/[`Self::Subgraph`] - `ClientCredentials` has its
+    /// own create path (`create::Create::run` branches on `key_type` before this is reached) and
+    /// no matching [`GraphOsKeyType`] variant, since it isn't a `createApiKey` key type at all.
+    fn into_query_enum(self) -> GraphOsKeyType {
         match self {
             Self::Operator => GraphOsKeyType::OPERATOR,
             Self::Subgraph => GraphOsKeyType::SUBGRAPH,
+            Self::ClientCredentials => {
+                unreachable!("client-credentials never reaches the legacy key-type conversion")
+            }
         }
     }
 }
@@ -74,6 +84,7 @@ impl Display for ApiKeyType {
         match self {
             ApiKeyType::Operator => write!(f, "Operator"),
             ApiKeyType::Subgraph => write!(f, "Subgraph"),
+            ApiKeyType::ClientCredentials => write!(f, "ClientCredentials"),
         }
     }
 }
