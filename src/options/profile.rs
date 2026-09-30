@@ -25,10 +25,7 @@ pub struct ProfileOpt {
 ///
 /// Distinguishing the two (rather than collapsing both into "the profile
 /// named `default`") is what lets `--profile default` behave differently
-/// from omitting the flag: it's the `explicit_profile`/`default_profile`
-/// distinction `rover config show` reports, and it's the condition the
-/// override notice (an environment variable overriding an *explicitly
-/// selected* profile) checks.
+/// from omitting the flag.
 #[cfg_attr(test, derive(Default))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ProfileSelection {
