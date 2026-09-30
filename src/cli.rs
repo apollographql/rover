@@ -578,13 +578,11 @@ impl Rover {
         resolved
     }
 
-    /// `APOLLO_TELEMETRY_DISABLED` doesn't fit `config_override_notice`'s
-    /// shape: its flag is a bare bool and its environment variable is
-    /// presence-only (FR21), so there's no "value" to compare for case (a),
-    /// and it isn't a network-destination setting, so case (b) never
-    /// applies to it at all. See `config_override_notice` for the caller
-    /// contract (must print whatever `Some` this returns) and the FR60
-    /// caveat.
+    /// `APOLLO_TELEMETRY_DISABLED` is handled separately from
+    /// `config_override_notice` because the env var is presence-only - any
+    /// value set means disabled. Returns a notice message if the env var
+    /// overrides an explicit profile's setting, `None` otherwise. Caller
+    /// must print whatever `Some` this returns.
     fn telemetry_disabled_override_notice(&self) -> RoverResult<Option<String>> {
         if self.config_notices_suppressed() || self.telemetry_disabled {
             return Ok(None);
@@ -601,7 +599,7 @@ impl Rover {
         if !profile.selection.is_explicit() {
             return Ok(None);
         }
-        let houston_config = self.get_rover_config()?;
+        let houston_config = self.get_rover_config_read_only()?;
         let profile_raw =
             Profile::new(&profile.profile_name, &houston_config).get_setting(name.as_str())?;
         // The env var disables telemetry on any value it's set to, so it
@@ -699,17 +697,18 @@ impl Rover {
         Ok(Some(value))
     }
 
-    /// Decides the spec.md §3.9 override notice body for `name`, gated so
-    /// it's decided (and, if the caller prints it, effectively fires) at
-    /// most once per setting per process (FR61) - callers must print
-    /// whatever `Some` this returns, since the "already decided" gate below
-    /// has already been consumed by the time it returns. Returns `Ok(None)`
-    /// when suppressed (FR63) or when neither notice case applies.
-    /// `explicit` is the pre-profile flag/env value (`None` means neither
-    /// supplied one); `raw_env` is the environment variable's own current
-    /// value, independent of which of flag/env clap actually used to
-    /// produce `explicit`; `resolved` is the setting's final effective
-    /// value.
+    /// Returns the notice message to print when `name`'s value comes from a
+    /// non-default source the user should know about, or `None` if no
+    /// notice applies. Fires at most once per setting per process (FR61) -
+    /// callers must print whatever `Some` this returns, since the once-only
+    /// gate is consumed before returning. Returns `Ok(None)` when suppressed
+    /// (FR63) too.
+    ///
+    /// - `explicit`: the flag/env value before profile resolution (`None` if
+    ///   neither supplied one)
+    /// - `raw_env`: the env var's raw value, independent of what clap
+    ///   resolved
+    /// - `resolved`: the setting's final effective value
     ///
     /// FR60 requires the notice to fire only when the invocation actually
     /// *uses* the setting - for a network-destination setting, only once a
@@ -740,10 +739,6 @@ impl Rover {
         if self.config_notices_suppressed() {
             return Ok(None);
         }
-        // Spent before `get_rover_config()?`/`get_setting()?` below can
-        // fail, so a failure on this call leaves `name` with no notice for
-        // the rest of the process. Acceptable today since each resolver runs
-        // about once per process, but worth knowing if that stops holding.
         if !self.mark_noticed(name) {
             return Ok(None);
         }
@@ -2033,6 +2028,40 @@ mod tests {
             profile `staging`."
                 .to_string(),
         );
+    }
+
+    // Regression test: this used to build its `Config` via `get_rover_config`,
+    // which creates the config home if it's missing. Since `is_telemetry_
+    // disabled` (and so this function) runs on every command via `Session::
+    // new`, that broke FR18/FR57's "config show creates nothing" guarantee
+    // for any command run against a fresh machine. `tempfile::tempdir()`
+    // (used by every other test here) creates the directory immediately,
+    // which would mask this - the path here is never actually created.
+    #[test]
+    fn telemetry_disabled_override_notice_creates_nothing_on_a_fresh_config_home() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let home_path = temp_dir.path().join("nonexistent");
+        let home_path = camino::Utf8Path::from_path(&home_path).unwrap();
+
+        with_notice_env_locked(&[], || {
+            let mut rover = Rover::parse_from([
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+                "config",
+                "list",
+            ]);
+            rover
+                .insert_env_var(RoverEnvKey::TelemetryDisabled, "1")
+                .unwrap();
+
+            rover.telemetry_disabled_override_notice()
+        })
+        .unwrap();
+
+        assert_that!(home_path.exists()).is_false();
     }
 
     // The env var forces `disabled` regardless of its own value, so it only
