@@ -1,9 +1,9 @@
 //! The error contract for plugin failures.
 //!
 //! Each class of plugin failure has its own variant of [`PluginFailure`]:
-//! resolution, download, installation, a withdrawn release, and a manifest
-//! or lockfile that can't be used so far, with the never-download and
-//! checksum classes to follow. Every variant has its own stable [`RoverErrorCode`] and a
+//! resolution, download, installation, a plugin that is missing while
+//! downloads are disabled, a withdrawn release, and a manifest or lockfile
+//! that can't be used so far, with the checksum class to follow. Every variant has its own stable [`RoverErrorCode`] and a
 //! [`PluginNextStep`] naming the plugin, or for a manifest or lockfile the
 //! file to change, and what to do about it. A [`PluginFailure`] anywhere in an error's cause
 //! chain decides that error's code and suggestion, so a caller that wraps one
@@ -84,6 +84,18 @@ pub enum PluginFailure {
         newest_in_major: Option<Version>,
     },
 
+    /// A plugin that is installed at no level, needed while a control forbids
+    /// downloading it. Raised before any network call: it is never a download
+    /// that was tried and failed.
+    DownloadsDisabled {
+        plugin: PluginName,
+        requested: VersionRequest,
+        /// Every directory the plugin was looked for in, in the order they
+        /// were searched.
+        searched: Vec<Utf8PathBuf>,
+        control: DownloadControl,
+    },
+
     /// A plugin manifest exists but cannot be used. It names no single
     /// plugin, even when one entry is what is wrong: the problem is the file,
     /// and fixing the file is the next step.
@@ -115,6 +127,42 @@ pub enum PluginFailure {
 #[derive(Debug, thiserror::Error)]
 #[error("not UTF-8 text")]
 pub(crate) struct NotUtf8(#[source] pub(crate) std::string::FromUtf8Error);
+
+/// What stopped Rover downloading a plugin, as the user spelled it.
+///
+/// `--no-download` guards an explicit `rover plugin install`, and
+/// `--skip-update` guards the commands that install plugins on the fly. The
+/// two are separate: neither implies the other.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum DownloadControl {
+    NoDownloadFlag,
+    NoDownloadEnvVar,
+    SkipUpdateFlag,
+    SkipUpdateEnvVar,
+}
+
+impl DownloadControl {
+    /// The flag or environment variable, as the user would type it.
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::NoDownloadFlag => "--no-download",
+            Self::NoDownloadEnvVar => "APOLLO_ROVER_NO_DOWNLOAD",
+            Self::SkipUpdateFlag => "--skip-update",
+            Self::SkipUpdateEnvVar => "APOLLO_ROVER_SKIP_UPDATE",
+        }
+    }
+}
+
+/// `dirs` as a sentence lists them: "`a`", "`a` or `b`", "`a`, `b`, or `c`".
+fn either(dirs: &[Utf8PathBuf]) -> String {
+    let quoted: Vec<String> = dirs.iter().map(|dir| format!("`{dir}`")).collect();
+    match quoted.as_slice() {
+        [] => String::new(),
+        [one] => one.clone(),
+        [first, second] => format!("{first} or {second}"),
+        [rest @ .., last] => format!("{}, or {last}", rest.join(", ")),
+    }
+}
 
 /// Why a manifest cannot be used.
 #[derive(Debug, Clone)]
@@ -183,6 +231,32 @@ impl fmt::Display for PluginFailure {
                 }
                 Ok(())
             }
+            Self::DownloadsDisabled {
+                plugin,
+                requested,
+                searched,
+                control,
+            } => {
+                match requested.exact() {
+                    Some(version) => write!(
+                        f,
+                        "Rover needs the `{plugin}` plugin v{version}, but it isn't installed"
+                    )?,
+                    None => {
+                        let range = requested
+                            .major()
+                            .map_or_else(String::new, |major| format!(" v{major}.x"));
+                        write!(
+                            f,
+                            "Rover needs a `{plugin}` plugin{range}, but none is installed"
+                        )?;
+                    }
+                }
+                if !searched.is_empty() {
+                    write!(f, " in {}", either(searched))?;
+                }
+                write!(f, " and downloads are disabled by `{}`.", control.name())
+            }
             Self::Manifest { path, problem } => match problem {
                 ManifestProblem::Unreadable(_) => write!(f, "Couldn't read the manifest `{path}`."),
                 ManifestProblem::Malformed(_) => write!(f, "`{path}` is not a valid manifest."),
@@ -246,6 +320,7 @@ impl Error for PluginFailure {
                 ..
             } => Some(&**source),
             Self::NoLongerServed { .. }
+            | Self::DownloadsDisabled { .. }
             | Self::LockfileDrift { .. }
             | Self::Manifest {
                 problem: ManifestProblem::UnsupportedInstallRoot,
@@ -270,6 +345,7 @@ impl PluginFailure {
             | Self::Download { plugin, .. }
             | Self::Installation { plugin, .. }
             | Self::NoLongerServed { plugin, .. }
+            | Self::DownloadsDisabled { plugin, .. }
             | Self::LockfileDrift { plugin, .. } => Some(*plugin),
             Self::Manifest { .. } | Self::Lockfile { .. } => None,
         }
@@ -283,7 +359,8 @@ impl PluginFailure {
         match self {
             Self::Resolution { requested, .. }
             | Self::Download { requested, .. }
-            | Self::Installation { requested, .. } => Some(requested.clone()),
+            | Self::Installation { requested, .. }
+            | Self::DownloadsDisabled { requested, .. } => Some(requested.clone()),
             Self::NoLongerServed { version, .. } => Some(VersionRequest::Exact(version.clone())),
             Self::LockfileDrift { declared, .. } => Some(declared.clone()),
             Self::Manifest { .. } | Self::Lockfile { .. } => None,
@@ -297,6 +374,7 @@ impl PluginFailure {
             Self::Download { .. } => RoverErrorCode::E049,
             Self::Installation { .. } => RoverErrorCode::E050,
             Self::NoLongerServed { .. } => RoverErrorCode::E051,
+            Self::DownloadsDisabled { .. } => RoverErrorCode::E058,
             Self::Manifest { .. } | Self::Lockfile { .. } | Self::LockfileDrift { .. } => {
                 RoverErrorCode::E052
             }
@@ -351,6 +429,16 @@ impl PluginFailure {
                     }
                 }
             }
+            Self::DownloadsDisabled {
+                plugin,
+                requested,
+                control,
+                ..
+            } => PluginNextStep::InstallAhead {
+                plugin: *plugin,
+                request: install_spelling(*plugin, requested),
+                control: *control,
+            },
             Self::LockfileDrift {
                 plugin, declared, ..
             } => PluginNextStep::UpdateLockfile {
@@ -509,6 +597,13 @@ pub enum PluginNextStep {
     MakeWritable {
         path: Utf8PathBuf,
     },
+    InstallAhead {
+        plugin: PluginName,
+        /// What to install, spelled as `rover plugin install` takes it, or
+        /// `None` when only an exact version will do.
+        request: Option<VersionRequest>,
+        control: DownloadControl,
+    },
     UpdateLockfile {
         plugin: PluginName,
         /// What to install, spelled as `rover plugin install` takes it, or
@@ -599,6 +694,36 @@ impl fmt::Display for PluginNextStep {
                 f,
                 "Make sure you can write to `{path}` and the directory holding it, then re-run the command."
             ),
+            Self::InstallAhead {
+                plugin,
+                request,
+                control,
+            } => {
+                let argument = request.as_ref().map_or_else(
+                    || format!("{plugin}@=<version>"),
+                    |request| format!("{plugin}@{request}"),
+                );
+                let off = match control {
+                    DownloadControl::NoDownloadFlag | DownloadControl::SkipUpdateFlag => {
+                        format!("without `{}`", control.name())
+                    }
+                    DownloadControl::NoDownloadEnvVar | DownloadControl::SkipUpdateEnvVar => {
+                        format!("with `{}` unset", control.name())
+                    }
+                };
+                match control {
+                    DownloadControl::NoDownloadFlag | DownloadControl::NoDownloadEnvVar => write!(
+                        f,
+                        "Run `rover plugin install {argument}` {off} to download it."
+                    ),
+                    // `--skip-update` doesn't guard an explicit install, so
+                    // installing ahead works even with it still set.
+                    DownloadControl::SkipUpdateFlag | DownloadControl::SkipUpdateEnvVar => write!(
+                        f,
+                        "Run `rover plugin install {argument}` to install it ahead of time, or re-run {off} to let Rover download it."
+                    ),
+                }
+            }
             Self::UpdateLockfile {
                 plugin,
                 request: Some(request),
@@ -706,6 +831,21 @@ mod tests {
             problem,
         }
     }
+
+    fn downloads_disabled(
+        requested: VersionRequest,
+        searched: &[&str],
+        control: DownloadControl,
+    ) -> PluginFailure {
+        PluginFailure::DownloadsDisabled {
+            plugin: PluginName::Supergraph,
+            requested,
+            searched: searched.iter().map(Utf8PathBuf::from).collect(),
+            control,
+        }
+    }
+
+    const BOTH_LEVELS: [&str; 2] = ["/work/app/.rover/bin", "/home/me/.rover/bin"];
 
     fn lockfile(problem: LockfileProblem) -> PluginFailure {
         PluginFailure::Lockfile {
@@ -857,6 +997,15 @@ mod tests {
         "error[E052]: `/work/app/.rover/plugin-versions.lock` was written by a newer version of Rover, in lockfile format version 2.\n        \
          Upgrade Rover to a version that reads `/work/app/.rover/plugin-versions.lock`, then re-run the command. This version won't read the file or overwrite it.\n"
     )]
+    #[case::downloads_disabled(
+        downloads_disabled(
+            VersionRequest::Exact(v("2.9.3")),
+            &BOTH_LEVELS,
+            DownloadControl::NoDownloadFlag,
+        ),
+        "error[E058]: Rover needs the `supergraph` plugin v2.9.3, but it isn't installed in `/work/app/.rover/bin` or `/home/me/.rover/bin` and downloads are disabled by `--no-download`.\n        \
+         Run `rover plugin install supergraph@=2.9.3` without `--no-download` to download it.\n"
+    )]
     fn each_failure_prints_its_code_message_cause_and_next_step(
         #[case] failure: PluginFailure,
         #[case] expected: &str,
@@ -926,6 +1075,17 @@ mod tests {
             "code": "E052",
         })
     )]
+    #[case::downloads_disabled(
+        downloads_disabled(
+            VersionRequest::Major(2),
+            &["/home/me/.rover/bin"],
+            DownloadControl::SkipUpdateFlag,
+        ),
+        serde_json::json!({
+            "message": "Rover needs a `supergraph` plugin v2.x, but none is installed in `/home/me/.rover/bin` and downloads are disabled by `--skip-update`.",
+            "code": "E058",
+        })
+    )]
     fn each_failure_is_reported_under_its_own_code_in_json(
         #[case] failure: PluginFailure,
         #[case] expected: serde_json::Value,
@@ -946,6 +1106,14 @@ mod tests {
         include_str!("../error/metadata/codes/E051.md")
     )]
     #[case::manifest(malformed_manifest(), include_str!("../error/metadata/codes/E052.md"))]
+    #[case::downloads_disabled(
+        downloads_disabled(
+            VersionRequest::Latest,
+            &BOTH_LEVELS,
+            DownloadControl::NoDownloadFlag,
+        ),
+        include_str!("../error/metadata/codes/E058.md")
+    )]
     fn every_code_is_explained(#[case] failure: PluginFailure, #[case] explanation: &str) {
         let code = failure.code();
 
@@ -1122,6 +1290,80 @@ mod tests {
         assert_that!(no_longer_served(origin, None).to_string()).is_equal_to(expected.to_string());
     }
 
+    #[rstest]
+    #[case::an_exact_version(
+        VersionRequest::Exact(v("2.9.3")),
+        "Rover needs the `supergraph` plugin v2.9.3, but it isn't installed"
+    )]
+    #[case::a_major(
+        VersionRequest::Major(2),
+        "Rover needs a `supergraph` plugin v2.x, but none is installed"
+    )]
+    #[case::latest(
+        VersionRequest::Latest,
+        "Rover needs a `supergraph` plugin, but none is installed"
+    )]
+    fn a_missing_plugin_names_the_version_it_needed(
+        #[case] requested: VersionRequest,
+        #[case] opening: &str,
+    ) {
+        let failure = downloads_disabled(
+            requested,
+            &["/home/me/.rover/bin"],
+            DownloadControl::NoDownloadFlag,
+        );
+
+        assert_that!(failure.to_string()).is_equal_to(format!(
+            "{opening} in `/home/me/.rover/bin` and downloads are disabled by `--no-download`."
+        ));
+    }
+
+    #[rstest]
+    #[case::one(&["/a/bin"], " in `/a/bin`")]
+    #[case::two(&["/a/bin", "/b/bin"], " in `/a/bin` or `/b/bin`")]
+    #[case::three(&["/a/bin", "/b/bin", "/c/bin"], " in `/a/bin`, `/b/bin`, or `/c/bin`")]
+    #[case::none(&[], "")]
+    fn a_missing_plugin_names_every_directory_searched(
+        #[case] searched: &[&str],
+        #[case] clause: &str,
+    ) {
+        let failure = downloads_disabled(
+            VersionRequest::Exact(v("2.9.3")),
+            searched,
+            DownloadControl::SkipUpdateFlag,
+        );
+
+        assert_that!(failure.to_string()).is_equal_to(format!(
+            "Rover needs the `supergraph` plugin v2.9.3, but it isn't installed{clause} and downloads are disabled by `--skip-update`."
+        ));
+    }
+
+    #[rstest]
+    #[case::no_download_flag(
+        DownloadControl::NoDownloadFlag,
+        "Run `rover plugin install supergraph@2` without `--no-download` to download it."
+    )]
+    #[case::no_download_env_var(
+        DownloadControl::NoDownloadEnvVar,
+        "Run `rover plugin install supergraph@2` with `APOLLO_ROVER_NO_DOWNLOAD` unset to download it."
+    )]
+    #[case::skip_update_flag(
+        DownloadControl::SkipUpdateFlag,
+        "Run `rover plugin install supergraph@2` to install it ahead of time, or re-run without `--skip-update` to let Rover download it."
+    )]
+    #[case::skip_update_env_var(
+        DownloadControl::SkipUpdateEnvVar,
+        "Run `rover plugin install supergraph@2` to install it ahead of time, or re-run with `APOLLO_ROVER_SKIP_UPDATE` unset to let Rover download it."
+    )]
+    fn a_missing_plugin_suggests_lifting_the_control_that_is_in_force(
+        #[case] control: DownloadControl,
+        #[case] expected: &str,
+    ) {
+        let step = downloads_disabled(VersionRequest::Latest, &BOTH_LEVELS, control).next_step();
+
+        assert_that!(step.to_string()).is_equal_to(expected.to_string());
+    }
+
     /// The suggested install must be one `rover plugin install` parses, and
     /// one that leaves the lockfile agreeing with the declaration.
     #[rstest]
@@ -1175,6 +1417,15 @@ mod tests {
         "=2.9.3"
     )]
     #[case::lockfile_drift(drift(VersionRequest::Major(2), None), PluginName::Router, "2")]
+    #[case::downloads_disabled(
+        downloads_disabled(
+            VersionRequest::Exact(v("2.9.3")),
+            &BOTH_LEVELS,
+            DownloadControl::SkipUpdateEnvVar,
+        ),
+        PluginName::Supergraph,
+        "=2.9.3"
+    )]
     fn every_failure_identifies_the_plugin_and_the_request(
         #[case] failure: PluginFailure,
         #[case] plugin: PluginName,
