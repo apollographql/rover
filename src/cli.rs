@@ -586,13 +586,18 @@ impl Rover {
             let (SettingValueError::InvalidUrl { input: raw }
             | SettingValueError::UnsupportedUrlScheme { input: raw }
             | SettingValueError::InvalidBool { input: raw }) = &error;
-            RoverError::new(anyhow::anyhow!(
+            let message = format!(
                 "`{name}` in profile `{profile_name}` is set to `{raw}`, which {reason} Run \
                 `rover config set {name} <value> --profile {profile_name}` to correct it.",
                 profile_name = profile.profile_name,
                 reason = describe_invalid_value(&error),
-            ))
-            .with_skip_printing_cause()
+            );
+            // Keeps `error`'s real type in the chain (unlike
+            // `anyhow::anyhow!("{error}")`, which would format it into a new,
+            // untyped error) so `RoverErrorMetadata` can still downcast to
+            // `SettingValueError` and assign E054 (FR86) on this read path,
+            // not just `Set::run`'s write-time one.
+            RoverError::new(anyhow::Error::new(error).context(message))
         })?;
         Ok(Some(value))
     }
@@ -1204,12 +1209,13 @@ mod tests {
             .expect_err("expected an invalid stored registry URL to fail the command");
 
         assert_that!(error.to_string()).is_equal_to(
-            "error: `APOLLO_REGISTRY_URL` in profile `staging` is set to \
+            "error[E054]: `APOLLO_REGISTRY_URL` in profile `staging` is set to \
             `registry.example.com`, which isn't a valid URL. URLs must include a scheme, for \
             example `https://registry.example.com`. Run `rover config set APOLLO_REGISTRY_URL \
             <value> --profile staging` to correct it.\n"
                 .to_string(),
         );
+        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
     }
 
     #[test]
