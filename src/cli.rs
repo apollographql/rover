@@ -1564,9 +1564,11 @@ mod tests {
         .unwrap()
         .unwrap();
 
-        assert_that!(message).contains("profile `staging`");
-        assert_that!(message).contains("APOLLO_REGISTRY_URL");
-        assert_that!(message).contains("https://registry.staging.example.com");
+        assert_that!(message).is_equal_to(
+            "profile `staging` sets `APOLLO_REGISTRY_URL` to \
+            `https://registry.staging.example.com`."
+                .to_string(),
+        );
     }
 
     #[test]
@@ -1636,10 +1638,11 @@ mod tests {
         .unwrap()
         .unwrap();
 
-        assert_that!(message).contains("APOLLO_REGISTRY_URL");
-        assert_that!(message).contains("from the environment");
-        assert_that!(message).contains("https://env.example.com");
-        assert_that!(message).contains("overriding the value set in profile `staging`");
+        assert_that!(message).is_equal_to(
+            "`APOLLO_REGISTRY_URL` from the environment is set to `https://env.example.com`, \
+            overriding the value set in profile `staging`."
+                .to_string(),
+        );
         // FR67's combined text never repeats the overridden value itself.
         assert_that!(message).does_not_contain("registry.staging.example.com");
     }
@@ -1674,9 +1677,11 @@ mod tests {
         .unwrap()
         .unwrap();
 
-        assert_that!(message).contains("APOLLO_TELEMETRY_DISABLED");
-        assert_that!(message).contains("overrides the value set in profile `staging`");
-        assert_that!(message).does_not_contain("is set to");
+        assert_that!(message).is_equal_to(
+            "`APOLLO_TELEMETRY_DISABLED` from the environment overrides the value set in \
+            profile `staging`."
+                .to_string(),
+        );
     }
 
     #[test]
@@ -1869,8 +1874,11 @@ mod tests {
         .unwrap()
         .unwrap();
 
-        assert_that!(message).contains("APOLLO_TELEMETRY_DISABLED");
-        assert_that!(message).contains("overrides the value set in profile `staging`");
+        assert_that!(message).is_equal_to(
+            "`APOLLO_TELEMETRY_DISABLED` from the environment overrides the value set in \
+            profile `staging`."
+                .to_string(),
+        );
     }
 
     #[test]
