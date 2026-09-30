@@ -373,7 +373,19 @@ mod tests {
         let operations = inputs.generate_operations().unwrap();
         let body = operations[0].body.as_str();
 
-        assert_that!(body).contains("# @meta fci_tier: TIER_1");
+        assert_that!(body).is_equal_to(indoc::indoc! {"
+            # @meta fci_tier: TIER_1
+            # @meta owner: consumer-payments
+            query GetHomeFeed($userId: ID!) {
+              homeFeed(userId: $userId) {
+                ...FeedFields
+              }
+            }
+
+            fragment FeedFields on Feed {
+              id
+              title
+            }"});
         // A body carrying comments must still parse, since the router executes
         // the stored body verbatim.
         let parsed = apollo_compiler::parser::Parser::new().parse_ast(body, "body.graphql");
@@ -399,8 +411,17 @@ mod tests {
         let operations = inputs.generate_operations().unwrap();
         let body = operations[0].body.as_str();
 
-        assert_that!(body).contains("# @meta fci_tier: TIER_1");
-        assert_that!(body).does_not_contain("this comment is on a fragment");
+        assert_that!(body).is_equal_to(indoc::indoc! {"
+            # @meta fci_tier: TIER_1
+            query GetProduct {
+              product {
+                ...ProductFields
+              }
+            }
+
+            fragment ProductFields on Product {
+              id
+            }"});
     }
 
     #[test]

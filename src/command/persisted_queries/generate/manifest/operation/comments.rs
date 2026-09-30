@@ -7,22 +7,26 @@
 /// result is stable regardless of how the source was indented. Byte order marks
 /// before a comment are ignored, but those within its text are preserved.
 ///
-/// GraphQL treats comments as ignored tokens, so `apollo-compiler` discards
-/// them during parsing and they cannot be recovered from the AST. Reading them
-/// back out of the original source text is the only option, which is why this
-/// works on byte offsets rather than on parsed nodes.
+/// `apollo-parser` retains comment tokens, but `apollo-compiler`'s `parse_ast`
+/// does not expose its intermediate syntax tree or attach comments to AST nodes.
+/// Reading the original source at the AST's byte offsets avoids another parse.
 pub(super) fn extract_leading_comments(
     source: &str,
     definition_offset: usize,
     previous_definition_end: usize,
 ) -> Option<String> {
-    let definition_line_start = source[..definition_offset]
-        .rfind(['\r', '\n'])
-        .map_or(0, |newline| newline + 1);
+    // Rescanning earlier definitions for every operation makes minified input
+    // quadratic. Only the gap since the previous definition can own comments.
+    let preceding_source = &source[previous_definition_end..definition_offset];
+    let definition_line_start = match preceding_source.rfind(['\r', '\n']) {
+        Some(newline) => newline + 1,
+        None if previous_definition_end == 0 => 0,
+        None => return None,
+    };
 
     // Do not skip an earlier definition or a block string's closing delimiter.
     // Commas and byte order marks, like spaces and tabs, are ignored by GraphQL.
-    if !source[definition_line_start..definition_offset]
+    if !preceding_source[definition_line_start..]
         .chars()
         .all(|ch| matches!(ch, ' ' | '\t' | ',' | '\u{feff}'))
     {
@@ -33,20 +37,20 @@ pub(super) fn extract_leading_comments(
     // definition, then restore top-to-bottom order.
     let mut lines = Vec::new();
     let mut cursor = definition_line_start;
-    while cursor > previous_definition_end {
+    while cursor > 0 {
         // CRLF is one line ending; a lone CR or LF is also a line ending.
-        let line_end = if source[..cursor].ends_with("\r\n") {
+        let line_end = if preceding_source[..cursor].ends_with("\r\n") {
             cursor - 2
         } else {
             cursor - 1
         };
-        let line_start = source[..line_end]
-            .rfind(['\r', '\n'])
-            .map_or(0, |newline| newline + 1);
-        if line_start < previous_definition_end {
-            break;
-        }
-        let line = source[line_start..line_end]
+        let line_start = match preceding_source[..line_end].rfind(['\r', '\n']) {
+            Some(newline) => newline + 1,
+            None if previous_definition_end == 0 => 0,
+            // The first line of the gap also contains the previous definition.
+            None => break,
+        };
+        let line = preceding_source[line_start..line_end]
             .trim_start_matches([' ', '\t', '\u{feff}'])
             .trim_end();
         if !line.starts_with('#') {
@@ -70,6 +74,21 @@ mod tests {
     use speculoos::prelude::*;
 
     use super::extract_leading_comments;
+
+    #[rstest]
+    #[case::lf("\n")]
+    #[case::crlf("\r\n")]
+    #[case::cr("\r")]
+    fn leading_comments_exclude_a_trailing_comment_before_the_gap(#[case] newline: &str) {
+        let previous = "query Previous { id }";
+        let source = format!(
+            "{previous} # trailing comment{newline}# leading comment{newline}query Next {{ id }}"
+        );
+        let offset = source.find("query Next").unwrap();
+
+        assert_that!(extract_leading_comments(&source, offset, previous.len()))
+            .is_equal_to(Some("# leading comment".to_string()));
+    }
 
     fn extract(source: &str) -> Option<String> {
         let offset = source
