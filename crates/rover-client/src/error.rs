@@ -5,7 +5,10 @@ use itertools::Itertools;
 use rover_graphql::GraphQLServiceError;
 use rover_http::HttpServiceError;
 use rover_studio::{
-    service::rejected_credential::{rejected_credential, RejectedCredential},
+    service::{
+        permission_denied::permission_denied,
+        rejected_credential::{rejected_credential, RejectedCredential},
+    },
     types::{GraphRef, InvalidGraphRef},
 };
 use thiserror::Error;
@@ -66,6 +69,24 @@ pub enum RoverClientError {
     /// when attempting to create a key the associated Organization cannot be found
     #[error("Could not find organization with ID '{organization_id}'")]
     OrganizationIDNotFound { organization_id: String },
+
+    /// The Platform API refused a client-credential pair mutation (create/rotate/delete - the
+    /// operations composed over
+    /// [`crate::blocking::StudioClient::studio_graphql_service_with_timeout`], the only
+    /// constructor `PermissionDeniedLayer` is wired into) for lack of permission, or because the
+    /// organization isn't enrolled in client-credential support (spec FR73,
+    /// `specs/rover-431-identity-grant-management`). `list` needs the same classification for
+    /// its own FR16 branch but reads through the retrying `studio_graphql_service` instead, so
+    /// its own consumer PR has to decide how it gets there. Distinct from
+    /// [`RoverClientError::InvalidKey`] (an authentication failure) and from the generic
+    /// [`RoverClientError::PermissionError`] (a different, graph-scoped permission story) -
+    /// this one names the organization and points at the specific requirement.
+    #[error(
+        "You don't have permission to manage client-credential pairs in organization \
+        `{organization_id}`. This requires the organization admin role, and during the initial \
+        rollout the organization must be enrolled in client-credential support."
+    )]
+    PairPermissionDenied { organization_id: String },
 
     /// when attempting to create a key the associated Organization cannot be found
     #[error("Could not find the API Key with ID '{api_key_id}'")]
@@ -519,6 +540,31 @@ where
             }
         }
         GraphQLServiceError::InvalidCredentials() => Some(RoverClientError::InvalidKey),
+        _ => None,
+    }
+}
+
+/// Recovers a client-credential-pair permission denial from a raw GraphQL error, for an
+/// operation whose mutation returns a plain object rather than a typed error union (see
+/// `rover_studio::service::permission_denied`'s own doc comment: for these, a permission denial
+/// can only ever arrive as a raw HTTP 403). Unlike [`rejected_credential_in`], this isn't wired
+/// into the blanket [`From<GraphQLServiceError<T>>`] conversion below - it takes
+/// `organization_id`, which that conversion has no way to know, so each pair operation's own
+/// `service.rs` calls this directly on its inner call's error before falling back to `.into()`.
+pub(crate) fn permission_denied_in<T>(
+    err: &GraphQLServiceError<T>,
+    organization_id: impl Into<String>,
+) -> Option<RoverClientError>
+where
+    T: Debug + Send + Sync,
+{
+    match err {
+        GraphQLServiceError::UpstreamService(source) => source
+            .downcast_ref::<HttpServiceError>()
+            .and_then(permission_denied)
+            .map(|_| RoverClientError::PairPermissionDenied {
+                organization_id: organization_id.into(),
+            }),
         _ => None,
     }
 }

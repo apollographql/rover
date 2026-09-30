@@ -7,9 +7,10 @@ use reqwest::{
     Client as ReqwestClient,
 };
 use rover_graphql::{GraphQLLayer, GraphQLService};
-use rover_http::{retry::RetryPolicy, HttpService, ReqwestService};
+use rover_http::{retry::RetryPolicy, timeout::TimeoutLayer, HttpService, ReqwestService};
 use rover_studio::service::{
-    rejected_credential::RejectedCredentialLayer, HttpStudioServiceError, HttpStudioServiceLayer,
+    permission_denied::PermissionDeniedLayer, rejected_credential::RejectedCredentialLayer,
+    HttpStudioServiceError, HttpStudioServiceLayer,
 };
 use tower::{retry::RetryLayer, util::BoxCloneServiceLayer, ServiceBuilder, ServiceExt};
 use url::Url;
@@ -176,6 +177,9 @@ impl StudioClient {
         self.credential.origin.clone()
     }
 
+    /// A Studio GraphQL service that retries on transient failures (timeouts, 5xx, a dropped
+    /// connection) up to [`Self::retry_period`]. Safe only for idempotent operations - see
+    /// [`Self::studio_graphql_service_with_timeout`] for a mutation that must not retry.
     pub fn studio_graphql_service(
         &self,
     ) -> Result<GraphQLService<HttpService>, InitStudioServiceError> {
@@ -205,6 +209,49 @@ impl StudioClient {
         Ok(service)
     }
 
+    /// A Studio GraphQL service bounded by a single per-attempt `timeout`, with **no retry** -
+    /// for a non-idempotent mutation where a retried attempt could double the effect of a
+    /// request the server already committed (e.g. `createOAuthClient`, `rotateOAuthClientSecret`,
+    /// `deleteOAuthClient` - see each operation's own `service.rs` for why). A caller that needs
+    /// retry behavior for such an operation must use a policy that only retries failures known to
+    /// precede any server-side effect, not this constructor.
+    pub fn studio_graphql_service_with_timeout(
+        &self,
+        timeout: Duration,
+    ) -> Result<GraphQLService<HttpService>, InitStudioServiceError> {
+        let service = ServiceBuilder::new()
+            .layer(GraphQLLayer::default())
+            .layer(BoxCloneServiceLayer::new(
+                // Inside the box so `HttpService`'s error type - and this function's return
+                // type - stay as they are. `PermissionDeniedLayer` only lives here, not in
+                // `studio_graphql_service` - it isn't safe to add to that shared constructor's
+                // ~18 existing callers, since it would intercept a 403 before `GraphQLLayer` (the
+                // layer above this whole bundle) ever parses the response body, discarding
+                // Studio's own GraphQL error message for every operation that doesn't expect
+                // this classification.
+                ServiceBuilder::new()
+                    .layer(HttpStudioServiceLayer::new(
+                        Url::from_str(&self.graphql_endpoint)?,
+                        self.credential.clone(),
+                        self.version.to_string(),
+                        self.is_sudo,
+                    )?)
+                    .layer(RejectedCredentialLayer::new(self.credential.clone()))
+                    .layer(PermissionDeniedLayer)
+                    .into_inner(),
+            ))
+            // No retry layer is present, so unlike `studio_graphql_service`, there's no ordering
+            // question here - `timeout` simply bounds the network call underneath.
+            .layer(TimeoutLayer::new(timeout))
+            .service(
+                ReqwestService::builder()
+                    .client(self.reqwest_client.clone())
+                    .build()?,
+            );
+
+        Ok(service)
+    }
+
     pub fn http_service(&self) -> Result<HttpService, RoverClientError> {
         let service = ReqwestService::builder()
             .client(self.reqwest_client.clone())
@@ -217,10 +264,19 @@ impl StudioClient {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
+    use std::time::{Duration, Instant};
 
+    use graphql_client::{GraphQLQuery, QueryBody};
+    use httpmock::prelude::*;
+    use rover_graphql::{GraphQLRequest, GraphQLServiceError};
+    use rover_http::HttpServiceError;
+    use rover_studio::service::{
+        permission_denied::permission_denied, rejected_credential::rejected_credential,
+    };
     use rstest::{fixture, rstest};
+    use serde::{Deserialize, Serialize};
     use speculoos::prelude::*;
+    use tower::{Service, ServiceExt};
 
     use super::*;
 
@@ -329,5 +385,140 @@ mod tests {
         });
 
         assert!(matches!(refined, RoverClientError::GraphQl { .. }));
+    }
+
+    // A minimal hand-written `GraphQLQuery`, the same shape `rover-graphql`'s own tests use, so
+    // these tests can drive `studio_graphql_service_with_timeout`'s real layer stack over an
+    // `httpmock` server without needing a schema-derived operation.
+    struct TestQuery;
+
+    #[derive(Serialize)]
+    struct TestQueryVariables {}
+
+    #[derive(Serialize, Deserialize, Debug)]
+    struct TestQueryResponse {}
+
+    impl GraphQLQuery for TestQuery {
+        type Variables = TestQueryVariables;
+        type ResponseData = TestQueryResponse;
+
+        fn build_query(variables: Self::Variables) -> QueryBody<Self::Variables> {
+            QueryBody {
+                variables,
+                query: "query Test { __typename }",
+                operation_name: "Test",
+            }
+        }
+    }
+
+    fn client_against(server: &MockServer) -> StudioClient {
+        StudioClient::new(
+            Credential {
+                api_key: "an-api-key".to_string(),
+                origin: CredentialOrigin::EnvVar,
+                expires_at: None,
+            },
+            &server.url("/graphql"),
+            "test-version",
+            false,
+            ReqwestClient::new(),
+            Duration::from_secs(1),
+        )
+    }
+
+    fn upstream_http_error<T>(err: &GraphQLServiceError<T>) -> Option<&HttpServiceError>
+    where
+        T: std::fmt::Debug + Send + Sync,
+    {
+        match err {
+            GraphQLServiceError::UpstreamService(source) => {
+                source.downcast_ref::<HttpServiceError>()
+            }
+            _ => None,
+        }
+    }
+
+    async fn call_with_timeout(
+        client: &StudioClient,
+        timeout: Duration,
+    ) -> Result<TestQueryResponse, GraphQLServiceError<TestQueryResponse>> {
+        let mut service = client.studio_graphql_service_with_timeout(timeout).unwrap();
+        let service = ServiceExt::<GraphQLRequest<TestQuery>>::ready(&mut service)
+            .await
+            .unwrap();
+        service
+            .call(GraphQLRequest::<TestQuery>::new(TestQueryVariables {}))
+            .await
+    }
+
+    // The core no-retry guarantee `studio_graphql_service_with_timeout` exists for: a 5xx is
+    // never replayed, unlike `studio_graphql_service`'s ambient retry.
+    #[tokio::test]
+    async fn a_5xx_is_sent_exactly_once() {
+        let server = MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.method(POST).path("/graphql");
+            then.status(500);
+        });
+
+        let result = call_with_timeout(&client_against(&server), Duration::from_secs(5)).await;
+
+        assert_that!(result).is_err();
+        assert_that!(mock.calls()).is_equal_to(1);
+    }
+
+    #[tokio::test]
+    async fn a_slow_response_times_out_around_the_given_duration() {
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.method(POST).path("/graphql");
+            then.status(200).delay(Duration::from_secs(5));
+        });
+
+        let started = Instant::now();
+        // Guards the test itself against hanging forever if the timeout layer has a bug -
+        // well outside the 200ms timeout under test.
+        let result = tokio::time::timeout(
+            Duration::from_secs(2),
+            call_with_timeout(&client_against(&server), Duration::from_millis(200)),
+        )
+        .await
+        .expect("studio_graphql_service_with_timeout should have given up well before this");
+
+        assert_that!(result).is_err();
+        assert_that!(started.elapsed() < Duration::from_secs(1)).is_true();
+    }
+
+    #[tokio::test]
+    async fn a_403_is_classified_as_permission_denied_through_the_real_stack() {
+        let server = MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.method(POST).path("/graphql");
+            then.status(403);
+        });
+
+        let err = call_with_timeout(&client_against(&server), Duration::from_secs(5))
+            .await
+            .expect_err("a 403 should have become an error");
+
+        assert_that!(upstream_http_error(&err).and_then(permission_denied)).is_some();
+        assert_that!(mock.calls()).is_equal_to(1);
+    }
+
+    // Confirms `PermissionDeniedLayer` and `RejectedCredentialLayer` still compose correctly
+    // together - a 401 stays a credential rejection, not a permission denial.
+    #[tokio::test]
+    async fn a_401_still_classifies_as_rejected_credential_through_the_real_stack() {
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.method(POST).path("/graphql");
+            then.status(401);
+        });
+
+        let err = call_with_timeout(&client_against(&server), Duration::from_secs(5))
+            .await
+            .expect_err("a 401 should have become an error");
+
+        assert_that!(upstream_http_error(&err).and_then(rejected_credential)).is_some();
     }
 }

@@ -354,6 +354,11 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 RoverClientError::OrganizationIDNotFound { .. } => {
                     (Some(RoverErrorSuggestion::CheckGraphNameAndAuth), None)
                 }
+                // The message already names the exact requirement (organization admin role,
+                // enrollment) - no generic suggestion adds anything here.
+                RoverClientError::PairPermissionDenied { .. } => {
+                    (None, Some(RoverErrorCode::E053))
+                }
                 RoverClientError::ServiceReady(_) => (None, None),
                 RoverClientError::Service { .. } => (None, None),
                 RoverClientError::InvalidTimestamp(_) => (None, None),

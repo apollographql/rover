@@ -5,6 +5,7 @@ use rover_tower::service::replace_ready_service;
 use tower::Service;
 
 use crate::{
+    error::permission_denied_in,
     operations::api_key::pair_create::{
         create_pair_mutation::{self, GraphIdentifierInput, OAuthClientResourceInput, Variables},
         CreatePairInput, CreatePairMutation, CreatedPair,
@@ -88,7 +89,14 @@ where
                 },
                 secret_lifetime_days: input.secret_lifetime_days,
             };
-            let data = inner.call(GraphQLRequest::new(vars)).await?;
+            let data = match inner.call(GraphQLRequest::new(vars)).await {
+                Ok(data) => data,
+                Err(err) => {
+                    return Err(
+                        permission_denied_in(&err, organization_id).unwrap_or_else(|| err.into())
+                    )
+                }
+            };
             let organization = data
                 .organization
                 .ok_or(RoverClientError::OrganizationIDNotFound { organization_id })?;
@@ -118,6 +126,8 @@ pub mod mock {
 #[cfg(test)]
 mod tests {
     use futures::future;
+    use rover_http::HttpServiceError;
+    use rover_studio::service::permission_denied::PermissionDenied;
     use rover_tower::test::{expect_poll_ready, MockCloneService};
     use rstest::{fixture, rstest};
     use serde_json::json;
@@ -225,6 +235,30 @@ mod tests {
         assert_that!(err).matches(|err| {
             matches!(err, RoverClientError::OrganizationIDNotFound { organization_id } if organization_id == "acme")
         });
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn call_reports_a_permission_denial_naming_the_organization(input: CreatePairInput) {
+        let mut mock = MockCreatePairInnerService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call().times(1).return_once(|_| {
+            future::ready(Err(GraphQLServiceError::UpstreamService(Box::new(
+                HttpServiceError::Unexpected(Box::new(PermissionDenied)),
+            ))))
+        });
+
+        let err = CreatePair::new(MockCloneService::new(mock))
+            .oneshot(input)
+            .await
+            .unwrap_err();
+
+        assert_that!(err.to_string()).is_equal_to(
+            "You don't have permission to manage client-credential pairs in organization \
+            `acme`. This requires the organization admin role, and during the initial rollout \
+            the organization must be enrolled in client-credential support."
+                .to_string(),
+        );
     }
 
     /// Covers both directions: a response with only `clientSecret` null, and one with only
