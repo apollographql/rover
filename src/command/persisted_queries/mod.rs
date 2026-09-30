@@ -1,6 +1,9 @@
+mod bulk_delete;
 mod generate;
+mod identify;
 mod publish;
 
+pub use bulk_delete::BulkDelete;
 use clap::Parser;
 pub use generate::Generate;
 pub use publish::Publish;
@@ -24,11 +27,14 @@ pub enum Command {
     Generate(persisted_queries::Generate),
     /// Persist a list of queries (or mutations) to a graph in Apollo Studio
     Publish(persisted_queries::Publish),
+    /// Start (or resume watching) an asynchronous bulk deletion job against a
+    /// Persisted Query List
+    BulkDelete(persisted_queries::BulkDelete),
 }
 
 impl PersistedQueries {
     pub const fn requires_client_config(&self) -> bool {
-        matches!(self.command, Command::Publish(_))
+        matches!(self.command, Command::Publish(_) | Command::BulkDelete(_))
     }
 
     pub async fn run<P: Print>(
@@ -44,6 +50,14 @@ impl PersistedQueries {
                     .run(
                         client_config.expect("publish requires client config"),
                         profile,
+                    )
+                    .await
+            }
+            Command::BulkDelete(command) => {
+                command
+                    .run(
+                        client_config.expect("bulk-delete requires client config"),
+                        stderr,
                     )
                     .await
             }
