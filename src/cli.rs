@@ -514,18 +514,29 @@ impl Rover {
                 }
             }
         };
-        match self.config_override_notice(
-            SettingName::TelemetryUrl,
-            self.telemetry_url.as_deref(),
-            self.get_env_var(RoverEnvKey::TelemetryUrl)
+        // Nothing is ever sent to this URL when telemetry is disabled, so a
+        // notice about it would name a setting the invocation never uses.
+        // `is_telemetry_disabled()` alone misses the bare-env-var case
+        // (mirrors `sputnik::Session::is_telemetry_enabled`'s own check).
+        let telemetry_disabled = self.is_telemetry_disabled()
+            || self
+                .get_env_var(RoverEnvKey::TelemetryDisabled)
                 .unwrap_or_default()
-                .as_deref(),
-            resolved.as_deref(),
-        ) {
-            Ok(Some(message)) => self.print_config_notice(message),
-            Ok(None) => {}
-            Err(error) => {
-                tracing::debug!(?error, "failed to check for a APOLLO_TELEMETRY_URL notice");
+                .is_some();
+        if !telemetry_disabled {
+            match self.config_override_notice(
+                SettingName::TelemetryUrl,
+                self.telemetry_url.as_deref(),
+                self.get_env_var(RoverEnvKey::TelemetryUrl)
+                    .unwrap_or_default()
+                    .as_deref(),
+                resolved.as_deref(),
+            ) {
+                Ok(Some(message)) => self.print_config_notice(message),
+                Ok(None) => {}
+                Err(error) => {
+                    tracing::debug!(?error, "failed to check for a APOLLO_TELEMETRY_URL notice");
+                }
             }
         }
         resolved
@@ -593,13 +604,19 @@ impl Rover {
         let houston_config = self.get_rover_config()?;
         let profile_raw =
             Profile::new(&profile.profile_name, &houston_config).get_setting(name.as_str())?;
-        Ok(profile_raw.map(|_| {
-            format!(
-                "`{name}` from the environment overrides the value set in profile \
-                `{profile_name}`.",
-                profile_name = profile.profile_name,
-            )
-        }))
+        // The env var disables telemetry on any value it's set to, so it
+        // only overrides anything when the profile wasn't already disabling
+        // it - a profile that already stores `true` sees no change to notice
+        // about.
+        Ok(profile_raw
+            .filter(|value| !value.eq_ignore_ascii_case("true"))
+            .map(|_| {
+                format!(
+                    "`{name}` from the environment overrides the value set in profile \
+                    `{profile_name}`.",
+                    profile_name = profile.profile_name,
+                )
+            }))
     }
 
     pub(crate) fn get_rover_config(&self) -> RoverResult<Config> {
@@ -706,6 +723,13 @@ impl Rover {
     /// invocation that resolves a setting but then fails before ever
     /// sending a request. Closing that gap needs a shared choke point in
     /// `rover-client` and is left for follow-up work.
+    ///
+    /// For `APOLLO_REGISTRY_URL` specifically, this over-approximation goes
+    /// further still: `get_client_config` decides the notice for every
+    /// `config` subcommand that builds a client config (`list`, `delete`,
+    /// `clear`, `auth`), not just commands that go on to contact the
+    /// registry. A local-only `config` verb can print a registry-URL notice
+    /// for a setting that invocation never uses at all.
     fn config_override_notice(
         &self,
         name: SettingName,
@@ -716,6 +740,10 @@ impl Rover {
         if self.config_notices_suppressed() {
             return Ok(None);
         }
+        // Spent before `get_rover_config()?`/`get_setting()?` below can
+        // fail, so a failure on this call leaves `name` with no notice for
+        // the rest of the process. Acceptable today since each resolver runs
+        // about once per process, but worth knowing if that stops holding.
         if !self.mark_noticed(name) {
             return Ok(None);
         }
@@ -727,6 +755,10 @@ impl Rover {
             Profile::new(&profile.profile_name, &houston_config).get_setting(name.as_str())?;
 
         let message = if let Some(explicit_value) = explicit {
+            // Credits the environment whenever its current value matches
+            // what actually resolved, even if the flag (not the env var)
+            // supplied that same value - harmless (the message just names
+            // the wrong of two identical sources), not corrected here.
             if profile_is_explicit && raw_env == Some(explicit_value) {
                 profile_raw.map(|profile_value| {
                     if name.is_network_destination() && profile_value != name.builtin_default() {
@@ -1507,6 +1539,84 @@ mod tests {
         assert_that!(rover.telemetry_url_override()).is_none();
     }
 
+    // Nothing is ever sent to `APOLLO_TELEMETRY_URL` when telemetry is
+    // disabled, so `telemetry_url_override` must not decide (and so consume
+    // the once-per-process gate for) a notice about it either. Proven
+    // indirectly: if the disabled call had decided the notice, the gate
+    // would already be spent and this direct call would return `None`.
+    #[test]
+    fn telemetry_url_override_does_not_notice_when_telemetry_is_disabled_by_flag() {
+        let home = config_home_with_setting(
+            "staging",
+            "APOLLO_TELEMETRY_URL",
+            "https://telemetry.staging.example.com",
+        );
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+
+        let message = with_notice_env_locked(&["APOLLO_TELEMETRY_URL"], || {
+            let rover = Rover::parse_from([
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+                "--telemetry-disabled",
+                "config",
+                "list",
+            ]);
+
+            rover.telemetry_url_override();
+
+            rover.config_override_notice(
+                SettingName::TelemetryUrl,
+                None,
+                None,
+                Some("https://telemetry.staging.example.com"),
+            )
+        });
+
+        assert_that!(message.unwrap()).is_some();
+    }
+
+    #[test]
+    fn telemetry_url_override_does_not_notice_when_telemetry_is_disabled_by_env() {
+        let home = config_home_with_setting(
+            "staging",
+            "APOLLO_TELEMETRY_URL",
+            "https://telemetry.staging.example.com",
+        );
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+
+        let message = with_notice_env_locked(&["APOLLO_TELEMETRY_URL"], || {
+            let mut rover = Rover::parse_from([
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+                "config",
+                "list",
+            ]);
+            // `RoverEnv::new()` reads nothing from the real environment in
+            // test builds, so the env var has to be seeded through the
+            // test-only store instead of a real `APOLLO_TELEMETRY_DISABLED`.
+            rover
+                .insert_env_var(RoverEnvKey::TelemetryDisabled, "true")
+                .unwrap();
+
+            rover.telemetry_url_override();
+
+            rover.config_override_notice(
+                SettingName::TelemetryUrl,
+                None,
+                None,
+                Some("https://telemetry.staging.example.com"),
+            )
+        });
+
+        assert_that!(message.unwrap()).is_some();
+    }
+
     #[test]
     fn telemetry_disabled_ignores_an_invalid_profile_setting() {
         let home = config_home_with_setting("staging", "APOLLO_TELEMETRY_DISABLED", "not-a-bool");
@@ -1755,6 +1865,50 @@ mod tests {
         assert_that!(message).is_none();
     }
 
+    // Exercises the real wiring (`get_client_config` -> `resolve_setting` ->
+    // `config_override_notice`) instead of calling `config_override_notice`
+    // with hand-built inputs directly - the kind of test that would have
+    // caught the `APOLLO_TELEMETRY_URL` notice firing while telemetry was
+    // disabled (see the `telemetry_url_override_does_not_notice_when_*`
+    // tests, which cover that wiring gap for telemetry specifically).
+    #[tokio::test]
+    async fn get_client_config_decides_the_registry_url_notice_through_the_real_call_path() {
+        let home = config_home_with_setting(
+            "staging",
+            "APOLLO_REGISTRY_URL",
+            "https://registry.staging.example.com",
+        );
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+
+        let rover = with_notice_env_locked(&["APOLLO_REGISTRY_URL"], || {
+            temp_env::with_var_unset("APOLLO_REGISTRY_URL", || {
+                Rover::parse_from([
+                    PKG_NAME,
+                    "--config-home",
+                    home_path.as_str(),
+                    "--profile",
+                    "staging",
+                    "config",
+                    "list",
+                ])
+            })
+        });
+
+        rover.get_client_config().await.unwrap();
+
+        // The gate `get_client_config`'s own notice decision already
+        // consumed means a direct call for the same setting now returns
+        // `None` - proving the real call path decided (and would have
+        // printed) the notice, not just that hand-built inputs can.
+        let message = rover.config_override_notice(
+            SettingName::RegistryUrl,
+            None,
+            None,
+            Some("https://registry.staging.example.com"),
+        );
+        assert_that!(message.unwrap()).is_none();
+    }
+
     #[test]
     fn config_override_notice_fires_at_most_once_per_setting() {
         let home = tempfile::tempdir().unwrap();
@@ -1879,6 +2033,33 @@ mod tests {
             profile `staging`."
                 .to_string(),
         );
+    }
+
+    // The env var forces `disabled` regardless of its own value, so it only
+    // changes anything when the profile wasn't already disabling telemetry.
+    #[test]
+    fn telemetry_disabled_override_notice_is_silent_when_the_profile_already_disables_it() {
+        let home = config_home_with_setting("staging", "APOLLO_TELEMETRY_DISABLED", "true");
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+
+        let message = with_notice_env_locked(&[], || {
+            let mut rover = Rover::parse_from([
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+                "config",
+                "list",
+            ]);
+            rover
+                .insert_env_var(RoverEnvKey::TelemetryDisabled, "1")
+                .unwrap();
+            rover.telemetry_disabled_override_notice()
+        })
+        .unwrap();
+
+        assert_that!(message).is_none();
     }
 
     #[test]
