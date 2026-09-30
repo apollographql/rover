@@ -270,10 +270,18 @@ mod tests {
             .is_equal_to(Some("https://registry.example.com".to_string()));
     }
 
+    // The profile name is unique across the whole workspace's test suite
+    // (not "staging", which many other tests - including in the `rover`
+    // crate - use to assert *no* credential is present) because the native
+    // keyring backend (when available, e.g. Linux CI) keys entries by
+    // profile name alone, not by this test's own temp config home. `cargo
+    // test --workspace` runs every crate's tests in the same job/session,
+    // so a shared name here would leak this real, never-cleaned-up
+    // credential into an unrelated crate's test.
     #[test]
     fn settings_are_independent_of_a_stored_credential() {
         let (config, _tmp_home) = test_config();
-        let profile = Profile::new("staging", &config);
+        let profile = Profile::new("settings-independent-of-credential", &config);
         profile.set_api_key("a-key").unwrap();
 
         profile
