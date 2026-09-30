@@ -436,6 +436,7 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     Some(RoverErrorSuggestion::SubmitIssue),
                     Some(RoverErrorCode::E022),
                 ),
+                HoustonProblem::NoCredential(_) => (None, Some(RoverErrorCode::E055)),
                 HoustonProblem::CorruptedProfile(profile_name) => (
                     Some(RoverErrorSuggestion::RecreateConfig(
                         profile_name.to_string(),

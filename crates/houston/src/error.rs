@@ -34,6 +34,13 @@ pub enum HoustonProblem {
     #[error("No non-sensitive configuration found for profile '{0}'.")]
     NoNonSensitiveConfigFound(String),
 
+    /// NoCredential occurs when a profile is known (e.g. it has stored
+    /// settings) but has no credential of its own (spec.md FR37).
+    #[error(
+        "Profile `{0}` has settings but no credential. Run `rover auth login --profile {0}`, or set `APOLLO_KEY` in the environment."
+    )]
+    NoCredential(String),
+
     /// CorruptedProfile occurs on Windows when `rover config auth` was run with older versions of Rover.
     #[error("The API key associated with profile '{0}' is corrupt.")]
     CorruptedProfile(String),

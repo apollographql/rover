@@ -212,6 +212,11 @@ impl Profile {
                 expires_at: None,
             },
             (None, None) => {
+                // A known profile (it has an index directory - e.g. from
+                // `rover config set`) with no credential in either the
+                // secret store or the legacy file gets its own message
+                // (FR37, via `Sensitive::load`) instead of a generic load
+                // failure.
                 let opts = LoadOpts { sensitive: true };
                 let sensitive = self.load(opts)?;
                 match sensitive {
@@ -566,6 +571,31 @@ mod tests {
         profile.set_api_key("profile-key").unwrap();
 
         assert_that!(profile.oauth_grant_type()).is_ok().is_none();
+    }
+
+    // FR37: a known profile (it has stored settings) with no credential of
+    // its own gets its own message, not a generic load failure.
+    #[rstest]
+    #[serial]
+    fn get_credential_names_a_settings_only_profile_with_no_credential(
+        test_config: (Config, TempDir),
+    ) {
+        let (config, _tmp_home) = test_config;
+        let profile = Profile::new("settings-only", &config);
+        profile
+            .set_setting("APOLLO_REGISTRY_URL", "https://registry.example.com")
+            .unwrap();
+
+        let error = profile
+            .get_credential()
+            .expect_err("expected a settings-only profile to have no credential");
+
+        assert_that!(error.to_string()).is_equal_to(format!(
+            "Profile `{name}` has settings but no credential. Run `rover auth login --profile \
+            {name}`, or set `APOLLO_KEY` in the environment.",
+            name = profile.name(),
+        ));
+        assert!(matches!(error, HoustonProblem::NoCredential(_)));
     }
 
     // With no OAuth token stored, `get_credential` should fall back to a legacy API key.
