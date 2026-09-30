@@ -1,0 +1,16 @@
+---
+source: src/command/config/mod.rs
+expression: text.unwrap()
+---
+Profile: default (default)
+Credential: none
+
+┌───────────────────────────┬───────────────────────────────────────┬──────────────────┐
+│ Setting                   ┆ Value                                 ┆ Source           │
+╞═══════════════════════════╪═══════════════════════════════════════╪══════════════════╡
+│ APOLLO_REGISTRY_URL       ┆ https://api.apollographql.com/graphql ┆ built-in default │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ APOLLO_TELEMETRY_URL      ┆ https://rover.apollo.dev/telemetry    ┆ built-in default │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ APOLLO_TELEMETRY_DISABLED ┆ false                                 ┆ built-in default │
+└───────────────────────────┴───────────────────────────────────────┴──────────────────┘
