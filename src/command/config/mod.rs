@@ -60,13 +60,16 @@ impl Config {
             Command::List(command) => command.run(rover.get_client_config().await?.config),
             Command::Delete(command) => command.run(rover.get_client_config().await?.config),
             Command::Clear(command) => command.run(rover.get_client_config().await?.config),
-            Command::Set(command) => command.run(rover.get_client_config().await?.config, profile),
+            // `set`/`unset` only act on configuration; they never use it
+            // (FR44/FR49), so they build a plain `houston::Config` rather
+            // than the full client config - resolving the latter would
+            // validate the profile's stored `APOLLO_REGISTRY_URL` and lock
+            // both verbs out of repairing an invalid stored value.
+            Command::Set(command) => command.run(rover.get_rover_config()?, profile),
             Command::Show(command) => Ok(RoverOutput::CliOutput(Box::new(
                 command.run(rover, profile)?,
             ))),
-            Command::Unset(command) => {
-                command.run(rover.get_client_config().await?.config, profile)
-            }
+            Command::Unset(command) => command.run(rover.get_rover_config()?, profile),
             Command::Whoami(command) => {
                 command
                     .run(
@@ -141,6 +144,56 @@ mod tests {
             └───────────────────────────┴───────────────────────────────────────┴──────────────────┘"
                 .to_string(),
         );
+    }
+
+    // Regression test: `set`/`unset` used to build the full client config,
+    // which validates the profile's stored `APOLLO_REGISTRY_URL` and fails
+    // outright if it's invalid - locking both verbs out of ever fixing it,
+    // even when the value they're asked to set/unset is unrelated.
+    #[tokio::test]
+    async fn an_invalid_stored_registry_url_does_not_block_set_or_unset() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let home_path = Utf8Path::from_path(temp_dir.path()).unwrap();
+        let houston_config = houston::Config::new(Some(&home_path), None).unwrap();
+        houston::Profile::new("staging", &houston_config)
+            .set_setting("APOLLO_REGISTRY_URL", "not a url")
+            .unwrap();
+        let rover = Rover::parse_from([
+            PKG_NAME,
+            "--config-home",
+            home_path.as_str(),
+            "config",
+            "show",
+        ]);
+        let profile = ProfileOpt {
+            profile_name: "staging".to_string(),
+            selection: ProfileSelection::Explicit,
+        };
+        let set = Config {
+            command: Command::Set(
+                set::Set::try_parse_from([
+                    "config set",
+                    "APOLLO_TELEMETRY_URL",
+                    "https://telemetry.example.com",
+                ])
+                .unwrap(),
+            ),
+        };
+
+        set.run(&profile, &rover)
+            .await
+            .expect("expected set to succeed despite an unrelated invalid stored value");
+
+        let unset = Config {
+            command: Command::Unset(
+                unset::Unset::try_parse_from(["config unset", "APOLLO_TELEMETRY_URL"]).unwrap(),
+            ),
+        };
+
+        unset
+            .run(&profile, &rover)
+            .await
+            .expect("expected unset to succeed despite an unrelated invalid stored value");
     }
 
     #[cfg(feature = "oauth")]
