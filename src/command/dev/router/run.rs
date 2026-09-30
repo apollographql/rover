@@ -167,7 +167,7 @@ impl RunRouter<state::Run> {
         log_level: Option<Level>,
         supergraph_output: Option<Utf8PathBuf>,
         license: Option<Utf8PathBuf>,
-        graph_ref_in_env: bool,
+        graph_ref_setting: Option<String>,
     ) -> Result<RunRouter<state::Watch>, RunRouterBinaryError>
     where
         Spawn: Service<ExecCommandConfig, Response = Child> + Send + Clone + 'static,
@@ -224,8 +224,17 @@ impl RunRouter<state::Run> {
         let AuthEnv {
             env,
             credential_warning_emitted,
-        } = self.auth_env(profile, home_override, api_key_override);
-        self.notify_if_credential_free(graph_ref_in_env, &license, credential_warning_emitted);
+        } = self.auth_env(
+            profile,
+            home_override,
+            api_key_override,
+            graph_ref_setting.clone(),
+        );
+        self.notify_if_credential_free(
+            graph_ref_setting.is_some(),
+            &license,
+            credential_warning_emitted,
+        );
 
         let listen_address = *self.state.config.address();
         let run_router_binary = RunRouterBinary::builder()
@@ -290,6 +299,7 @@ impl RunRouter<state::Run> {
         profile: ProfileOpt,
         home_override: Option<String>,
         api_key_override: Option<String>,
+        graph_ref_setting: Option<String>,
     ) -> AuthEnv {
         let mut env = HashMap::from_iter([("APOLLO_ROVER".to_string(), "true".to_string())]);
         let mut credential_warning_emitted = false;
@@ -309,6 +319,16 @@ impl RunRouter<state::Run> {
                 );
             }
             None => {
+                // `--graph-ref` didn't resolve a `RemoteRouterConfig`, so
+                // nothing has set `APOLLO_GRAPH_REF` in `env` yet. A real
+                // env var already reaches the spawned router through plain
+                // inheritance (`router::binary`'s use of `Command::envs`
+                // never calls `env_clear`) - but a profile-resolved value
+                // was never a real env var for that inheritance to catch
+                // (FR90), so it needs inserting explicitly here.
+                if let Some(graph_ref) = graph_ref_setting {
+                    env.insert("APOLLO_GRAPH_REF".to_string(), graph_ref);
+                }
                 match Config::new(home_override.as_ref(), api_key_override).and_then(|config| {
                     Profile::new(&profile.profile_name, &config).get_credential()
                 }) {
@@ -638,5 +658,35 @@ mod tests {
     async fn no_usable_graph_ref_when_neither_source_is_present() {
         let run_router = test_run_router().await;
         assert!(!run_router.has_usable_graph_ref(false));
+    }
+
+    // FR90: a profile-resolved graph ref is never a real env var, so
+    // without `--graph-ref` resolving a `RemoteRouterConfig`,
+    // `auth_env` must insert it into the router's own env map explicitly
+    // rather than relying on ambient inheritance to carry it.
+    #[tokio::test]
+    async fn a_resolved_graph_ref_is_inserted_into_the_router_env_without_a_remote_config() {
+        let run_router = test_run_router().await;
+
+        let auth_env = run_router.auth_env(
+            crate::options::ProfileOpt::default(),
+            None,
+            None,
+            Some("my-graph@staging".to_string()),
+        );
+
+        assert_eq!(
+            auth_env.env.get("APOLLO_GRAPH_REF"),
+            Some(&"my-graph@staging".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn no_graph_ref_setting_means_nothing_is_inserted_into_the_router_env() {
+        let run_router = test_run_router().await;
+
+        let auth_env = run_router.auth_env(crate::options::ProfileOpt::default(), None, None, None);
+
+        assert_eq!(auth_env.env.get("APOLLO_GRAPH_REF"), None);
     }
 }

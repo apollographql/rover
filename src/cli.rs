@@ -341,6 +341,7 @@ impl Rover {
                         self.log_level,
                         &profile_opt,
                         &rover_print::print::stderr::default(),
+                        self.resolve_graph_ref_setting()?,
                     )
                     .await
             }
@@ -1147,6 +1148,27 @@ impl Rover {
             ))
     }
 
+    /// Resolves `APOLLO_GRAPH_REF`'s effective value (FR6): the real
+    /// environment variable, falling through to the active profile's
+    /// stored value, falling through again to `None` (this setting has no
+    /// builtin default, per FR1). There's no flag for this setting - FR6
+    /// deliberately keeps `--graph-ref` as a separate, unrelated flag - so
+    /// the real env var is itself the highest tier, unlike every other
+    /// setting in this slice, which has a flag above its own env var.
+    pub(crate) fn resolve_graph_ref_setting(&self) -> RoverResult<Option<String>> {
+        let raw_env = self.get_env_var(RoverEnvKey::GraphRef)?;
+        let resolved = self.resolve_setting(raw_env.clone(), SettingName::GraphRef)?;
+        if let Some(message) = self.config_override_notice(
+            SettingName::GraphRef,
+            raw_env.as_deref(),
+            raw_env.as_deref(),
+            resolved.as_deref(),
+        )? {
+            self.print_config_notice(message);
+        }
+        Ok(resolved)
+    }
+
     pub(crate) fn get_env_var(&self, key: RoverEnvKey) -> io::Result<Option<String>> {
         Ok(if let Some(env_store) = self.env_store.borrow() {
             env_store.get(key)
@@ -1688,6 +1710,93 @@ mod tests {
 
         assert_that!(resolved)
             .is_equal_to(Some("https://profile-templates.example.com".to_string()));
+    }
+
+    // `APOLLO_GRAPH_REF` has no flag at all (FR6) - the real env var,
+    // `insert_env_var`-seeded since there's no clap field to parse it
+    // through, is itself the highest tier.
+    #[test]
+    fn graph_ref_is_none_with_nothing_configured() {
+        let home = tempfile::tempdir().unwrap();
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = Rover::parse_from([
+            PKG_NAME,
+            "--config-home",
+            home_path.as_str(),
+            "config",
+            "list",
+        ]);
+
+        assert_that!(rover.resolve_graph_ref_setting()).is_ok_containing(None);
+    }
+
+    #[test]
+    fn graph_ref_profile_setting_applies_when_no_env_is_set() {
+        let home = config_home_with_setting("staging", "APOLLO_GRAPH_REF", "my-graph@staging");
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = Rover::parse_from([
+            PKG_NAME,
+            "--config-home",
+            home_path.as_str(),
+            "--profile",
+            "staging",
+            "config",
+            "list",
+        ]);
+
+        assert_that!(rover.resolve_graph_ref_setting())
+            .is_ok_containing(Some("my-graph@staging".to_string()));
+    }
+
+    #[test]
+    fn graph_ref_env_var_wins_over_profile_setting() {
+        let home = config_home_with_setting("staging", "APOLLO_GRAPH_REF", "profile-graph");
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let mut rover = Rover::parse_from([
+            PKG_NAME,
+            "--config-home",
+            home_path.as_str(),
+            "--profile",
+            "staging",
+            "config",
+            "list",
+        ]);
+        rover
+            .insert_env_var(RoverEnvKey::GraphRef, "env-graph")
+            .unwrap();
+
+        assert_that!(rover.resolve_graph_ref_setting())
+            .is_ok_containing(Some("env-graph".to_string()));
+    }
+
+    #[test]
+    fn an_invalid_profile_graph_ref_fails_the_command() {
+        let home = config_home_with_setting("staging", "APOLLO_GRAPH_REF", "not a graph ref!");
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = Rover::parse_from([
+            PKG_NAME,
+            "--config-home",
+            home_path.as_str(),
+            "--profile",
+            "staging",
+            "config",
+            "list",
+        ]);
+
+        let error = rover
+            .resolve_graph_ref_setting()
+            .expect_err("expected an invalid stored graph ref to fail the command");
+
+        assert_that!(error.to_string()).is_equal_to(
+            "error[E053]: `APOLLO_GRAPH_REF` in profile `staging` is set to `not a graph ref!`, \
+            which isn't a valid graph ref. Graph refs must be in the format `<NAME>` or \
+            `<NAME>@<VARIANT>`, where `<NAME>` can only contain letters, numbers, or the \
+            characters `-` or `_`, and must be 64 characters or less; `<VARIANT>` must be 64 \
+            characters or less. Run `rover config set APOLLO_GRAPH_REF <value> --profile \
+            staging` to correct it.\n"
+                .to_string(),
+        );
+        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E053));
     }
 
     #[tokio::test]

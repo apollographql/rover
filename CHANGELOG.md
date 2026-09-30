@@ -164,6 +164,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   `rover template use`/`list` now resolve `APOLLO_TEMPLATES_API` through the same profile tier as every other profile-eligible setting, and `rover config show`/`set`/`unset` report and store it. `rover init`'s own template source is unaffected for now - it fetches templates through a separate, GitHub-based path this doesn't touch yet.
 
+- **Profiles can now store `APOLLO_GRAPH_REF` - @dotdat**
+
+  A profile (or the active environment) can now supply `APOLLO_GRAPH_REF`, reported and stored through `rover config show`/`set`/`unset` like every other profile-eligible setting. This setting has no flag of its own - `--graph-ref` is a separate, per-invocation argument unaffected by this change - and it drives one thing: `rover dev` forwards it to the spawned router to enable GraphOS Router Enterprise features, exactly as if the environment variable had been set directly. It's never used to select what a command (schema retrieval, checks, publishes) acts on.
+
 ## 🐛 Fixes
 
 - **An empty `APOLLO_HOME` no longer installs Rover and its plugins into the working directory - @SharkBaitDLS**
