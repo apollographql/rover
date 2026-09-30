@@ -11,8 +11,7 @@ use tower::{Layer, Service};
 
 /// The status Apollo Studio uses to refuse an authenticated-but-not-permitted request.
 ///
-/// Deliberately the mirror image of
-/// [`CREDENTIAL_REJECTED_STATUSES`](super::rejected_credential)'s own doc comment: `401`/`406`
+/// Deliberately the mirror image of the `rejected_credential` module's own statuses: `401`/`406`
 /// mean the credential itself is the problem; `403` means the credential authenticated fine but
 /// isn't permitted to do this, which swapping the credential won't fix.
 const PERMISSION_DENIED_STATUS: StatusCode = StatusCode::FORBIDDEN;
@@ -27,9 +26,12 @@ pub struct PermissionDenied;
 
 impl PermissionDenied {
     /// Wraps this so it can cross a boxed [`rover_http::HttpService`], whose error type is
-    /// fixed. Mirrors [`super::rejected_credential::RejectedCredential::into_http_service_error`]:
-    /// [`HttpServiceError::Unexpected`] is the carrier so a retry policy never replays a
-    /// refusal that will only ever fail the same way again.
+    /// fixed. Mirrors
+    /// [`super::rejected_credential::RejectedCredential::into_http_service_error`]:
+    /// [`HttpServiceError::Unexpected`] is the carrier, matching that sibling's choice for
+    /// consistency - not because it changes whether this gets retried. A 403 is never retried
+    /// regardless of carrier (`rover_http::retry`'s retryable-status check excludes it, and
+    /// `RetryPolicy` treats `Unexpected` as terminal either way).
     fn into_http_service_error(self) -> HttpServiceError {
         HttpServiceError::Unexpected(Box::new(self))
     }
@@ -45,9 +47,11 @@ pub fn permission_denied(err: &HttpServiceError) -> Option<PermissionDenied> {
 
 /// [`Layer`] that attaches the [`PermissionDeniedService`] middleware to the service stack.
 ///
-/// Place this **above** any retry/timeout middleware: below it, a request Studio has already
-/// refused for lack of permission would be handed to a retry policy and sent again, for no
-/// benefit - the outcome can't change without a different credential or role.
+/// Position relative to retry/timeout middleware doesn't affect whether a refusal gets replayed -
+/// a 403 is already excluded from `rover_http::retry`'s retryable statuses, and the
+/// [`HttpServiceError::Unexpected`] this produces is terminal to `RetryPolicy` regardless of
+/// where it's raised. Placed next to [`super::rejected_credential::RejectedCredentialLayer`] for
+/// consistency between the two closely related layers, not for that reason.
 pub struct PermissionDeniedLayer;
 
 impl<S: Clone> Layer<S> for PermissionDeniedLayer {
@@ -142,22 +146,14 @@ mod tests {
             .is_equal_to(PermissionDenied);
     }
 
-    // Deliberately disjoint from `rejected_credential`'s statuses - a credential rejection is
-    // never also reported as a permission denial by this layer.
-    #[rstest]
-    #[case::unauthorized(StatusCode::UNAUTHORIZED)]
-    #[case::not_acceptable(StatusCode::NOT_ACCEPTABLE)]
-    fn a_credential_rejection_is_not_treated_as_permission_denied(#[case] status: StatusCode) {
-        let response = response_to_status(status);
-
-        assert_that!(response.map(|resp| resp.status()))
-            .is_ok()
-            .is_equal_to(status);
-    }
-
+    // Includes `rejected_credential`'s own statuses (401/406) to document that the two layers
+    // are deliberately disjoint - a credential rejection is never also reported as a permission
+    // denial by this layer.
     #[rstest]
     #[case::ok(StatusCode::OK)]
     #[case::bad_request(StatusCode::BAD_REQUEST)]
+    #[case::unauthorized(StatusCode::UNAUTHORIZED)]
+    #[case::not_acceptable(StatusCode::NOT_ACCEPTABLE)]
     #[case::too_many_requests(StatusCode::TOO_MANY_REQUESTS)]
     #[case::internal_server_error(StatusCode::INTERNAL_SERVER_ERROR)]
     fn other_responses_pass_through_untouched(#[case] status: StatusCode) {
