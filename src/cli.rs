@@ -1712,12 +1712,12 @@ mod tests {
             .expect_err("expected an invalid stored checks timeout to fail the command");
 
         assert_that!(error.to_string()).is_equal_to(
-            "error[E053]: `APOLLO_CHECKS_TIMEOUT_SECONDS` in profile `staging` is set to `soon`, \
+            "error[E054]: `APOLLO_CHECKS_TIMEOUT_SECONDS` in profile `staging` is set to `soon`, \
             which isn't a whole number of seconds. Run `rover config set \
             APOLLO_CHECKS_TIMEOUT_SECONDS <seconds> --profile staging` to correct it.\n"
                 .to_string(),
         );
-        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E053));
+        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
     }
 
     #[test]
