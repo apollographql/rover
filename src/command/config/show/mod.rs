@@ -703,14 +703,19 @@ mod tests {
     // `#[serial]`: writes a real credential to the OS keychain (or its
     // file-based fallback), which doesn't reliably sequence concurrent
     // multi-threaded access on Windows - see houston's own tests for the
-    // same caveat.
+    // same caveat. The profile name is unique in this test binary (not
+    // "staging", which other tests use to assert *no* credential) because
+    // the native keychain backend keys entries by profile name alone, not
+    // by this test's own temp config home - a name shared with another
+    // test's profile would leak this real, never-cleaned-up credential
+    // into it.
     #[test]
     #[serial_test::serial]
     fn credential_is_reported_present_from_a_profile_with_no_env_override() {
         let home = tempfile::tempdir().unwrap();
         let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
         let houston_config = houston::Config::new(Some(&home_path), None).unwrap();
-        Profile::new("staging", &houston_config)
+        Profile::new("profile-with-stored-api-key", &houston_config)
             .set_api_key("a-key")
             .unwrap();
         let rover = parse_with_env_locked(
@@ -720,7 +725,7 @@ mod tests {
                 "--config-home",
                 home_path.as_str(),
                 "--profile",
-                "staging",
+                "profile-with-stored-api-key",
                 "config",
                 "show",
             ],
