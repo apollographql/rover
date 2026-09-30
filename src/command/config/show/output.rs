@@ -250,6 +250,18 @@ mod tests {
 
         let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
 
-        assert_that!(text).contains("Credential: none");
+        assert_that!(text).is_equal_to(
+            "Profile: staging (explicit)\n\
+            Credential: none\n\
+            \n\
+            ┌───────────────────────────┬──────────────────────────────────────┬────────────────────┐\n\
+            │ Setting                   ┆ Value                                ┆ Source             │\n\
+            ╞═══════════════════════════╪══════════════════════════════════════╪════════════════════╡\n\
+            │ APOLLO_REGISTRY_URL       ┆ https://registry.staging.example.com ┆ profile (explicit) │\n\
+            ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤\n\
+            │ APOLLO_TELEMETRY_DISABLED ┆ false                                ┆ built-in default   │\n\
+            └───────────────────────────┴──────────────────────────────────────┴────────────────────┘"
+                .to_string(),
+        );
     }
 }

@@ -814,7 +814,13 @@ mod tests {
             .run(&rover, &profile)
             .expect_err("expected an invalid stored registry URL to fail the command");
 
-        assert_that!(error.to_string()).contains("APOLLO_REGISTRY_URL");
+        assert_that!(error.to_string()).is_equal_to(
+            "error: `APOLLO_REGISTRY_URL` in profile `staging` is set to \
+            `registry.example.com`, which isn't a valid URL. URLs must include a scheme, for \
+            example `https://registry.example.com`. Run `rover config set APOLLO_REGISTRY_URL \
+            <value> --profile staging` to correct it.\n"
+                .to_string(),
+        );
     }
 
     // Regression test for FR57/FR18: `config show` must create nothing when
