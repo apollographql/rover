@@ -1157,12 +1157,13 @@ mod tests {
             .await
             .expect_err("expected an invalid stored registry URL to fail the command");
 
-        let message = error.to_string();
-        assert_that!(message).contains("APOLLO_REGISTRY_URL");
-        assert_that!(message).contains("profile `staging`");
-        assert_that!(message).contains("registry.example.com");
-        assert_that!(message).contains("isn't a valid URL");
-        assert_that!(message).contains("rover config set APOLLO_REGISTRY_URL");
+        assert_that!(error.to_string()).is_equal_to(
+            "error: `APOLLO_REGISTRY_URL` in profile `staging` is set to \
+            `registry.example.com`, which isn't a valid URL. URLs must include a scheme, for \
+            example `https://registry.example.com`. Run `rover config set APOLLO_REGISTRY_URL \
+            <value> --profile staging` to correct it.\n"
+                .to_string(),
+        );
     }
 
     #[test]
