@@ -55,15 +55,22 @@ impl Show {
                 RoverEnvKey::RoverDownloadHost,
             )?,
             // `--templates-api` is scoped to `template`/`init` (FR1), not
-            // global, so `config show`'s own invocation never carries it -
-            // `explicit` is always `None` here, reporting what a `rover
-            // template` invocation would resolve to for this profile.
+            // global, so `config show`'s own invocation never parses that
+            // flag - unlike every other setting in this slice, there's no
+            // `Rover`-level clap field for `resolve_string_setting` to read
+            // an already-resolved flag-or-env value from. Passing the real
+            // env var directly here (rather than `None`) is what lets it
+            // still report `source: Environment` correctly when only the
+            // env var, not a flag, supplies a value - `resolve_string_
+            // setting`'s own env check (`raw_env`) is otherwise exactly
+            // this same lookup, so this doesn't change its behavior when
+            // the env var isn't set.
             resolve_string_setting(
                 rover,
                 profile,
                 &houston_config,
                 SettingName::TemplatesApi,
-                None,
+                rover.get_env_var(RoverEnvKey::TemplatesApi)?,
                 RoverEnvKey::TemplatesApi,
             )?,
         ];
@@ -367,6 +374,42 @@ mod tests {
             .unwrap();
         assert_that!(&checks_timeout.value)
             .is_equal_to(SettingName::ChecksTimeoutSeconds.builtin_default());
+    }
+
+    // Regression test: `APOLLO_TEMPLATES_API` has no `Rover`-level clap
+    // field for `config show`'s own invocation to parse (its flag is scoped
+    // to `template`/`init`), so a naive `explicit: None` would silently
+    // miss a real env var with no profile value stored, under-reporting it
+    // as the builtin default instead of `source: Environment`.
+    #[test]
+    fn templates_api_reports_the_real_environment_even_with_no_flag() {
+        let home = tempfile::tempdir().unwrap();
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let mut rover = Rover::parse_from([
+            PKG_NAME,
+            "--config-home",
+            home_path.as_str(),
+            "config",
+            "show",
+        ]);
+        rover
+            .insert_env_var(
+                RoverEnvKey::TemplatesApi,
+                "https://env-templates.example.com",
+            )
+            .unwrap();
+        let profile = rover.get_profile_opt();
+
+        let output = Show {}.run(&rover, &profile).unwrap();
+
+        let templates_api = output
+            .settings
+            .iter()
+            .find(|s| s.name == "APOLLO_TEMPLATES_API")
+            .unwrap();
+        assert_that!(templates_api.source).is_equal_to(Source::Environment);
+        assert_that!(&templates_api.value)
+            .is_equal_to("https://env-templates.example.com".to_string());
     }
 
     #[test]
