@@ -4,6 +4,10 @@ use rover_std::Style;
 
 use crate::{command::CliOutput, utils::table};
 
+/// The `resource_type` a pair's graph-scoped resources carry - see `pair_list`'s own doc comment
+/// on the same shape (FR12) for why this operation doesn't filter or interpret the field itself.
+const GRAPH_RESOURCE_TYPE: &str = "GRAPH";
+
 /// FR6-FR9 (`specs/rover-431-identity-grant-management`): the result of creating a
 /// `client-credentials` pair. The secret is shown exactly once, here - `stderr()` carries FR7's
 /// warning about that.
@@ -19,7 +23,7 @@ impl CreateClientCredentialsOutput {
         self.pair
             .resources
             .iter()
-            .filter(|resource| resource.resource_type == "GRAPH")
+            .filter(|resource| resource.resource_type == GRAPH_RESOURCE_TYPE)
             .map(|resource| resource.resource_id.as_str())
             .collect()
     }
@@ -82,6 +86,7 @@ mod tests {
     use speculoos::prelude::*;
 
     use super::*;
+    use crate::{RoverOutput, options::JsonOutput};
 
     fn pair() -> CreatedPair {
         CreatedPair {
@@ -92,19 +97,21 @@ mod tests {
             resources: vec![
                 PairResource {
                     resource_id: "inventory".to_string(),
-                    resource_type: "GRAPH".to_string(),
+                    resource_type: GRAPH_RESOURCE_TYPE.to_string(),
                 },
                 PairResource {
                     resource_id: "checkout".to_string(),
-                    resource_type: "GRAPH".to_string(),
+                    resource_type: GRAPH_RESOURCE_TYPE.to_string(),
                 },
             ],
             scopes: vec!["rover:cli".to_string()],
         }
     }
 
+    // The create JSON payload must include key_type, id, client_id, client_secret,
+    // secret_expires_at, name, graphs, and scopes.
     #[test]
-    fn json_matches_fr8s_shape() {
+    fn json_matches_the_create_response_shape() {
         let output = CreateClientCredentialsOutput { pair: pair() };
 
         assert_that!(output.json())
@@ -119,6 +126,18 @@ mod tests {
                 "graphs": ["inventory", "checkout"],
                 "scopes": ["rover:cli"],
             }));
+    }
+
+    // The inner payload above, but through the real `{"json_version", "data", "error"}` envelope
+    // every `--format json` response goes through - so a change to the envelope itself, not just
+    // this command's own fields, also gets caught.
+    #[test]
+    fn full_envelope_snapshot() {
+        let output =
+            RoverOutput::CliOutput(Box::new(CreateClientCredentialsOutput { pair: pair() }));
+        let envelope = JsonOutput::from(&output);
+
+        insta::assert_json_snapshot!(envelope);
     }
 
     // A full-value snapshot rather than field-by-field `.contains()` checks, so a reordered,

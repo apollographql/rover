@@ -54,9 +54,6 @@ pub(crate) struct Create {
 }
 
 impl Create {
-    /// Dispatches by `key_type` before either path builds its own request: `ClientCredentials`
-    /// has no [`GraphOsKeyType`] to convert into (it's a fully separate mutation from
-    /// `createApiKey`), so it never reaches [`Self::create_api_key`].
     pub(crate) async fn run(
         &self,
         client_config: StudioClientConfig,
