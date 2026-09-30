@@ -13,7 +13,10 @@ use rover_studio::{
 };
 use thiserror::Error;
 
-use crate::shared::{CheckTaskStatus, CheckWorkflowResponse, LintResponse};
+use crate::{
+    operations::api_key::list::ApiKey,
+    shared::{CheckTaskStatus, CheckWorkflowResponse, LintResponse},
+};
 
 /// RoverClientError represents all possible failures that can occur during a client request.
 #[derive(Error, Debug)]
@@ -75,9 +78,12 @@ pub enum RoverClientError {
     /// [`crate::blocking::StudioClient::studio_graphql_service_with_timeout`], the only
     /// constructor `PermissionDeniedLayer` is wired into) for lack of permission, or because the
     /// organization isn't enrolled in client-credential support (spec FR73,
-    /// `specs/rover-431-identity-grant-management`). `list` needs the same classification for
-    /// its own FR16 branch but reads through the retrying `studio_graphql_service` instead, so
-    /// its own consumer PR has to decide how it gets there. Distinct from
+    /// `specs/rover-431-identity-grant-management`). `list`'s own FR16 branch does *not* use
+    /// this: checking the Platform API's actual implementation showed its pairs-listing field
+    /// returns the same empty, successful result for "no permission," "not enrolled," and
+    /// "genuinely no pairs" alike (spec.md §6 has the full account) - there's nothing to
+    /// classify there, so `list` only ever sees this kind of error from its own genuine-failure
+    /// path ([`RoverClientError::PairListFailure`]). Distinct from
     /// [`RoverClientError::InvalidKey`] (an authentication failure) and from the generic
     /// [`RoverClientError::PermissionError`] (a different, graph-scoped permission story) -
     /// this one names the organization and points at the specific requirement.
@@ -268,6 +274,25 @@ pub enum RoverClientError {
     PublishLaunchFailure {
         graph_ref: GraphRef,
         publish_response: serde_json::Value,
+    },
+
+    /// `rover api-key list` successfully fetched an organization's API keys, but its
+    /// client-credential pairs query genuinely failed (a timeout, a 5xx, any real error - an
+    /// empty, successful pairs result is not this error; see spec FR16,
+    /// `specs/rover-431-identity-grant-management`). `keys` is the best-effort API-key list
+    /// already fetched, carried so the command still reports it despite the overall failure -
+    /// mirrors [`RoverClientError::PublishLaunchFailure`]/
+    /// [`RoverClientError::CheckWorkflowFailure`]'s existing pattern of a variant carrying
+    /// already-fetched structured data for the binary crate's `RoverError::print()`/
+    /// `get_internal_data_json()` to render at print time.
+    #[error(
+        "Could not list client-credential pairs in organization '{organization_id}': {source}"
+    )]
+    PairListFailure {
+        organization_id: String,
+        keys: Vec<ApiKey>,
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync>,
     },
 
     /// While linting the proposed schema, some rule violations were found

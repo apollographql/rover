@@ -1,6 +1,6 @@
 mod create;
 mod delete;
-mod list;
+pub(crate) mod list;
 mod rename;
 
 use std::fmt::{Display, Formatter};
@@ -52,15 +52,15 @@ impl ApiKeys {
 // enum contained within this crate rather than leaking it out. Further it allows us to selectively
 // add support for more key types as they are required, rather than them changing as the schema
 // does.
-#[derive(Debug, Clone, Serialize, ValueEnum, Copy)]
+#[derive(Debug, Clone, Serialize, ValueEnum, Copy, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ApiKeyType {
     Operator,
     Subgraph,
     /// A pair of credentials for the OAuth 2.0 client-credentials grant
     // A fully separate GraphQL mutation (`createOAuthClient`) from the other two, which share
-    // `createApiKey`/`GraphOsKeyType` - see `create::Create::run`'s own doc comment on why it
-    // dispatches on this variant before ever building a `GraphOsKeyType`.
+    // `createApiKey`/`GraphOsKeyType` - `create::Create::run` dispatches on this variant before
+    // ever building a `GraphOsKeyType`.
     ClientCredentials,
 }
 

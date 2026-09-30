@@ -130,6 +130,10 @@ impl RoverError {
             Some(RoverClientError::LintFailures { lint_response }) => {
                 stdoutln!("{}", lint_response.get_ariadne()?)?
             }
+            Some(RoverClientError::PairListFailure { keys, .. }) => stdoutln!(
+                "{}",
+                crate::command::api_key::list::output::keys_table_text(keys)
+            )?,
             _ => (),
         }
 
@@ -187,6 +191,9 @@ impl RoverError {
                 graph_ref: _,
                 publish_response,
             }) => publish_response.clone(),
+            Some(RoverClientError::PairListFailure { keys, .. }) => {
+                json!({ "keys": crate::command::api_key::list::output::keys_json(keys), "client_credentials": null })
+            }
             _ => Value::Null,
         }
     }
@@ -479,6 +486,74 @@ mod tests {
                 .collect();
 
             assert_that!(reported).is_equal_to(vec![Some(provenance()); 6]);
+        }
+    }
+
+    mod pair_list_failure {
+        use chrono::DateTime;
+        use rover_client::{RoverClientError, operations::api_key::list::ApiKey};
+        use serde_json::json;
+        use speculoos::prelude::*;
+
+        use super::RoverError;
+        use crate::options::JsonOutput;
+
+        fn keys() -> Vec<ApiKey> {
+            vec![ApiKey {
+                created_at: DateTime::parse_from_rfc3339("2026-01-04T12:00:00Z").unwrap(),
+                expires_at: None,
+                id: "key-123".to_string(),
+                name: Some("router-prod".to_string()),
+                key_type: Some("Operator".to_string()),
+            }]
+        }
+
+        /// Walks the real path - through `RoverError` and the JSON envelope - rather than
+        /// calling the accessor, since the envelope is the contract.
+        fn data_of(error: RoverClientError) -> serde_json::Value {
+            let rover_error = RoverError::new(error);
+            let envelope = serde_json::to_value(JsonOutput::from(&rover_error)).unwrap();
+            envelope["data"].clone()
+        }
+
+        #[test]
+        fn a_genuine_pairs_failure_still_reports_the_keys_already_fetched() {
+            let data = data_of(RoverClientError::PairListFailure {
+                organization_id: "acme".to_string(),
+                keys: keys(),
+                source: Box::new(RoverClientError::ClientError {
+                    msg: "timed out".to_string(),
+                }),
+            });
+
+            assert_that!(data).is_equal_to(json!({
+                "keys": [
+                    {
+                        "created_at": "2026-01-04T12:00:00Z",
+                        "expires_at": null,
+                        "id": "key-123",
+                        "name": "router-prod",
+                        "key_type": "Operator",
+                    }
+                ],
+                "client_credentials": null,
+                "success": false,
+            }));
+        }
+
+        #[test]
+        fn a_genuine_pairs_failure_gets_its_own_stable_error_code() {
+            let error = RoverError::new(RoverClientError::PairListFailure {
+                organization_id: "acme".to_string(),
+                keys: keys(),
+                source: Box::new(RoverClientError::ClientError {
+                    msg: "timed out".to_string(),
+                }),
+            });
+
+            assert_that!(error.code().map(|code| code.to_string()))
+                .is_some()
+                .is_equal_to("E056".to_string());
         }
     }
 }

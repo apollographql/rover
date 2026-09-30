@@ -10,6 +10,11 @@ use crate::{
 
 type RemoteApiKey = ListKeysQueryOrganizationApiKeysEdges;
 type Timestamp = String;
+// `graphql_client` generates its own copy of this enum nested under `list_keys_query` rather
+// than reusing `create`'s identically-shaped one (unlike custom scalars, an enum can't be
+// pre-aliased into the derive) - this alias is just a readability shorthand for that generated
+// type, not a shared one.
+type GraphOsKeyType = list_keys_query::GraphOsKeyType;
 
 #[derive(GraphQLQuery, Debug)]
 #[graphql(
@@ -44,6 +49,25 @@ pub struct ApiKey {
     pub expires_at: Option<DateTime<FixedOffset>>,
     pub id: String,
     pub name: Option<String>,
+    /// `None` when the Platform API doesn't report a type for this key - nullable at the
+    /// schema level for any key, not only pairs (spec FR15).
+    pub key_type: Option<String>,
+}
+
+/// Renders the full backend key-type enum, not just the subset `rover api-key create` can
+/// produce (`ApiKeyType`, `src/command/api_key/mod.rs`) - an organization can hold key types
+/// Rover has never let anyone create (e.g. `SCIM`, `ROUTER`).
+fn render_key_type(key_type: GraphOsKeyType) -> String {
+    match key_type {
+        GraphOsKeyType::GATEWAY => "Gateway".to_string(),
+        GraphOsKeyType::OPERATOR => "Operator".to_string(),
+        GraphOsKeyType::ROUTER => "Router".to_string(),
+        GraphOsKeyType::SCIM => "Scim".to_string(),
+        GraphOsKeyType::SUBGRAPH => "Subgraph".to_string(),
+        GraphOsKeyType::VARIANT => "Variant".to_string(),
+        // Forward-compatible: a variant this build doesn't know about yet, rather than a panic.
+        GraphOsKeyType::Other(other) => other,
+    }
 }
 
 pub async fn run(
@@ -104,6 +128,63 @@ impl TryFrom<RemoteApiKey> for ApiKey {
             expires_at,
             id: value.node.id.clone(),
             name: value.node.key_name.clone(),
+            key_type: value.node.key_type.map(render_key_type),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+    use speculoos::prelude::*;
+
+    use super::*;
+
+    #[rstest]
+    #[case::gateway(GraphOsKeyType::GATEWAY, "Gateway")]
+    #[case::operator(GraphOsKeyType::OPERATOR, "Operator")]
+    #[case::router(GraphOsKeyType::ROUTER, "Router")]
+    #[case::scim(GraphOsKeyType::SCIM, "Scim")]
+    #[case::subgraph(GraphOsKeyType::SUBGRAPH, "Subgraph")]
+    #[case::variant(GraphOsKeyType::VARIANT, "Variant")]
+    #[case::forward_compatible_unknown_variant(
+        GraphOsKeyType::Other("FUTURE_TYPE".to_string()),
+        "FUTURE_TYPE"
+    )]
+    fn render_key_type_covers_every_known_variant(
+        #[case] key_type: GraphOsKeyType,
+        #[case] expected: &str,
+    ) {
+        assert_that!(render_key_type(key_type)).is_equal_to(expected.to_string());
+    }
+
+    fn remote_key(key_type: serde_json::Value) -> RemoteApiKey {
+        serde_json::from_value(serde_json::json!({
+            "node": {
+                "createdAt": "2026-01-04T12:00:00Z",
+                "expiresAt": null,
+                "id": "key-123",
+                "keyName": "router-prod",
+                "keyType": key_type,
+                "token": "s_super-secret",
+            }
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn try_from_renders_a_present_key_type() {
+        let key = ApiKey::try_from(remote_key(serde_json::json!("OPERATOR"))).unwrap();
+
+        assert_that!(key.key_type)
+            .is_some()
+            .is_equal_to("Operator".to_string());
+    }
+
+    #[test]
+    fn try_from_leaves_a_missing_key_type_as_none() {
+        let key = ApiKey::try_from(remote_key(serde_json::Value::Null)).unwrap();
+
+        assert_that!(key.key_type).is_none();
     }
 }

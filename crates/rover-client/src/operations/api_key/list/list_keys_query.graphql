@@ -11,6 +11,7 @@ query ListKeysQuery($organizationId: ID!, $after: String) {
                     expiresAt
                     id
                     keyName
+                    keyType
                     token
                 }
             }
