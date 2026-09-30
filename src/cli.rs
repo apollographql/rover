@@ -2248,11 +2248,11 @@ mod tests {
         let warnings = rover.unrecognized_setting_warnings(&rover.get_profile_opt());
 
         assert_that!(warnings.len()).is_equal_to(1);
-        assert_that!(&warnings[0]).contains("Warning:");
-        assert_that!(&warnings[0]).contains("profile `staging`");
-        assert_that!(&warnings[0]).contains("APOLLO_FUTURE_SETTING");
-        assert_that!(&warnings[0]).contains("doesn't recognize");
-        assert_that!(&warnings[0]).contains("will be ignored");
+        assert_that!(&warnings[0]).is_equal_to(
+            "Warning: profile `staging` sets `APOLLO_FUTURE_SETTING`, which this version of \
+            Rover doesn't recognize. It will be ignored."
+                .to_string(),
+        );
     }
 
     #[test]
@@ -2280,7 +2280,11 @@ mod tests {
         let warnings = rover.unrecognized_setting_warnings(&rover.get_profile_opt());
 
         assert_that!(warnings.len()).is_equal_to(1);
-        assert_that!(&warnings[0]).contains("APOLLO_FUTURE_SETTING");
+        assert_that!(&warnings[0]).is_equal_to(
+            "Warning: profile `staging` sets `APOLLO_FUTURE_SETTING`, which this version of \
+            Rover doesn't recognize. It will be ignored."
+                .to_string(),
+        );
     }
 
     #[test]
