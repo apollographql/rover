@@ -1,0 +1,25 @@
+query BulkDeletionStatusQuery($graphId: ID!, $listId: ID!, $jobId: ID!) {
+  frontendUrlRoot
+  graph(id: $graphId) {
+    persistedQueryList(id: $listId) {
+      bulkDeletionStatus(id: $jobId) {
+        __typename
+        ... on BulkDeletionPending {
+          status
+          operationsDeletedSoFar
+        }
+        ... on BulkDeletionSuccess {
+          build {
+            revision
+            list {
+              name
+            }
+          }
+        }
+        ... on BulkDeletionFailure {
+          error
+        }
+      }
+    }
+  }
+}
