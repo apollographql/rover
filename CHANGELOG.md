@@ -70,6 +70,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   For example, one written by a newer Rover version, or a typo. Rover warns once on stderr and otherwise ignores it, rather than silently doing nothing - so a config directory shared across Rover versions doesn't break the older one.
 
+- **`rover plugin install --no-download` never downloads - @SharkBaitDLS**
+
+  `rover plugin install --no-download` (or `APOLLO_ROVER_NO_DOWNLOAD=true`) uses a plugin that's already installed, and makes no connection to the plugin registry at all. If no installed release matches the version asked for, it fails straight away with the new error E058, naming the plugin, the version, the directory it looked in, and the control that disabled downloads, rather than downloading it anyway. It doesn't affect `--skip-update`, and `APOLLO_ROVER_SKIP_UPDATE` doesn't stop an explicit `rover plugin install` from downloading.
+
 - **`rover plugin install` records what it installed in `plugin-versions.lock` - @SharkBaitDLS**
 
   Each successful `rover plugin install` (or `rover install --plugin`) now records the plugin, the version it asked for, and the exact release it installed in `plugin-versions.lock`, beside the `bin` directory in `~/.rover` (or `$APOLLO_HOME/.rover`). Installing one plugin leaves every other entry as it was, so a floating version such as `2` recorded earlier keeps the release it was locked at. Other commands never write the file. A lockfile Rover can't read, including one written by a newer version of Rover, stops the install with error E052 naming the file, rather than being ignored or overwritten. Plugins installed into `APOLLO_NODE_MODULES_BIN_DIR` aren't recorded, and neither is a fallback to an already-installed release when the plugin registry can't be reached.

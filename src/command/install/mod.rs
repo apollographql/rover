@@ -115,6 +115,9 @@ impl Install {
         self.plugin.as_ref().map(|plugin| PluginInstall {
             plugin: plugin.clone(),
             force: self.force,
+            // The alias is deprecated, so it gains no new flags; the
+            // environment variable still applies to it, through the verb.
+            no_download: false,
             elv2_license_accepter: self.elv2_license_accepter,
         })
     }

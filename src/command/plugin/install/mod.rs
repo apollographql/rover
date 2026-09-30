@@ -12,7 +12,7 @@ use crate::{
     command::install::{Plugin, PluginInstaller, PluginProvenance, PluginSource, installer},
     options::LicenseAccepter,
     plugin::{
-        error::RequestOrigin,
+        error::{DownloadControl, RequestOrigin},
         lockfile::{LOCKFILE, LockedPlugin, PluginLockfile},
     },
     utils::client::StudioClientConfig,
@@ -27,6 +27,14 @@ pub struct PluginInstall {
     /// Overwrite any existing binary without prompting for confirmation.
     #[arg(long = "force", short = 'f')]
     pub(crate) force: bool,
+
+    /// Never download: use the plugin if it's already installed, and fail,
+    /// naming it, if it isn't.
+    ///
+    /// Set the `APOLLO_ROVER_NO_DOWNLOAD` environment variable (to `1` or `true`)
+    /// to do the same. Neither this nor `--skip-update` implies the other.
+    #[arg(long = "no-download")]
+    pub(crate) no_download: bool,
 
     #[clap(flatten)]
     pub(crate) elv2_license_accepter: LicenseAccepter,
@@ -52,10 +60,17 @@ impl PluginInstall {
 
         let installed = PluginInstaller::new(client_config, rover_installer, self.force)
             .requested_by(Some(RequestOrigin::PluginArgument))
+            .without_downloads(self.download_control())
             .install(&self.plugin, false)
             .await?;
 
-        if let Some(level) = level.filter(|level| belongs_in_lockfile(&installed, level)) {
+        // With downloads disabled, a floating request was resolved against
+        // nothing: the newest release on disk is not what it resolves to, and
+        // locking it would say so. An exact request needs no resolving.
+        let resolved = self.download_control().is_none() || !self.plugin.request().is_floating();
+        if let Some(level) =
+            level.filter(|level| resolved && belongs_in_lockfile(&installed, level))
+        {
             let path = level.join(LOCKFILE);
             // Read again rather than reuse the first read: another install
             // may have recorded a plugin while this one downloaded.
@@ -73,6 +88,18 @@ impl PluginInstall {
         Ok(RoverOutput::CliOutput(Box::new(PluginInstallOutput {
             plugins: vec![installed],
         })))
+    }
+
+    /// What forbids this install from downloading, if anything does: the
+    /// flag, or failing that, its environment variable.
+    fn download_control(&self) -> Option<DownloadControl> {
+        if self.no_download {
+            Some(DownloadControl::NoDownloadFlag)
+        } else if crate::utils::no_download() {
+            Some(DownloadControl::NoDownloadEnvVar)
+        } else {
+            None
+        }
     }
 }
 

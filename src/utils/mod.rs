@@ -24,7 +24,23 @@ pub(crate) const SKIP_UPDATE_ENV: &str = "APOLLO_ROVER_SKIP_UPDATE";
 /// Read manually rather than via a clap `env` binding, since clap's boolean parser
 /// doesn't accept `1` and errors if it is provided.
 pub(crate) fn skip_all_updates() -> bool {
-    std::env::var(SKIP_UPDATE_ENV)
+    switched_on(SKIP_UPDATE_ENV)
+}
+
+/// The environment variable equivalent of `rover plugin install
+/// --no-download`. It guards only that explicit install step, and neither it
+/// nor [`SKIP_UPDATE_ENV`] implies the other.
+pub(crate) const NO_DOWNLOAD_ENV: &str = "APOLLO_ROVER_NO_DOWNLOAD";
+
+/// Whether the user has forbidden `rover plugin install` from downloading via
+/// [`NO_DOWNLOAD_ENV`], read the way [`skip_all_updates`] is.
+pub(crate) fn no_download() -> bool {
+    switched_on(NO_DOWNLOAD_ENV)
+}
+
+/// Whether the boolean environment variable `name` is `1` or `true`.
+fn switched_on(name: &str) -> bool {
+    std::env::var(name)
         .map(|value| {
             let value = value.trim().to_lowercase();
             value == "1" || value == "true"
@@ -50,6 +66,40 @@ pub(crate) fn config_notices_suppressed_by_env() -> bool {
             value == "1" || value == "true"
         })
         .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod no_download_tests {
+    use super::{NO_DOWNLOAD_ENV, SKIP_UPDATE_ENV, no_download};
+
+    #[test]
+    fn truthy_values_forbid_downloads() {
+        for value in ["1", "true", "TRUE", " true "] {
+            temp_env::with_var(NO_DOWNLOAD_ENV, Some(value), || {
+                assert!(no_download(), "{value:?} should forbid downloads");
+            });
+        }
+    }
+
+    #[test]
+    fn falsey_or_unset_allows_downloads() {
+        for value in ["0", "false", "", "no"] {
+            temp_env::with_var(NO_DOWNLOAD_ENV, Some(value), || {
+                assert!(!no_download(), "{value:?} should allow downloads");
+            });
+        }
+        temp_env::with_var_unset(NO_DOWNLOAD_ENV, || {
+            assert!(!no_download(), "unset should allow downloads");
+        });
+    }
+
+    #[test]
+    fn skipping_updates_does_not_forbid_downloads() {
+        temp_env::with_vars(
+            [(SKIP_UPDATE_ENV, Some("true")), (NO_DOWNLOAD_ENV, None)],
+            || assert!(!no_download()),
+        );
+    }
 }
 
 #[cfg(test)]
