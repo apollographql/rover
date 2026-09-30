@@ -145,6 +145,7 @@ mod tests {
     use speculoos::prelude::*;
 
     use super::*;
+    use crate::options::ProfileSelection;
 
     fn test_config() -> (Config, TempDir) {
         let tmp_home = TempDir::new().unwrap();
@@ -159,6 +160,7 @@ mod tests {
     fn profile_opt(profile_name: &str) -> ProfileOpt {
         ProfileOpt {
             profile_name: profile_name.to_string(),
+            selection: ProfileSelection::Explicit,
         }
     }
 

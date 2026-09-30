@@ -182,11 +182,13 @@ impl LegacyWhoami {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::options::ProfileSelection;
 
     pub fn get_legacy_whoami(unmasked_key: bool) -> LegacyWhoami {
         LegacyWhoami {
             profile: ProfileOpt {
                 profile_name: "default".to_string(),
+                selection: ProfileSelection::Default,
             },
             insecure_unmask_key: unmasked_key,
         }
