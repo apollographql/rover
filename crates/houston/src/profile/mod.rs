@@ -594,10 +594,11 @@ mod tests {
             .get_credential()
             .expect_err("expected a settings-only profile to have no credential");
 
-        assert_that!(error.to_string()).contains(format!("Profile `{}`", profile.name()));
-        assert_that!(error.to_string())
-            .contains(format!("rover auth login --profile {}", profile.name()));
-        assert_that!(error.to_string()).contains("APOLLO_KEY");
+        assert_that!(error.to_string()).is_equal_to(format!(
+            "Profile `{name}` has settings but no credential. Run `rover auth login --profile \
+            {name}`, or set `APOLLO_KEY` in the environment.",
+            name = profile.name(),
+        ));
         assert!(matches!(error, HoustonProblem::NoCredential(_)));
     }
 
