@@ -311,8 +311,12 @@ mod tests {
             input: "apollo_registry_url".to_string(),
             canonical: SettingName::RegistryUrl,
         });
-        assert_that!(error.to_string()).contains("APOLLO_REGISTRY_URL");
-        assert_that!(error.to_string()).contains(".rover/rover.yaml");
+        assert_that!(error.to_string()).is_equal_to(
+            "`apollo_registry_url` isn't a Rover setting name. Settings are named as their \
+            environment variables are, so use `APOLLO_REGISTRY_URL`. The lowercase spelling is \
+            accepted in `.rover/rover.yaml` only."
+                .to_string(),
+        );
     }
 
     #[test]
@@ -331,7 +335,11 @@ mod tests {
         assert_that!(error).is_equal_to(SettingNameError::Unrecognized {
             input: "APOLLO_NOT_A_SETTING".to_string(),
         });
-        assert_that!(error.to_string()).contains("rover config show");
+        assert_that!(error.to_string()).is_equal_to(
+            "`APOLLO_NOT_A_SETTING` isn't a Rover setting. Run `rover config show` to list the \
+            settings Rover recognizes."
+                .to_string(),
+        );
     }
 
     #[rstest]
@@ -380,8 +388,11 @@ mod tests {
             .validate("registry.example.com".to_string())
             .unwrap_err();
 
-        assert_that!(error.to_string()).contains("registry.example.com");
-        assert_that!(error.to_string()).contains("must include a scheme");
+        assert_that!(error.to_string()).is_equal_to(
+            "`registry.example.com` isn't a valid URL. URLs must include a scheme, for example \
+            `https://example.com`."
+                .to_string(),
+        );
     }
 
     // A URL with a non-http(s) scheme parses fine syntactically, so it needs
@@ -397,16 +408,19 @@ mod tests {
         assert_that!(error).is_equal_to(SettingValueError::UnsupportedUrlScheme {
             input: "ftp://example.com".to_string(),
         });
-        assert_that!(error.to_string()).contains("ftp://example.com");
-        assert_that!(error.to_string()).contains("`http`/`https`");
+        assert_that!(error.to_string()).is_equal_to(
+            "`ftp://example.com` isn't a valid URL. Rover only accepts `http`/`https` URLs for \
+            this setting."
+                .to_string(),
+        );
     }
 
     #[test]
     fn invalid_bool_message_names_the_input_and_the_accepted_values() {
         let error = SettingType::Bool.validate("sure".to_string()).unwrap_err();
 
-        assert_that!(error.to_string()).contains("sure");
-        assert_that!(error.to_string()).contains("`true` or `false`");
+        assert_that!(error.to_string())
+            .is_equal_to("`sure` isn't a valid boolean. Use `true` or `false`.".to_string());
     }
 
     #[test]
