@@ -137,7 +137,10 @@ impl CliOutput for ListOutput {
 mod tests {
     use chrono::DateTime;
     use console::strip_ansi_codes;
-    use rover_client::operations::api_key::pair_list::{PairActor, PairResource};
+    use rover_client::operations::api_key::{
+        list::ApiKeyBackendType,
+        pair_list::{PairActor, PairResource},
+    };
     use speculoos::prelude::*;
 
     use super::*;
@@ -149,7 +152,7 @@ mod tests {
             expires_at: None,
             id: "key-123".to_string(),
             name: Some("router-prod".to_string()),
-            key_type: Some("Operator".to_string()),
+            key_type: Some(ApiKeyBackendType::Operator),
         }
     }
 

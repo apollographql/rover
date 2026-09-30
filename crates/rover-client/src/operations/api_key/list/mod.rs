@@ -10,11 +10,6 @@ use crate::{
 
 type RemoteApiKey = ListKeysQueryOrganizationApiKeysEdges;
 type Timestamp = String;
-// `graphql_client` generates its own copy of this enum nested under `list_keys_query` rather
-// than reusing `create`'s identically-shaped one (unlike custom scalars, an enum can't be
-// pre-aliased into the derive) - this alias is just a readability shorthand for that generated
-// type, not a shared one.
-type GraphOsKeyType = list_keys_query::GraphOsKeyType;
 
 #[derive(GraphQLQuery, Debug)]
 #[graphql(
@@ -51,22 +46,63 @@ pub struct ApiKey {
     pub name: Option<String>,
     /// `None` when the Platform API doesn't report a type for this key - nullable at the
     /// schema level for any key, not only pairs (spec FR15).
-    pub key_type: Option<String>,
+    pub key_type: Option<ApiKeyBackendType>,
 }
 
-/// Renders the full backend key-type enum, not just the subset `rover api-key create` can
-/// produce (`ApiKeyType`, `src/command/api_key/mod.rs`) - an organization can hold key types
-/// Rover has never let anyone create (e.g. `SCIM`, `ROUTER`).
-fn render_key_type(key_type: GraphOsKeyType) -> String {
-    match key_type {
-        GraphOsKeyType::GATEWAY => "Gateway".to_string(),
-        GraphOsKeyType::OPERATOR => "Operator".to_string(),
-        GraphOsKeyType::ROUTER => "Router".to_string(),
-        GraphOsKeyType::SCIM => "Scim".to_string(),
-        GraphOsKeyType::SUBGRAPH => "Subgraph".to_string(),
-        GraphOsKeyType::VARIANT => "Variant".to_string(),
-        // Forward-compatible: a variant this build doesn't know about yet, rather than a panic.
-        GraphOsKeyType::Other(other) => other,
+/// The full set of API key types the Platform API may report for an existing key - a superset
+/// of what `rover api-key create` can produce (`ApiKeyType`, `src/command/api_key/mod.rs`): an
+/// organization can hold key types Rover has never let anyone create (e.g. `Scim`, `Router`).
+/// A real enum a caller can match on exhaustively, rather than a pre-rendered string - extending
+/// the set later (e.g. if Rover starts creating `Gateway` keys) only means adding a variant here,
+/// not chasing string literals at every comparison site.
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum ApiKeyBackendType {
+    Gateway,
+    Operator,
+    Router,
+    Scim,
+    Subgraph,
+    Variant,
+    /// A type this build doesn't know about yet - carries the raw value forward rather than
+    /// losing it or panicking.
+    Other(String),
+}
+
+impl std::fmt::Display for ApiKeyBackendType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Gateway => write!(f, "Gateway"),
+            Self::Operator => write!(f, "Operator"),
+            Self::Router => write!(f, "Router"),
+            Self::Scim => write!(f, "Scim"),
+            Self::Subgraph => write!(f, "Subgraph"),
+            Self::Variant => write!(f, "Variant"),
+            Self::Other(other) => write!(f, "{other}"),
+        }
+    }
+}
+
+/// Serializes as [`Display`](std::fmt::Display) - the exact spelling spec FR15 requires
+/// ("Operator", not the raw schema spelling "OPERATOR") - rather than deriving, since no
+/// `serde(rename_all = ...)` convention reproduces that from the enum's own Rust variant names
+/// once the forward-compatible `Other(String)` variant is in the mix.
+impl Serialize for ApiKeyBackendType {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+impl From<list_keys_query::GraphOsKeyType> for ApiKeyBackendType {
+    fn from(key_type: list_keys_query::GraphOsKeyType) -> Self {
+        match key_type {
+            list_keys_query::GraphOsKeyType::GATEWAY => Self::Gateway,
+            list_keys_query::GraphOsKeyType::OPERATOR => Self::Operator,
+            list_keys_query::GraphOsKeyType::ROUTER => Self::Router,
+            list_keys_query::GraphOsKeyType::SCIM => Self::Scim,
+            list_keys_query::GraphOsKeyType::SUBGRAPH => Self::Subgraph,
+            list_keys_query::GraphOsKeyType::VARIANT => Self::Variant,
+            list_keys_query::GraphOsKeyType::Other(other) => Self::Other(other),
+        }
     }
 }
 
@@ -128,7 +164,7 @@ impl TryFrom<RemoteApiKey> for ApiKey {
             expires_at,
             id: value.node.id.clone(),
             name: value.node.key_name.clone(),
-            key_type: value.node.key_type.map(render_key_type),
+            key_type: value.node.key_type.map(ApiKeyBackendType::from),
         })
     }
 }
@@ -141,21 +177,40 @@ mod tests {
     use super::*;
 
     #[rstest]
-    #[case::gateway(GraphOsKeyType::GATEWAY, "Gateway")]
-    #[case::operator(GraphOsKeyType::OPERATOR, "Operator")]
-    #[case::router(GraphOsKeyType::ROUTER, "Router")]
-    #[case::scim(GraphOsKeyType::SCIM, "Scim")]
-    #[case::subgraph(GraphOsKeyType::SUBGRAPH, "Subgraph")]
-    #[case::variant(GraphOsKeyType::VARIANT, "Variant")]
+    #[case::gateway(list_keys_query::GraphOsKeyType::GATEWAY, ApiKeyBackendType::Gateway)]
+    #[case::operator(list_keys_query::GraphOsKeyType::OPERATOR, ApiKeyBackendType::Operator)]
+    #[case::router(list_keys_query::GraphOsKeyType::ROUTER, ApiKeyBackendType::Router)]
+    #[case::scim(list_keys_query::GraphOsKeyType::SCIM, ApiKeyBackendType::Scim)]
+    #[case::subgraph(list_keys_query::GraphOsKeyType::SUBGRAPH, ApiKeyBackendType::Subgraph)]
+    #[case::variant(list_keys_query::GraphOsKeyType::VARIANT, ApiKeyBackendType::Variant)]
     #[case::forward_compatible_unknown_variant(
-        GraphOsKeyType::Other("FUTURE_TYPE".to_string()),
+        list_keys_query::GraphOsKeyType::Other("FUTURE_TYPE".to_string()),
+        ApiKeyBackendType::Other("FUTURE_TYPE".to_string())
+    )]
+    fn from_covers_every_known_variant(
+        #[case] key_type: list_keys_query::GraphOsKeyType,
+        #[case] expected: ApiKeyBackendType,
+    ) {
+        assert_that!(ApiKeyBackendType::from(key_type)).is_equal_to(expected);
+    }
+
+    #[rstest]
+    #[case::gateway(ApiKeyBackendType::Gateway, "Gateway")]
+    #[case::operator(ApiKeyBackendType::Operator, "Operator")]
+    #[case::router(ApiKeyBackendType::Router, "Router")]
+    #[case::scim(ApiKeyBackendType::Scim, "Scim")]
+    #[case::subgraph(ApiKeyBackendType::Subgraph, "Subgraph")]
+    #[case::variant(ApiKeyBackendType::Variant, "Variant")]
+    #[case::forward_compatible_unknown_variant(
+        ApiKeyBackendType::Other("FUTURE_TYPE".to_string()),
         "FUTURE_TYPE"
     )]
-    fn render_key_type_covers_every_known_variant(
-        #[case] key_type: GraphOsKeyType,
+    fn serializes_as_the_exact_fr15_spelling(
+        #[case] key_type: ApiKeyBackendType,
         #[case] expected: &str,
     ) {
-        assert_that!(render_key_type(key_type)).is_equal_to(expected.to_string());
+        assert_that!(serde_json::to_value(&key_type).unwrap())
+            .is_equal_to(serde_json::json!(expected));
     }
 
     fn remote_key(key_type: serde_json::Value) -> RemoteApiKey {
@@ -173,12 +228,12 @@ mod tests {
     }
 
     #[test]
-    fn try_from_renders_a_present_key_type() {
+    fn try_from_converts_a_present_key_type() {
         let key = ApiKey::try_from(remote_key(serde_json::json!("OPERATOR"))).unwrap();
 
         assert_that!(key.key_type)
             .is_some()
-            .is_equal_to("Operator".to_string());
+            .is_equal_to(ApiKeyBackendType::Operator);
     }
 
     #[test]

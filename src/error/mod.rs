@@ -491,7 +491,10 @@ mod tests {
 
     mod pair_list_failure {
         use chrono::DateTime;
-        use rover_client::{RoverClientError, operations::api_key::list::ApiKey};
+        use rover_client::{
+            RoverClientError,
+            operations::api_key::list::{ApiKey, ApiKeyBackendType},
+        };
         use serde_json::json;
         use speculoos::prelude::*;
 
@@ -504,7 +507,7 @@ mod tests {
                 expires_at: None,
                 id: "key-123".to_string(),
                 name: Some("router-prod".to_string()),
-                key_type: Some("Operator".to_string()),
+                key_type: Some(ApiKeyBackendType::Operator),
             }]
         }
 

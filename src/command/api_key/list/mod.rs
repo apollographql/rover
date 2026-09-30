@@ -6,7 +6,7 @@ use rover_client::{
     RoverClientError,
     blocking::StudioClient,
     operations::api_key::{
-        list::{ApiKey, ListKeysInput, run},
+        list::{ApiKey, ApiKeyBackendType, ListKeysInput, run},
         pair_list::{
             ListOAuthClients, ListOAuthClientsError, ListOAuthClientsInput, OAuthClientPair,
         },
@@ -104,8 +104,9 @@ impl List {
         }
         self.type_filter.iter().any(|t| {
             matches!(
-                (t, key.key_type.as_deref()),
-                (ApiKeyType::Operator, Some("Operator")) | (ApiKeyType::Subgraph, Some("Subgraph"))
+                (t, &key.key_type),
+                (ApiKeyType::Operator, Some(ApiKeyBackendType::Operator))
+                    | (ApiKeyType::Subgraph, Some(ApiKeyBackendType::Subgraph))
             )
         })
     }
@@ -159,13 +160,13 @@ mod tests {
         }
     }
 
-    fn key_of_type(key_type: &str) -> ApiKey {
+    fn key_of_type(key_type: ApiKeyBackendType) -> ApiKey {
         ApiKey {
             created_at: chrono::DateTime::parse_from_rfc3339("2026-01-04T12:00:00Z").unwrap(),
             expires_at: None,
             id: "key-123".to_string(),
             name: None,
-            key_type: Some(key_type.to_string()),
+            key_type: Some(key_type),
         }
     }
 
@@ -188,18 +189,18 @@ mod tests {
     }
 
     #[test]
-    fn key_in_scope_matches_by_rendered_key_type() {
+    fn key_in_scope_matches_by_key_type() {
         let list = list(vec![ApiKeyType::Operator]);
 
-        assert_that!(list.key_in_scope(&key_of_type("Operator"))).is_true();
-        assert_that!(list.key_in_scope(&key_of_type("Subgraph"))).is_false();
+        assert_that!(list.key_in_scope(&key_of_type(ApiKeyBackendType::Operator))).is_true();
+        assert_that!(list.key_in_scope(&key_of_type(ApiKeyBackendType::Subgraph))).is_false();
     }
 
     #[test]
     fn key_in_scope_is_permissive_with_an_empty_filter() {
         let list = list(vec![]);
 
-        assert_that!(list.key_in_scope(&key_of_type("Gateway"))).is_true();
+        assert_that!(list.key_in_scope(&key_of_type(ApiKeyBackendType::Gateway))).is_true();
     }
 
     #[test]
