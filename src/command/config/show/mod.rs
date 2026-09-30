@@ -46,6 +46,14 @@ impl Show {
                 rover.checks_timeout_flag_or_env(),
                 RoverEnvKey::ChecksTimeoutSeconds,
             )?,
+            resolve_string_setting(
+                rover,
+                profile,
+                &houston_config,
+                SettingName::DownloadHost,
+                rover.download_host_flag_or_env(),
+                RoverEnvKey::RoverDownloadHost,
+            )?,
         ];
 
         Ok(ConfigShowOutput {

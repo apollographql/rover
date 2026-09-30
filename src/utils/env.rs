@@ -107,6 +107,7 @@ pub enum RoverEnvKey {
     VcsAuthor,
     NodeModulesBin,
     ChecksTimeoutSeconds,
+    RoverDownloadHost,
 }
 
 impl fmt::Display for RoverEnvKey {
@@ -129,6 +130,12 @@ mod tests {
     fn it_parses_config_home() {
         let expected_key = "APOLLO_CONFIG_HOME";
         assert_eq!(&RoverEnvKey::ConfigHome.to_string(), expected_key);
+    }
+
+    #[test]
+    fn it_parses_rover_download_host() {
+        let expected_key = "APOLLO_ROVER_DOWNLOAD_HOST";
+        assert_eq!(&RoverEnvKey::RoverDownloadHost.to_string(), expected_key);
     }
 
     #[test]
