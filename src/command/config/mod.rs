@@ -126,7 +126,21 @@ mod tests {
 
         let output = result.expect("expected config show to succeed with only one env var set");
         let text = temp_env::with_var("NO_COLOR", Some("1"), || output.get_stdout().unwrap());
-        assert_that!(text.unwrap()).contains("Profile:");
+        assert_that!(text.unwrap()).is_equal_to(
+            "Profile: default (default)\n\
+            Credential: none\n\
+            \n\
+            ┌───────────────────────────┬───────────────────────────────────────┬──────────────────┐\n\
+            │ Setting                   ┆ Value                                 ┆ Source           │\n\
+            ╞═══════════════════════════╪═══════════════════════════════════════╪══════════════════╡\n\
+            │ APOLLO_REGISTRY_URL       ┆ https://api.apollographql.com/graphql ┆ built-in default │\n\
+            ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤\n\
+            │ APOLLO_TELEMETRY_URL      ┆ https://rover.apollo.dev/telemetry    ┆ built-in default │\n\
+            ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤\n\
+            │ APOLLO_TELEMETRY_DISABLED ┆ false                                 ┆ built-in default │\n\
+            └───────────────────────────┴───────────────────────────────────────┴──────────────────┘"
+                .to_string(),
+        );
     }
 
     #[cfg(feature = "oauth")]
@@ -160,6 +174,20 @@ mod tests {
         let output =
             result.expect("expected config show to succeed despite an unreachable token URL");
         let text = temp_env::with_var("NO_COLOR", Some("1"), || output.get_stdout().unwrap());
-        assert_that!(text.unwrap()).contains("Profile:");
+        assert_that!(text.unwrap()).is_equal_to(
+            "Profile: default (default)\n\
+            Credential: none\n\
+            \n\
+            ┌───────────────────────────┬───────────────────────────────────────┬──────────────────┐\n\
+            │ Setting                   ┆ Value                                 ┆ Source           │\n\
+            ╞═══════════════════════════╪═══════════════════════════════════════╪══════════════════╡\n\
+            │ APOLLO_REGISTRY_URL       ┆ https://api.apollographql.com/graphql ┆ built-in default │\n\
+            ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤\n\
+            │ APOLLO_TELEMETRY_URL      ┆ https://rover.apollo.dev/telemetry    ┆ built-in default │\n\
+            ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤\n\
+            │ APOLLO_TELEMETRY_DISABLED ┆ false                                 ┆ built-in default │\n\
+            └───────────────────────────┴───────────────────────────────────────┴──────────────────┘"
+                .to_string(),
+        );
     }
 }
