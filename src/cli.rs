@@ -366,7 +366,7 @@ impl Rover {
                     )
                     .await
             }
-            Command::Template(command) => command.run().await,
+            Command::Template(command) => command.run(self).await,
             Command::Readme(command) => {
                 command
                     .run(self.get_client_config().await?, &profile_opt)
@@ -646,7 +646,13 @@ impl Rover {
     /// supplied a value, so the caller falls through to its own built-in
     /// default. A stored profile value that fails validation fails the
     /// command outright (FR39/FR83) rather than falling through.
-    fn resolve_setting(
+    ///
+    /// `pub(crate)` (not private) because a setting whose flag lives on a
+    /// command's own opts struct rather than on `Rover` itself (e.g.
+    /// `APOLLO_TEMPLATES_API`, scoped to `template`/`init` per FR1) has no
+    /// `Rover`-level accessor to call this through - that command's own
+    /// `run` calls this directly instead.
+    pub(crate) fn resolve_setting(
         &self,
         explicit: Option<String>,
         name: SettingName,
@@ -1506,6 +1512,93 @@ mod tests {
             Some("https://profile-mirror.example.com"),
         );
         assert_that!(message.unwrap()).is_none();
+    }
+
+    // `APOLLO_TEMPLATES_API` has no flag on `Rover` itself - its flag is
+    // scoped to `template`/`init` (FR1), living on `TemplatesApiOpt`
+    // instead - so these test `resolve_setting` directly with the same
+    // call `command::template::Template::run` makes, rather than through
+    // `Rover::parse_from` (which has no `--templates-api` to parse).
+    #[test]
+    fn templates_api_profile_setting_applies_when_no_explicit_value_is_set() {
+        let home = config_home_with_setting(
+            "staging",
+            "APOLLO_TEMPLATES_API",
+            "https://templates.example.com",
+        );
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = Rover::parse_from([
+            PKG_NAME,
+            "--config-home",
+            home_path.as_str(),
+            "--profile",
+            "staging",
+            "config",
+            "list",
+        ]);
+
+        let resolved = rover
+            .resolve_setting(None, SettingName::TemplatesApi)
+            .unwrap();
+
+        assert_that!(resolved).is_equal_to(Some("https://templates.example.com".to_string()));
+    }
+
+    #[test]
+    fn templates_api_explicit_value_wins_over_profile_setting() {
+        let home = config_home_with_setting(
+            "staging",
+            "APOLLO_TEMPLATES_API",
+            "https://profile-templates.example.com",
+        );
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = Rover::parse_from([
+            PKG_NAME,
+            "--config-home",
+            home_path.as_str(),
+            "--profile",
+            "staging",
+            "config",
+            "list",
+        ]);
+
+        let resolved = rover
+            .resolve_setting(
+                Some("https://flag-templates.example.com".to_string()),
+                SettingName::TemplatesApi,
+            )
+            .unwrap();
+
+        assert_that!(resolved).is_equal_to(Some("https://flag-templates.example.com".to_string()));
+    }
+
+    #[test]
+    fn an_invalid_profile_templates_api_fails_the_command() {
+        let home =
+            config_home_with_setting("staging", "APOLLO_TEMPLATES_API", "templates.example.com");
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = Rover::parse_from([
+            PKG_NAME,
+            "--config-home",
+            home_path.as_str(),
+            "--profile",
+            "staging",
+            "config",
+            "list",
+        ]);
+
+        let error = rover
+            .resolve_setting(None, SettingName::TemplatesApi)
+            .expect_err("expected an invalid stored templates API URL to fail the command");
+
+        assert_that!(error.to_string()).is_equal_to(
+            "error[E053]: `APOLLO_TEMPLATES_API` in profile `staging` is set to \
+            `templates.example.com`, which isn't a valid URL. URLs must include a scheme, for \
+            example `https://registry.example.com`. Run `rover config set APOLLO_TEMPLATES_API \
+            <value> --profile staging` to correct it.\n"
+                .to_string(),
+        );
+        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E053));
     }
 
     #[tokio::test]

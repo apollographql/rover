@@ -54,6 +54,18 @@ impl Show {
                 rover.download_host_flag_or_env(),
                 RoverEnvKey::RoverDownloadHost,
             )?,
+            // `--templates-api` is scoped to `template`/`init` (FR1), not
+            // global, so `config show`'s own invocation never carries it -
+            // `explicit` is always `None` here, reporting what a `rover
+            // template` invocation would resolve to for this profile.
+            resolve_string_setting(
+                rover,
+                profile,
+                &houston_config,
+                SettingName::TemplatesApi,
+                None,
+                RoverEnvKey::TemplatesApi,
+            )?,
         ];
 
         Ok(ConfigShowOutput {
