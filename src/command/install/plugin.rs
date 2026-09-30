@@ -255,24 +255,6 @@ pub struct PluginInstaller {
     downloads_disabled_by: Option<DownloadControl>,
 }
 
-fn skip_update_error(plugin_name: &str, version: &str) -> RoverError {
-    let mut err = RoverError::new(anyhow!(
-        "You do not have the '{}-v{}' plugin installed.",
-        plugin_name,
-        version,
-    ));
-    if std::env::var("APOLLO_NODE_MODULES_BIN_DIR").is_ok() {
-        err.set_suggestion(RoverErrorSuggestion::Adhoc(
-            "Try running `npm install` to reinstall the plugin.".to_string(),
-        ));
-    } else {
-        err.set_suggestion(RoverErrorSuggestion::Adhoc(
-            "Try re-running this command without the `--skip-update` flag.".to_string(),
-        ));
-    }
-    err
-}
-
 fn could_not_install_plugin(plugin_name: &str, version: &str) -> RoverError {
     let mut err = RoverError::new(anyhow!(
         "Could not install the '{plugin_name}-v{version}' plugin for an unknown reason."
@@ -307,11 +289,7 @@ impl PluginInstaller {
         }
     }
 
-    pub async fn install(
-        &self,
-        plugin: &Plugin,
-        skip_update: bool,
-    ) -> RoverResult<PluginProvenance> {
+    pub async fn install(&self, plugin: &Plugin) -> RoverResult<PluginProvenance> {
         if let Some(control) = self.downloads_disabled_by {
             return self.find_installed_only(plugin, control);
         }
@@ -320,17 +298,16 @@ impl PluginInstaller {
             Plugin::Router(version) => match version {
                 RouterVersion::Exact(version) => {
                     let version = version.to_string();
-                    self.find_or_install_exact(plugin, &version, skip_update)
-                        .await
+                    self.find_or_install_exact(plugin, &version).await
                 }
                 RouterVersion::LatestOne => {
                     let major_version = 1;
-                    self.find_or_install_latest_major(plugin, major_version, skip_update)
+                    self.find_or_install_latest_major(plugin, major_version)
                         .await
                 }
                 RouterVersion::LatestTwo => {
                     let major_version = 2;
-                    self.find_or_install_latest_major(plugin, major_version, skip_update)
+                    self.find_or_install_latest_major(plugin, major_version)
                         .await
                 }
             },
@@ -338,31 +315,29 @@ impl PluginInstaller {
                 FederationVersion::ExactFedOne(version)
                 | FederationVersion::ExactFedTwo(version) => {
                     let version = version.to_string();
-                    self.find_or_install_exact(plugin, &version, skip_update)
-                        .await
+                    self.find_or_install_exact(plugin, &version).await
                 }
                 // Unreachable via `Plugin::from_str`, which rejects Federation 1 up front; kept
                 // because `FederationVersion` still has Fed1 variants upstream.
                 FederationVersion::LatestFedOne => {
                     let major_version = 0;
-                    self.find_or_install_latest_major(plugin, major_version, skip_update)
+                    self.find_or_install_latest_major(plugin, major_version)
                         .await
                 }
                 FederationVersion::LatestFedTwo => {
                     let major_version = 2;
-                    self.find_or_install_latest_major(plugin, major_version, skip_update)
+                    self.find_or_install_latest_major(plugin, major_version)
                         .await
                 }
             },
             Plugin::McpServer(version) => match version {
                 mcp::Version::Exact(version) => {
                     let version = version.to_string();
-                    self.find_or_install_exact(plugin, &version, skip_update)
-                        .await
+                    self.find_or_install_exact(plugin, &version).await
                 }
                 mcp::Version::Latest => {
                     let major_version = 0;
-                    self.find_or_install_latest_major(plugin, major_version, skip_update)
+                    self.find_or_install_latest_major(plugin, major_version)
                         .await
                 }
             },
@@ -416,32 +391,17 @@ impl PluginInstaller {
         &self,
         plugin: &Plugin,
         version: &str,
-        skip_update: bool,
     ) -> RoverResult<(Utf8PathBuf, PluginSource)> {
-        if skip_update {
-            let exe = self
-                .find_existing_exact(plugin, version)?
-                .ok_or_else(|| skip_update_error(&plugin.get_name(), version))?;
-            Ok((exe, PluginSource::Installed))
-        } else {
-            self.install_exact(plugin, version)
-                .await?
-                .ok_or_else(|| could_not_install_plugin(&plugin.get_name(), version))
-        }
+        self.install_exact(plugin, version)
+            .await?
+            .ok_or_else(|| could_not_install_plugin(&plugin.get_name(), version))
     }
 
     async fn find_or_install_latest_major(
         &self,
         plugin: &Plugin,
         major_version: u64,
-        skip_update: bool,
     ) -> RoverResult<(Utf8PathBuf, PluginSource)> {
-        if skip_update {
-            let exe = self
-                .find_existing_latest_major(plugin, major_version)?
-                .ok_or_else(|| skip_update_error(&plugin.get_name(), &major_version.to_string()))?;
-            return Ok((exe, PluginSource::Installed));
-        }
         match self.install_latest_major(plugin).await {
             Ok(Some((exe, source))) => Ok((exe, source)),
             Ok(None) => Err(could_not_install_plugin(
@@ -1317,7 +1277,7 @@ mod tests {
 
             let outcome = PluginInstaller::new(client_config, installer, false)
                 .without_downloads(Some(DownloadControl::NoDownloadFlag))
-                .install(&request.parse().unwrap(), false)
+                .install(&request.parse().unwrap())
                 .await;
             let calls = registry.calls();
             // Keep the home alive until the lookup is done.
@@ -1456,7 +1416,7 @@ mod tests {
             temp_env::async_with_vars([("APOLLO_NODE_MODULES_BIN_DIR", None::<&str>)], async {
                 PluginInstaller::new(client_config, installer, false)
                     .requested_by(origin)
-                    .install(&plugin, false)
+                    .install(&plugin)
                     .await
                     .expect_err("the registry serves no such artifact")
             })

@@ -466,11 +466,11 @@ mod tests {
         // where plugins are looked for, so it is left out rather than pinned here.
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         let error = stderr
-            .find("error:")
+            .find("error[")
             .map(|start| &stderr[start..])
             .expect("rover printed no error");
         let expected_error = format!(
-            "error: Error when updating Federation Version\n\nCaused by:\n    unable to find dependency: \"error: You do not have any 'supergraph' plugins installed in '{bin_dir}'.\n            Re-run this command without the `--skip-update` flag to install the proper plugin.\n    \"\n",
+            "error[E058]: Error when updating Federation Version\n\nCaused by:\n    0: Couldn't obtain the `supergraph` plugin\n    1: Rover needs a `supergraph` plugin v2.x, but none is installed in `{bin_dir}` and downloads are disabled by `--skip-update`.\n        Run `rover plugin install supergraph@2` to install it ahead of time, or re-run without `--skip-update` to let Rover download it.\n",
             bin_dir = two_levels.global.bin_dir(),
         );
 
