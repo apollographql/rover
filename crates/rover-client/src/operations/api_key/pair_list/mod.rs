@@ -5,10 +5,8 @@ use serde::Serialize;
 
 use crate::RoverClientError;
 
-pub mod all_service;
 pub mod service;
 
-pub use all_service::ListAllOAuthClients;
 pub use service::{ListOAuthClients, ListOAuthClientsError, LIST_PAIRS_ATTEMPT_TIMEOUT};
 
 type Timestamp = String;

@@ -1,5 +1,7 @@
 pub(crate) mod output;
 
+use std::num::NonZeroUsize;
+
 use clap::Parser;
 use output::ListOutput;
 use rover_client::{
@@ -8,8 +10,8 @@ use rover_client::{
     operations::api_key::{
         list::{ApiKey, ApiKeyBackendType, ListKeysInput, run},
         pair_list::{
-            LIST_PAIRS_ATTEMPT_TIMEOUT, ListAllOAuthClients, ListOAuthClients,
-            ListOAuthClientsError, ListOAuthClientsInput, ListOAuthClientsResponse,
+            LIST_PAIRS_ATTEMPT_TIMEOUT, ListOAuthClients, ListOAuthClientsError,
+            ListOAuthClientsInput, ListOAuthClientsResponse,
         },
     },
 };
@@ -52,9 +54,13 @@ pub(crate) struct List {
     /// Collect at most this many client-credential pairs before returning (spec FR90/FR91). An
     /// organization with more pairs than this still succeeds: it reports what it collected plus
     /// a cursor to resume from with `--after`. Has no effect when `--type` excludes
-    /// `client-credentials`.
-    #[clap(long, default_value_t = DEFAULT_PAIRS_LIMIT)]
-    limit: usize,
+    /// `client-credentials`. Rejected at parse time if `0` - a cap of zero could never report
+    /// FR90's "every pair collected" correctly, since it would never make a single request.
+    #[clap(
+        long,
+        default_value_t = NonZeroUsize::new(DEFAULT_PAIRS_LIMIT).expect("DEFAULT_PAIRS_LIMIT is nonzero")
+    )]
+    limit: NonZeroUsize,
 }
 
 impl List {
@@ -87,40 +93,21 @@ impl List {
             .filter(|key| self.key_in_scope(key))
             .collect();
 
-        if !pairs_in_scope {
-            return Ok(RoverOutput::CliOutput(Box::new(ListOutput {
-                keys: keys_in_scope.then_some(reported_keys),
-                pairs: None,
-                pairs_next_after: None,
-            })));
-        }
+        let pairs = if pairs_in_scope {
+            Some(
+                fetch_pairs(
+                    &client,
+                    organization_id.clone(),
+                    self.after.clone(),
+                    self.limit.get(),
+                )
+                .await,
+            )
+        } else {
+            None
+        };
 
-        match fetch_pairs(
-            &client,
-            organization_id.clone(),
-            self.after.clone(),
-            self.limit,
-        )
-        .await
-        {
-            Ok(response) => Ok(RoverOutput::CliOutput(Box::new(ListOutput {
-                keys: keys_in_scope.then_some(reported_keys),
-                pairs: Some(response.pairs),
-                pairs_next_after: response.next_after,
-            }))),
-            // FR17: pairs were the *only* thing in scope - nothing to show best-effort, so the
-            // raw pairs error propagates with no special handling, same as any ordinary failure.
-            Err(err) if !keys_in_scope => Err(err.into()),
-            // FR16: keys are still in scope - report them best-effort, and classify this as
-            // PairListFailure so `RoverError::print()`/`get_internal_data_json()` (src/error/mod.rs)
-            // can still surface them alongside the loud failure.
-            Err(err) => Err(RoverClientError::PairListFailure {
-                organization_id,
-                keys: reported_keys,
-                source: Box::new(err),
-            }
-            .into()),
-        }
+        build_output(keys_in_scope, reported_keys, organization_id, pairs)
     }
 
     fn in_scope(&self, key_type: ApiKeyType) -> bool {
@@ -142,10 +129,12 @@ impl List {
 }
 
 /// Collects up to `limit` of an organization's client-credential pairs, resuming from `after`
-/// when given, via [`ListAllOAuthClients`] layered over [`ListOAuthClients`] (spec FR90, FR91).
-/// Composes a per-attempt [`TimeoutLayer`](rover_http::timeout::TimeoutLayer) inside the retry
-/// budget `StudioClient::studio_graphql_service_with_attempt_timeout` already applies, per this
-/// repo's network-call composition guidance (AGENTS.md) - this is a read, safe to retry.
+/// when given, via [`ListOAuthClients`] (spec FR90, FR91) - it already pages internally until it
+/// has `limit` pairs in total, or the organization is exhausted, so no further pagination layer
+/// is needed here. Composes a per-attempt [`TimeoutLayer`](rover_http::timeout::TimeoutLayer)
+/// inside the retry budget `StudioClient::studio_graphql_service_with_attempt_timeout` already
+/// applies, per this repo's network-call composition guidance (AGENTS.md) - this is a read, safe
+/// to retry.
 async fn fetch_pairs(
     client: &StudioClient,
     organization_id: String,
@@ -155,9 +144,9 @@ async fn fetch_pairs(
     let service = client
         .studio_graphql_service_with_attempt_timeout(LIST_PAIRS_ATTEMPT_TIMEOUT)
         .map_err(|err| ListOAuthClientsError::Other(RoverClientError::from(err)))?;
-    let mut list_all = ListAllOAuthClients::new(ListOAuthClients::new(service));
+    let mut list_pairs = ListOAuthClients::new(service);
 
-    list_all
+    list_pairs
         .ready()
         .await?
         .call(
@@ -168,6 +157,43 @@ async fn fetch_pairs(
                 .build(),
         )
         .await
+}
+
+/// The decision logic behind `List::run` - kept separate and synchronous (no `Service`, no
+/// `.await`) so every branch is directly unit-testable against an already-resolved `pairs`
+/// outcome, with no network mocking required. `pairs: None` means `--type` excluded
+/// `client-credentials` entirely (FR11); `Some(Ok(_))` is a clean fetch (possibly capped, FR90);
+/// `Some(Err(_))` is FR16 (keys still in scope - reported best-effort alongside the failure) or
+/// FR17 (keys excluded too - `keys_in_scope` is `false`, so nothing is reported at all), which
+/// this function doesn't need to distinguish beyond that flag - both become
+/// `RoverClientError::PairListFailure`, differing only in whether `keys` is `Some` or `None`.
+fn build_output(
+    keys_in_scope: bool,
+    reported_keys: Vec<ApiKey>,
+    organization_id: String,
+    pairs: Option<Result<ListOAuthClientsResponse, ListOAuthClientsError>>,
+) -> RoverResult<RoverOutput> {
+    match pairs {
+        None => Ok(RoverOutput::CliOutput(Box::new(ListOutput {
+            keys: keys_in_scope.then_some(reported_keys),
+            pairs: None,
+            pairs_next_after: None,
+        }))),
+        Some(Ok(response)) => Ok(RoverOutput::CliOutput(Box::new(ListOutput {
+            keys: keys_in_scope.then_some(reported_keys),
+            pairs: Some(response.pairs),
+            pairs_next_after: response.next_after,
+        }))),
+        // FR16/FR17: `RoverError::print()`/`get_internal_data_json()` (src/error/mod.rs)
+        // special-case `PairListFailure` to still surface `keys` when it's `Some`, and to report
+        // nothing at all when it's `None` - so this one arm covers both specs.
+        Some(Err(err)) => Err(RoverClientError::PairListFailure {
+            organization_id,
+            keys: keys_in_scope.then_some(reported_keys),
+            source: Box::new(err),
+        }
+        .into()),
+    }
 }
 
 #[cfg(test)]
@@ -184,7 +210,7 @@ mod tests {
             },
             type_filter,
             after: None,
-            limit: DEFAULT_PAIRS_LIMIT,
+            limit: NonZeroUsize::new(DEFAULT_PAIRS_LIMIT).unwrap(),
         }
     }
 
@@ -261,7 +287,7 @@ mod tests {
         let list = List::try_parse_from(["api-key list", "acme"])
             .expect("expected `rover api-key list <ORG>` to parse with no --limit given");
 
-        assert_that!(list.limit).is_equal_to(DEFAULT_PAIRS_LIMIT);
+        assert_that!(list.limit.get()).is_equal_to(DEFAULT_PAIRS_LIMIT);
         assert_that!(list.after).is_none();
     }
 
@@ -281,6 +307,107 @@ mod tests {
         assert_that!(list.after)
             .is_some()
             .is_equal_to("cursor-1".to_string());
-        assert_that!(list.limit).is_equal_to(25);
+        assert_that!(list.limit.get()).is_equal_to(25);
+    }
+
+    // FR90: a cap of zero could never correctly report "every pair collected" (it would never
+    // make a single request), so it's rejected at parse time rather than silently misreported.
+    #[test]
+    fn limit_zero_is_rejected_at_parse_time() {
+        let result = List::try_parse_from(["api-key list", "acme", "--limit", "0"]);
+
+        assert_that!(result.is_err()).is_true();
+    }
+
+    fn pair(client_id: &str) -> rover_client::operations::api_key::pair_list::OAuthClientPair {
+        rover_client::operations::api_key::pair_list::OAuthClientPair {
+            client_id: client_id.to_string(),
+            name: None,
+            created_at: chrono::DateTime::parse_from_rfc3339("2026-01-04T12:00:00Z").unwrap(),
+            created_by: rover_client::operations::api_key::pair_list::PairActor {
+                id: "user-123".to_string(),
+                kind: "user".to_string(),
+            },
+            resources: vec![],
+            scopes: vec![],
+        }
+    }
+
+    fn a_key() -> ApiKey {
+        key_of_type(ApiKeyBackendType::Operator)
+    }
+
+    // FR11: pairs out of scope (`--type` excluded `client-credentials`) reports no pairs at all,
+    // regardless of whether keys are in scope.
+    #[test]
+    fn pairs_out_of_scope_reports_no_pairs() {
+        let result = build_output(true, vec![a_key()], "acme".to_string(), None);
+
+        let output = result.expect("expected Ok when pairs aren't in scope");
+        let RoverOutput::CliOutput(output) = output else {
+            panic!("expected a CliOutput");
+        };
+        let json = output.json().unwrap();
+        assert_that!(json.get("client_credentials")).is_none();
+        assert_that!(json.get("keys")).is_some();
+    }
+
+    // A clean pairs fetch reports both keys and pairs.
+    #[test]
+    fn a_clean_fetch_reports_keys_and_pairs() {
+        let response = ListOAuthClientsResponse {
+            pairs: vec![pair("c_1")],
+            next_after: None,
+        };
+        let result = build_output(true, vec![a_key()], "acme".to_string(), Some(Ok(response)));
+
+        let output = result.expect("expected Ok for a clean fetch");
+        let RoverOutput::CliOutput(output) = output else {
+            panic!("expected a CliOutput");
+        };
+        let json = output.json().unwrap();
+        assert_that!(json.get("keys")).is_some();
+        assert_that!(json.get("client_credentials")).is_some();
+    }
+
+    // FR16: keys are still in scope - a pairs failure is reported best-effort alongside a loud
+    // failure that carries E054, not a bare, uncoded error (the bug this test guards against).
+    #[test]
+    fn fr16_a_pairs_failure_with_keys_in_scope_keeps_the_keys_and_gets_e054() {
+        let result = build_output(
+            true,
+            vec![a_key()],
+            "acme".to_string(),
+            Some(Err(ListOAuthClientsError::MissingCursor)),
+        );
+
+        let error = result.expect_err("expected an Err for a pairs failure");
+        assert_that!(error.code().map(|code| code.to_string()))
+            .is_some()
+            .is_equal_to("E054".to_string());
+
+        let data = error.get_internal_data_json();
+        assert_that!(data.get("keys")).is_some();
+        assert_that!(data.get("client_credentials"))
+            .is_some()
+            .is_equal_to(&serde_json::Value::Null);
+    }
+
+    // FR17: keys are excluded too (`--type client-credentials` only) - the same failure reports
+    // no keys at all, but still carries E054, not a bare, uncoded error.
+    #[test]
+    fn fr17_a_pairs_failure_with_keys_out_of_scope_reports_nothing_but_still_gets_e054() {
+        let result = build_output(
+            false,
+            vec![a_key()],
+            "acme".to_string(),
+            Some(Err(ListOAuthClientsError::MissingCursor)),
+        );
+
+        let error = result.expect_err("expected an Err for a pairs failure");
+        assert_that!(error.code().map(|code| code.to_string()))
+            .is_some()
+            .is_equal_to("E054".to_string());
+        assert_that!(error.get_internal_data_json().get("keys")).is_none();
     }
 }

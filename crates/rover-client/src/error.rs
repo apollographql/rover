@@ -276,21 +276,23 @@ pub enum RoverClientError {
         publish_response: serde_json::Value,
     },
 
-    /// `rover api-key list` successfully fetched an organization's API keys, but its
-    /// client-credential pairs query genuinely failed (a timeout, a 5xx, any real error - an
-    /// empty, successful pairs result is not this error; see spec FR16,
+    /// `rover api-key list`'s client-credential pairs query genuinely failed (a timeout, a 5xx,
+    /// any real error - an empty, successful pairs result is not this error; see spec FR16,
     /// `specs/rover-431-identity-grant-management`). `keys` is the best-effort API-key list
     /// already fetched, carried so the command still reports it despite the overall failure -
     /// mirrors [`RoverClientError::PublishLaunchFailure`]/
     /// [`RoverClientError::CheckWorkflowFailure`]'s existing pattern of a variant carrying
     /// already-fetched structured data for the binary crate's `RoverError::print()`/
-    /// `get_internal_data_json()` to render at print time.
+    /// `get_internal_data_json()` to render at print time. `keys` is `None` when API keys were
+    /// never in scope either (spec FR17: `--type` named `client-credentials` alone) - there is
+    /// nothing left to show best-effort, so the command fails outright with no output.
     #[error(
-        "Could not list client-credential pairs in organization '{organization_id}': {source}"
+        "Rover couldn't list client-credential pairs in organization `{organization_id}`: {source}.{}",
+        pair_list_failure_suffix(keys)
     )]
     PairListFailure {
         organization_id: String,
-        keys: Vec<ApiKey>,
+        keys: Option<Vec<ApiKey>>,
         #[source]
         source: Box<dyn std::error::Error + Send + Sync>,
     },
@@ -430,6 +432,17 @@ impl RoverClientError {
             self,
             RoverClientError::SendRequest { .. } | RoverClientError::RateLimitExceeded
         )
+    }
+}
+
+/// The trailing sentence on [`RoverClientError::PairListFailure`]'s message - present only when
+/// `keys` actually has something to point at (spec FR16); a pairs-only failure (FR17, `keys:
+/// None`) has no output at all, so claiming keys are shown would be false.
+const fn pair_list_failure_suffix(keys: &Option<Vec<ApiKey>>) -> &'static str {
+    if keys.is_some() {
+        " API keys are shown above."
+    } else {
+        ""
     }
 }
 

@@ -130,7 +130,11 @@ impl RoverError {
             Some(RoverClientError::LintFailures { lint_response }) => {
                 stdoutln!("{}", lint_response.get_ariadne()?)?
             }
-            Some(RoverClientError::PairListFailure { keys, .. }) => stdoutln!(
+            // FR17: `keys: None` means nothing is in scope to show best-effort - falls through
+            // to the wildcard arm below, printing no recovered data at all.
+            Some(RoverClientError::PairListFailure {
+                keys: Some(keys), ..
+            }) => stdoutln!(
                 "{}",
                 crate::command::api_key::list::output::keys_table_text(keys)
             )?,
@@ -191,8 +195,20 @@ impl RoverError {
                 graph_ref: _,
                 publish_response,
             }) => publish_response.clone(),
+            // FR17: `keys: None` omits `data.keys` entirely, matching FR11's own
+            // omission-vs-null rule for the success path, rather than reporting a `null` keys
+            // field that would be a new, unestablished shape.
             Some(RoverClientError::PairListFailure { keys, .. }) => {
-                json!({ "keys": crate::command::api_key::list::output::keys_json(keys), "client_credentials": null })
+                let mut data = serde_json::Map::new();
+                if let Some(keys) = keys {
+                    data.insert(
+                        "keys".to_string(),
+                        crate::command::api_key::list::output::keys_json(keys),
+                    );
+                }
+                data.insert("client_credentials".to_string(), Value::Null);
+                data.insert("client_credentials_next_after".to_string(), Value::Null);
+                Value::Object(data)
             }
             _ => Value::Null,
         }
@@ -523,7 +539,7 @@ mod tests {
         fn a_genuine_pairs_failure_still_reports_the_keys_already_fetched() {
             let data = data_of(RoverClientError::PairListFailure {
                 organization_id: "acme".to_string(),
-                keys: keys(),
+                keys: Some(keys()),
                 source: Box::new(RoverClientError::ClientError {
                     msg: "timed out".to_string(),
                 }),
@@ -540,6 +556,7 @@ mod tests {
                     }
                 ],
                 "client_credentials": null,
+                "client_credentials_next_after": null,
                 "success": false,
             }));
         }
@@ -548,7 +565,43 @@ mod tests {
         fn a_genuine_pairs_failure_gets_its_own_stable_error_code() {
             let error = RoverError::new(RoverClientError::PairListFailure {
                 organization_id: "acme".to_string(),
-                keys: keys(),
+                keys: Some(keys()),
+                source: Box::new(RoverClientError::ClientError {
+                    msg: "timed out".to_string(),
+                }),
+            });
+
+            assert_that!(error.code().map(|code| code.to_string()))
+                .is_some()
+                .is_equal_to("E054".to_string());
+        }
+
+        // FR17: a pairs-only failure (keys never in scope) reports no keys field at all -
+        // `null` would falsely suggest keys were fetched and simply came back empty.
+        #[test]
+        fn a_pairs_only_failure_reports_no_keys_field() {
+            let data = data_of(RoverClientError::PairListFailure {
+                organization_id: "acme".to_string(),
+                keys: None,
+                source: Box::new(RoverClientError::ClientError {
+                    msg: "timed out".to_string(),
+                }),
+            });
+
+            assert_that!(data).is_equal_to(json!({
+                "client_credentials": null,
+                "client_credentials_next_after": null,
+                "success": false,
+            }));
+        }
+
+        // FR17: still gets the same stable code as FR16 - a pairs-only failure is not a
+        // different, uncoded kind of error.
+        #[test]
+        fn a_pairs_only_failure_gets_the_same_stable_error_code() {
+            let error = RoverError::new(RoverClientError::PairListFailure {
+                organization_id: "acme".to_string(),
+                keys: None,
                 source: Box::new(RoverClientError::ClientError {
                     msg: "timed out".to_string(),
                 }),
