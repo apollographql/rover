@@ -284,11 +284,7 @@ impl Rover {
                     .await
             }
             Command::Completion(command) => command.run(),
-            Command::Config(command) => {
-                command
-                    .run(self.get_client_config().await?, &profile_opt)
-                    .await
-            }
+            Command::Config(command) => command.run(&profile_opt, self).await,
             #[cfg(feature = "oauth")]
             Command::Auth(command) => {
                 command
@@ -455,6 +451,27 @@ impl Rover {
         }
     }
 
+    /// The raw, clap-merged `--registry-url`/`APOLLO_REGISTRY_URL` value
+    /// (flag beats env, whichever supplied it) - before the profile tier
+    /// applies. `rover config show` (`src/command/config/show/mod.rs`) uses this
+    /// to tell a flag/env source apart from a profile one; every other
+    /// caller wants `get_client_config`'s fully-resolved value instead.
+    pub(crate) fn registry_url_flag_or_env(&self) -> Option<String> {
+        self.registry_url.clone()
+    }
+
+    /// The raw, clap-merged `--telemetry-url`/`APOLLO_TELEMETRY_URL` value,
+    /// before the profile tier applies. See `registry_url_flag_or_env`.
+    pub(crate) fn telemetry_url_flag_or_env(&self) -> Option<String> {
+        self.telemetry_url.clone()
+    }
+
+    /// Whether `--telemetry-disabled` was passed, before the profile tier
+    /// applies. See `registry_url_flag_or_env`.
+    pub(crate) const fn telemetry_disabled_flag(&self) -> bool {
+        self.telemetry_disabled
+    }
+
     /// The resolved `--telemetry-url`/`APOLLO_TELEMETRY_URL` override, for
     /// `impl Report for Rover` (`src/utils/telemetry.rs`) - a different
     /// module, so it can't reach the private field directly.
@@ -510,6 +527,18 @@ impl Rover {
         Ok(Config::new(self.config_home.as_ref(), override_api_key)?)
     }
 
+    /// Like [`Rover::get_rover_config`], but never creates the config home -
+    /// for read-only callers (`rover config show`, FR18) that must report
+    /// what's there without establishing anything that wasn't already
+    /// present.
+    pub(crate) fn get_rover_config_read_only(&self) -> RoverResult<Config> {
+        let override_api_key = self.get_env_var(RoverEnvKey::Key)?;
+        Ok(Config::read_only(
+            self.config_home.as_ref(),
+            override_api_key,
+        )?)
+    }
+
     /// Resolves one setting's effective raw value, adding the profile tier
     /// beneath an already-resolved explicit flag/environment-variable value
     /// (FR25, collapsed to four tiers per FR29 - there's no project file
@@ -529,11 +558,27 @@ impl Rover {
     }
 
     /// The active profile's stored value for `name`, validated against its
-    /// type. See `resolve_setting` for the tier this fits into.
-    fn resolve_profile_setting(&self, name: SettingName) -> RoverResult<Option<String>> {
-        let profile = self.get_profile_opt();
+    /// type. See `resolve_setting` for the tier this fits into. Builds its
+    /// own `Config` (creating the config home if it's missing, per
+    /// `get_rover_config`'s normal contract) - callers that must not create
+    /// anything (`rover config show`, FR18) use
+    /// [`Rover::resolve_profile_setting_with`] with their own `Config`
+    /// instead.
+    pub(crate) fn resolve_profile_setting(&self, name: SettingName) -> RoverResult<Option<String>> {
         let houston_config = self.get_rover_config()?;
-        let profile_handle = Profile::new(&profile.profile_name, &houston_config);
+        self.resolve_profile_setting_with(&houston_config, name)
+    }
+
+    /// Like [`Rover::resolve_profile_setting`], but against a `Config` the
+    /// caller already has, rather than building one (and possibly creating
+    /// the config home) itself.
+    pub(crate) fn resolve_profile_setting_with(
+        &self,
+        houston_config: &Config,
+        name: SettingName,
+    ) -> RoverResult<Option<String>> {
+        let profile = self.get_profile_opt();
+        let profile_handle = Profile::new(&profile.profile_name, houston_config);
         let Some(raw) = profile_handle.get_setting(name.as_str())? else {
             return Ok(None);
         };
