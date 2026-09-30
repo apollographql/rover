@@ -152,6 +152,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   `rover config show`'s `value` field is now `null` in `--format json` for a setting that falls all the way through to the builtin tier with no default of its own (currently only `APOLLO_GRAPH_REF`, once its own profile tier lands), rather than the literal string `"none"` - which is itself a valid value for some settings, so a script could no longer tell an unset setting apart from a real one that happened to be set to that string. Text output is unaffected, still rendering `none`.
 
+- **Profiles can now store `APOLLO_CHECKS_TIMEOUT_SECONDS` - @dotdat**
+
+  The same profile tier, `rover config show`/`set`/`unset` support, and override notice that `APOLLO_REGISTRY_URL`/`APOLLO_TELEMETRY_URL`/`APOLLO_TELEMETRY_DISABLED` already have now also cover `APOLLO_CHECKS_TIMEOUT_SECONDS`, which controls how long check/launch polling waits before giving up. A stored value that isn't a whole number of seconds fails the command at write time (`rover config set`) or read time, carrying the same stable `error.code` (`E053`) the other settings' invalid values do.
+
 ## 🐛 Fixes
 
 - **An empty `APOLLO_HOME` no longer installs Rover and its plugins into the working directory - @SharkBaitDLS**
