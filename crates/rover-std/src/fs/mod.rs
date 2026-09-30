@@ -3,7 +3,7 @@ use std::{
     borrow::Cow,
     fs,
     fs::OpenOptions,
-    io::{ErrorKind, Write},
+    io::{self, ErrorKind, Write},
     path::PathBuf,
     time::Duration,
 };
@@ -20,6 +20,11 @@ use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::sync::CancellationToken;
 
 use crate::RoverStdError;
+
+/// Whether `path` is a symlink whose target does not exist.
+fn dangles(path: &Utf8Path) -> bool {
+    path.symlink_metadata().is_ok() && path.metadata().is_err()
+}
 
 /// The rate at which we poll files for changes
 const FS_POLLING_INTERVAL: Duration = Duration::from_millis(250);
@@ -55,6 +60,31 @@ impl Fs {
                 }
             }
             Err(e) => Err(anyhow!("could not find '{}'", path).context(e).into()),
+        }
+    }
+
+    /// Reads a file that may legitimately be absent: its bytes, or `None` if
+    /// there is nothing at `path`, or no directory for it to be in.
+    ///
+    /// Unlike [`Fs::read_file`], an empty file is not an error, the bytes are
+    /// not decoded, and a failure is the [`io::Error`] itself, so the caller
+    /// can say why the file couldn't be read. A symlink that points nowhere
+    /// is there, though, and is not absent, whether it is the file itself or
+    /// any directory on the way to it.
+    pub fn read_if_present<P>(path: P) -> io::Result<Option<Vec<u8>>>
+    where
+        P: AsRef<Utf8Path>,
+    {
+        let path = path.as_ref();
+        match fs::read(path) {
+            Ok(bytes) => Ok(Some(bytes)),
+            Err(error)
+                if matches!(error.kind(), ErrorKind::NotFound | ErrorKind::NotADirectory)
+                    && !path.ancestors().any(dangles) =>
+            {
+                Ok(None)
+            }
+            Err(error) => Err(error),
         }
     }
 
@@ -669,5 +699,78 @@ mod tests {
             });
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod read_if_present_tests {
+    use camino::Utf8PathBuf;
+    use rstest::rstest;
+    use speculoos::prelude::*;
+    use tempfile::TempDir;
+
+    use super::*;
+
+    fn temp_dir() -> (TempDir, Utf8PathBuf) {
+        let temp = TempDir::new().unwrap();
+        let root = Utf8PathBuf::try_from(temp.path().to_path_buf()).unwrap();
+        (temp, root)
+    }
+
+    #[rstest]
+    #[case::a_file(b"version = 1\n".as_slice())]
+    #[case::an_empty_file(b"".as_slice())]
+    #[case::bytes_that_are_not_text(b"\xff\xfe".as_slice())]
+    fn a_file_that_is_there_is_read_as_it_is(#[case] contents: &[u8]) {
+        let (_temp, root) = temp_dir();
+        let path = root.join("file");
+        fs::write(&path, contents).unwrap();
+
+        assert_that!(Fs::read_if_present(&path))
+            .is_ok()
+            .is_equal_to(Some(contents.to_vec()));
+    }
+
+    #[rstest]
+    #[case::nothing_there("file")]
+    #[case::no_directory_for_it("missing/file")]
+    fn a_file_that_is_not_there_is_absent(#[case] relative: &str) {
+        let (_temp, root) = temp_dir();
+
+        assert_that!(Fs::read_if_present(root.join(relative)))
+            .is_ok()
+            .is_none();
+    }
+
+    #[rstest]
+    fn a_file_below_a_file_is_absent() {
+        let (_temp, root) = temp_dir();
+        fs::write(root.join("dir"), "").unwrap();
+
+        assert_that!(Fs::read_if_present(root.join("dir").join("file")))
+            .is_ok()
+            .is_none();
+    }
+
+    #[rstest]
+    fn a_directory_is_not_a_file_that_is_absent() {
+        let (_temp, root) = temp_dir();
+        fs::create_dir(root.join("file")).unwrap();
+
+        assert_that!(Fs::read_if_present(root.join("file"))).is_err();
+    }
+
+    // Creating a symlink on Windows needs a privilege a test cannot count on.
+    #[cfg(unix)]
+    #[rstest]
+    #[case::the_file_itself("file", "file")]
+    #[case::a_directory_on_the_way("dir", "dir/file")]
+    fn a_symlink_that_points_nowhere_is_not_absent(#[case] link: &str, #[case] read: &str) {
+        let (_temp, root) = temp_dir();
+        std::os::unix::fs::symlink(root.join("moved"), root.join(link)).unwrap();
+
+        let error = Fs::read_if_present(root.join(read)).expect_err("should not be absent");
+
+        assert_that!(error.kind()).is_equal_to(ErrorKind::NotFound);
     }
 }

@@ -4,16 +4,17 @@
 //! have one. A manifest that is present and cannot be used always is, and is
 //! never mistaken for an absent one.
 
-use std::{fmt, fs, io, string::FromUtf8Error, sync::Arc};
+use std::{fmt, sync::Arc};
 
 use camino::Utf8Path;
+use rover_std::Fs;
 use serde::{
     Deserializer,
     de::{IgnoredAny, MapAccess, Visitor},
 };
 
 use super::RoverManifest;
-use crate::plugin::error::{ManifestProblem, PluginFailure};
+use crate::plugin::error::{ManifestProblem, NotUtf8, PluginFailure};
 
 /// A manifest's file name, inside its level's `.rover/` directory.
 pub const MANIFEST_FILE: &str = "rover.yaml";
@@ -30,8 +31,8 @@ fn unusable(path: &Utf8Path, problem: ManifestProblem) -> Box<PluginFailure> {
 impl RoverManifest {
     /// Read the manifest at `path`, or `None` if there is no file there.
     pub fn load(path: &Utf8Path) -> Result<Option<Self>, Box<PluginFailure>> {
-        match fs::read(path) {
-            Ok(bytes) => match String::from_utf8(bytes) {
+        match Fs::read_if_present(path) {
+            Ok(Some(bytes)) => match String::from_utf8(bytes) {
                 Ok(contents) => Self::parse(path, &contents).map(Some),
                 // Refusing `install_root` still comes first, as it does for
                 // every other problem with the file.
@@ -43,17 +44,7 @@ impl RoverManifest {
                     ManifestProblem::Malformed(Arc::new(NotUtf8(error))),
                 )),
             },
-            // Nothing is there, or there is no directory for it to be in. A
-            // symlink that points nowhere is there, though, and is not absent,
-            // whether it is the manifest or any directory on the way to it.
-            Err(error)
-                if matches!(
-                    error.kind(),
-                    io::ErrorKind::NotFound | io::ErrorKind::NotADirectory
-                ) && !path.ancestors().any(dangles) =>
-            {
-                Ok(None)
-            }
+            Ok(None) => Ok(None),
             Err(source) => Err(unusable(
                 path,
                 ManifestProblem::Unreadable(Arc::new(source)),
@@ -109,18 +100,10 @@ fn names_install_root(contents: &str) -> bool {
         .is_some_and(|document| document.deserialize_map(TopLevelKeys).unwrap_or(false))
 }
 
-/// A manifest's bytes that are not UTF-8 text.
-#[derive(Debug, thiserror::Error)]
-#[error("not UTF-8 text")]
-struct NotUtf8(#[source] FromUtf8Error);
-
-/// Whether `path` is a symlink whose target does not exist.
-fn dangles(path: &Utf8Path) -> bool {
-    path.symlink_metadata().is_ok() && path.metadata().is_err()
-}
-
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
     use assert_fs::TempDir;
     use camino::Utf8PathBuf;
     use indoc::indoc;
