@@ -86,15 +86,16 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(R1)`.
 
 ### 3.3 Lockfile (R1, R9)
 
-- **FR13**: Rover must maintain a lockfile named `plugin-versions.lock` next to the manifest that produced it, at the same level. Its shape:
+- **FR13**: Rover must maintain a lockfile named `plugin-versions.lock` next to the manifest that produced it, at the same level. It is a TOML file of this shape:
 
-  ```yaml
-  version: 1
-  plugins:
-    - name: supergraph
-      requested: "2"
-      resolved: 2.9.3
-      checksum: "sha256:<hex>"
+  ```toml
+  version = 1
+
+  [[plugins]]
+  name = "supergraph"
+  requested = "2"
+  resolved = "2.9.3"
+  checksum = "sha256:<hex>"
   ```
 
   `requested` records the version form that produced this entry, so a reader can see whether a floating alias was resolved. `checksum` records the verified artifact digest (FR69) and is omitted for entries locked before checksums were published.
@@ -502,6 +503,7 @@ Decisions taken while drafting and their reasoning are provided here.
 - **Yanked versions get their own error code** (FR61), over folding them into general resolution failure, so a script can distinguish a version that never existed from one withdrawn.
 - **Version flags per command follow the plugin chain** (FR7), over giving every command all three flags or defining flags only for `rover dev`. `compose`, `connector`, and `lsp` run only `supergraph`, so they get only `--federation-version`; `dev` runs all three plugins and gets all three flags. Raised in spec review.
 - **`data.plugins` reports what a run used, not everything it attempted** (FR57), over every plugin-using run in every outcome. Two exclusions, for different reasons. A long-running session emits its JSON as a single document when the session ends, so the only moment it could report is one no consumer is reading; the stderr lines already report each plugin as it resolves and when it changes, and a summary at exit would be a worse copy of a better channel. A plugin that failed to resolve is excluded because `plugins` describes what ran: a plugin that never resolved has no source, level, or path, and admitting it would mean nullable fields or a status discriminator on every entry to describe the rare case. Neither exclusion loses the facts. FR54 and FR58 hold in both, and FR87 carries the identity of a plugin that failed.
+- **TOML for the lockfile** (FR13), over YAML to match `rover.yaml`. The manifest is YAML because people write it; the lockfile is written only by Rover and read mostly in diffs, so what matters is that every value reads back unambiguously, with no quoting that differs between a bare major and an exact version, and no YAML features to refuse. Rover's own configuration is already TOML, and it is what Rust tooling's lockfiles use.
 - **The `_DEV_` environment variable names are kept and extended to every command** (FR7, FR86), over introducing un-prefixed names with the old ones as deprecated aliases. The misleading prefix is a papercut worth carrying for compatibility, provided the docs say plainly that the variables are not limited to `rover dev`.
 
 ---
