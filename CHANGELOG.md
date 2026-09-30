@@ -48,6 +48,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   `rover config show [--profile] [--format json]` reports, for `APOLLO_REGISTRY_URL`, `APOLLO_TELEMETRY_URL`, and `APOLLO_TELEMETRY_DISABLED`, the effective value and which of an explicit flag, an environment variable, the active profile, or Rover's built-in default supplied it - along with any lower-precedence source it overrode. It also reports whether the active profile has a credential and where it came from, without ever printing the credential's value. Nothing can be stored on a profile yet in this release - that's `rover config set`, landing separately - so for now every setting reports its built-in default unless a flag or environment variable overrides it.
 
+- **Profiles can now store `APOLLO_REGISTRY_URL`, `APOLLO_TELEMETRY_URL`, and `APOLLO_TELEMETRY_DISABLED`; new `rover config set`/`unset` verbs - @dotdat**
+
+  `rover config set <SETTING> <VALUE> [--profile]` stores one of these settings on a profile, validating the value syntactically before storing anything, and creating a settings-only profile with no credential if it doesn't already exist. `rover config unset <SETTING> [--profile]` removes a stored setting; unsetting one that isn't stored is a no-op, not an error. Precedence is now, for these three settings: explicit flag > environment variable > the active profile > built-in default - a value stored on a profile takes effect only when neither the flag nor the environment variable supplies one. The OAuth endpoint settings (`--oauth-*`) aren't part of this group yet. Run `rover config show` to see each setting's effective value and source. A value that fails its type's syntactic check now carries a stable `error.code` (`E054`) in `--format json`, alongside the existing message.
+
+- **Rover prints a notice when a profile setting redirects a network destination, or an environment variable silently overrides one - @dotdat**
+
+  A one-line `Note:` to stderr when a profile sets `APOLLO_REGISTRY_URL`/`APOLLO_TELEMETRY_URL` away from their defaults, or when an environment variable silently overrides one of `APOLLO_REGISTRY_URL`/`APOLLO_TELEMETRY_URL`/`APOLLO_TELEMETRY_DISABLED` on an explicitly selected profile (`--profile <name>`). At most one notice per setting per process; suppress all of them with the new `--no-config-notices` flag or `APOLLO_ROVER_NO_CONFIG_NOTICES` environment variable (neither a profile nor a project file can suppress them). Notices never appear in `--format json` output and never affect the exit code.
+
 - **`rover dev` gains `--router-version`/`--composition-version`; `rover template` gains `--templates-api` - @dotdat**
 
   `--router-version`/`APOLLO_ROVER_DEV_ROUTER_VERSION` and `--composition-version`/`APOLLO_ROVER_DEV_COMPOSITION_VERSION` are scoped to `rover dev`, matching the existing `--mcp-version` pairing; `--federation-version` still takes precedence over `--composition-version`, as it did over the env var before. `--templates-api`/`APOLLO_TEMPLATES_API` is scoped to `rover template` (`rover init` doesn't use the templates API - it fetches templates from GitHub - so it doesn't get this flag). All three were previously env-var-only.
@@ -141,6 +149,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **An empty `APOLLO_HOME` no longer installs Rover and its plugins into the working directory - @SharkBaitDLS**
 
   An exported but empty `APOLLO_HOME` (or `--rover-home ""`) used to place `.rover/` under whatever directory you ran Rover from, so `rover install` and plugin installs scattered copies across your projects and missed the ones already in `~/.rover`. An empty value now counts as unset, and Rover uses `~/.rover` as it does when the variable isn't set at all. On a machine with no home directory, that means Rover now reports the missing home directory rather than installing into the working directory. An empty `APOLLO_NODE_MODULES_BIN_DIR` likewise counts as unset.
+
+- **A profile with stored settings and no credential now names itself when a command needs its credential - @dotdat**
+
+  A profile created with `rover config set` (settings only, no credential yet) used to fail any command that then needed its credential with an opaque filesystem error. It now fails with "Profile `<name>` has settings but no credential. Run `rover auth login --profile <name>`, or set `APOLLO_KEY` in the environment."
 
 - **`rover config whoami` no longer rejects a valid client-credentials identity - @briangeorge**
 

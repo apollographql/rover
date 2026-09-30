@@ -149,6 +149,8 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
   Required text:
   > Profile `staging` has settings but no credential. Run `rover auth login --profile staging`, or set `APOLLO_KEY` in the environment.
 
+  "Has settings" describes the general case (a profile known to Rover - it has an index directory) rather than a literal per-invocation guarantee: a profile that has since had its last setting removed, or whose credential save failed partway through, can also be known with an empty directory and hit this same message.
+
 - **FR38**: A profile carrying a setting name this version of Rover does not recognize must produce one warning on stderr and otherwise be ignored, so that a configuration directory shared between two Rover versions does not break the older one.
 
   Required text:

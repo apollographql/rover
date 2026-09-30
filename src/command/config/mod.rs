@@ -2,7 +2,9 @@ mod auth;
 mod clear;
 mod delete;
 mod list;
+mod set;
 mod show;
+mod unset;
 pub(crate) mod whoami;
 
 use clap::Parser;
@@ -30,8 +32,14 @@ pub enum Command {
     /// List all configuration profiles
     List(list::List),
 
+    /// Store a value for a setting on a profile
+    Set(set::Set),
+
     /// Show every setting's effective value and which source supplied it
     Show(show::Show),
+
+    /// Remove a stored setting from a profile
+    Unset(unset::Unset),
 
     /// View the identity of a user/api key
     Whoami(whoami::WhoAmI),
@@ -52,9 +60,16 @@ impl Config {
             Command::List(command) => command.run(rover.get_client_config().await?.config),
             Command::Delete(command) => command.run(rover.get_client_config().await?.config),
             Command::Clear(command) => command.run(rover.get_client_config().await?.config),
+            // `set`/`unset` only act on configuration; they never use it
+            // (FR44/FR49), so they build a plain `houston::Config` rather
+            // than the full client config - resolving the latter would
+            // validate the profile's stored `APOLLO_REGISTRY_URL` and lock
+            // both verbs out of repairing an invalid stored value.
+            Command::Set(command) => command.run(rover.get_rover_config()?, profile),
             Command::Show(command) => Ok(RoverOutput::CliOutput(Box::new(
                 command.run(rover, profile)?,
             ))),
+            Command::Unset(command) => command.run(rover.get_rover_config()?, profile),
             Command::Whoami(command) => {
                 command
                     .run(
@@ -71,7 +86,6 @@ impl Config {
 #[cfg(test)]
 mod tests {
     use camino::Utf8Path;
-    use speculoos::prelude::*;
 
     use super::*;
     use crate::{PKG_NAME, options::ProfileSelection};
@@ -112,7 +126,59 @@ mod tests {
 
         let result = config.run(&profile_opt(), &rover).await;
 
-        assert_that!(result).is_ok();
+        let output = result.expect("expected config show to succeed with only one env var set");
+        let text = temp_env::with_var("NO_COLOR", Some("1"), || output.get_stdout().unwrap());
+        insta::assert_snapshot!(text.unwrap());
+    }
+
+    // Regression test: `set`/`unset` used to build the full client config,
+    // which validates the profile's stored `APOLLO_REGISTRY_URL` and fails
+    // outright if it's invalid - locking both verbs out of ever fixing it,
+    // even when the value they're asked to set/unset is unrelated.
+    #[tokio::test]
+    async fn an_invalid_stored_registry_url_does_not_block_set_or_unset() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let home_path = Utf8Path::from_path(temp_dir.path()).unwrap();
+        let houston_config = houston::Config::new(Some(&home_path), None).unwrap();
+        houston::Profile::new("staging", &houston_config)
+            .set_setting("APOLLO_REGISTRY_URL", "not a url")
+            .unwrap();
+        let rover = Rover::parse_from([
+            PKG_NAME,
+            "--config-home",
+            home_path.as_str(),
+            "config",
+            "show",
+        ]);
+        let profile = ProfileOpt {
+            profile_name: "staging".to_string(),
+            selection: ProfileSelection::Explicit,
+        };
+        let set = Config {
+            command: Command::Set(
+                set::Set::try_parse_from([
+                    "config set",
+                    "APOLLO_TELEMETRY_URL",
+                    "https://telemetry.example.com",
+                ])
+                .unwrap(),
+            ),
+        };
+
+        set.run(&profile, &rover)
+            .await
+            .expect("expected set to succeed despite an unrelated invalid stored value");
+
+        let unset = Config {
+            command: Command::Unset(
+                unset::Unset::try_parse_from(["config unset", "APOLLO_TELEMETRY_URL"]).unwrap(),
+            ),
+        };
+
+        unset
+            .run(&profile, &rover)
+            .await
+            .expect("expected unset to succeed despite an unrelated invalid stored value");
     }
 
     #[cfg(feature = "oauth")]
@@ -143,6 +209,9 @@ mod tests {
 
         let result = config.run(&profile_opt(), &rover).await;
 
-        assert_that!(result).is_ok();
+        let output =
+            result.expect("expected config show to succeed despite an unreachable token URL");
+        let text = temp_env::with_var("NO_COLOR", Some("1"), || output.get_stdout().unwrap());
+        insta::assert_snapshot!(text.unwrap());
     }
 }

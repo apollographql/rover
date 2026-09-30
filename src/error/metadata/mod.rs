@@ -6,7 +6,11 @@ use rover_client::{EndpointKind, RoverClientError};
 use serde::Serialize;
 pub use suggestion::RoverErrorSuggestion;
 
-use crate::{options::JsonVersion, plugin, utils::env::RoverEnvKey};
+use crate::{
+    options::{JsonVersion, SettingValueError},
+    plugin,
+    utils::env::RoverEnvKey,
+};
 
 mod code;
 mod suggestion;
@@ -432,6 +436,7 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     Some(RoverErrorSuggestion::SubmitIssue),
                     Some(RoverErrorCode::E022),
                 ),
+                HoustonProblem::NoCredential(_) => (None, Some(RoverErrorCode::E055)),
                 HoustonProblem::CorruptedProfile(profile_name) => (
                     Some(RoverErrorSuggestion::RecreateConfig(
                         profile_name.to_string(),
@@ -466,6 +471,25 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 suggestions: suggestion.into_iter().collect(),
                 code,
                 skip_printing_cause,
+            };
+        }
+
+        // FR86: a stored setting's value failing its type's syntactic check
+        // gets its own stable code - the message itself (from
+        // `SettingValueError`'s `Display`, or the fuller wrapping in
+        // `Rover::resolve_profile_setting_with`) already names a concrete way
+        // to correct it, so no separate suggestion is added here.
+        // `skip_printing_cause: true` because `resolve_profile_setting_with`
+        // preserves `SettingValueError` via `anyhow::Error::context`, whose
+        // own `Display` is already folded into that context message - without
+        // this, the read path would print the same reason twice (once in the
+        // context message, once again as `anyhow`'s "Caused by:" tail).
+        if error.downcast_ref::<SettingValueError>().is_some() {
+            return RoverErrorMetadata {
+                json_version: JsonVersion::default(),
+                suggestions: vec![],
+                code: Some(RoverErrorCode::E054),
+                skip_printing_cause: true,
             };
         }
 
