@@ -6,7 +6,6 @@ mod rename;
 use std::fmt::{Display, Formatter};
 
 use clap::{Parser, ValueEnum};
-use rover_client::operations::api_key::GraphOsKeyType;
 use serde::Serialize;
 
 use crate::{
@@ -60,23 +59,9 @@ pub enum ApiKeyType {
     Subgraph,
     /// A pair of credentials for the OAuth 2.0 client-credentials grant
     // A fully separate GraphQL mutation (`createOAuthClient`) from the other two, which share
-    // `createApiKey`/`GraphOsKeyType` - see `into_query_enum`'s own doc comment.
+    // `createApiKey`/`GraphOsKeyType` - see `create::Create::run`'s own doc comment on why it
+    // dispatches on this variant before ever building a `GraphOsKeyType`.
     ClientCredentials,
-}
-
-impl ApiKeyType {
-    /// Only ever called for [`Self::Operator`]/[`Self::Subgraph`] - `ClientCredentials` has its
-    /// own create path (`create::Create::run` branches on `key_type` before this is reached) and
-    /// no matching [`GraphOsKeyType`] variant, since it isn't a `createApiKey` key type at all.
-    fn into_query_enum(self) -> GraphOsKeyType {
-        match self {
-            Self::Operator => GraphOsKeyType::OPERATOR,
-            Self::Subgraph => GraphOsKeyType::SUBGRAPH,
-            Self::ClientCredentials => {
-                unreachable!("client-credentials never reaches the legacy key-type conversion")
-            }
-        }
-    }
 }
 
 impl Display for ApiKeyType {

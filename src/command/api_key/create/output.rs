@@ -77,6 +77,7 @@ impl CliOutput for CreateClientCredentialsOutput {
 #[cfg(test)]
 mod tests {
     use chrono::DateTime;
+    use console::strip_ansi_codes;
     use rover_client::operations::api_key::pair_list::PairResource;
     use speculoos::prelude::*;
 
@@ -120,16 +121,14 @@ mod tests {
             }));
     }
 
+    // A full-value snapshot rather than field-by-field `.contains()` checks, so a reordered,
+    // relabeled, or dropped row fails the test - matches `src/command/check_output.rs`'s pattern.
     #[test]
-    fn text_reports_the_client_id_secret_name_graphs_and_expiry() {
+    fn text_snapshot() {
         let output = CreateClientCredentialsOutput { pair: pair() };
-        let text = output.text();
+        let text = strip_ansi_codes(&output.text()).to_string();
 
-        assert_that!(text).contains("c_8f2a");
-        assert_that!(text).contains("s_super-secret");
-        assert_that!(text).contains("ci-deploy");
-        assert_that!(text).contains("inventory, checkout");
-        assert_that!(text).contains("2028-09-25T16:00:00Z");
+        insta::assert_snapshot!(text);
     }
 
     #[test]

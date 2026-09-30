@@ -4,15 +4,20 @@ use std::{collections::HashMap, fs::canonicalize, io::IsTerminal, path::PathBuf}
 
 use camino::Utf8PathBuf;
 use clap::Parser;
-use rover_client::operations::api_key::{
-    create::{ApiKeyResourceInput, CreateKeyInput, SubgraphIdentifierInput, run},
-    pair_create::{CreatePair, CreatePairInput, service::CREATE_PAIR_ATTEMPT_TIMEOUT},
+use itertools::Itertools;
+use rover_client::{
+    RoverClientError,
+    operations::api_key::{
+        GraphOsKeyType,
+        create::{ApiKeyResourceInput, CreateKeyInput, SubgraphIdentifierInput, run},
+        pair_create::{CreatePair, CreatePairInput, service::CREATE_PAIR_ATTEMPT_TIMEOUT},
+    },
 };
 use serde::Serialize;
 use tower::{Service, ServiceExt};
 
 use crate::{
-    RoverError, RoverOutput, RoverResult,
+    RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
     command::api_key::{
         ApiKeyType, OrganizationOpt, create::output::CreateClientCredentialsOutput,
     },
@@ -28,7 +33,7 @@ pub(crate) struct Create {
     key_type: ApiKeyType,
     #[clap(help = "The name of the key to be created")]
     name: String,
-    #[clap(long)]
+    #[clap(long, help = "Path to the subgraph config file (subgraph only)")]
     subgraph_config: Option<PathBuf>,
 
     // FR2: required (validated in `validate_arguments`, not here - clap can't express "required
@@ -49,6 +54,9 @@ pub(crate) struct Create {
 }
 
 impl Create {
+    /// Dispatches by `key_type` before either path builds its own request: `ClientCredentials`
+    /// has no [`GraphOsKeyType`] to convert into (it's a fully separate mutation from
+    /// `createApiKey`), so it never reaches [`Self::create_api_key`].
     pub(crate) async fn run(
         &self,
         client_config: StudioClientConfig,
@@ -56,63 +64,87 @@ impl Create {
     ) -> RoverResult<RoverOutput> {
         self.validate_arguments()?;
 
-        if let ApiKeyType::ClientCredentials = self.key_type {
-            return self.create_client_credentials(client_config, profile).await;
-        }
-
-        let client = client_config.get_authenticated_client(profile)?;
-        let resources = match self.key_type {
-            ApiKeyType::Operator => None,
-            ApiKeyType::Subgraph => {
-                let file_descriptor = self
-                    .subgraph_config
-                    .clone()
-                    .map(canonicalize)
-                    .transpose()?
-                    .map(Utf8PathBuf::from_path_buf)
-                    .transpose()
-                    .map_err(|p| anyhow::anyhow!("Unable to convert {:?} to Utf8PathBuf", p))?
-                    .map(FileDescriptorType::File)
-                    .unwrap_or_else(|| FileDescriptorType::Stdin);
-                let mut stdin = std::io::stdin();
-                if let FileDescriptorType::Stdin = file_descriptor
-                    && stdin.is_terminal()
-                {
-                    return Err(RoverError::new(
-                        anyhow::anyhow!("Expected subgraph config from stdin, received none")
-                    ).with_suggestion(
-                        crate::RoverErrorSuggestion::Adhoc("Pipe supergraph config to stdin or provide a file path via the --subgraph-config flag".to_string()))
-                    );
-                }
-                let content =
-                    file_descriptor.read_file_descriptor("subgraph config", &mut stdin)?;
-                let config: SubgraphKeyConfig = serde_yaml::from_str(&content)?;
-                let mut subgraphs_input = Vec::new();
-                for (graph_id, variants) in config.iter() {
-                    for (variant_name, subgraphs) in variants.iter() {
-                        for subgraph_name in subgraphs {
-                            subgraphs_input.push(SubgraphIdentifierInput {
-                                graph_id: graph_id.clone(),
-                                variant_name: variant_name.clone(),
-                                subgraph_name: subgraph_name.to_string(),
-                            })
-                        }
-                    }
-                }
-                let resources = ApiKeyResourceInput {
-                    subgraphs: Some(subgraphs_input),
-                    gateways: None,
-                    variants: None,
-                };
-                Some(resources)
+        match self.key_type {
+            ApiKeyType::ClientCredentials => {
+                self.create_client_credentials(client_config, profile).await
             }
-            ApiKeyType::ClientCredentials => unreachable!("handled above"),
-        };
+            ApiKeyType::Operator => {
+                self.create_api_key(client_config, profile, GraphOsKeyType::OPERATOR, None)
+                    .await
+            }
+            ApiKeyType::Subgraph => {
+                let resources = self.subgraph_resources()?;
+                self.create_api_key(
+                    client_config,
+                    profile,
+                    GraphOsKeyType::SUBGRAPH,
+                    Some(resources),
+                )
+                .await
+            }
+        }
+    }
+
+    /// Reads and parses `--subgraph-config` (or stdin) into the resources a `subgraph` key is
+    /// scoped to. Only ever called for [`ApiKeyType::Subgraph`].
+    fn subgraph_resources(&self) -> RoverResult<ApiKeyResourceInput> {
+        let file_descriptor = self
+            .subgraph_config
+            .clone()
+            .map(canonicalize)
+            .transpose()?
+            .map(Utf8PathBuf::from_path_buf)
+            .transpose()
+            .map_err(|p| anyhow::anyhow!("Unable to convert {:?} to Utf8PathBuf", p))?
+            .map(FileDescriptorType::File)
+            .unwrap_or_else(|| FileDescriptorType::Stdin);
+        let mut stdin = std::io::stdin();
+        if let FileDescriptorType::Stdin = file_descriptor
+            && stdin.is_terminal()
+        {
+            return Err(RoverError::new(
+                anyhow::anyhow!("Expected subgraph config from stdin, received none")
+            ).with_suggestion(
+                RoverErrorSuggestion::Adhoc("Pipe supergraph config to stdin or provide a file path via the --subgraph-config flag".to_string()))
+            );
+        }
+        let content = file_descriptor.read_file_descriptor("subgraph config", &mut stdin)?;
+        let config: SubgraphKeyConfig = serde_yaml::from_str(&content)?;
+        let mut subgraphs_input = Vec::new();
+        for (graph_id, variants) in config.iter() {
+            for (variant_name, subgraphs) in variants.iter() {
+                for subgraph_name in subgraphs {
+                    subgraphs_input.push(SubgraphIdentifierInput {
+                        graph_id: graph_id.clone(),
+                        variant_name: variant_name.clone(),
+                        subgraph_name: subgraph_name.to_string(),
+                    })
+                }
+            }
+        }
+        Ok(ApiKeyResourceInput {
+            subgraphs: Some(subgraphs_input),
+            gateways: None,
+            variants: None,
+        })
+    }
+
+    /// The `operator`/`subgraph` create path, unchanged from before `client-credentials` existed
+    /// (FR83) - only ever called with a real [`GraphOsKeyType`], never for
+    /// [`ApiKeyType::ClientCredentials`].
+    async fn create_api_key(
+        &self,
+        client_config: StudioClientConfig,
+        profile: &ProfileOpt,
+        key_type: GraphOsKeyType,
+        resources: Option<ApiKeyResourceInput>,
+    ) -> RoverResult<RoverOutput> {
+        let client = client_config.get_authenticated_client(profile)?;
         let resp = run(
             CreateKeyInput {
                 organization_id: self.organization_opt.organization_id.clone(),
                 name: self.name.clone(),
-                key_type: self.key_type.into_query_enum(),
+                key_type,
                 resources,
             },
             &client,
@@ -169,20 +201,42 @@ impl Create {
         let service = client.studio_graphql_service_with_timeout(CREATE_PAIR_ATTEMPT_TIMEOUT)?;
         let mut create_pair = CreatePair::new(service);
         let create_pair = create_pair.ready().await?;
-        let pair = create_pair
-            .call(
-                CreatePairInput::builder()
-                    .organization_id(self.organization_opt.organization_id.clone())
-                    .name(self.name.clone())
-                    .graph_ids(self.graph_ids.clone())
-                    .maybe_secret_lifetime_days(self.secret_lifetime_days)
-                    .build(),
-            )
-            .await?;
+        let input = CreatePairInput::builder()
+            .organization_id(self.organization_opt.organization_id.clone())
+            .name(self.name.clone())
+            .graph_ids(self.deduplicated_graph_ids())
+            .maybe_secret_lifetime_days(self.secret_lifetime_days)
+            .build();
+
+        let pair = match create_pair.call(input).await {
+            Ok(pair) => pair,
+            // Both variants mean nothing was created - safe to report as an ordinary failure.
+            Err(
+                err @ (RoverClientError::PairPermissionDenied { .. }
+                | RoverClientError::OrganizationIDNotFound { .. }),
+            ) => return Err(err.into()),
+            // Everything else (a timeout, a 5xx, a malformed response) is genuinely ambiguous:
+            // `pair_create::service`'s own doc comment on `CreatePair` requires the consumer to
+            // say so rather than reporting a plain failure, since the mutation may have already
+            // committed server-side before the client gave up waiting.
+            Err(err) => {
+                return Err(RoverError::new(err).with_suggestion(RoverErrorSuggestion::Adhoc(
+                    format!(
+                        "Whether the pair was created is unknown - check with `rover api-key list {}`.",
+                        self.organization_opt.organization_id
+                    ),
+                )));
+            }
+        };
 
         Ok(RoverOutput::CliOutput(Box::new(
             CreateClientCredentialsOutput { pair },
         )))
+    }
+
+    /// FR2: "a graph ID given more than once is sent once" - first-seen order preserved.
+    fn deduplicated_graph_ids(&self) -> Vec<String> {
+        self.graph_ids.iter().cloned().unique().collect()
     }
 }
 
@@ -251,7 +305,9 @@ mod tests {
             .validate_arguments()
             .expect_err("expected a missing --graph-id to be rejected");
 
-        assert_that!(error.to_string()).contains("--graph-id is required");
+        assert_that!(error.to_string()).is_equal_to(
+            "error: --graph-id is required when creating a client-credentials pair\n".to_string(),
+        );
     }
 
     #[test]
@@ -265,7 +321,9 @@ mod tests {
             .validate_arguments()
             .expect_err("expected --subgraph-config to be rejected for client-credentials");
 
-        assert_that!(error.to_string()).contains("--subgraph-config isn't accepted");
+        assert_that!(error.to_string()).is_equal_to(
+            "error: --subgraph-config isn't accepted with `client-credentials`\n".to_string(),
+        );
     }
 
     #[test]
@@ -279,7 +337,9 @@ mod tests {
             .validate_arguments()
             .expect_err("expected --graph-id to be rejected for a non-pair type");
 
-        assert_that!(error.to_string()).contains("--graph-id is only accepted");
+        assert_that!(error.to_string()).is_equal_to(
+            "error: --graph-id is only accepted with `client-credentials`\n".to_string(),
+        );
     }
 
     #[test]
@@ -293,7 +353,10 @@ mod tests {
             .validate_arguments()
             .expect_err("expected --secret-lifetime-days to be rejected for a non-pair type");
 
-        assert_that!(error.to_string()).contains("--secret-lifetime-days is only accepted");
+        assert_that!(error.to_string()).is_equal_to(
+            "error: --secret-lifetime-days is only accepted with `client-credentials`\n"
+                .to_string(),
+        );
     }
 
     #[test]
@@ -329,5 +392,21 @@ mod tests {
         .expect_err("expected a negative secret lifetime to be rejected");
 
         assert_that!(error.to_string()).contains("secret-lifetime-days");
+    }
+
+    // FR2: "A graph ID given more than once is sent once."
+    #[test]
+    fn duplicate_graph_ids_are_deduplicated_preserving_first_seen_order() {
+        let create = Create {
+            graph_ids: vec![
+                "inventory".to_string(),
+                "checkout".to_string(),
+                "inventory".to_string(),
+            ],
+            ..client_credentials_create()
+        };
+
+        assert_that!(create.deduplicated_graph_ids())
+            .is_equal_to(vec!["inventory".to_string(), "checkout".to_string()]);
     }
 }
