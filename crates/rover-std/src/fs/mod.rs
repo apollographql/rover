@@ -138,6 +138,41 @@ impl Fs {
         Ok(())
     }
 
+    /// Writes `contents` to `path`, replacing whatever is there, so that a
+    /// reader sees either the old file or the whole new one, never part of it.
+    ///
+    /// The contents go to a temporary file beside `path` that is then renamed
+    /// over it, so an interrupted write leaves the old file intact. Unlike
+    /// [`Fs::write_file`], the directory must already exist, since creating
+    /// one is a decision for the caller, and a failure is the [`io::Error`]
+    /// itself. On Unix the file is left readable by everyone and writable by
+    /// its owner (`0644`), not with the owner-only permissions a temporary
+    /// file is created with.
+    pub fn write_file_atomically<P, C>(path: P, contents: C) -> io::Result<()>
+    where
+        P: AsRef<Utf8Path>,
+        C: AsRef<[u8]>,
+    {
+        let path = path.as_ref();
+        // A bare file name has an empty parent, meaning the current directory.
+        let dir = path
+            .parent()
+            .filter(|dir| !dir.as_str().is_empty())
+            .unwrap_or_else(|| Utf8Path::new("."));
+
+        let mut file = tempfile::NamedTempFile::new_in(dir)?;
+        file.write_all(contents.as_ref())?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            file.as_file()
+                .set_permissions(fs::Permissions::from_mode(0o644))?;
+        }
+        file.persist(path).map_err(|error| error.error)?;
+
+        Ok(())
+    }
+
     /// Given a path, where some elements may not exist, it will return the canonical
     /// representation of the path, AND create any missing interim directories.
     fn upsert_path_exists(path: &Utf8Path) -> Result<Utf8PathBuf, anyhow::Error> {
@@ -699,6 +734,65 @@ mod tests {
             });
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod write_file_atomically_tests {
+    use camino::Utf8PathBuf;
+    use rstest::rstest;
+    use speculoos::prelude::*;
+    use tempfile::TempDir;
+
+    use super::*;
+
+    fn temp_dir() -> (TempDir, Utf8PathBuf) {
+        let temp = TempDir::new().unwrap();
+        let root = Utf8PathBuf::try_from(temp.path().to_path_buf()).unwrap();
+        (temp, root)
+    }
+
+    fn listing(dir: &Utf8Path) -> Vec<String> {
+        fs::read_dir(dir)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+            .collect()
+    }
+
+    #[rstest]
+    fn writing_replaces_the_file_and_leaves_nothing_else_behind() {
+        let (_temp, root) = temp_dir();
+        let path = root.join("file");
+        Fs::write_file_atomically(&path, "old").unwrap();
+
+        Fs::write_file_atomically(&path, "new").unwrap();
+
+        assert_that!(fs::read_to_string(&path).unwrap()).is_equal_to("new".to_string());
+        assert_that!(listing(&root)).is_equal_to(vec!["file".to_string()]);
+    }
+
+    #[cfg(unix)]
+    #[rstest]
+    fn a_written_file_is_readable_by_everyone() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let (_temp, root) = temp_dir();
+        let path = root.join("file");
+
+        Fs::write_file_atomically(&path, "contents").unwrap();
+
+        assert_that!(fs::metadata(&path).unwrap().permissions().mode() & 0o777).is_equal_to(0o644);
+    }
+
+    #[rstest]
+    fn a_missing_directory_is_an_error_and_is_not_created() {
+        let (_temp, root) = temp_dir();
+
+        let error = Fs::write_file_atomically(root.join("missing").join("file"), "contents")
+            .expect_err("should not write");
+
+        assert_that!(error.kind()).is_equal_to(ErrorKind::NotFound);
+        assert_that!(root.join("missing").exists()).is_false();
     }
 }
 

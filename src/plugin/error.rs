@@ -124,6 +124,9 @@ pub enum LockfileProblem {
     /// The file is not valid TOML, does not have a lockfile's shape, or is
     /// not text at all; the cause says which.
     Malformed(PluginFailureCause),
+    /// The file could not be written, after the install or removal it
+    /// records had succeeded.
+    Unwritable(PluginFailureCause),
     /// The file is in a newer format than this version of Rover reads.
     /// Ignoring it would install whatever resolves today, and overwriting it
     /// would lose what the newer Rover recorded.
@@ -181,6 +184,9 @@ impl fmt::Display for PluginFailure {
                 LockfileProblem::Malformed(_) => {
                     write!(f, "`{path}` is not a valid plugin lockfile.")
                 }
+                LockfileProblem::Unwritable(_) => {
+                    write!(f, "Couldn't write the plugin lockfile `{path}`.")
+                }
                 LockfileProblem::WrittenByNewerRover { format_version } => write!(
                     f,
                     "`{path}` was written by a newer version of Rover, in lockfile format version {format_version}."
@@ -204,7 +210,10 @@ impl Error for PluginFailure {
                 ..
             }
             | Self::Lockfile {
-                problem: LockfileProblem::Unreadable(source) | LockfileProblem::Malformed(source),
+                problem:
+                    LockfileProblem::Unreadable(source)
+                    | LockfileProblem::Malformed(source)
+                    | LockfileProblem::Unwritable(source),
                 ..
             } => Some(&**source),
             Self::NoLongerServed { .. }
@@ -313,6 +322,7 @@ impl PluginFailure {
                 match problem {
                     LockfileProblem::Unreadable(_) => PluginNextStep::MakeReadable { path },
                     LockfileProblem::Malformed(_) => PluginNextStep::FixFile { path },
+                    LockfileProblem::Unwritable(_) => PluginNextStep::MakeWritable { path },
                     LockfileProblem::WrittenByNewerRover { .. } => {
                         PluginNextStep::UpgradeRover { path }
                     }
@@ -434,6 +444,9 @@ pub enum PluginNextStep {
     UpgradeRover {
         path: Utf8PathBuf,
     },
+    MakeWritable {
+        path: Utf8PathBuf,
+    },
 }
 
 impl fmt::Display for PluginNextStep {
@@ -513,6 +526,10 @@ impl fmt::Display for PluginNextStep {
             Self::RemoveInstallRoot { path } => write!(
                 f,
                 "Remove `install_root` from `{path}`. Plugins install into the `bin` directory next to it."
+            ),
+            Self::MakeWritable { path } => write!(
+                f,
+                "Make sure you can write to `{path}` and the directory holding it, then re-run the command."
             ),
             Self::UpgradeRover { path } => write!(
                 f,
@@ -697,6 +714,14 @@ mod tests {
          Caused by:\n    \
          Permission denied (os error 13)\n        \
          Make sure `/work/app/.rover/plugin-versions.lock` is a file you can read, then re-run the command.\n"
+    )]
+    #[case::unwritable_lockfile(
+        lockfile(LockfileProblem::Unwritable(cause("Read-only file system (os error 30)"))),
+        "error[E052]: Couldn't write the plugin lockfile `/work/app/.rover/plugin-versions.lock`.\n\
+         \n\
+         Caused by:\n    \
+         Read-only file system (os error 30)\n        \
+         Make sure you can write to `/work/app/.rover/plugin-versions.lock` and the directory holding it, then re-run the command.\n"
     )]
     #[case::newer_lockfile(
         newer_lockfile(),
