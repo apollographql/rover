@@ -36,6 +36,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
+- **`rover api-key create` supports `client-credentials`, a new API key type for CI setup - @dotdat**
+
+  `rover api-key create <ORGANIZATION_ID> client-credentials <NAME> --graph-id <GRAPH_ID>... [--secret-lifetime-days <DAYS>]` registers an OAuth 2.0 client-credentials pair scoped to the named graphs, requesting exactly the `rover:cli` scope. On success it prints the client ID and secret to stdout (so CI setup can capture them) and a one-time reminder to stderr that the secret can't be shown again; `--format json` reports `client_id`, `client_secret`, `secret_expires_at`, `name`, `graphs`, and `scopes` under `key_type: "ClientCredentials"`. The pair is usable immediately by setting `APOLLO_CLIENT_ID`/`APOLLO_CLIENT_SECRET` to the reported values. Existing `operator`/`subgraph` behavior is unchanged.
+
 - **`rover plugin install` installs a plugin, under a new `plugin` noun - @SharkBaitDLS**
 
   `rover plugin install <name>@<version>` does exactly what `rover install --plugin <name>@<version>` does, including `--force` and `--elv2-license`. `rover install --plugin` keeps working, but is now deprecated and prints a warning naming the `rover plugin install` command to use instead. With `--format json`, both report the plugin they installed under `data.plugins`, in the same shape `rover supergraph compose` uses. Plugin install errors now suggest `rover plugin install` too.

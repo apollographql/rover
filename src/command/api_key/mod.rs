@@ -6,7 +6,6 @@ mod rename;
 use std::fmt::{Display, Formatter};
 
 use clap::{Parser, ValueEnum};
-use rover_client::operations::api_key::GraphOsKeyType;
 use serde::Serialize;
 
 use crate::{
@@ -58,15 +57,11 @@ impl ApiKeys {
 pub enum ApiKeyType {
     Operator,
     Subgraph,
-}
-
-impl ApiKeyType {
-    const fn into_query_enum(self) -> GraphOsKeyType {
-        match self {
-            Self::Operator => GraphOsKeyType::OPERATOR,
-            Self::Subgraph => GraphOsKeyType::SUBGRAPH,
-        }
-    }
+    /// A pair of credentials for the OAuth 2.0 client-credentials grant
+    // A fully separate GraphQL mutation (`createOAuthClient`) from the other two, which share
+    // `createApiKey`/`GraphOsKeyType` - see `create::Create::run`'s own doc comment on why it
+    // dispatches on this variant before ever building a `GraphOsKeyType`.
+    ClientCredentials,
 }
 
 impl Display for ApiKeyType {
@@ -74,6 +69,7 @@ impl Display for ApiKeyType {
         match self {
             ApiKeyType::Operator => write!(f, "Operator"),
             ApiKeyType::Subgraph => write!(f, "Subgraph"),
+            ApiKeyType::ClientCredentials => write!(f, "ClientCredentials"),
         }
     }
 }
