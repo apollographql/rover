@@ -21,6 +21,10 @@ const GRAPH_RESOURCE_TYPE: &str = "GRAPH";
 pub(crate) struct ListOutput {
     pub(crate) keys: Option<Vec<ApiKey>>,
     pub(crate) pairs: Option<Vec<OAuthClientPair>>,
+    /// `client_credentials_next_after` (spec FR90, FR91): `Some` when more pairs exist beyond
+    /// what was collected - pass it to `--after` to resume. Only meaningful alongside `pairs:
+    /// Some(_)`; ignored by `json()`/`text()` when `pairs` is `None` (pairs weren't in scope).
+    pub(crate) pairs_next_after: Option<String>,
 }
 
 /// `resources` filtered to the ones that are graphs, in the order the Platform API reported
@@ -105,14 +109,21 @@ impl CliOutput for ListOutput {
 
         // FR14: the pairs table appears only when there's at least one to show - an empty or
         // out-of-scope result must leave text output identical to today's, not an empty table.
-        if let Some(pairs) = &self.pairs
-            && !pairs.is_empty()
-        {
-            sections.push(format!(
-                "{}\n{}",
-                Style::Heading.paint("Client-credential pairs"),
-                pairs_table_text(pairs)
-            ));
+        if let Some(pairs) = &self.pairs {
+            if !pairs.is_empty() {
+                sections.push(format!(
+                    "{}\n{}",
+                    Style::Heading.paint("Client-credential pairs"),
+                    pairs_table_text(pairs)
+                ));
+            }
+
+            // FR90: more pairs exist beyond what was collected - name the cursor to resume from.
+            if let Some(cursor) = &self.pairs_next_after {
+                sections.push(format!(
+                    "More client-credential pairs are available. Resume with `--after {cursor}`."
+                ));
+            }
         }
 
         sections.join("\n\n")
@@ -127,6 +138,13 @@ impl CliOutput for ListOutput {
             data.insert(
                 "client_credentials".to_string(),
                 Value::Array(pairs.iter().map(pair_json).collect()),
+            );
+            // FR90: present whenever `client_credentials` is, `null` once everything's collected.
+            data.insert(
+                "client_credentials_next_after".to_string(),
+                self.pairs_next_after
+                    .clone()
+                    .map_or(Value::Null, Value::String),
             );
         }
         Ok(Value::Object(data))
@@ -192,6 +210,7 @@ mod tests {
         let output = ListOutput {
             keys: None,
             pairs: None,
+            pairs_next_after: None,
         };
 
         assert_that!(output.json())
@@ -204,6 +223,7 @@ mod tests {
         let output = ListOutput {
             keys: Some(vec![operator_key()]),
             pairs: Some(vec![pair()]),
+            pairs_next_after: None,
         };
 
         let json = output.json().unwrap();
@@ -216,11 +236,58 @@ mod tests {
         let output = ListOutput {
             keys: Some(vec![]),
             pairs: Some(vec![]),
+            pairs_next_after: None,
         };
 
         assert_that!(output.json())
             .is_ok()
-            .is_equal_to(serde_json::json!({ "keys": [], "client_credentials": [] }));
+            .is_equal_to(serde_json::json!({
+                "keys": [],
+                "client_credentials": [],
+                "client_credentials_next_after": null,
+            }));
+    }
+
+    // FR90: `client_credentials_next_after` is `null` once every pair has been collected.
+    #[test]
+    fn json_reports_a_null_next_after_when_everything_was_collected() {
+        let output = ListOutput {
+            keys: Some(vec![operator_key()]),
+            pairs: Some(vec![pair()]),
+            pairs_next_after: None,
+        };
+
+        let json = output.json().unwrap();
+        assert_that!(json.get("client_credentials_next_after"))
+            .is_some()
+            .is_equal_to(&Value::Null);
+    }
+
+    // FR90: `client_credentials_next_after` carries the resume cursor when more pairs remain.
+    #[test]
+    fn json_reports_the_resume_cursor_when_more_pairs_remain() {
+        let output = ListOutput {
+            keys: Some(vec![operator_key()]),
+            pairs: Some(vec![pair()]),
+            pairs_next_after: Some("cursor-1".to_string()),
+        };
+
+        let json = output.json().unwrap();
+        assert_that!(json.get("client_credentials_next_after"))
+            .is_some()
+            .is_equal_to(&Value::String("cursor-1".to_string()));
+    }
+
+    // FR90: `client_credentials_next_after` is omitted, not `null`, when pairs weren't in scope.
+    #[test]
+    fn json_omits_next_after_when_pairs_are_out_of_scope() {
+        let output = ListOutput {
+            keys: Some(vec![operator_key()]),
+            pairs: None,
+            pairs_next_after: None,
+        };
+
+        assert_that!(output.json().unwrap().get("client_credentials_next_after")).is_none();
     }
 
     // FR14: text output is unchanged when there are no pairs to show, whatever the reason.
@@ -229,6 +296,7 @@ mod tests {
         let output = ListOutput {
             keys: Some(vec![operator_key()]),
             pairs: Some(vec![]),
+            pairs_next_after: None,
         };
 
         assert_that!(output.text()).does_not_contain("Client-credential pairs");
@@ -239,10 +307,35 @@ mod tests {
         let output = ListOutput {
             keys: Some(vec![operator_key()]),
             pairs: Some(vec![pair()]),
+            pairs_next_after: None,
         };
 
         assert_that!(output.text()).contains("Client-credential pairs");
         assert_that!(output.text()).contains("c_8f2a");
+    }
+
+    // FR90: the resume note names the cursor to pass to `--after`.
+    #[test]
+    fn text_includes_a_resume_note_when_more_pairs_remain() {
+        let output = ListOutput {
+            keys: Some(vec![operator_key()]),
+            pairs: Some(vec![pair()]),
+            pairs_next_after: Some("cursor-1".to_string()),
+        };
+
+        assert_that!(output.text()).contains("More client-credential pairs are available");
+        assert_that!(output.text()).contains("--after cursor-1");
+    }
+
+    #[test]
+    fn text_has_no_resume_note_when_everything_was_collected() {
+        let output = ListOutput {
+            keys: Some(vec![operator_key()]),
+            pairs: Some(vec![pair()]),
+            pairs_next_after: None,
+        };
+
+        assert_that!(output.text()).does_not_contain("Resume with");
     }
 
     #[test]
@@ -250,6 +343,18 @@ mod tests {
         let output = ListOutput {
             keys: Some(vec![operator_key()]),
             pairs: Some(vec![pair()]),
+            pairs_next_after: None,
+        };
+
+        insta::assert_snapshot!(strip_ansi_codes(&output.text()).to_string());
+    }
+
+    #[test]
+    fn text_snapshot_with_a_resume_note() {
+        let output = ListOutput {
+            keys: Some(vec![operator_key()]),
+            pairs: Some(vec![pair()]),
+            pairs_next_after: Some("cursor-1".to_string()),
         };
 
         insta::assert_snapshot!(strip_ansi_codes(&output.text()).to_string());
@@ -260,6 +365,7 @@ mod tests {
         let output = RoverOutput::CliOutput(Box::new(ListOutput {
             keys: Some(vec![operator_key()]),
             pairs: Some(vec![pair()]),
+            pairs_next_after: None,
         }));
 
         insta::assert_json_snapshot!(JsonOutput::from(&output));

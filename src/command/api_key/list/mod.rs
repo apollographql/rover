@@ -8,7 +8,8 @@ use rover_client::{
     operations::api_key::{
         list::{ApiKey, ApiKeyBackendType, ListKeysInput, run},
         pair_list::{
-            ListOAuthClients, ListOAuthClientsError, ListOAuthClientsInput, OAuthClientPair,
+            LIST_PAIRS_ATTEMPT_TIMEOUT, ListAllOAuthClients, ListOAuthClients,
+            ListOAuthClientsError, ListOAuthClientsInput, ListOAuthClientsResponse,
         },
     },
 };
@@ -21,6 +22,12 @@ use crate::{
     options::ProfileOpt,
     utils::client::StudioClientConfig,
 };
+
+/// FR90/FR91's default `--limit`: how many client-credential pairs `rover api-key list`
+/// auto-pages through before stopping and reporting a resume cursor, when `--limit` isn't
+/// given. Matches `rover graph-artifact list-tags`'s own `--limit` default, for consistency
+/// across the CLI's total-cap flags.
+const DEFAULT_PAIRS_LIMIT: usize = 100;
 
 #[derive(Debug, Serialize, Parser)]
 pub(crate) struct List {
@@ -35,6 +42,19 @@ pub(crate) struct List {
         help = "Only report keys/pairs of this type (repeatable; default: every type)"
     )]
     type_filter: Vec<ApiKeyType>,
+
+    /// Resume client-credential pairs enumeration from this cursor (spec FR90/FR91) - a previous
+    /// invocation's `client_credentials_next_after`, or the text output's resume note. Has no
+    /// effect when `--type` excludes `client-credentials`.
+    #[clap(long)]
+    after: Option<String>,
+
+    /// Collect at most this many client-credential pairs before returning (spec FR90/FR91). An
+    /// organization with more pairs than this still succeeds: it reports what it collected plus
+    /// a cursor to resume from with `--after`. Has no effect when `--type` excludes
+    /// `client-credentials`.
+    #[clap(long, default_value_t = DEFAULT_PAIRS_LIMIT)]
+    limit: usize,
 }
 
 impl List {
@@ -71,13 +91,22 @@ impl List {
             return Ok(RoverOutput::CliOutput(Box::new(ListOutput {
                 keys: keys_in_scope.then_some(reported_keys),
                 pairs: None,
+                pairs_next_after: None,
             })));
         }
 
-        match fetch_all_pairs(&client, organization_id.clone()).await {
-            Ok(pairs) => Ok(RoverOutput::CliOutput(Box::new(ListOutput {
+        match fetch_pairs(
+            &client,
+            organization_id.clone(),
+            self.after.clone(),
+            self.limit,
+        )
+        .await
+        {
+            Ok(response) => Ok(RoverOutput::CliOutput(Box::new(ListOutput {
                 keys: keys_in_scope.then_some(reported_keys),
-                pairs: Some(pairs),
+                pairs: Some(response.pairs),
+                pairs_next_after: response.next_after,
             }))),
             // FR17: pairs were the *only* thing in scope - nothing to show best-effort, so the
             // raw pairs error propagates with no special handling, same as any ordinary failure.
@@ -112,36 +141,33 @@ impl List {
     }
 }
 
-/// Pages through every page of an organization's client-credential pairs before returning -
-/// `ListOAuthClients`'s own doc comment is explicit that this is the caller's job (spec FR10).
-async fn fetch_all_pairs(
+/// Collects up to `limit` of an organization's client-credential pairs, resuming from `after`
+/// when given, via [`ListAllOAuthClients`] layered over [`ListOAuthClients`] (spec FR90, FR91).
+/// Composes a per-attempt [`TimeoutLayer`](rover_http::timeout::TimeoutLayer) inside the retry
+/// budget `StudioClient::studio_graphql_service_with_attempt_timeout` already applies, per this
+/// repo's network-call composition guidance (AGENTS.md) - this is a read, safe to retry.
+async fn fetch_pairs(
     client: &StudioClient,
     organization_id: String,
-) -> Result<Vec<OAuthClientPair>, ListOAuthClientsError> {
+    after: Option<String>,
+    limit: usize,
+) -> Result<ListOAuthClientsResponse, ListOAuthClientsError> {
     let service = client
-        .studio_graphql_service()
+        .studio_graphql_service_with_attempt_timeout(LIST_PAIRS_ATTEMPT_TIMEOUT)
         .map_err(|err| ListOAuthClientsError::Other(RoverClientError::from(err)))?;
-    let mut list_pairs = ListOAuthClients::new(service);
+    let mut list_all = ListAllOAuthClients::new(ListOAuthClients::new(service));
 
-    let mut pairs = Vec::new();
-    let mut after = None;
-    loop {
-        let ready = list_pairs.ready().await?;
-        let response = ready
-            .call(
-                ListOAuthClientsInput::builder()
-                    .organization_id(organization_id.clone())
-                    .maybe_after(after.clone())
-                    .build(),
-            )
-            .await?;
-        pairs.extend(response.pairs);
-        match response.next_after {
-            Some(cursor) => after = Some(cursor),
-            None => break,
-        }
-    }
-    Ok(pairs)
+    list_all
+        .ready()
+        .await?
+        .call(
+            ListOAuthClientsInput::builder()
+                .organization_id(organization_id)
+                .maybe_after(after)
+                .limit(limit)
+                .build(),
+        )
+        .await
 }
 
 #[cfg(test)]
@@ -157,6 +183,8 @@ mod tests {
                 organization_id: "acme".to_string(),
             },
             type_filter,
+            after: None,
+            limit: DEFAULT_PAIRS_LIMIT,
         }
     }
 
@@ -225,5 +253,34 @@ mod tests {
 
         assert_that!(list.type_filter)
             .is_equal_to(vec![ApiKeyType::Operator, ApiKeyType::ClientCredentials]);
+    }
+
+    // FR91: `--limit` defaults to FR90's 100 when not given.
+    #[test]
+    fn limit_defaults_to_the_spec_value_when_omitted() {
+        let list = List::try_parse_from(["api-key list", "acme"])
+            .expect("expected `rover api-key list <ORG>` to parse with no --limit given");
+
+        assert_that!(list.limit).is_equal_to(DEFAULT_PAIRS_LIMIT);
+        assert_that!(list.after).is_none();
+    }
+
+    // FR91: `--after`/`--limit` are accepted and parsed through to their fields.
+    #[test]
+    fn after_and_limit_are_recognized_clap_flags() {
+        let list = List::try_parse_from([
+            "api-key list",
+            "acme",
+            "--after",
+            "cursor-1",
+            "--limit",
+            "25",
+        ])
+        .expect("expected --after/--limit to parse");
+
+        assert_that!(list.after)
+            .is_some()
+            .is_equal_to("cursor-1".to_string());
+        assert_that!(list.limit).is_equal_to(25);
     }
 }

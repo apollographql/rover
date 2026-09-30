@@ -33,6 +33,7 @@ expression: "JsonOutput::from(&output)"
         }
       }
     ],
+    "client_credentials_next_after": null,
     "success": true
   },
   "error": null

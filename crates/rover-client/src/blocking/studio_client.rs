@@ -7,7 +7,11 @@ use reqwest::{
     Client as ReqwestClient,
 };
 use rover_graphql::{GraphQLLayer, GraphQLService};
-use rover_http::{retry::RetryPolicy, timeout::TimeoutLayer, HttpService, ReqwestService};
+use rover_http::{
+    retry::{retry_with_attempt_timeout, RetryPolicy},
+    timeout::TimeoutLayer,
+    HttpService, ReqwestService,
+};
 use rover_studio::service::{
     permission_denied::PermissionDeniedLayer, rejected_credential::RejectedCredentialLayer,
     HttpStudioServiceError, HttpStudioServiceLayer,
@@ -200,6 +204,46 @@ impl StudioClient {
                     .into_inner(),
             ))
             .layer(RetryLayer::new(RetryPolicy::new(self.retry_period)))
+            .service(
+                ReqwestService::builder()
+                    .client(self.reqwest_client.clone())
+                    .build()?,
+            );
+
+        Ok(service)
+    }
+
+    /// A Studio GraphQL service that retries on transient failures up to [`Self::retry_period`],
+    /// the same as [`Self::studio_graphql_service`], but additionally bounds each individual
+    /// attempt by `attempt_timeout` - so one hung attempt gets retried rather than silently
+    /// consuming the whole retry budget on its own. Composes `rover_http`'s
+    /// [`retry_with_attempt_timeout`] rather than the bare [`RetryLayer`] `studio_graphql_service`
+    /// uses, nesting the timeout inside the retry per this repo's composition guidance
+    /// (AGENTS.md). Safe only for idempotent operations, same caveat as `studio_graphql_service`.
+    pub fn studio_graphql_service_with_attempt_timeout(
+        &self,
+        attempt_timeout: Duration,
+    ) -> Result<GraphQLService<HttpService>, InitStudioServiceError> {
+        let service = ServiceBuilder::new()
+            .layer(GraphQLLayer::default())
+            .layer(BoxCloneServiceLayer::new(
+                // Inside the box so `HttpService`'s error type - and this function's return
+                // type - stay as they are, and above the retry layer so a rejection is never
+                // handed to the retry policy.
+                ServiceBuilder::new()
+                    .layer(HttpStudioServiceLayer::new(
+                        Url::from_str(&self.graphql_endpoint)?,
+                        self.credential.clone(),
+                        self.version.to_string(),
+                        self.is_sudo,
+                    )?)
+                    .layer(RejectedCredentialLayer::new(self.credential.clone()))
+                    .into_inner(),
+            ))
+            .layer(retry_with_attempt_timeout(
+                self.retry_period,
+                attempt_timeout,
+            ))
             .service(
                 ReqwestService::builder()
                     .client(self.reqwest_client.clone())
