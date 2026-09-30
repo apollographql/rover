@@ -547,6 +547,7 @@ impl Rover {
                 profile_name = profile.profile_name,
                 reason = describe_invalid_value(&error),
             ))
+            .with_skip_printing_cause()
         })?;
         Ok(Some(value))
     }

@@ -86,6 +86,20 @@ impl RoverError {
         self
     }
 
+    /// Marks this error's message as fully self-contained, so `Display`
+    /// prints just the top message (via the inner `anyhow::Error`'s own
+    /// `Display`) instead of its `Debug` representation - which, unlike
+    /// `Display`, can include a "Stack backtrace:" section whenever
+    /// backtrace capturing happens to be enabled (`RUST_BACKTRACE`/
+    /// `RUST_LIB_BACKTRACE`), independent of whether there's a real cause
+    /// chain to show. Use this for a leaf error whose message already says
+    /// everything a reader needs, the same way `RoverErrorMetadata`'s
+    /// type-downcast rules do for specific known error types.
+    pub const fn with_skip_printing_cause(mut self) -> Self {
+        self.metadata.skip_printing_cause = true;
+        self
+    }
+
     pub fn suggestions(&self) -> &[RoverErrorSuggestion] {
         &self.metadata.suggestions
     }
