@@ -253,9 +253,12 @@ mod tests {
             .await
             .unwrap_err();
 
-        assert_that!(err).matches(|err| {
-            matches!(err, RoverClientError::PairPermissionDenied { organization_id } if organization_id == "acme")
-        });
+        assert_that!(err.to_string()).is_equal_to(
+            "You don't have permission to manage client-credential pairs in organization \
+            `acme`. This requires the organization admin role, and during the initial rollout \
+            the organization must be enrolled in client-credential support."
+                .to_string(),
+        );
     }
 
     /// Covers both directions: a response with only `clientSecret` null, and one with only

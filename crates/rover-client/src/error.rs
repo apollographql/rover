@@ -70,9 +70,14 @@ pub enum RoverClientError {
     #[error("Could not find organization with ID '{organization_id}'")]
     OrganizationIDNotFound { organization_id: String },
 
-    /// The Platform API refused a client-credential pair operation (create/rotate/delete/list)
-    /// for lack of permission, or because the organization isn't enrolled in client-credential
-    /// support (spec FR73, `specs/rover-431-identity-grant-management`). Distinct from
+    /// The Platform API refused a client-credential pair mutation (create/rotate/delete - the
+    /// operations composed over
+    /// [`crate::blocking::StudioClient::studio_graphql_service_with_timeout`], the only
+    /// constructor `PermissionDeniedLayer` is wired into) for lack of permission, or because the
+    /// organization isn't enrolled in client-credential support (spec FR73,
+    /// `specs/rover-431-identity-grant-management`). `list` needs the same classification for
+    /// its own FR16 branch but reads through the retrying `studio_graphql_service` instead, so
+    /// its own consumer PR has to decide how it gets there. Distinct from
     /// [`RoverClientError::InvalidKey`] (an authentication failure) and from the generic
     /// [`RoverClientError::PermissionError`] (a different, graph-scoped permission story) -
     /// this one names the organization and points at the specific requirement.
