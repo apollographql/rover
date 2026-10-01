@@ -91,7 +91,8 @@ mod tests {
 
     use super::*;
     use crate::{
-        RoverError, RoverErrorCode, command::api_key::pair_lookup::test_pair, options::JsonOutput,
+        RoverError, RoverErrorCode, command::api_key::pair_lookup::tests::test_pair,
+        options::JsonOutput,
     };
 
     fn refused() -> RoverError {
