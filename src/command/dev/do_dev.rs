@@ -39,7 +39,7 @@ use crate::{
         },
     },
     options::ProfileOpt,
-    plugin::error::RequestOrigin,
+    plugin::{discovery::ManifestDirs, error::RequestOrigin},
     utils::{
         client::StudioClientConfig,
         effect::{
@@ -164,6 +164,7 @@ impl Dev {
                 resolve_introspect_subgraph_factory.clone(),
                 fetch_remote_subgraph_factory.clone(),
                 federation_version,
+                &ManifestDirs::in_scope(override_install_path.as_deref()),
                 false,
             )
             .await?

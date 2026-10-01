@@ -30,7 +30,7 @@ use crate::{
     },
     federation::FederationOneUnsupported,
     options::{LicenseAccepter, PluginOpts, ProfileOpt},
-    plugin::error::RequestOrigin,
+    plugin::{discovery::ManifestDirs, error::RequestOrigin},
     utils::{client::StudioClientConfig, parsers::FileDescriptorType},
 };
 
@@ -49,7 +49,9 @@ mod watchers;
 /// used around Rover.
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn get_supergraph_binary(
-    federation_version: Option<FederationVersion>,
+    // The version a command was given on its command line or in its
+    // environment, and which of the two it came from.
+    federation_version: Option<(FederationVersion, RequestOrigin)>,
     client_config: StudioClientConfig,
     override_install_path: Option<Utf8PathBuf>,
     profile: ProfileOpt,
@@ -85,8 +87,8 @@ pub(crate) async fn get_supergraph_binary(
         .resolve_federation_version(
             resolve_introspect_subgraph_factory,
             fetch_remote_subgraph_factory,
-            federation_version
-                .map(|version| (version, RequestOrigin::Flag("--federation-version"))),
+            federation_version,
+            &ManifestDirs::in_scope(override_install_path.as_deref()),
             warn_on_floating_version,
         )
         .await?

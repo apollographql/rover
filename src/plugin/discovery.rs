@@ -49,6 +49,20 @@ impl ManifestDirs {
         let home = binstall::get_home_dir_path().ok();
         Ok(Self::discover(&cwd, apollo_home, home.as_deref()))
     }
+
+    /// Both levels in scope for this process, as [`Self::for_this_process`]
+    /// finds them, except that a working directory Rover can't read finds no
+    /// project, as [`project_in_scope`] says, while the global level still
+    /// applies.
+    pub fn in_scope(apollo_home: Option<&Utf8Path>) -> Self {
+        match Self::for_this_process(apollo_home) {
+            Ok(dirs) => dirs,
+            Err(err) => Self {
+                global: global_dir(apollo_home, binstall::get_home_dir_path().ok().as_deref()),
+                project: project_in_scope(Err(err)),
+            },
+        }
+    }
 }
 
 /// The project in scope according to `found`, a search that may have failed.
@@ -429,11 +443,17 @@ mod tests {
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let reported: Vec<&str> = stdout
             .lines()
-            .filter(|line| line.starts_with("error: ") || line.starts_with("project: "))
+            .filter(|line| {
+                ["error: ", "project: ", "in scope: "]
+                    .iter()
+                    .any(|prefix| line.starts_with(prefix))
+            })
             .collect();
-        assert_that!(reported)
-            .named(&stdout)
-            .is_equal_to(vec!["error: true", "project: None"]);
+        assert_that!(reported).named(&stdout).is_equal_to(vec![
+            "error: true",
+            "project: None",
+            "in scope: None true",
+        ]);
     }
 
     /// Run only by [`a_deleted_working_directory_is_no_project`], in its own
@@ -454,6 +474,12 @@ mod tests {
         let found = ManifestDirs::for_this_process(None);
         println!("error: {}", found.is_err());
         println!("project: {:?}", project_in_scope(found));
+        let in_scope = ManifestDirs::in_scope(None);
+        println!(
+            "in scope: {:?} {}",
+            in_scope.project,
+            in_scope.global.is_some()
+        );
     }
 
     #[rstest]

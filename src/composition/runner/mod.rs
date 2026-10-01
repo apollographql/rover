@@ -42,6 +42,7 @@ use crate::{
             watcher::{file::FileWatcher, supergraph_config::SupergraphConfigWatcher},
         },
     },
+    plugin::layering::LayeredDeclarations,
     subtask::{Subtask, SubtaskRunStream},
     utils::effect::{exec::ExecCommand, write_file::WriteFile},
 };
@@ -155,6 +156,7 @@ impl Runner<state::SetupCompositionWatcher> {
         temp_dir: Utf8PathBuf,
         compose_on_initialisation: bool,
         federation_updater_config: Option<FederationUpdaterConfig>,
+        manifest_declarations: LayeredDeclarations,
     ) -> Runner<state::Run<ExecC, WriteF>>
     where
         ExecC: ExecCommand + Debug + Eq + PartialEq + Send + Sync + 'static,
@@ -168,7 +170,8 @@ impl Runner<state::SetupCompositionWatcher> {
             .exec_command(exec_command)
             .write_file(write_file)
             .temp_dir(temp_dir)
-            .compose_on_initialisation(compose_on_initialisation);
+            .compose_on_initialisation(compose_on_initialisation)
+            .manifest_declarations(manifest_declarations);
 
         let composition_watcher = if let Some(federation_updater_config) = federation_updater_config
         {

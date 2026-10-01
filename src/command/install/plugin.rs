@@ -22,9 +22,11 @@ use crate::{
 mod error;
 mod mcp;
 mod provenance;
+mod request;
 
 pub(crate) use mcp::Version as McpServerVersion;
 pub(crate) use provenance::{PluginLevel, PluginProvenance, PluginProvenanceTracker, PluginSource};
+pub(crate) use request::federation_version;
 
 // These OSX versions of the router were compiled for aarch64 only
 const AARCH_OSX_ONLY_ROUTER_VERSIONS: [Version; 2] =

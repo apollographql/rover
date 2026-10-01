@@ -3,8 +3,8 @@
 //! can't use stops an install before anything is downloaded; and a command
 //! that installs a plugin on the fly never writes one.
 //!
-//! No command checks a lockfile against its manifest yet, so the drift tests
-//! call that check directly, on a lockfile a real install wrote.
+//! The drift tests call the check every plugin-using command runs directly,
+//! on a lockfile a real install wrote.
 
 use std::fs;
 

@@ -2,6 +2,7 @@ mod errors;
 
 use std::{collections::HashMap, env::temp_dir, fmt::Debug, io::stdin, path::PathBuf};
 
+use apollo_federation_types::config::FederationVersion;
 use apollo_language_server::{ApolloLanguageServer, Config, MaxSpecVersions};
 use camino::Utf8PathBuf;
 use clap::Parser;
@@ -44,6 +45,7 @@ use crate::{
         },
     },
     options::{PluginOpts, ProfileOpt},
+    plugin::{discovery::ManifestDirs, error::RequestOrigin},
     utils::{
         client::StudioClientConfig,
         effect::{exec::TokioCommand, write_file::FsWriteFile},
@@ -216,6 +218,16 @@ async fn run_lsp(
     Ok(())
 }
 
+/// The `supergraph` version this command was given, and where: never, as
+/// `rover lsp` takes no version flag yet. The precedence `supergraph.yaml` and
+/// the manifests take their places in is shared with every other
+/// plugin-using command.
+const fn federation_version_override(
+    _plugin_opts: &PluginOpts,
+) -> Option<(FederationVersion, RequestOrigin)> {
+    None
+}
+
 async fn load_spec_for_path(
     path: PathBuf,
     override_install_path: Option<Utf8PathBuf>,
@@ -226,7 +238,7 @@ async fn load_spec_for_path(
     plugin_provenance: &mut PluginProvenanceTracker,
 ) -> Option<String> {
     let supergraph_binary = get_supergraph_binary(
-        None,
+        federation_version_override(&plugin_opts),
         client_config,
         override_install_path,
         profile,
@@ -453,8 +465,8 @@ async fn create_composition_runner(
         .resolve_federation_version(
             resolve_introspect_subgraph_factory.clone(),
             fetch_remote_subgraph_factory.clone(),
-            // `rover lsp` has no version override; `supergraph.yaml` decides.
-            None,
+            federation_version_override(&lsp_opts.plugin_opts),
+            &ManifestDirs::in_scope(override_install_path.as_deref()),
             false,
         )
         .await?
