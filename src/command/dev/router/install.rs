@@ -6,7 +6,10 @@ use super::binary::RouterBinary;
 use crate::{
     command::{Install, install::Plugin},
     options::LicenseAccepter,
-    plugin::error::{PluginFailure, RequestOrigin},
+    plugin::{
+        automatic::AutomaticDownloads,
+        error::{PluginFailure, RequestOrigin},
+    },
     utils::{client::StudioClientConfig, effect::install::InstallBinary},
 };
 
@@ -27,6 +30,7 @@ pub struct InstallRouter {
     studio_client_config: StudioClientConfig,
     router_version: RouterVersion,
     origin: Option<RequestOrigin>,
+    automatic_downloads: AutomaticDownloads,
 }
 
 impl InstallRouter {
@@ -38,6 +42,7 @@ impl InstallRouter {
             router_version,
             studio_client_config,
             origin: None,
+            automatic_downloads: AutomaticDownloads::NotAllowed,
         }
     }
 
@@ -45,6 +50,15 @@ impl InstallRouter {
     /// it asks for has been withdrawn.
     pub fn requested_by(self, origin: Option<RequestOrigin>) -> Self {
         Self { origin, ..self }
+    }
+
+    /// Lets the install download a plugin installed at neither level, when
+    /// `automatic_downloads` allows it. Until a caller says, it may not.
+    pub fn automatic_downloads(self, automatic_downloads: AutomaticDownloads) -> Self {
+        Self {
+            automatic_downloads,
+            ..self
+        }
     }
 }
 
@@ -69,6 +83,7 @@ impl InstallBinary for InstallRouter {
                 override_install_path,
                 self.studio_client_config.clone(),
                 skip_update,
+                self.automatic_downloads,
                 self.origin.clone(),
             )
             .await
@@ -104,6 +119,7 @@ mod tests {
     use super::InstallRouter;
     use crate::{
         options::LicenseAccepter,
+        plugin::automatic::AutomaticDownloads,
         utils::{
             client::{ClientBuilder, ClientTimeout, StudioClientConfig},
             effect::install::InstallBinary,
@@ -133,7 +149,8 @@ mod tests {
             elv2_license_accepted: Some(true),
         };
         let override_install_path = NamedTempFile::new("override_path")?;
-        let install_router = InstallRouter::new(RouterVersion::LatestTwo, studio_client_config);
+        let install_router = InstallRouter::new(RouterVersion::LatestTwo, studio_client_config)
+            .automatic_downloads(AutomaticDownloads::Allowed);
         http_server.mock(|when, then| {
             when.is_true(|request| {
                 request.method() == Method::HEAD && request.uri().path().starts_with("/tar/router")

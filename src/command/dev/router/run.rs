@@ -31,7 +31,7 @@ use crate::{
     command::dev::router::watchers::file::FileWatcher,
     composition::{CompositionError, events::CompositionEvent},
     options::{DEFAULT_PROFILE, LicenseAccepter, ProfileOpt},
-    plugin::error::RequestOrigin,
+    plugin::{automatic::AutomaticDownloads, error::RequestOrigin},
     subtask::{Subtask, SubtaskRunStream, SubtaskRunUnit},
     utils::{
         client::StudioClientConfig,
@@ -62,6 +62,7 @@ impl Default for RunRouter<state::Install> {
 }
 
 impl RunRouter<state::Install> {
+    #[expect(clippy::too_many_arguments)]
     pub async fn install(
         self,
         router_version: RouterVersion,
@@ -70,9 +71,11 @@ impl RunRouter<state::Install> {
         override_install_path: Option<Utf8PathBuf>,
         elv2_license_accepter: LicenseAccepter,
         skip_update: bool,
+        automatic_downloads: AutomaticDownloads,
     ) -> Result<RunRouter<state::LoadLocalConfig>, InstallRouterError> {
-        let install_binary =
-            InstallRouter::new(router_version, studio_client_config).requested_by(origin);
+        let install_binary = InstallRouter::new(router_version, studio_client_config)
+            .requested_by(origin)
+            .automatic_downloads(automatic_downloads);
         let binary = install_binary
             .install(override_install_path, elv2_license_accepter, skip_update)
             .await?;

@@ -8,7 +8,10 @@ use crate::{
         install::{McpServerVersion, Plugin},
     },
     options::LicenseAccepter,
-    plugin::error::{PluginFailure, RequestOrigin},
+    plugin::{
+        automatic::AutomaticDownloads,
+        error::{PluginFailure, RequestOrigin},
+    },
     utils::{client::StudioClientConfig, effect::install::InstallBinary},
 };
 
@@ -29,6 +32,7 @@ pub struct InstallMcpServer {
     studio_client_config: StudioClientConfig,
     mcp_server_version: McpServerVersion,
     origin: Option<RequestOrigin>,
+    automatic_downloads: AutomaticDownloads,
 }
 
 impl InstallMcpServer {
@@ -41,6 +45,7 @@ impl InstallMcpServer {
             mcp_server_version,
             studio_client_config,
             origin: None,
+            automatic_downloads: AutomaticDownloads::NotAllowed,
         }
     }
 
@@ -48,6 +53,15 @@ impl InstallMcpServer {
     /// release it asks for has been withdrawn.
     pub fn requested_by(self, origin: Option<RequestOrigin>) -> Self {
         Self { origin, ..self }
+    }
+
+    /// Lets the install download a plugin installed at neither level, when
+    /// `automatic_downloads` allows it. Until a caller says, it may not.
+    pub fn automatic_downloads(self, automatic_downloads: AutomaticDownloads) -> Self {
+        Self {
+            automatic_downloads,
+            ..self
+        }
     }
 }
 
@@ -72,6 +86,7 @@ impl InstallBinary for InstallMcpServer {
                 override_install_path,
                 self.studio_client_config.clone(),
                 skip_update,
+                self.automatic_downloads,
                 self.origin.clone(),
             )
             .await
@@ -107,6 +122,7 @@ mod tests {
     use crate::{
         command::install::McpServerVersion,
         options::LicenseAccepter,
+        plugin::automatic::AutomaticDownloads,
         utils::{
             client::{ClientBuilder, ClientTimeout, StudioClientConfig},
             effect::install::InstallBinary,
@@ -138,7 +154,8 @@ mod tests {
         .with_download_host(mock_server_endpoint.clone());
         let override_install_path = NamedTempFile::new("override_path")?;
         let install_mcp_server =
-            InstallMcpServer::new(McpServerVersion::Latest, studio_client_config);
+            InstallMcpServer::new(McpServerVersion::Latest, studio_client_config)
+                .automatic_downloads(AutomaticDownloads::Allowed);
         http_server.mock(|when, then| {
             when.is_true(|request| {
                 request.method() == Method::HEAD

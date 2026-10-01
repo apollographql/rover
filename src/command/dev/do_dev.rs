@@ -40,6 +40,7 @@ use crate::{
     },
     options::ProfileOpt,
     plugin::{
+        automatic::AutomaticDownloads,
         discovery::ManifestDirs,
         error::RequestOrigin,
         precedence::{self, RequestInputs, declarations_in_scope},
@@ -147,6 +148,11 @@ impl Dev {
             )
             .await?;
 
+        // The router and the MCP server may download only what the supergraph
+        // plugin may, as the same manifests decide.
+        let automatic_downloads =
+            AutomaticDownloads::in_scope(&composition_pipeline.state.manifest_declarations);
+
         // The chain above only succeeds once the supergraph binary is resolved, so this is
         // always `Ok` here (FR54).
         if let Ok(binary) = &composition_pipeline.state.supergraph_binary {
@@ -252,6 +258,7 @@ impl Dev {
                 override_install_path.clone(),
                 elv2_license_accepter,
                 skip_update,
+                automatic_downloads,
             )
             .await?;
         stderr.print(&StyledText::plain(
@@ -325,6 +332,7 @@ impl Dev {
                     override_install_path,
                     elv2_license_accepter,
                     skip_update,
+                    automatic_downloads,
                 )
                 .await?;
             stderr.print(&StyledText::plain(
@@ -554,6 +562,104 @@ mod tests {
     use speculoos::prelude::*;
 
     use super::*;
+
+    /// `rover dev`'s router and MCP server installs download only when the
+    /// run is opted in. The registry fails every request, so an install
+    /// that may download fails resolving (E048) after asking it, and one
+    /// that may not fails as a missing plugin (E058) without asking.
+    #[cfg(not(target_env = "musl"))]
+    #[tokio::test]
+    #[rstest]
+    #[case::the_router_not_opted_in(PluginName::Router, AutomaticDownloads::NotAllowed)]
+    #[case::the_router_opted_in(PluginName::Router, AutomaticDownloads::Allowed)]
+    #[case::the_mcp_server_not_opted_in(
+        PluginName::ApolloMcpServer,
+        AutomaticDownloads::NotAllowed
+    )]
+    #[case::the_mcp_server_opted_in(PluginName::ApolloMcpServer, AutomaticDownloads::Allowed)]
+    async fn the_router_and_mcp_server_follow_the_runs_opt_in(
+        #[case] plugin: PluginName,
+        #[case] automatic_downloads: AutomaticDownloads,
+    ) {
+        use crate::{
+            RoverErrorCode,
+            command::{
+                dev::{mcp::run::RunMcpServer, router::run::RunRouter},
+                install::McpServerVersion,
+            },
+            options::LicenseAccepter,
+            utils::client::{ClientBuilder, ClientTimeout},
+        };
+
+        let server = httpmock::MockServer::start();
+        let registry = server.mock(|_, then| {
+            then.status(500);
+        });
+        let host = format!("http://{}", server.address());
+        let home = tempfile::tempdir().unwrap();
+        let install_path = Utf8PathBuf::try_from(home.path().to_path_buf()).unwrap();
+        let client_config = StudioClientConfig::new(
+            Some(host.clone()),
+            houston::Config {
+                home: install_path.join("config"),
+                override_api_key: Some("api-key".to_string()),
+                override_client_credentials_token: None,
+            },
+            false,
+            ClientBuilder::default(),
+            ClientTimeout::new(1),
+        )
+        .with_download_host(host);
+        let license = LicenseAccepter {
+            elv2_license_accepted: Some(true),
+        };
+
+        let code = temp_env::async_with_vars(
+            [
+                ("APOLLO_ROVER_SKIP_UPDATE", None::<&str>),
+                ("APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD", None),
+                ("APOLLO_NODE_MODULES_BIN_DIR", None),
+            ],
+            async {
+                let path = Some(install_path.clone());
+                match plugin {
+                    PluginName::Router => RunRouter::default()
+                        .install(
+                            apollo_federation_types::config::RouterVersion::LatestTwo,
+                            None,
+                            client_config,
+                            path,
+                            license,
+                            false,
+                            automatic_downloads,
+                        )
+                        .await
+                        .err()
+                        .map(|err| RoverError::new(err).code()),
+                    _ => RunMcpServer::default()
+                        .install(
+                            McpServerVersion::Latest,
+                            None,
+                            client_config,
+                            path,
+                            license,
+                            false,
+                            automatic_downloads,
+                        )
+                        .await
+                        .err()
+                        .map(|err| RoverError::new(err).code()),
+                }
+            },
+        )
+        .await;
+
+        let expected = match automatic_downloads {
+            AutomaticDownloads::NotAllowed => (Some(Some(RoverErrorCode::E058)), false),
+            AutomaticDownloads::Allowed => (Some(Some(RoverErrorCode::E048)), true),
+        };
+        assert_that!((code, registry.calls() > 0)).is_equal_to(expected);
+    }
 
     const MANIFEST: &str = "plugins:\n  router: \"=2.1.0\"\n  apollo-mcp-server: latest\n";
     const LOCK: &str = "version = 1\n\n[[plugins]]\nname = \"router\"\nrequested = \"=2.1.0\"\nresolved = \"2.1.0\"\n\n[[plugins]]\nname = \"apollo-mcp-server\"\nrequested = \"latest\"\nresolved = \"1.0.3\"\n";

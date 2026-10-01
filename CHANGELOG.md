@@ -18,9 +18,15 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 # [Unreleased]
 
-> Important: 3 potentially breaking changes below, indicated by **❗ BREAKING ❗**
+> Important: 4 potentially breaking changes below, indicated by **❗ BREAKING ❗**
 
 ## ❗ BREAKING ❗
+
+- **Commands no longer download the plugins they need unless you opt in - @SharkBaitDLS**
+
+  `rover supergraph compose`, `rover dev`, `rover lsp`, and `rover connector` now use a plugin only if it's already installed, in the project or globally, and never contact the plugin registry for it. A plugin installed at neither level stops the command with error E058, naming the plugin and saying how to install it, for example: "Rover needs the `supergraph` plugin v2.9.3, which isn't installed. Run `rover plugin install supergraph@=2.9.3`, or set `allow_automatic_download: true` in `rover.yaml` to let Rover download plugins on demand." A floating version such as `federation_version: 2` uses the newest matching release already installed.
+
+  To restore the old behavior of downloading a missing plugin on demand, set `allow_automatic_download: true` in `.rover/rover.yaml`, in the project or in `~/.rover` (or `$APOLLO_HOME/.rover`) for the whole machine, or set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD=true` (or `1`), which outranks both. A project's `allow_automatic_download` wins over the global one, either way. Alternatively, install each plugin ahead of time with `rover plugin install`, which isn't affected and still downloads. `--skip-update` and `APOLLO_ROVER_SKIP_UPDATE` still forbid downloads even when you've opted in.
 
 - **`rover subgraph check`'s JSON `downstream` task changes shape, bumping `json_version` to `"3"` - @dotdat**
 

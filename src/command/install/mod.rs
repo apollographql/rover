@@ -10,6 +10,7 @@ use serde::Serialize;
 
 #[cfg(feature = "composition-js")]
 use crate::plugin::{
+    automatic::AutomaticDownloads,
     discovery::{ManifestDirs, project_in_scope},
     error::{DownloadControl, RequestOrigin},
 };
@@ -133,14 +134,16 @@ impl Install {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
         skip_update: bool,
+        automatic_downloads: AutomaticDownloads,
         origin: Option<RequestOrigin>,
     ) -> RoverResult<PluginProvenance> {
         // `--skip-update`, or `APOLLO_ROVER_SKIP_UPDATE`, means every command that
         // installs a plugin on the fly (compose, dev, lsp) uses an installed
         // plugin and never reaches for the registry, failing by name when none
-        // is installed. The explicit `rover plugin install` doesn't go through
-        // here, so neither stops it downloading. See #1892.
-        let downloads_disabled_by = skip_update_control(skip_update);
+        // is installed. So does having nothing opt in to automatic downloads.
+        // The explicit `rover plugin install` doesn't go through here, so none
+        // of them stops it downloading. See #1892.
+        let downloads_disabled_by = on_the_fly_control(skip_update, automatic_downloads);
         // A plugin installed in the project in scope is used before a global
         // one (FR26). Anything downloaded still goes to the global level.
         let project = project_in_scope(ManifestDirs::for_this_process(
@@ -196,6 +199,20 @@ fn skip_update_control(flag: bool) -> Option<DownloadControl> {
     }
 }
 
+/// What forbids a command installing a plugin on the fly from downloading
+/// it, if anything does: `--skip-update` as [`skip_update_control`] spells
+/// it, or failing that, nothing having opted in to automatic downloads.
+///
+/// The per-invocation control comes first. A standing opt-in may permit a
+/// download, but never one a run was told not to make.
+#[cfg(feature = "composition-js")]
+fn on_the_fly_control(
+    skip_update: bool,
+    automatic_downloads: AutomaticDownloads,
+) -> Option<DownloadControl> {
+    skip_update_control(skip_update).or_else(|| automatic_downloads.control())
+}
+
 /// The binstall installer that Rover and its plugins are installed through.
 pub(crate) fn installer(
     binary_name: &str,
@@ -222,9 +239,9 @@ mod tests {
     use rstest::rstest;
     use speculoos::prelude::*;
 
-    use super::{DeprecatedAlias, Install};
     #[cfg(feature = "composition-js")]
-    use super::{DownloadControl, skip_update_control};
+    use super::{AutomaticDownloads, DownloadControl, on_the_fly_control, skip_update_control};
+    use super::{DeprecatedAlias, Install};
     use crate::command::Plugins;
 
     #[cfg(feature = "composition-js")]
@@ -250,6 +267,19 @@ mod tests {
                 assert_that!(skip_update_control(flag)).is_equal_to(expected);
             },
         );
+    }
+
+    #[cfg(feature = "composition-js")]
+    #[rstest]
+    #[case::not_opted_in(AutomaticDownloads::NotAllowed, Some(DownloadControl::NotOptedIn))]
+    #[case::opted_in(AutomaticDownloads::Allowed, None)]
+    fn without_skip_update_downloading_waits_on_the_opt_in(
+        #[case] automatic_downloads: AutomaticDownloads,
+        #[case] expected: Option<DownloadControl>,
+    ) {
+        temp_env::with_var(crate::utils::SKIP_UPDATE_ENV, None::<&str>, || {
+            assert_that!(on_the_fly_control(false, automatic_downloads)).is_equal_to(expected);
+        });
     }
 
     #[rstest]

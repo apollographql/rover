@@ -42,6 +42,7 @@ use crate::{
     federation::{FederationOneUnsupported, reject_federation_one},
     options::LicenseAccepter,
     plugin::{
+        automatic::AutomaticDownloads,
         discovery::ManifestDirs,
         error::{PluginFailure, RequestOrigin},
         layering::LayeredDeclarations,
@@ -320,6 +321,9 @@ impl CompositionPipeline<state::InstallSupergraph> {
         let supergraph_binary =
             InstallSupergraph::new(self.state.federation_version, studio_client_config)
                 .requested_by(self.state.federation_version_origin)
+                .automatic_downloads(AutomaticDownloads::in_scope(
+                    &self.state.manifest_declarations,
+                ))
                 .install(override_install_path, elv2_license_accepter, skip_update)
                 .await;
 

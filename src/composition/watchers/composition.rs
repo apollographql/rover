@@ -38,6 +38,7 @@ use crate::{
     config::SupergraphConfigYaml,
     federation::reject_federation_one,
     plugin::{
+        automatic::AutomaticDownloads,
         error::RequestOrigin,
         layering::LayeredDeclarations,
         precedence::{ManifestOverridden, PluginRequest, RequestSource},
@@ -234,6 +235,7 @@ where
                                 let install_res =
                                     InstallSupergraph::new(fed_version, federation_updater_config.studio_client_config.clone())
                                         .requested_by(Some(RequestOrigin::SupergraphConfig(supergraph_config.origin_path().clone())))
+                                        .automatic_downloads(AutomaticDownloads::in_scope(&self.manifest_declarations.clone().unwrap_or_default()))
                                         .install(None, federation_updater_config.elv2_licence_accepter, federation_updater_config.skip_update)
                                         .await;
                                 match install_res {

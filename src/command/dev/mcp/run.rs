@@ -13,7 +13,7 @@ use super::{
 use crate::{
     command::{dev::router::config::RouterAddress, install::McpServerVersion},
     options::LicenseAccepter,
-    plugin::error::RequestOrigin,
+    plugin::{automatic::AutomaticDownloads, error::RequestOrigin},
     subtask::{Subtask, SubtaskRunUnit},
     utils::{
         client::StudioClientConfig,
@@ -34,6 +34,7 @@ impl Default for RunMcpServer<state::Install> {
 }
 
 impl RunMcpServer<state::Install> {
+    #[expect(clippy::too_many_arguments)]
     pub async fn install(
         self,
         mcp_server_version: McpServerVersion,
@@ -42,9 +43,11 @@ impl RunMcpServer<state::Install> {
         override_install_path: Option<Utf8PathBuf>,
         elv2_license_accepter: LicenseAccepter,
         skip_update: bool,
+        automatic_downloads: AutomaticDownloads,
     ) -> Result<RunMcpServer<state::Run>, InstallMcpServerError> {
-        let install_binary =
-            InstallMcpServer::new(mcp_server_version, studio_client_config).requested_by(origin);
+        let install_binary = InstallMcpServer::new(mcp_server_version, studio_client_config)
+            .requested_by(origin)
+            .automatic_downloads(automatic_downloads);
         let binary = install_binary
             .install(override_install_path, elv2_license_accepter, skip_update)
             .await?;
