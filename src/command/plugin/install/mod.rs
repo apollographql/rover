@@ -35,7 +35,9 @@ pub struct PluginInstall {
     /// Leave it out to install every plugin in scope
     ///
     /// Without it, every plugin the lockfile in scope records is installed at
-    /// exactly the version it records, without asking the plugin registry.
+    /// exactly the version it records, without asking the plugin registry,
+    /// and every plugin the manifest declares that the lockfile doesn't
+    /// record yet is installed and recorded too.
     #[arg(value_name = "NAME@VERSION")]
     pub(crate) plugin: Option<Plugin>,
 
@@ -132,14 +134,10 @@ impl PluginInstall {
                 );
                 vec![(request, true)]
             }
-            // A locked plugin is already recorded, as it was locked.
             None => in_scope
                 .as_ref()
                 .ok_or_else(|| nothing_to_install(None))?
-                .requests()?
-                .into_iter()
-                .map(|request| (request, false))
-                .collect(),
+                .requests()?,
         };
         let plugins = installs
             .iter()

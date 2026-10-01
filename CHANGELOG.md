@@ -104,7 +104,11 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **`rover plugin install` with no plugin named installs what the lockfile records - @SharkBaitDLS**
 
-  Run with no `<NAME>@<VERSION>`, `rover plugin install` installs every plugin the `plugin-versions.lock` at the level it targets records, at exactly the release recorded there, the way `npm ci` installs from `package-lock.json`. It asks the plugin registry to resolve nothing, so a committed project lockfile installs the same releases on every machine. The level is chosen as it is for a named install: the project in scope, otherwise the global level, or whichever `--global` or `--manifest-path` names. A locked release the plugin registry no longer serves fails with error E051 naming the lockfile, rather than installing a neighbouring release. With no lockfile there, the command fails, asking for a plugin to be named. `--format json` reports every plugin installed under `data.plugins`.
+  Run with no `<NAME>@<VERSION>`, `rover plugin install` installs every plugin the `plugin-versions.lock` at the level it targets records, at exactly the release recorded there, the way `npm ci` installs from `package-lock.json`. It asks the plugin registry to resolve nothing, so a committed project lockfile installs the same releases on every machine. The level is chosen as it is for a named install: the project in scope, otherwise the global level, or whichever `--global` or `--manifest-path` names. A locked release the plugin registry no longer serves fails with error E051 naming the lockfile, rather than installing a neighbouring release. With neither a lockfile nor a `rover.yaml` there, the command fails, asking for a plugin to be named. `--format json` reports every plugin installed under `data.plugins`.
+
+- **`rover plugin install` with no plugin named also installs what `rover.yaml` declares - @SharkBaitDLS**
+
+  A plugin the target level's `rover.yaml` declares but its `plugin-versions.lock` doesn't record yet is resolved, installed, and added to the lockfile, while every plugin already locked keeps the release recorded for it: a floating version such as `2` is never re-resolved unless it's named on the command line. A locked release the manifest no longer allows, such as one locked at `2.1.0` and now declared `=2.2.0`, stops the install with error E052 before anything is downloaded, naming the `rover plugin install` that updates it.
 
 - **`rover dev` gains `--router-version`/`--composition-version`; `rover template` gains `--templates-api` - @dotdat**
 
