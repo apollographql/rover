@@ -10,6 +10,9 @@ mod oauth;
 mod output;
 mod persisted_queries;
 mod profile;
+// Unused until the project manifest's `settings:` section is loaded and read.
+#[allow(dead_code)]
+mod project_settings;
 mod settings;
 
 mod schema;
@@ -29,6 +32,8 @@ pub(crate) use oauth::*;
 pub(crate) use output::*;
 pub(crate) use persisted_queries::*;
 pub(crate) use profile::*;
+#[allow(unused_imports)]
+pub(crate) use project_settings::*;
 pub(crate) use schema::*;
 // Unused until the settings-resolution slice consumes it - see settings.rs.
 #[allow(unused_imports)]

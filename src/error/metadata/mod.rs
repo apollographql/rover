@@ -7,7 +7,7 @@ use serde::Serialize;
 pub use suggestion::RoverErrorSuggestion;
 
 use crate::{
-    options::{JsonVersion, SettingValueError},
+    options::{JsonVersion, ProjectSettingsError, SettingValueError},
     plugin,
     utils::env::RoverEnvKey,
 };
@@ -511,6 +511,22 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 suggestions: vec![],
                 code: Some(RoverErrorCode::E054),
                 skip_printing_cause: true,
+            };
+        }
+
+        // FR86: a credential in the project file and a setting spelled both
+        // ways there each get their own stable code. Both messages already say
+        // exactly what to remove, so no suggestion is added.
+        if let Some(project_settings_error) = error.downcast_ref::<ProjectSettingsError>() {
+            let code = match project_settings_error {
+                ProjectSettingsError::Credential { .. } => RoverErrorCode::E060,
+                ProjectSettingsError::SpelledBothWays { .. } => RoverErrorCode::E061,
+            };
+            return RoverErrorMetadata {
+                json_version: JsonVersion::default(),
+                suggestions: vec![],
+                code: Some(code),
+                skip_printing_cause,
             };
         }
 

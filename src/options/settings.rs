@@ -195,6 +195,15 @@ impl SettingName {
         }
     }
 
+    /// Whether the project file's `settings:` section may set this setting
+    /// (spec.md §2, FR31). Every setting in this catalogue is, today - the
+    /// ones that aren't (VCS context, FR5) aren't variants at all - but the
+    /// spec keeps profile- and project-eligibility as separate lists, so a
+    /// setting added later can be one without the other.
+    pub(crate) const fn is_project_eligible(self) -> bool {
+        true
+    }
+
     /// The setting's built-in default, spelled the way its environment
     /// variable would spell it (FR54) - this is what `rover config show`
     /// reports as `value` when nothing overrides it. `None` means the
