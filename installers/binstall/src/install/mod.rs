@@ -195,7 +195,9 @@ impl Installer {
         }
     }
 
-    pub(crate) fn get_base_dir_path(&self) -> Result<Utf8PathBuf, InstallerError> {
+    /// Rover's own directory, `~/.rover` or `$APOLLO_HOME/.rover`, which
+    /// holds the `bin` directory plugins install into.
+    pub fn get_base_dir_path(&self) -> Result<Utf8PathBuf, InstallerError> {
         let override_home = self.override_install_path.as_deref();
         // A usable override needs no home directory, so an override still
         // works on a machine without one.
