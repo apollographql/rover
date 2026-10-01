@@ -238,6 +238,13 @@ impl ProjectSettings {
     }
 
     /// The project file's value for `name`, if it sets one.
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "read once settings resolution gains the project tier"
+        )
+    )]
     pub(crate) fn get(&self, name: SettingName) -> Option<&ProjectSetting> {
         self.settings.get(name.as_str())
     }

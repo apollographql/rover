@@ -24,7 +24,8 @@ use crate::{
     RoverError, RoverResult,
     command::{self, RoverOutput},
     options::{
-        DEFAULT_PROFILE, OutputOpts, ProfileOpt, ProfileSelection, SettingName, SettingValueError,
+        DEFAULT_PROFILE, OutputOpts, ProfileOpt, ProfileSelection, ProjectSettings, SettingName,
+        SettingValueError,
     },
     utils::{
         client::{ClientBuilder, ClientTimeout, StudioClientConfig},
@@ -222,6 +223,21 @@ pub struct Rover {
     #[arg(skip)]
     #[serde(skip_serializing)]
     noticed_settings: std::sync::Mutex<std::collections::HashSet<&'static str>>,
+
+    /// The project file's `settings:` section, discovered and read on first
+    /// use (see `project_settings`).
+    #[arg(skip)]
+    #[serde(skip_serializing)]
+    project_settings: std::sync::OnceLock<ProjectSettings>,
+
+    /// Where a test's manifests live, in place of discovery from the
+    /// process's working directory - which parallel tests can't each change.
+    /// `None` means no manifest at either level, so a test never reads the
+    /// real working directory's `.rover/`.
+    #[cfg(test)]
+    #[arg(skip)]
+    #[serde(skip_serializing)]
+    test_manifest_dirs: Option<crate::plugin::discovery::ManifestDirs>,
 }
 
 impl Rover {
@@ -280,6 +296,13 @@ impl Rover {
     }
 
     pub async fn execute_command(&self) -> RoverResult<RoverOutput> {
+        // A project file that names a credential or spells one setting both
+        // ways fails every command run in the project before it sends any
+        // request - the update check's included (FR70, FR73). One that's
+        // merely carrying keys Rover doesn't apply warns about each of them
+        // below (FR72, FR76).
+        let project_settings = self.project_settings()?;
+
         // before running any commands, we check if rover is up to date
         // this only happens once a day automatically
         // we skip this check for the `rover update` commands, since they
@@ -297,6 +320,9 @@ impl Rover {
         let profile_opt = self.get_profile_opt();
         for message in self.unrecognized_setting_warnings(&profile_opt) {
             self.print_unrecognized_setting_warning(message);
+        }
+        for message in project_settings.warnings() {
+            self.print_unrecognized_setting_warning(message.clone());
         }
 
         match &self.command {
@@ -906,6 +932,61 @@ impl Rover {
                 )
             })
             .collect()
+    }
+
+    /// The project file's classified `settings:` section, read once per
+    /// process from the manifest the plugin system's discovery finds from
+    /// the working directory (FR78) - empty when there's no project. Fails
+    /// when the project manifest can't be read at all, or its `settings:`
+    /// section names a credential or spells one setting both ways.
+    pub(crate) fn project_settings(&self) -> RoverResult<&ProjectSettings> {
+        if let Some(settings) = self.project_settings.get() {
+            return Ok(settings);
+        }
+        let settings = ProjectSettings::load(&self.manifest_dirs())?;
+        Ok(self.project_settings.get_or_init(|| settings))
+    }
+
+    /// Both manifest levels for this invocation: the project found from the
+    /// working directory, and the user level under `--rover-home`
+    /// (`APOLLO_HOME`) or the home directory, as plugins use.
+    #[cfg(not(test))]
+    fn manifest_dirs(&self) -> crate::plugin::discovery::ManifestDirs {
+        use crate::plugin::discovery::ManifestDirs;
+
+        let home = directories_next::BaseDirs::new()
+            .and_then(|dirs| Utf8PathBuf::from_path_buf(dirs.home_dir().to_path_buf()).ok());
+        match std::env::current_dir()
+            .ok()
+            .and_then(|cwd| Utf8PathBuf::from_path_buf(cwd).ok())
+        {
+            Some(cwd) => ManifestDirs::discover(&cwd, self.rover_home.as_deref(), home.as_deref()),
+            // A working directory that's gone or isn't UTF-8 can't be inside
+            // a project Rover can name.
+            None => ManifestDirs {
+                global: crate::plugin::discovery::global_dir(
+                    self.rover_home.as_deref(),
+                    home.as_deref(),
+                ),
+                project: None,
+            },
+        }
+    }
+
+    #[cfg(test)]
+    fn manifest_dirs(&self) -> crate::plugin::discovery::ManifestDirs {
+        self.test_manifest_dirs
+            .clone()
+            .unwrap_or(crate::plugin::discovery::ManifestDirs {
+                global: None,
+                project: None,
+            })
+    }
+
+    /// Points this test's manifest discovery at `dirs` instead of nothing.
+    #[cfg(test)]
+    pub(crate) fn set_manifest_dirs(&mut self, dirs: crate::plugin::discovery::ManifestDirs) {
+        self.test_manifest_dirs = Some(dirs);
     }
 
     /// The raw, clap-merged flag/env value of one OAuth setting, before the
@@ -3738,5 +3819,149 @@ mod tests {
         });
         assert_that!(rover.get_install_override_path().unwrap())
             .is_equal_to(Some(camino::Utf8PathBuf::from("/env/rover-home")));
+    }
+
+    /// The project file's startup checks (FR70, FR72, FR73, FR76), run by
+    /// every command before it does anything.
+    mod project_file {
+        use std::fs;
+
+        use camino::Utf8PathBuf;
+        use clap::Parser;
+        use speculoos::prelude::*;
+
+        use super::{Rover, config_home_with_setting};
+        use crate::{
+            PKG_NAME, RoverErrorCode,
+            options::ProjectSettings,
+            plugin::{discovery::ManifestDirs, manifest::MANIFEST_FILE},
+        };
+
+        /// A `rover config list` run (which sends no request of its own) in a
+        /// project whose `.rover/rover.yaml` is `project`, with a user-level
+        /// manifest of `user_level` when given.
+        fn rover_in_project(
+            project: &str,
+            user_level: Option<&str>,
+        ) -> (tempfile::TempDir, tempfile::TempDir, Rover) {
+            let config_home =
+                config_home_with_setting("default", "APOLLO_CHECKS_TIMEOUT_SECONDS", "300");
+            let config_home_path = camino::Utf8Path::from_path(config_home.path()).unwrap();
+            let tree = tempfile::tempdir().unwrap();
+            let root = Utf8PathBuf::try_from(tree.path().to_path_buf()).unwrap();
+            let level = |name: &str, contents: Option<&str>| {
+                let dir = root.join(name).join(".rover");
+                fs::create_dir_all(&dir).unwrap();
+                if let Some(contents) = contents {
+                    fs::write(dir.join(MANIFEST_FILE), contents).unwrap();
+                }
+                dir
+            };
+            let dirs = ManifestDirs {
+                project: Some(level("project", Some(project))),
+                global: Some(level("home", user_level)),
+            };
+            let mut rover = Rover::parse_from([
+                PKG_NAME,
+                "--skip-update-check",
+                "--config-home",
+                config_home_path.as_str(),
+                "config",
+                "list",
+            ]);
+            rover.set_manifest_dirs(dirs);
+            (config_home, tree, rover)
+        }
+
+        #[tokio::test]
+        async fn a_credential_in_the_project_file_fails_the_command() {
+            let (_home, _tree, rover) =
+                rover_in_project("settings:\n  APOLLO_KEY: service:x:y\n", None);
+
+            let error = rover.execute_command().await.unwrap_err();
+
+            assert_that!(error.message()).is_equal_to(
+                "`.rover/rover.yaml` sets `APOLLO_KEY` under `settings:`. Credentials can't be \
+                stored in a project file. Run `rover auth login`, or set `APOLLO_KEY` in the \
+                environment."
+                    .to_string(),
+            );
+            assert_that!(error.code())
+                .is_some()
+                .is_equal_to(RoverErrorCode::E058);
+        }
+
+        #[tokio::test]
+        async fn a_setting_spelled_both_ways_fails_the_command() {
+            let (_home, _tree, rover) = rover_in_project(
+                "settings:\n  APOLLO_REGISTRY_URL: https://a.example.com\n  \
+                apollo_registry_url: https://b.example.com\n",
+                None,
+            );
+
+            let error = rover.execute_command().await.unwrap_err();
+
+            assert_that!(error.message()).is_equal_to(
+                "`.rover/rover.yaml` sets `APOLLO_REGISTRY_URL` twice, once as \
+                `APOLLO_REGISTRY_URL` and once as `apollo_registry_url`. These are the same \
+                setting. Remove one."
+                    .to_string(),
+            );
+            assert_that!(error.code())
+                .is_some()
+                .is_equal_to(RoverErrorCode::E059);
+        }
+
+        #[tokio::test]
+        async fn a_project_manifest_that_isnt_yaml_fails_the_command() {
+            let (_home, _tree, rover) = rover_in_project("settings: \"unterminated\n", None);
+
+            let error = rover.execute_command().await.unwrap_err();
+
+            assert_that!(error.code())
+                .is_some()
+                .is_equal_to(RoverErrorCode::E052);
+        }
+
+        /// FR89 and AC L394/L427: keys Rover doesn't apply only warn.
+        #[rstest::rstest]
+        #[case::unrecognized_key("settings:\n  APOLLO_FUTURE_SETTING: x\n", None)]
+        #[case::user_level_settings(
+            "plugins: {}\n",
+            Some("settings:\n  APOLLO_REGISTRY_URL: https://registry.example.com\n")
+        )]
+        #[tokio::test]
+        async fn keys_rover_does_not_apply_do_not_fail_the_command(
+            #[case] project: &str,
+            #[case] user_level: Option<&str>,
+        ) {
+            let (_home, _tree, rover) = rover_in_project(project, user_level);
+
+            assert_that!(rover.execute_command().await).is_ok();
+        }
+
+        /// FR29: with no project at all there's nothing to read and nothing to
+        /// warn about.
+        #[test]
+        fn no_project_file_reads_as_no_settings() {
+            let rover = Rover::parse_from([PKG_NAME, "config", "list"]);
+
+            assert_that!(rover.project_settings().unwrap())
+                .is_equal_to(&ProjectSettings::default());
+        }
+
+        #[test]
+        fn the_project_file_is_read_once_per_process() {
+            let (_home, tree, rover) =
+                rover_in_project("settings:\n  APOLLO_FUTURE_SETTING: x\n", None);
+            let first = rover.project_settings().unwrap().clone();
+            fs::write(
+                tree.path().join("project/.rover").join(MANIFEST_FILE),
+                "settings:\n  APOLLO_KEY: x\n",
+            )
+            .unwrap();
+
+            assert_that!(rover.project_settings().unwrap()).is_equal_to(&first);
+        }
     }
 }
