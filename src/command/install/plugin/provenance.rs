@@ -25,15 +25,13 @@ impl fmt::Display for PluginSource {
 }
 
 /// Which level's install root a plugin was resolved from.
-///
-/// Always [`PluginLevel::Global`] until project-level install roots exist; this
-/// becomes meaningful once a project can declare and install its own plugins.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PluginLevel {
-    /// Not constructed anywhere yet — reserved for project-level install roots
-    /// (a separate, later piece of work), not this stack.
+    /// The `.rover/` directory of the project in scope.
     Project,
+    /// Rover's own directory, `~/.rover` or `$APOLLO_HOME/.rover`, shared by
+    /// every project on the machine.
     Global,
 }
 

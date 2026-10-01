@@ -12,8 +12,10 @@ use crate::{
     command::install::{Plugin, PluginInstaller, PluginProvenance, PluginSource, installer},
     options::LicenseAccepter,
     plugin::{
+        discovery::{ManifestDirs, project_in_scope},
         error::{DownloadControl, RequestOrigin},
         lockfile::{LOCKFILE, LockedPlugin, PluginLockfile},
+        manifest::{MANIFEST_FILE, RoverManifest},
     },
     utils::client::StudioClientConfig,
 };
@@ -50,12 +52,20 @@ impl PluginInstall {
             self.elv2_license_accepter
                 .require_elv2_license(&client_config)?;
         }
-        let rover_installer = installer(PKG_NAME, self.force, override_install_path)?;
+        let project = project_in_scope(ManifestDirs::for_this_process(
+            override_install_path.as_deref(),
+        ));
+        let mut rover_installer = installer(PKG_NAME, self.force, override_install_path)?;
+        // A project in scope gets the plugin; with none, it installs globally (FR23).
+        rover_installer.install_root = project;
         let level = recording_level(&rover_installer)?;
         // Read before installing, so that a lockfile this can't update
-        // stops the install rather than leaving a plugin it doesn't record.
+        // stops the install rather than leaving a plugin it doesn't record,
+        // and a manifest asking for a redirected install root stops it
+        // rather than see the plugin put somewhere it didn't ask for.
         if let Some(level) = &level {
             PluginLockfile::load(&level.join(LOCKFILE))?;
+            RoverManifest::load(&level.join(MANIFEST_FILE))?;
         }
 
         let installed = PluginInstaller::new(client_config, rover_installer, self.force)
@@ -106,9 +116,11 @@ impl PluginInstall {
 /// The level whose lockfile an install through `installer` records, or `None`
 /// when plugins are going somewhere that is no level's.
 ///
-/// That is the global level, unless `APOLLO_NODE_MODULES_BIN_DIR` sends
-/// plugins into an npm package's `node_modules/.bin`. An install there needs no
-/// home directory, so none is looked for, and no lockfile is read.
+/// That is the installer's install root when it has one, which is the project
+/// in scope, and otherwise the global level, unless
+/// `APOLLO_NODE_MODULES_BIN_DIR` sends plugins into an npm package's
+/// `node_modules/.bin`. An install there needs no home directory, so none is
+/// looked for, and no lockfile is read.
 fn recording_level(installer: &Installer) -> RoverResult<Option<Utf8PathBuf>> {
     let bin_dir = installer.bin_dir_location()?;
     if bin_dir.file_name() != Some("bin") {
