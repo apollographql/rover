@@ -71,6 +71,38 @@ impl RoverManifest {
     }
 }
 
+impl RoverManifest {
+    /// The `settings:` section of the manifest at `path`, read without
+    /// judging anything else in the file: a broken `plugins:` section, or an
+    /// `install_root`, refuses the manifest for plugins but not for settings,
+    /// and a broken `settings:` section never refuses it for plugins (FR80 of
+    /// the profile-configuration spec). Only a file that can't be read, isn't
+    /// UTF-8 text, or isn't a single YAML mapping is refused here, as it is
+    /// for plugins.
+    ///
+    /// `None` when there's no file, or the file has no `settings` key;
+    /// `Some(Value::Null)` for a `settings:` with nothing after it, so a
+    /// caller can tell "present but empty" from "absent".
+    pub fn load_settings(path: &Utf8Path) -> Result<Option<serde_yaml::Value>, Box<PluginFailure>> {
+        let contents = match Fs::read_if_present(path) {
+            Ok(Some(bytes)) => String::from_utf8(bytes).map_err(|error| {
+                unusable(path, ManifestProblem::Malformed(Arc::new(NotUtf8(error))))
+            })?,
+            Ok(None) => return Ok(None),
+            Err(source) => {
+                return Err(unusable(
+                    path,
+                    ManifestProblem::Unreadable(Arc::new(source)),
+                ));
+            }
+        };
+
+        serde_yaml::from_str::<Option<serde_yaml::Mapping>>(&contents)
+            .map(|manifest| manifest.and_then(|mut manifest| manifest.remove("settings")))
+            .map_err(|problem| unusable(path, ManifestProblem::Malformed(Arc::new(problem))))
+    }
+}
+
 /// Whether the first document in `contents` has a top-level `install_root`
 /// key, with any value, however malformed the rest of it is: the probe looks
 /// past duplicate keys, keys that aren't strings, and later documents, all of
@@ -350,6 +382,90 @@ Caused by:
              `/work/app/.rover/rover.yaml`. Plugins install into the `bin` directory next to it.\n"
                 .to_string(),
         );
+    }
+
+    fn settings_of(contents: &str) -> Result<Option<serde_yaml::Value>, Box<PluginFailure>> {
+        let (_temp, root) = temp_dir();
+        let path = root.join(MANIFEST_FILE);
+        fs::write(&path, contents).unwrap();
+        RoverManifest::load_settings(&path)
+    }
+
+    #[rstest]
+    fn an_absent_manifest_has_no_settings() {
+        let (_temp, root) = temp_dir();
+
+        assert_that!(RoverManifest::load_settings(&root.join(MANIFEST_FILE)))
+            .is_ok()
+            .is_none();
+    }
+
+    #[rstest]
+    #[case::empty_file("")]
+    #[case::null("null\n")]
+    #[case::only_plugins("plugins:\n  router: latest\n")]
+    fn a_manifest_without_a_settings_key_has_no_settings(#[case] contents: &str) {
+        assert_that!(settings_of(contents)).is_ok().is_none();
+    }
+
+    #[rstest]
+    fn an_empty_settings_key_is_present_but_null() {
+        assert_that!(settings_of("settings:\n"))
+            .is_ok()
+            .is_some()
+            .is_equal_to(serde_yaml::Value::Null);
+    }
+
+    #[rstest]
+    fn the_settings_section_is_handed_back_as_written() {
+        let section = settings_of(indoc! {r#"
+            settings:
+              APOLLO_REGISTRY_URL: https://registry.example.com
+              apollo_checks_timeout_seconds: 600
+        "#})
+        .unwrap()
+        .unwrap();
+
+        assert_that!(section).is_equal_to(
+            serde_yaml::from_str::<serde_yaml::Value>(indoc! {r#"
+                APOLLO_REGISTRY_URL: https://registry.example.com
+                apollo_checks_timeout_seconds: 600
+            "#})
+            .unwrap(),
+        );
+    }
+
+    /// FR80: the plugin section's rules apply to it and not to `settings:`.
+    #[rstest]
+    #[case::install_root("install_root: ../vendor\nsettings:\n  APOLLO_KEY: x\n")]
+    #[case::an_unknown_plugin("plugins:\n  apollo-router: latest\nsettings:\n  APOLLO_KEY: x\n")]
+    #[case::merge_keys("<<: {plugins: {}}\nsettings:\n  APOLLO_KEY: x\n")]
+    fn a_manifest_refused_for_plugins_still_has_settings(#[case] contents: &str) {
+        assert_that!(settings_of(contents))
+            .is_ok()
+            .is_some()
+            .is_equal_to(serde_yaml::from_str::<serde_yaml::Value>("APOLLO_KEY: x").unwrap());
+    }
+
+    #[rstest]
+    #[case::not_yaml("settings:\n  APOLLO_REGISTRY_URL: \"https\n")]
+    #[case::not_a_mapping("- settings\n")]
+    #[case::two_documents("settings: {}\n---\nsettings: {}\n")]
+    fn a_manifest_that_isnt_one_yaml_mapping_is_refused_for_settings_too(#[case] contents: &str) {
+        let error = settings_of(contents).expect_err("should not load");
+
+        assert_that!(error.code()).is_equal_to(RoverErrorCode::E052);
+    }
+
+    #[rstest]
+    fn a_manifest_that_is_not_utf8_is_refused_for_settings_too() {
+        let (_temp, root) = temp_dir();
+        let path = root.join(MANIFEST_FILE);
+        fs::write(&path, b"settings:\n  APOLLO_REGISTRY_URL: \xff\n").unwrap();
+
+        let error = RoverManifest::load_settings(&path).expect_err("should not load");
+
+        assert_that!(error.to_string()).is_equal_to(format!("`{path}` is not a valid manifest."));
     }
 
     /// Boxed, as the loader returns it, a failure a caller wraps still decides
