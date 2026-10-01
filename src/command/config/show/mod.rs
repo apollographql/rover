@@ -103,7 +103,7 @@ fn resolve_string_setting(
 
         return Ok(SettingReport {
             name: name.as_str(),
-            value,
+            value: Some(value),
             source,
             overridden,
         });
@@ -113,7 +113,7 @@ fn resolve_string_setting(
         Ok(Some(value)) => {
             return Ok(SettingReport {
                 name: name.as_str(),
-                value,
+                value: Some(value),
                 source: profile.selection.into(),
                 overridden: vec![],
             });
@@ -125,10 +125,11 @@ fn resolve_string_setting(
 
     Ok(SettingReport {
         name: name.as_str(),
-        // A setting with no builtin default at all (only `APOLLO_GRAPH_REF`
-        // today) reports "none" here, the same way an absent credential is
-        // already reported elsewhere in this output.
-        value: name.builtin_default().unwrap_or_else(|| "none".to_string()),
+        // `None` here (only possible for `APOLLO_GRAPH_REF` today, the only
+        // setting with no builtin default) is rendered as "none" in text
+        // output and as JSON `null`, kept distinguishable from a real value
+        // that happens to be the literal string "none".
+        value: name.builtin_default(),
         source: Source::Builtin,
         overridden: vec![],
     })
@@ -166,7 +167,7 @@ fn resolve_telemetry_disabled(
         }
         return Ok(SettingReport {
             name: name.as_str(),
-            value: "true".to_string(),
+            value: Some("true".to_string()),
             source: Source::Flag,
             overridden,
         });
@@ -182,7 +183,7 @@ fn resolve_telemetry_disabled(
         }
         return Ok(SettingReport {
             name: name.as_str(),
-            value: "true".to_string(),
+            value: Some("true".to_string()),
             source: Source::Environment,
             overridden,
         });
@@ -196,7 +197,7 @@ fn resolve_telemetry_disabled(
         };
         return Ok(SettingReport {
             name: name.as_str(),
-            value: normalized.to_string(),
+            value: Some(normalized.to_string()),
             source: profile.selection.into(),
             overridden: vec![],
         });
@@ -204,7 +205,7 @@ fn resolve_telemetry_disabled(
 
     Ok(SettingReport {
         name: name.as_str(),
-        value: "false".to_string(),
+        value: name.builtin_default(),
         source: Source::Builtin,
         overridden: vec![],
     })
@@ -330,8 +331,7 @@ mod tests {
             .iter()
             .find(|s| s.name == "APOLLO_REGISTRY_URL")
             .unwrap();
-        assert_that!(&registry.value)
-            .is_equal_to(SettingName::RegistryUrl.builtin_default().unwrap());
+        assert_that!(&registry.value).is_equal_to(SettingName::RegistryUrl.builtin_default());
     }
 
     #[test]
@@ -391,7 +391,7 @@ mod tests {
             .find(|s| s.name == "APOLLO_REGISTRY_URL")
             .unwrap();
         assert_that!(&registry.value)
-            .is_equal_to("https://registry.staging.example.com".to_string());
+            .is_equal_to(Some("https://registry.staging.example.com".to_string()));
         assert_that!(registry.source).is_equal_to(Source::ExplicitProfile);
         assert_that!(&registry.overridden).is_empty();
     }
@@ -427,7 +427,7 @@ mod tests {
             .iter()
             .find(|s| s.name == "APOLLO_REGISTRY_URL")
             .unwrap();
-        assert_that!(&registry.value).is_equal_to("https://flag.example.com".to_string());
+        assert_that!(&registry.value).is_equal_to(Some("https://flag.example.com".to_string()));
         assert_that!(registry.source).is_equal_to(Source::Flag);
         assert_that!(registry.overridden.len()).is_equal_to(1);
         assert_that!(registry.overridden[0].source).is_equal_to(Source::ExplicitProfile);
@@ -477,7 +477,7 @@ mod tests {
             .iter()
             .find(|s| s.name == "APOLLO_REGISTRY_URL")
             .unwrap();
-        assert_that!(&registry.value).is_equal_to("https://flag.example.com".to_string());
+        assert_that!(&registry.value).is_equal_to(Some("https://flag.example.com".to_string()));
         assert_that!(registry.source).is_equal_to(Source::Flag);
         assert_that!(
             registry
@@ -532,7 +532,7 @@ mod tests {
             .iter()
             .find(|s| s.name == "APOLLO_REGISTRY_URL")
             .unwrap();
-        assert_that!(&registry.value).is_equal_to("https://env.example.com".to_string());
+        assert_that!(&registry.value).is_equal_to(Some("https://env.example.com".to_string()));
         assert_that!(registry.source).is_equal_to(Source::Environment);
         assert_that!(registry.overridden.len()).is_equal_to(1);
         assert_that!(registry.overridden[0].source).is_equal_to(Source::ExplicitProfile);
@@ -566,7 +566,7 @@ mod tests {
             .unwrap();
         // presence-only (FR21): the env var's own text was "false", but its
         // *meaning* is "disabled", so the reported value is the typed "true".
-        assert_that!(&telemetry_disabled.value).is_equal_to("true".to_string());
+        assert_that!(&telemetry_disabled.value).is_equal_to(Some("true".to_string()));
         assert_that!(telemetry_disabled.source).is_equal_to(Source::Environment);
     }
 
@@ -599,7 +599,7 @@ mod tests {
             .iter()
             .find(|s| s.name == "APOLLO_TELEMETRY_DISABLED")
             .unwrap();
-        assert_that!(&telemetry_disabled.value).is_equal_to("true".to_string());
+        assert_that!(&telemetry_disabled.value).is_equal_to(Some("true".to_string()));
         assert_that!(telemetry_disabled.source).is_equal_to(Source::Flag);
         assert_that!(telemetry_disabled.overridden.len()).is_equal_to(2);
         assert_that!(
@@ -642,7 +642,7 @@ mod tests {
             .iter()
             .find(|s| s.name == "APOLLO_TELEMETRY_DISABLED")
             .unwrap();
-        assert_that!(&telemetry_disabled.value).is_equal_to(expected.to_string());
+        assert_that!(&telemetry_disabled.value).is_equal_to(Some(expected.to_string()));
         assert_that!(telemetry_disabled.source).is_equal_to(Source::ExplicitProfile);
         assert_that!(&telemetry_disabled.overridden).is_empty();
     }
@@ -890,8 +890,7 @@ mod tests {
             .find(|s| s.name == "APOLLO_TELEMETRY_URL")
             .unwrap();
         assert_that!(telemetry_url.source).is_equal_to(Source::Builtin);
-        assert_that!(&telemetry_url.value)
-            .is_equal_to(SettingName::TelemetryUrl.builtin_default().unwrap());
+        assert_that!(&telemetry_url.value).is_equal_to(SettingName::TelemetryUrl.builtin_default());
     }
 
     // Same as above, for APOLLO_TELEMETRY_DISABLED
@@ -924,6 +923,6 @@ mod tests {
             .unwrap();
         assert_that!(telemetry_disabled.source).is_equal_to(Source::Builtin);
         assert_that!(&telemetry_disabled.value)
-            .is_equal_to(SettingName::TelemetryDisabled.builtin_default().unwrap());
+            .is_equal_to(SettingName::TelemetryDisabled.builtin_default());
     }
 }

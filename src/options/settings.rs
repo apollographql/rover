@@ -21,9 +21,11 @@ use super::oauth::{
 };
 
 // Duplicated from `utils::client::STUDIO_PROD_API_ENDPOINT` and
-// `utils::telemetry::TELEMETRY_URL`, which are private to their own modules.
-// The settings-resolution slice that consumes this catalogue is expected to
-// make those `pub(crate)` and reference them here instead, so the default
+// `utils::telemetry::TELEMETRY_URL` (private to their own modules),
+// `command::template::templates::DEFAULT_TEMPLATES_API`, and the
+// `"https://rover.apollo.dev"` literal in `command::install::plugin`. The
+// settings-resolution slice that consumes this catalogue is expected to
+// make those `pub(crate)` and reference them here instead, so each default
 // lives in exactly one place.
 const DEFAULT_REGISTRY_URL: &str = "https://api.apollographql.com/graphql";
 const DEFAULT_TELEMETRY_URL: &str = "https://rover.apollo.dev/telemetry";
@@ -197,10 +199,12 @@ impl SettingName {
     /// variable would spell it (FR54) - this is what `rover config show`
     /// reports as `value` when nothing overrides it. `None` means the
     /// setting has no default at all (spec.md FR1: `APOLLO_GRAPH_REF`'s
-    /// default is "none") - `resolve_setting`'s fallback and `config show`'s
-    /// builtin-tier reporting both treat that the same way an absent
-    /// credential is already reported, rather than falling back to an empty
-    /// string.
+    /// default is "none"); `resolve_setting` doesn't call this at all, so
+    /// each caller that resolves a setting's effective value picks its own
+    /// `None` fallback. `config show`'s builtin-tier reporting is the one
+    /// that passes this straight through as `SettingReport.value`, so a
+    /// setting with no default renders as text "none" and JSON `null`,
+    /// matching how an absent credential is already reported.
     pub(crate) fn builtin_default(self) -> Option<String> {
         match self {
             SettingName::RegistryUrl => Some(DEFAULT_REGISTRY_URL.to_string()),
@@ -311,8 +315,9 @@ pub(crate) enum SettingValueError {
     InvalidWholeSeconds { input: String },
     #[error(
         "`{input}` isn't a valid graph ref. Graph refs must be in the format `<NAME>` or \
-        `<NAME>@<VARIANT>`, where `<NAME>` can only contain letters, numbers, or the characters \
-        `-` or `_`, and must be 64 characters or less; `<VARIANT>` must be 64 characters or less."
+        `<NAME>@<VARIANT>`, where `<NAME>` must start with a letter and can otherwise only \
+        contain letters, numbers, or the characters `-` or `_`, and must be 64 characters or \
+        less; `<VARIANT>` must be 63 characters or less."
     )]
     InvalidGraphRef { input: String },
 }
@@ -568,19 +573,25 @@ mod tests {
     }
 
     #[rstest]
-    #[case::whole_number("300", true)]
-    #[case::zero("0", true)]
-    #[case::negative("-1", false)]
-    #[case::decimal("1.5", false)]
-    #[case::empty("", false)]
-    #[case::garbage("soon", false)]
-    fn whole_seconds_validation(#[case] value: &str, #[case] valid: bool) {
-        assert_that!(
-            SettingType::WholeSeconds
-                .validate(value.to_string())
-                .is_ok()
-        )
-        .is_equal_to(valid);
+    #[case::whole_number("300")]
+    #[case::zero("0")]
+    #[case::leading_plus("+300")]
+    fn valid_whole_seconds_values_are_accepted(#[case] value: &str) {
+        assert_that!(SettingType::WholeSeconds.validate(value.to_string()))
+            .is_ok_containing(value.to_string());
+    }
+
+    #[rstest]
+    #[case::negative("-1")]
+    #[case::decimal("1.5")]
+    #[case::empty("")]
+    #[case::garbage("soon")]
+    fn other_values_are_not_a_valid_stored_whole_seconds(#[case] value: &str) {
+        assert_that!(SettingType::WholeSeconds.validate(value.to_string())).is_err_containing(
+            SettingValueError::InvalidWholeSeconds {
+                input: value.to_string(),
+            },
+        );
     }
 
     #[test]
@@ -594,12 +605,25 @@ mod tests {
     }
 
     #[rstest]
-    #[case::name_only("my-graph", true)]
-    #[case::name_and_variant("my-graph@staging", true)]
-    #[case::empty("", false)]
-    #[case::invalid_characters("my graph!", false)]
-    fn graph_ref_validation(#[case] value: &str, #[case] valid: bool) {
-        assert_that!(SettingType::GraphRef.validate(value.to_string()).is_ok()).is_equal_to(valid);
+    #[case::name_only("my-graph")]
+    #[case::name_and_variant("my-graph@staging")]
+    // The variant pattern (`.{0,63}`) allows zero characters, so an empty
+    // variant after `@` is accepted - deliberately not special-cased to be
+    // stricter than `rover_studio::types::GraphRef` itself.
+    #[case::empty_variant("my-graph@")]
+    fn valid_graph_ref_values_are_accepted(#[case] value: &str) {
+        assert_that!(SettingType::GraphRef.validate(value.to_string()))
+            .is_ok_containing(value.to_string());
+    }
+
+    #[rstest]
+    #[case::empty("".to_string())]
+    #[case::invalid_characters("my graph!".to_string())]
+    #[case::starts_with_digit("1graph".to_string())]
+    #[case::variant_too_long(format!("my-graph@{}", "a".repeat(64)))]
+    fn other_values_are_not_a_valid_stored_graph_ref(#[case] value: String) {
+        assert_that!(SettingType::GraphRef.validate(value.clone()))
+            .is_err_containing(SettingValueError::InvalidGraphRef { input: value });
     }
 
     #[test]
@@ -618,9 +642,9 @@ mod tests {
 
         assert_that!(error.to_string()).is_equal_to(
             "`my graph!` isn't a valid graph ref. Graph refs must be in the format `<NAME>` or \
-            `<NAME>@<VARIANT>`, where `<NAME>` can only contain letters, numbers, or the \
-            characters `-` or `_`, and must be 64 characters or less; `<VARIANT>` must be 64 \
-            characters or less."
+            `<NAME>@<VARIANT>`, where `<NAME>` must start with a letter and can otherwise only \
+            contain letters, numbers, or the characters `-` or `_`, and must be 64 characters or \
+            less; `<VARIANT>` must be 63 characters or less."
                 .to_string(),
         );
     }

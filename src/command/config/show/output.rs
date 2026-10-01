@@ -56,10 +56,18 @@ pub(super) struct Overridden {
 }
 
 /// One setting's effective value, where it came from, and what it beat.
+///
+/// `value` is `None` only for a setting with no builtin default at all
+/// (currently just `APOLLO_GRAPH_REF`) that's falling all the way through to
+/// the builtin tier. It's a distinct type from `Overridden::value` (which is
+/// always a real, previously-stored string) because `"none"` is itself a
+/// valid value for some setting types - a real `APOLLO_GRAPH_REF=none` and
+/// an unset one must stay distinguishable in `--format json`, where `None`
+/// serializes as `null` rather than the literal string `"none"`.
 #[derive(Debug, Clone, Serialize)]
 pub(super) struct SettingReport {
     pub(super) name: &'static str,
-    pub(super) value: String,
+    pub(super) value: Option<String>,
     pub(super) source: Source,
     pub(super) overridden: Vec<Overridden>,
 }
@@ -87,7 +95,7 @@ impl CliOutput for ConfigShowOutput {
         for setting in &self.settings {
             table.add_row(vec![
                 setting.name.to_string(),
-                setting.value.clone(),
+                setting.value.clone().unwrap_or_else(|| "none".to_string()),
                 setting.source.text_label().to_string(),
             ]);
         }
@@ -130,7 +138,7 @@ mod tests {
             settings: vec![
                 SettingReport {
                     name: "APOLLO_REGISTRY_URL",
-                    value: "https://registry.staging.example.com".to_string(),
+                    value: Some("https://registry.staging.example.com".to_string()),
                     source: Source::ExplicitProfile,
                     overridden: vec![Overridden {
                         source: Source::Builtin,
@@ -139,7 +147,7 @@ mod tests {
                 },
                 SettingReport {
                     name: "APOLLO_TELEMETRY_DISABLED",
-                    value: "false".to_string(),
+                    value: Some("false".to_string()),
                     source: Source::Builtin,
                     overridden: vec![],
                 },
@@ -239,5 +247,26 @@ mod tests {
         let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
 
         insta::assert_snapshot!(text);
+    }
+
+    // A setting with no builtin default at all (only `APOLLO_GRAPH_REF`
+    // today) must stay distinguishable in JSON from a real value that
+    // happens to be the string "none" - `None` serializes as `null`, not
+    // the literal string.
+    #[test]
+    fn a_setting_with_no_builtin_default_renders_none_in_text_and_null_in_json() {
+        let mut output = output();
+        output.settings.push(SettingReport {
+            name: "APOLLO_GRAPH_REF",
+            value: None,
+            source: Source::Builtin,
+            overridden: vec![],
+        });
+
+        let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
+        assert_that!(text).contains("none");
+
+        let json = output.json().unwrap();
+        assert_that!(json["settings"][2]["value"]).is_equal_to(serde_json::Value::Null);
     }
 }

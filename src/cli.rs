@@ -1230,9 +1230,9 @@ const fn describe_invalid_value(error: &SettingValueError) -> &'static str {
         SettingValueError::InvalidWholeSeconds { .. } => "isn't a whole number of seconds.",
         SettingValueError::InvalidGraphRef { .. } => {
             "isn't a valid graph ref. Graph refs must be in the format `<NAME>` or \
-            `<NAME>@<VARIANT>`, where `<NAME>` can only contain letters, numbers, or the \
-            characters `-` or `_`, and must be 64 characters or less; `<VARIANT>` must be 64 \
-            characters or less."
+            `<NAME>@<VARIANT>`, where `<NAME>` must start with a letter and can otherwise \
+            only contain letters, numbers, or the characters `-` or `_`, and must be 64 \
+            characters or less; `<VARIANT>` must be 63 characters or less."
         }
     }
 }
