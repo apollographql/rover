@@ -1,13 +1,3 @@
-// The registry/telemetry/OAuth-endpoint group (ROVER-451 Part A slice one)
-// is already wired up. This slice's own additions - checks timeout,
-// download host, templates API, graph ref - are a foundation layer: nothing
-// in the CLI resolves them yet (that lands with this slice's own
-// settings-resolution and `config show`/`set`/`unset` wiring). Until then
-// their `pub(crate)` items have no in-crate caller, which `dead_code` can't
-// tell apart from genuinely unused code - remove this once every variant
-// added here has a consumer.
-#![allow(dead_code)]
-
 use std::{fmt, str::FromStr};
 
 use rover_studio::types::GraphRef;
@@ -30,6 +20,7 @@ use super::oauth::{
 const DEFAULT_REGISTRY_URL: &str = "https://api.apollographql.com/graphql";
 const DEFAULT_TELEMETRY_URL: &str = "https://rover.apollo.dev/telemetry";
 const DEFAULT_CHECKS_TIMEOUT_SECONDS: &str = "300";
+const DEFAULT_CLIENT_TIMEOUT_SECONDS: &str = "30";
 const DEFAULT_DOWNLOAD_HOST: &str = "https://rover.apollo.dev";
 const DEFAULT_TEMPLATES_API: &str = "https://rover.apollo.dev/templates";
 
@@ -55,6 +46,7 @@ pub(crate) enum SettingName {
     TelemetryUrl,
     TelemetryDisabled,
     ChecksTimeoutSeconds,
+    ClientTimeout,
     DownloadHost,
     TemplatesApi,
     GraphRef,
@@ -108,6 +100,7 @@ impl SettingName {
             SettingName::TelemetryUrl,
             SettingName::TelemetryDisabled,
             SettingName::ChecksTimeoutSeconds,
+            SettingName::ClientTimeout,
             SettingName::DownloadHost,
             SettingName::TemplatesApi,
             SettingName::GraphRef,
@@ -133,6 +126,7 @@ impl SettingName {
             SettingName::TelemetryUrl => "APOLLO_TELEMETRY_URL",
             SettingName::TelemetryDisabled => "APOLLO_TELEMETRY_DISABLED",
             SettingName::ChecksTimeoutSeconds => "APOLLO_CHECKS_TIMEOUT_SECONDS",
+            SettingName::ClientTimeout => "APOLLO_CLIENT_TIMEOUT",
             SettingName::DownloadHost => "APOLLO_ROVER_DOWNLOAD_HOST",
             SettingName::TemplatesApi => "APOLLO_TEMPLATES_API",
             SettingName::GraphRef => "APOLLO_GRAPH_REF",
@@ -159,7 +153,9 @@ impl SettingName {
             | SettingName::DownloadHost
             | SettingName::TemplatesApi => SettingType::Url,
             SettingName::TelemetryDisabled => SettingType::Bool,
-            SettingName::ChecksTimeoutSeconds => SettingType::WholeSeconds,
+            SettingName::ChecksTimeoutSeconds | SettingName::ClientTimeout => {
+                SettingType::WholeSeconds
+            }
             SettingName::GraphRef => SettingType::GraphRef,
             #[cfg(feature = "oauth")]
             SettingName::OauthAuthorizationUrl
@@ -183,6 +179,7 @@ impl SettingName {
             | SettingName::TemplatesApi => true,
             SettingName::TelemetryDisabled
             | SettingName::ChecksTimeoutSeconds
+            | SettingName::ClientTimeout
             | SettingName::GraphRef => false,
             #[cfg(feature = "oauth")]
             SettingName::OauthAuthorizationUrl
@@ -211,6 +208,7 @@ impl SettingName {
             SettingName::TelemetryUrl => Some(DEFAULT_TELEMETRY_URL.to_string()),
             SettingName::TelemetryDisabled => Some("false".to_string()),
             SettingName::ChecksTimeoutSeconds => Some(DEFAULT_CHECKS_TIMEOUT_SECONDS.to_string()),
+            SettingName::ClientTimeout => Some(DEFAULT_CLIENT_TIMEOUT_SECONDS.to_string()),
             SettingName::DownloadHost => Some(DEFAULT_DOWNLOAD_HOST.to_string()),
             SettingName::TemplatesApi => Some(DEFAULT_TEMPLATES_API.to_string()),
             SettingName::GraphRef => None,

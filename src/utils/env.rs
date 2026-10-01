@@ -107,6 +107,7 @@ pub enum RoverEnvKey {
     VcsAuthor,
     NodeModulesBin,
     ChecksTimeoutSeconds,
+    ClientTimeout,
     RoverDownloadHost,
     TemplatesApi,
     GraphRef,
@@ -132,6 +133,12 @@ mod tests {
     fn it_parses_config_home() {
         let expected_key = "APOLLO_CONFIG_HOME";
         assert_eq!(&RoverEnvKey::ConfigHome.to_string(), expected_key);
+    }
+
+    #[test]
+    fn it_parses_client_timeout() {
+        let expected_key = "APOLLO_CLIENT_TIMEOUT";
+        assert_eq!(&RoverEnvKey::ClientTimeout.to_string(), expected_key);
     }
 
     #[test]
