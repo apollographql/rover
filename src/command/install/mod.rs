@@ -27,7 +27,7 @@ mod plugin;
 pub(crate) use plugin::PluginLevel;
 pub(crate) use plugin::{
     McpServerVersion, Plugin, PluginInstaller, PluginProvenance, PluginProvenanceTracker,
-    PluginSource,
+    PluginSource, federation_version,
 };
 
 #[derive(Debug, Serialize, Parser)]

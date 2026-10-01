@@ -17,7 +17,7 @@ use super::{
     discovery::ManifestDirs,
     error::{PluginFailure, RequestOrigin},
     layering::{DeclarationLevel, LayeredDeclarations},
-    lockfile::{LOCKFILE, PluginLockfile},
+    lockfile::{LOCKFILE, PluginLockfile, check_drift},
     version::{PluginName, VersionRequest},
 };
 
@@ -144,6 +144,33 @@ impl PluginRequest {
             RequestSource::Default => None,
         }
     }
+}
+
+/// The declarations every plugin-using command resolves against, once each
+/// level's lockfile is known to still record what its manifest declares. A
+/// lockfile that has drifted from its manifest fails the command rather than
+/// let a declaration resolve afresh.
+pub fn declarations_in_scope(
+    dirs: &ManifestDirs,
+) -> Result<LayeredDeclarations, Box<PluginFailure>> {
+    for dir in [dirs.project.as_deref(), dirs.global.as_deref()]
+        .into_iter()
+        .flatten()
+    {
+        check_drift(dir)?;
+    }
+    LayeredDeclarations::load(dirs)
+}
+
+/// The request a command uses for `plugin`: the one [`resolve`] picks,
+/// pinned by its level's lockfile when it came from a manifest.
+pub fn request(
+    plugin: PluginName,
+    inputs: RequestInputs,
+    dirs: &ManifestDirs,
+    declarations: &LayeredDeclarations,
+) -> Result<PluginRequest, Box<PluginFailure>> {
+    resolve(plugin, inputs, declarations).locked(dirs)
 }
 
 /// The request for `plugin`: the first present of `inputs` and

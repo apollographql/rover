@@ -20,6 +20,7 @@ use crate::{
         supergraph::config::lazy::LazilyResolvedSubgraph,
     },
     options::{PluginOpts, ProfileOpt},
+    plugin::error::RequestOrigin,
     utils::{client::StudioClientConfig, parsers::FileDescriptorType},
 };
 
@@ -79,6 +80,15 @@ pub enum Command {
 }
 
 impl Connector {
+    /// The `supergraph` version this command was given, and where. The
+    /// precedence it then takes its place in is shared with every other
+    /// plugin-using command.
+    fn federation_version_override(&self) -> Option<(FederationVersion, RequestOrigin)> {
+        self.federation_version
+            .clone()
+            .map(|version| (version, RequestOrigin::Flag("--federation-version")))
+    }
+
     pub(crate) async fn run(
         &self,
         override_install_path: Option<Utf8PathBuf>,
@@ -97,7 +107,7 @@ impl Connector {
         };
 
         let composition_pipeline = get_supergraph_binary(
-            self.federation_version.clone(),
+            self.federation_version_override(),
             client_config,
             override_install_path,
             profile.clone(),
