@@ -120,7 +120,11 @@ mod tests {
             Rotate::try_parse_from(["api-key rotate", "acme", "c_8f2a", "--grace-period-days=-1"])
                 .expect_err("expected a negative grace period to be rejected");
 
-        assert_that!(error.to_string()).contains("grace-period-days");
+        assert_that!(error.to_string()).is_equal_to(
+            "error: invalid value '-1' for '--grace-period-days <GRACE_PERIOD_DAYS>': -1 is not \
+            in 0..9223372036854775807\n\nFor more information, try '--help'.\n"
+                .to_string(),
+        );
     }
 
     #[test]

@@ -6,7 +6,8 @@ use crate::{command::CliOutput, utils::table};
 
 /// FR21-FR26 (`specs/rover-431-identity-grant-management`): the result of rotating a
 /// client-credential pair's secret. The new secret is shown exactly once, here - `stderr()`
-/// carries FR25's warning about when every previous secret stops working.
+/// carries FR7's required "save this now" warning (FR24: the same once-only rule as `create`)
+/// alongside FR25's warning about when every previous secret stops working.
 #[derive(Debug)]
 pub(crate) struct RotateOutput {
     pub(crate) pair: RotatedPair,
@@ -51,7 +52,7 @@ impl CliOutput for RotateOutput {
     }
 
     fn stderr(&self) -> Option<String> {
-        Some(if self.grace_period_days == 0 {
+        let grace_period_notice = if self.grace_period_days == 0 {
             format!(
                 "Every previous secret for `{}` has stopped working. To keep the old secret \
                 working while you roll out a new one, pass `--grace-period-days <DAYS>`.",
@@ -65,7 +66,11 @@ impl CliOutput for RotateOutput {
                     .previous_secrets_expire_at
                     .to_rfc3339_opts(SecondsFormat::Secs, true)
             )
-        })
+        };
+        // FR7 (required by FR24's "same once-only rule as create"), then FR25's own warning.
+        Some(format!(
+            "Save this secret now. Rover can't show it again.\n{grace_period_notice}"
+        ))
     }
 
     fn json(&self) -> Result<serde_json::Value, serde_json::Error> {
@@ -123,7 +128,9 @@ mod tests {
             }));
     }
 
-    // FR26: `grace_period_days` is `0`, never absent, when no grace period was requested.
+    // FR26: `grace_period_days` is `0`, never absent, when no grace period was requested -
+    // asserts the full payload, which also pins down `previous_secrets_expire_at` for the
+    // zero-grace-period case (it's the moment of rotation itself, per `pair()`'s fixture).
     #[test]
     fn json_reports_a_zero_grace_period_rather_than_omitting_it() {
         let output = RotateOutput {
@@ -131,10 +138,17 @@ mod tests {
             grace_period_days: 0,
         };
 
-        let json = output.json().unwrap();
-        assert_that!(json.get("grace_period_days"))
-            .is_some()
-            .is_equal_to(&serde_json::Value::from(0));
+        assert_that!(output.json())
+            .is_ok()
+            .is_equal_to(serde_json::json!({
+                "key_type": "ClientCredentials",
+                "id": "c_8f2a",
+                "client_id": "c_8f2a",
+                "client_secret": "s_new-secret",
+                "secret_expires_at": "2028-09-25T16:00:00Z",
+                "grace_period_days": 0,
+                "previous_secrets_expire_at": "2026-09-25T16:00:00Z",
+            }));
     }
 
     #[test]
@@ -158,7 +172,7 @@ mod tests {
         insta::assert_snapshot!(strip_ansi_codes(&output.text()).to_string());
     }
 
-    // FR25: zero grace period - "has stopped working", names the flag to use instead.
+    // FR7/FR24: the save-this-now line always leads, then FR25's zero-grace-period sentence.
     #[test]
     fn stderr_states_an_immediate_cutover_for_a_zero_grace_period() {
         let output = RotateOutput {
@@ -167,13 +181,14 @@ mod tests {
         };
 
         assert_that!(output.stderr()).is_some().is_equal_to(
-            "Every previous secret for `ci-deploy` has stopped working. To keep the old secret \
+            "Save this secret now. Rover can't show it again.\n\
+            Every previous secret for `ci-deploy` has stopped working. To keep the old secret \
             working while you roll out a new one, pass `--grace-period-days <DAYS>`."
                 .to_string(),
         );
     }
 
-    // FR25: non-zero grace period - names when the previous secrets actually expire.
+    // FR7/FR24: the save-this-now line always leads, then FR25's non-zero-grace-period sentence.
     #[test]
     fn stderr_names_the_expiry_time_for_a_non_zero_grace_period() {
         let output = RotateOutput {
@@ -182,7 +197,8 @@ mod tests {
         };
 
         assert_that!(output.stderr()).is_some().is_equal_to(
-            "Every previous secret for `ci-deploy` keeps working until 2026-09-25T16:00:00Z."
+            "Save this secret now. Rover can't show it again.\n\
+            Every previous secret for `ci-deploy` keeps working until 2026-09-25T16:00:00Z."
                 .to_string(),
         );
     }
@@ -200,6 +216,6 @@ mod tests {
 
         assert_that!(output.stderr())
             .is_some()
-            .is_equal_to("Every previous secret for `c_8f2a` has stopped working. To keep the old secret working while you roll out a new one, pass `--grace-period-days <DAYS>`.".to_string());
+            .is_equal_to("Save this secret now. Rover can't show it again.\nEvery previous secret for `c_8f2a` has stopped working. To keep the old secret working while you roll out a new one, pass `--grace-period-days <DAYS>`.".to_string());
     }
 }
