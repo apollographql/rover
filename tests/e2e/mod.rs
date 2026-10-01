@@ -38,6 +38,7 @@ mod graph_artifact;
 mod init;
 mod install;
 mod options;
+mod persisted_queries;
 mod schema;
 mod subgraph;
 mod supergraph;
