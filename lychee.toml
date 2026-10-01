@@ -19,3 +19,10 @@ accept = ["100..=103", "200..=299", "429"]
 
 # Some hosts reject the default client; present a browser-like user agent.
 user_agent = "Mozilla/5.0 (compatible; lychee/0.24; +https://github.com/apollographql/rover)"
+
+# Badges are images a third-party service renders on request, not links a
+# reader follows, and whether one loads says nothing about our docs. The
+# release-downloads badge in particular sums every release's downloads on each
+# request, and shields.io answers it with its own 408 when that's slow, which
+# would fail this check for every change until it recovers.
+exclude = ['^https://(img\.)?shields\.io/']
