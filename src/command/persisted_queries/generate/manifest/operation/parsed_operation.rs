@@ -15,6 +15,10 @@ pub(super) struct ParsedOperation {
     pub(super) file: Utf8PathBuf,
     pub(super) operation: Node<ast::OperationDefinition>,
     pub(super) direct_fragment_spreads: BTreeSet<String>,
+    /// Comment block immediately preceding the operation in its source file,
+    /// captured only when comment preservation is enabled. Prepended to the
+    /// printed body, which means it participates in the operation's ID.
+    pub(super) leading_comments: Option<String>,
 }
 
 impl ParsedOperation {
@@ -97,7 +101,12 @@ impl ParsedOperation {
             )
             .collect::<Vec<_>>();
 
-        Ok(print_document(&definitions))
+        let document = print_document(&definitions);
+
+        Ok(match &self.leading_comments {
+            Some(comments) => format!("{comments}\n{document}"),
+            None => document,
+        })
     }
 }
 
@@ -134,6 +143,7 @@ mod tests {
                             file: Utf8PathBuf::from("test.graphql"),
                             direct_fragment_spreads: spreads,
                             operation: op,
+                            leading_comments: None,
                         },
                     );
                 }
