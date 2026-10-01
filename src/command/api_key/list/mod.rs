@@ -400,14 +400,21 @@ mod tests {
             .await
             .unwrap();
 
-        assert_that!(
-            response
-                .pairs
-                .iter()
-                .map(|pair| pair.client_id.as_str())
-                .collect::<Vec<_>>()
-        )
-        .is_equal_to(vec!["c_1"]);
+        // Full-value, not just the client ID: a regression that dropped or mis-mapped a field
+        // while still returning the right *count* of pairs would slip past a shallower check.
+        assert_that!(response.pairs).is_equal_to(vec![
+            rover_client::operations::api_key::pair_list::OAuthClientPair {
+                client_id: "c_1".to_string(),
+                name: Some("ci-deploy".to_string()),
+                created_at: chrono::DateTime::parse_from_rfc3339("2026-09-25T16:00:00Z").unwrap(),
+                created_by: rover_client::operations::api_key::pair_list::PairActor {
+                    id: "user-123".to_string(),
+                    kind: "user".to_string(),
+                },
+                resources: vec![],
+                scopes: vec!["rover:cli".to_string()],
+            },
+        ]);
         assert_that!(response.next_after)
             .is_some()
             .is_equal_to("cursor-1".to_string());
