@@ -22,6 +22,18 @@ pub(crate) const PROJECT_FILE: &str = ".rover/rover.yaml";
 /// to FR72's ignore-with-a-warning rule.
 const CREDENTIAL_NAMES: [&str; 3] = ["APOLLO_KEY", "APOLLO_CLIENT_ID", "APOLLO_CLIENT_SECRET"];
 
+/// Settings Rover knows but that are never project-eligible (FR5): they
+/// describe the commit under test, so a stored value would mislabel every
+/// check and publish made from the clone. None is a `SettingName` variant
+/// yet, so each is recognized here only so it gets the not-project-eligible
+/// warning rather than the "doesn't recognize" one.
+const VCS_NAMES: [&str; 4] = [
+    "APOLLO_VCS_REMOTE_URL",
+    "APOLLO_VCS_BRANCH",
+    "APOLLO_VCS_COMMIT",
+    "APOLLO_VCS_AUTHOR",
+];
+
 /// One recognized, project-eligible setting from a `settings:` section.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ProjectSetting {
@@ -39,7 +51,9 @@ pub(crate) struct ProjectSetting {
 pub(crate) enum ProjectSettingValue {
     /// A YAML string, number, or boolean, spelled the way the setting's
     /// environment variable would spell it (FR54) - `600` and `true` read as
-    /// `"600"` and `"true"`, a typed boolean per FR24.
+    /// `"600"` and `"true"`, a typed boolean per FR24. A number is spelled the
+    /// way YAML parsed it, not necessarily the way it was written: `0x258`
+    /// reads as `"600"`, `1e3` as `"1000.0"`, and `600.0` stays `"600.0"`.
     Scalar(String),
     /// A null, sequence, mapping, or tagged value, none of which any setting
     /// accepts. Kept rather than dropped so the read-time check fails loudly
@@ -114,11 +128,15 @@ impl ProjectSettings {
                 classified.warnings.push(unrecognized(&render(key)));
                 continue;
             };
-            if let Some(canonical) = credential(key) {
+            if let Some(canonical) = either_spelling(&CREDENTIAL_NAMES, key) {
                 return Err(ProjectSettingsError::Credential {
                     key: key.to_string(),
                     canonical,
                 });
+            }
+            if either_spelling(&VCS_NAMES, key).is_some() {
+                classified.warnings.push(not_project_eligible(key));
+                continue;
             }
             let name = match key.parse::<SettingName>() {
                 Ok(name) => name,
@@ -129,10 +147,7 @@ impl ProjectSettings {
                 }
             };
             if !name.is_project_eligible() {
-                classified.warnings.push(format!(
-                    "Warning: `{PROJECT_FILE}` sets `{key}`, which can't be set in a project \
-                    file. It will be ignored."
-                ));
+                classified.warnings.push(not_project_eligible(key));
                 continue;
             }
             if let Some(earlier) = classified.settings.get(name.as_str()) {
@@ -177,12 +192,22 @@ impl From<&Value> for ProjectSettingValue {
     }
 }
 
-/// The canonical spelling of the credential `key` names, in either FR69
-/// spelling, if it names one.
-fn credential(key: &str) -> Option<&'static str> {
-    CREDENTIAL_NAMES
-        .into_iter()
+/// The canonical spelling of the one of `names` that `key` names, in either
+/// FR69 spelling, if it names one.
+fn either_spelling(names: &[&'static str], key: &str) -> Option<&'static str> {
+    names
+        .iter()
+        .copied()
         .find(|name| *name == key || name.to_lowercase() == key)
+}
+
+/// FR72's warning for a setting Rover knows but won't read from a project
+/// file (FR31).
+fn not_project_eligible(key: &str) -> String {
+    format!(
+        "Warning: `{PROJECT_FILE}` sets `{key}`, which can't be set in a project file. It will \
+        be ignored."
+    )
 }
 
 /// FR72's warning for a key that isn't a Rover setting, worded after FR38's
@@ -280,11 +305,31 @@ mod tests {
     fn a_non_string_key_warns_and_is_ignored() {
         let settings = classify("600: https://registry.example.com").unwrap();
 
-        assert_that!(settings.warnings().to_vec()).is_equal_to(vec![
-            "Warning: `.rover/rover.yaml` sets `600`, which this version of Rover doesn't \
-            recognize. It will be ignored."
-                .to_string(),
-        ]);
+        assert_that!(settings).is_equal_to(ProjectSettings {
+            settings: BTreeMap::new(),
+            warnings: vec![
+                "Warning: `.rover/rover.yaml` sets `600`, which this version of Rover doesn't \
+                recognize. It will be ignored."
+                    .to_string(),
+            ],
+        });
+    }
+
+    /// FR5/FR72: a setting Rover knows but never reads from a project file
+    /// gets the not-project-eligible warning, not the unrecognized one.
+    #[rstest]
+    #[case::canonical("APOLLO_VCS_COMMIT")]
+    #[case::lowercase("apollo_vcs_branch")]
+    fn a_vcs_setting_warns_that_it_cant_be_set_in_a_project_file(#[case] key: &str) {
+        let settings = classify(&format!("{key}: abc123")).unwrap();
+
+        assert_that!(settings).is_equal_to(ProjectSettings {
+            settings: BTreeMap::new(),
+            warnings: vec![format!(
+                "Warning: `.rover/rover.yaml` sets `{key}`, which can't be set in a project file. \
+                It will be ignored."
+            )],
+        });
     }
 
     #[test]
@@ -339,6 +384,8 @@ mod tests {
         "my-graph@staging"
     )]
     #[case::decimal("APOLLO_CLIENT_TIMEOUT: 1.5", SettingName::ClientTimeout, "1.5")]
+    #[case::whole_decimal("APOLLO_CLIENT_TIMEOUT: 600.0", SettingName::ClientTimeout, "600.0")]
+    #[case::hexadecimal("APOLLO_CLIENT_TIMEOUT: 0x258", SettingName::ClientTimeout, "600")]
     fn a_scalar_value_reads_as_its_environment_variable_spelling(
         #[case] yaml: &str,
         #[case] name: SettingName,
@@ -414,6 +461,26 @@ mod tests {
             key: key.to_string(),
             canonical,
         });
+    }
+
+    /// Both are fatal, whichever comes first in the file.
+    #[rstest]
+    #[case::credential_first(
+        "APOLLO_KEY: x\nAPOLLO_REGISTRY_URL: https://a.example.com\napollo_registry_url: https://b.example.com",
+        ProjectSettingsError::Credential { key: "APOLLO_KEY".to_string(), canonical: "APOLLO_KEY" }
+    )]
+    #[case::spelled_both_ways_first(
+        "APOLLO_REGISTRY_URL: https://a.example.com\napollo_registry_url: https://b.example.com\nAPOLLO_KEY: x",
+        ProjectSettingsError::SpelledBothWays {
+            name: SettingName::RegistryUrl,
+            lowercase: "apollo_registry_url".to_string(),
+        }
+    )]
+    fn a_credential_and_a_doubly_spelled_setting_fail_in_either_order(
+        #[case] yaml: &str,
+        #[case] expected: ProjectSettingsError,
+    ) {
+        assert_that!(classify(yaml)).is_err_containing(expected);
     }
 
     #[test]
