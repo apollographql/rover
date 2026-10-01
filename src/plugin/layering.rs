@@ -40,9 +40,13 @@ pub struct LayeredDeclaration {
 }
 
 /// At most one declaration per plugin, drawn from whichever level declares it,
-/// preferring the project.
+/// preferring the project, and the levels' `allow_automatic_download`,
+/// layered the same way.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct LayeredDeclarations(BTreeMap<PluginName, LayeredDeclaration>);
+pub struct LayeredDeclarations {
+    plugins: BTreeMap<PluginName, LayeredDeclaration>,
+    allow_automatic_download: Option<bool>,
+}
 
 impl LayeredDeclarations {
     /// Read the manifest at each level in `dirs` and layer them. A level with
@@ -90,11 +94,28 @@ impl LayeredDeclarations {
             })
             .collect();
 
-        Self(declarations)
+        // Layered like a declaration: a project that sets the key, either
+        // way, decides for itself whatever the global level says.
+        let allow_automatic_download = [project, global]
+            .into_iter()
+            .flatten()
+            .find_map(|manifest| manifest.allow_automatic_download);
+
+        Self {
+            plugins: declarations,
+            allow_automatic_download,
+        }
     }
 
     pub fn get(&self, plugin: PluginName) -> Option<&LayeredDeclaration> {
-        self.0.get(&plugin)
+        self.plugins.get(&plugin)
+    }
+
+    /// Whether the manifests let a command download a plugin on its own:
+    /// the project's `allow_automatic_download` if it sets one, otherwise the
+    /// global level's, and no when neither does.
+    pub fn allow_automatic_download(&self) -> bool {
+        self.allow_automatic_download.unwrap_or(false)
     }
 
     /// Every declaration, in the order [`PluginName::ALL`] names the plugins.
@@ -364,6 +385,40 @@ mod tests {
                     .to_string(),
             ),
         ));
+    }
+
+    const ALLOWED: &str = "allow_automatic_download: true\n";
+    const REFUSED: &str = "allow_automatic_download: false\n";
+
+    #[rstest]
+    #[case::neither_level_sets_it(Some(GLOBAL), Some(GLOBAL), false)]
+    #[case::no_manifest_at_all(None, None, false)]
+    #[case::the_global_level_allows_it(Some(ALLOWED), None, true)]
+    #[case::the_project_allows_it(None, Some(ALLOWED), true)]
+    #[case::the_project_refuses_what_global_allows(Some(ALLOWED), Some(REFUSED), false)]
+    #[case::the_project_allows_what_global_refuses(Some(REFUSED), Some(ALLOWED), true)]
+    // A project manifest that leaves the key out leaves it to the global level.
+    #[case::a_project_without_the_key_defers_to_global(Some(ALLOWED), Some(GLOBAL), true)]
+    fn allow_automatic_download_layers_with_the_project_winning(
+        #[case] global: Option<&str>,
+        #[case] project: Option<&str>,
+        #[case] expected: bool,
+    ) {
+        let global = global.map(manifest);
+        let project = project.map(manifest);
+
+        let layered = LayeredDeclarations::new(global.as_ref(), project.as_ref());
+
+        assert_that!(layered.allow_automatic_download()).is_equal_to(expected);
+    }
+
+    #[rstest]
+    fn loading_reads_allow_automatic_download_from_disk() {
+        let (_temp, dirs) = levels(Some(ALLOWED), Some(GLOBAL));
+
+        let layered = LayeredDeclarations::load(&dirs).unwrap();
+
+        assert_that!(layered.allow_automatic_download()).is_true();
     }
 
     #[rstest]

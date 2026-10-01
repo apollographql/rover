@@ -19,6 +19,14 @@ expression: schema_for!(RoverManifest)
         "null"
       ],
       "default": null
+    },
+    "allow_automatic_download": {
+      "description": "Whether a command that needs a plugin installed at neither level may download it on its own. An explicit `rover plugin install` is never automatic, and downloads whatever this says.",
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "default": null
     }
   },
   "$defs": {

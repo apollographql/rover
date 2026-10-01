@@ -55,6 +55,15 @@ pub struct RoverManifest {
     )]
     pub install_root: Option<Utf8PathBuf>,
 
+    /// Whether a command that needs a plugin installed at neither level may
+    /// download it on its own. An explicit `rover plugin install` is never
+    /// automatic, and downloads whatever this says.
+    #[serde(default)]
+    #[schemars(
+        description = "Whether a command that needs a plugin installed at neither level may download it on its own. An explicit `rover plugin install` is never automatic, and downloads whatever this says."
+    )]
+    pub allow_automatic_download: Option<bool>,
+
     // serde_yaml does not expand YAML merge keys; it hands `<<` over as an
     // ordinary key, which the ignore-unknown-keys rule would then drop along
     // with every declaration merged through it. Refuse it instead.
@@ -273,7 +282,6 @@ mod tests {
     #[case::a_spelled_out_null_plugins_key("plugins: null\n", RoverManifest::default())]
     #[case::an_unrecognized_top_level_key_is_ignored(
         indoc! {r#"
-            allow_automatic_download: true
             something_newer:
               nested: [1, 2]
             plugins:
@@ -288,6 +296,20 @@ mod tests {
         "install_root: ../vendor/rover\n",
         RoverManifest {
             install_root: Some(Utf8PathBuf::from("../vendor/rover")),
+            ..RoverManifest::default()
+        }
+    )]
+    #[case::allow_automatic_download_is_a_recognized_key(
+        "allow_automatic_download: true\n",
+        RoverManifest {
+            allow_automatic_download: Some(true),
+            ..RoverManifest::default()
+        }
+    )]
+    #[case::allow_automatic_download_can_be_switched_off(
+        "allow_automatic_download: false\n",
+        RoverManifest {
+            allow_automatic_download: Some(false),
             ..RoverManifest::default()
         }
     )]
@@ -362,6 +384,11 @@ mod tests {
         "#},
         "plugins: invalid type: sequence, expected a mapping of plugin name to version at line 2 \
          column 3"
+    )]
+    #[case::allow_automatic_download_that_is_not_a_boolean(
+        "allow_automatic_download: \"yes\"\n",
+        "allow_automatic_download: invalid type: string \"yes\", expected a boolean at line 1 \
+         column 27"
     )]
     #[case::a_top_level_that_is_not_a_mapping(
         "- plugins\n",

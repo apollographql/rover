@@ -49,6 +49,17 @@ pub(crate) fn global_install() -> bool {
     switched_on(GLOBAL_ENV)
 }
 
+/// The environment variable equivalent of `allow_automatic_download: true` in
+/// `rover.yaml`, outranking the manifests at both levels. It lets a command
+/// download a plugin it needs on its own, which none does without an opt-in.
+pub(crate) const ALLOW_AUTOMATIC_DOWNLOAD_ENV: &str = "APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD";
+
+/// Whether the user has opted in to automatic plugin downloads via
+/// [`ALLOW_AUTOMATIC_DOWNLOAD_ENV`], read the way [`skip_all_updates`] is.
+pub(crate) fn allow_automatic_download() -> bool {
+    switched_on(ALLOW_AUTOMATIC_DOWNLOAD_ENV)
+}
+
 /// Whether the boolean environment variable `name` is `1` or `true`.
 fn switched_on(name: &str) -> bool {
     std::env::var(name)

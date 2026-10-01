@@ -1,3 +1,4 @@
+pub mod automatic;
 pub mod deprecation;
 pub mod discovery;
 pub mod error;
