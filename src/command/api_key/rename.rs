@@ -87,41 +87,36 @@ fn refuse_pairs(target: PairTarget) -> Result<(), RoverClientError> {
 
 #[cfg(test)]
 mod tests {
-    use chrono::DateTime;
-    use rover_client::operations::api_key::pair_list::PairActor;
     use speculoos::prelude::*;
 
     use super::*;
-    use crate::RoverError;
+    use crate::{
+        RoverError, RoverErrorCode, command::api_key::pair_lookup::test_pair, options::JsonOutput,
+    };
 
-    fn pair() -> OAuthClientPair {
-        OAuthClientPair {
-            client_id: "c_8f2a".to_string(),
-            name: Some("ci-deploy".to_string()),
-            created_at: DateTime::parse_from_rfc3339("2026-09-25T16:00:00Z").unwrap(),
-            created_by: PairActor {
-                id: "user-123".to_string(),
-                kind: "user".to_string(),
-            },
-            resources: vec![],
-            scopes: vec!["rover:cli".to_string()],
-        }
+    fn refused() -> RoverError {
+        RoverError::new(
+            refuse_pairs(PairTarget::Pair(test_pair())).expect_err("expected a pair to be refused"),
+        )
     }
 
     // FR31: a pair is refused with the exact required text and its own stable code.
     #[test]
     fn a_pair_is_refused_with_e059() {
-        let err = RoverError::new(
-            refuse_pairs(PairTarget::Pair(pair())).expect_err("expected a pair to be refused"),
-        );
+        let err = refused();
 
         assert_that!(err.message()).is_equal_to(
             "`c_8f2a` is a client-credential pair. Client-credential pairs can't be renamed."
                 .to_string(),
         );
-        assert_that!(err.code().map(|code| code.to_string()))
-            .is_some()
-            .is_equal_to("E059".to_string());
+        assert_that!(err.code()).is_equal_to(Some(RoverErrorCode::E059));
+    }
+
+    // FR77: the refusal goes through the standard `--format json` envelope, with `error.code`
+    // pinned end to end.
+    #[test]
+    fn a_pair_refusal_json_envelope_snapshot() {
+        insta::assert_json_snapshot!(JsonOutput::from(&refused()));
     }
 
     // FR19/FR20/FR83: not a pair, or can't tell - rename it as an API key, as before.

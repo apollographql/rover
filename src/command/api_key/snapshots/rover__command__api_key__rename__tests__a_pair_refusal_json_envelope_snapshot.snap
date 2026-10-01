@@ -1,0 +1,14 @@
+---
+source: src/command/api_key/rename.rs
+expression: "JsonOutput::from(&refused())"
+---
+{
+  "json_version": "1",
+  "data": {
+    "success": false
+  },
+  "error": {
+    "message": "`c_8f2a` is a client-credential pair. Client-credential pairs can't be renamed.",
+    "code": "E059"
+  }
+}
