@@ -330,6 +330,26 @@ pub(crate) enum SettingValueError {
         less; `<VARIANT>` must be 63 characters or less."
     )]
     InvalidGraphRef { input: String },
+    /// A project-file value that's a YAML null, list, or mapping rather than
+    /// one string, number, or boolean. Never produced by
+    /// [`SettingType::validate`], since a profile, an environment variable,
+    /// and a flag can only ever hold a single value; `input` is the value
+    /// rendered back to YAML.
+    #[error("`{input}` isn't a single value. Use a string, a number, or `true`/`false`.")]
+    NotAScalar { input: String },
+}
+
+impl SettingValueError {
+    /// The value that failed, as written.
+    pub(crate) fn input(&self) -> &str {
+        let (SettingValueError::InvalidUrl { input }
+        | SettingValueError::UnsupportedUrlScheme { input }
+        | SettingValueError::InvalidBool { input }
+        | SettingValueError::InvalidWholeSeconds { input }
+        | SettingValueError::InvalidGraphRef { input }
+        | SettingValueError::NotAScalar { input }) = self;
+        input
+    }
 }
 
 impl SettingType {

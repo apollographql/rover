@@ -24,8 +24,8 @@ use crate::{
     RoverError, RoverResult,
     command::{self, RoverOutput},
     options::{
-        DEFAULT_PROFILE, OutputOpts, ProfileOpt, ProfileSelection, ProjectSettings, SettingName,
-        SettingValueError,
+        DEFAULT_PROFILE, OutputOpts, PROJECT_FILE, ProfileOpt, ProfileSelection,
+        ProjectSettingValue, ProjectSettings, SettingName, SettingValueError,
     },
     utils::{
         client::{ClientBuilder, ClientTimeout, StudioClientConfig},
@@ -41,6 +41,18 @@ const STYLES: Styles = Styles::styled()
     .usage(AnsiColor::Green.on_default().effects(Effects::BOLD))
     .literal(AnsiColor::Cyan.on_default().effects(Effects::BOLD))
     .placeholder(AnsiColor::Cyan.on_default());
+
+/// Which stored source supplied a setting's value: FR25's three middle
+/// tiers, between the environment above and the built-in default below.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum StoredTier {
+    /// A profile named by `--profile`, including `--profile default`.
+    ExplicitProfile,
+    /// The `settings:` section of `.rover/rover.yaml`.
+    ProjectFile,
+    /// The `default` profile, active because `--profile` wasn't passed.
+    DefaultProfile,
+}
 
 #[derive(Debug, Serialize, Parser)]
 #[command(
@@ -538,24 +550,18 @@ impl Rover {
     ///
     /// Telemetry reporting is already best-effort and fully isolated from
     /// the invocation's own exit code (see `run`'s `report_thread`), so an
-    /// invalid profile-stored value here is logged and skipped rather than
-    /// failing a command telemetry has nothing to do with - unlike
-    /// `resolve_profile_setting`'s normal contract, this never fails.
+    /// invalid stored value here is logged and skipped rather than failing a
+    /// command telemetry has nothing to do with - unlike `resolve_setting`'s
+    /// normal contract, this never fails.
     pub(crate) fn telemetry_url_override(&self) -> Option<String> {
-        let resolved = if self.telemetry_url.is_some() {
-            self.telemetry_url.clone()
-        } else {
-            match self.resolve_profile_setting(SettingName::TelemetryUrl) {
+        let resolved =
+            match self.resolve_setting(self.telemetry_url.clone(), SettingName::TelemetryUrl) {
                 Ok(value) => value,
                 Err(error) => {
-                    tracing::debug!(
-                        ?error,
-                        "ignoring invalid profile-stored APOLLO_TELEMETRY_URL"
-                    );
+                    tracing::debug!(?error, "ignoring invalid stored APOLLO_TELEMETRY_URL");
                     None
                 }
-            }
-        };
+            };
         // Nothing is ever sent to this URL when telemetry is disabled, so a
         // notice about it would name a setting the invocation never uses.
         // `is_telemetry_disabled()` alone misses the bare-env-var case
@@ -584,26 +590,23 @@ impl Rover {
         resolved
     }
 
-    /// The resolved `--telemetry-disabled` flag plus its profile tier, for
+    /// The resolved `--telemetry-disabled` flag plus its stored tiers, for
     /// `impl Report for Rover` (`src/utils/telemetry.rs`).
     /// `APOLLO_TELEMETRY_DISABLED` keeps its own, separate presence-only
     /// check (`RoverEnvKey::TelemetryDisabled`) as its *environment
-    /// variable's* parsing (FR21) - this only adds the profile tier
-    /// beneath it, where a stored value is a typed boolean (FR24). Errors
-    /// are swallowed the same way and for the same reason as
+    /// variable's* parsing (FR21) - this only adds the profile and project
+    /// file tiers beneath it, where a stored value is a typed boolean (FR24).
+    /// Errors are swallowed the same way and for the same reason as
     /// `telemetry_url_override`.
     pub(crate) fn is_telemetry_disabled(&self) -> bool {
         if self.telemetry_disabled {
             return true;
         }
-        let resolved = match self.resolve_profile_setting(SettingName::TelemetryDisabled) {
-            Ok(Some(value)) => value.eq_ignore_ascii_case("true"),
+        let resolved = match self.resolve_stored_setting(SettingName::TelemetryDisabled) {
+            Ok(Some((_, value))) => value.eq_ignore_ascii_case("true"),
             Ok(None) => false,
             Err(error) => {
-                tracing::debug!(
-                    ?error,
-                    "ignoring invalid profile-stored APOLLO_TELEMETRY_DISABLED"
-                );
+                tracing::debug!(?error, "ignoring invalid stored APOLLO_TELEMETRY_DISABLED");
                 false
             }
         };
@@ -676,13 +679,12 @@ impl Rover {
         )?)
     }
 
-    /// Resolves one setting's effective raw value, adding the profile tier
+    /// Resolves one setting's effective raw value, adding the stored tiers
     /// beneath an already-resolved explicit flag/environment-variable value
-    /// (FR25, collapsed to four tiers per FR29 - there's no project file
-    /// yet). `Ok(None)` means neither `explicit` nor the active profile
+    /// (FR25). `Ok(None)` means neither `explicit` nor any stored tier
     /// supplied a value, so the caller falls through to its own built-in
-    /// default. A stored profile value that fails validation fails the
-    /// command outright (FR39/FR83) rather than falling through.
+    /// default. A stored value that fails validation fails the command
+    /// outright (FR39/FR83) rather than falling through.
     fn resolve_setting(
         &self,
         explicit: Option<String>,
@@ -691,7 +693,100 @@ impl Rover {
         if explicit.is_some() {
             return Ok(explicit);
         }
-        self.resolve_profile_setting(name)
+        Ok(self.resolve_stored_setting(name)?.map(|(_, value)| value))
+    }
+
+    /// The stored tier that supplies `name`, if any, by presence alone - the
+    /// value isn't validated, and nothing beneath the winner is read. FR25's
+    /// middle three tiers: an explicitly selected profile beats the project
+    /// file, which beats the default profile. The active profile is exactly
+    /// one of the two, so only one profile tier is ever consulted. A setting
+    /// that isn't project-eligible never reaches the project file's settings
+    /// at all (FR31).
+    pub(crate) fn stored_tier_with(
+        &self,
+        houston_config: &Config,
+        name: SettingName,
+    ) -> RoverResult<Option<StoredTier>> {
+        let profile = self.get_profile_opt();
+        let in_profile = || -> RoverResult<bool> {
+            Ok(Profile::new(&profile.profile_name, houston_config)
+                .get_setting(name.as_str())?
+                .is_some())
+        };
+        let explicit = profile.selection.is_explicit();
+        Ok(if explicit && in_profile()? {
+            Some(StoredTier::ExplicitProfile)
+        } else if self.project_settings()?.get(name).is_some() {
+            Some(StoredTier::ProjectFile)
+        } else if !explicit && in_profile()? {
+            Some(StoredTier::DefaultProfile)
+        } else {
+            None
+        })
+    }
+
+    /// The winning stored tier's value for `name`, validated against its
+    /// type, together with that tier. See `stored_tier_with` for the order
+    /// and `resolve_setting` for where this fits beneath flags and the
+    /// environment. Builds its own `Config` (creating the config home if it's
+    /// missing, per `get_rover_config`'s normal contract) - callers that must
+    /// not create anything (`rover config show`, FR18) use
+    /// [`Rover::resolve_stored_setting_with`] with their own `Config` instead.
+    pub(crate) fn resolve_stored_setting(
+        &self,
+        name: SettingName,
+    ) -> RoverResult<Option<(StoredTier, String)>> {
+        let houston_config = self.get_rover_config()?;
+        self.resolve_stored_setting_with(&houston_config, name)
+    }
+
+    /// Like [`Rover::resolve_stored_setting`], but against a `Config` the
+    /// caller already has, rather than building one (and possibly creating
+    /// the config home) itself.
+    pub(crate) fn resolve_stored_setting_with(
+        &self,
+        houston_config: &Config,
+        name: SettingName,
+    ) -> RoverResult<Option<(StoredTier, String)>> {
+        let value = match self.stored_tier_with(houston_config, name)? {
+            Some(tier @ (StoredTier::ExplicitProfile | StoredTier::DefaultProfile)) => self
+                .resolve_profile_setting_with(houston_config, name)?
+                .map(|value| (tier, value)),
+            Some(StoredTier::ProjectFile) => self
+                .resolve_project_setting(name)?
+                .map(|value| (StoredTier::ProjectFile, value)),
+            None => None,
+        };
+        Ok(value)
+    }
+
+    /// The project file's value for `name`, validated against its type, with
+    /// FR84's project-file text when it fails - quoting the key as the file
+    /// spells it, so a lowercase alias is named the way its author wrote it.
+    fn resolve_project_setting(&self, name: SettingName) -> RoverResult<Option<String>> {
+        let Some(setting) = self.project_settings()?.get(name) else {
+            return Ok(None);
+        };
+        let validated = match &setting.value {
+            ProjectSettingValue::Scalar(raw) => name.setting_type().validate(raw.clone()),
+            ProjectSettingValue::NotAScalar(rendered) => Err(SettingValueError::NotAScalar {
+                input: rendered.clone(),
+            }),
+        };
+        let value = validated.map_err(|error| {
+            let message = format!(
+                "`{PROJECT_FILE}` sets `{key}` to `{raw}`, which {reason}{correction}",
+                key = setting.key,
+                raw = error.input(),
+                reason = describe_invalid_value(&error),
+                correction = project_value_correction(&error),
+            );
+            // See `resolve_profile_setting_with` for why the error is kept
+            // typed beneath the message.
+            RoverError::new(anyhow::Error::new(error).context(message))
+        })?;
+        Ok(Some(value))
     }
 
     /// Resolves `APOLLO_TEMPLATES_API` (FR1), printing the FR64 override
@@ -717,20 +812,9 @@ impl Rover {
     }
 
     /// The active profile's stored value for `name`, validated against its
-    /// type. See `resolve_setting` for the tier this fits into. Builds its
-    /// own `Config` (creating the config home if it's missing, per
-    /// `get_rover_config`'s normal contract) - callers that must not create
-    /// anything (`rover config show`, FR18) use
-    /// [`Rover::resolve_profile_setting_with`] with their own `Config`
-    /// instead.
-    pub(crate) fn resolve_profile_setting(&self, name: SettingName) -> RoverResult<Option<String>> {
-        let houston_config = self.get_rover_config()?;
-        self.resolve_profile_setting_with(&houston_config, name)
-    }
-
-    /// Like [`Rover::resolve_profile_setting`], but against a `Config` the
-    /// caller already has, rather than building one (and possibly creating
-    /// the config home) itself.
+    /// type, whichever stored tier that profile occupies. Most callers want
+    /// [`Rover::resolve_stored_setting_with`], which puts the project file in
+    /// its place relative to the profile.
     pub(crate) fn resolve_profile_setting_with(
         &self,
         houston_config: &Config,
@@ -742,11 +826,7 @@ impl Rover {
             return Ok(None);
         };
         let value = name.setting_type().validate(raw).map_err(|error| {
-            let (SettingValueError::InvalidUrl { input: raw }
-            | SettingValueError::UnsupportedUrlScheme { input: raw }
-            | SettingValueError::InvalidBool { input: raw }
-            | SettingValueError::InvalidWholeSeconds { input: raw }
-            | SettingValueError::InvalidGraphRef { input: raw }) = &error;
+            let raw = error.input();
             let message = format!(
                 "`{name}` in profile `{profile_name}` is set to `{raw}`, which {reason} Run \
                 `rover config set {name} {placeholder} --profile {profile_name}` to correct it.",
@@ -843,13 +923,18 @@ impl Rover {
                 None
             }
         } else if let Some(value) = resolved {
-            (name.is_network_destination() && Some(value) != name.builtin_default().as_deref())
-                .then(|| {
-                    format!(
-                        "profile `{profile_name}` sets `{name}` to `{value}`.",
-                        profile_name = profile.profile_name,
-                    )
-                })
+            // A value the project file supplied gets no notice yet.
+            let from_project_file =
+                self.stored_tier_with(&houston_config, name)? == Some(StoredTier::ProjectFile);
+            (!from_project_file
+                && name.is_network_destination()
+                && Some(value) != name.builtin_default().as_deref())
+            .then(|| {
+                format!(
+                    "profile `{profile_name}` sets `{name}` to `{value}`.",
+                    profile_name = profile.profile_name,
+                )
+            })
         } else {
             None
         };
@@ -1585,6 +1670,26 @@ const fn describe_invalid_value(error: &SettingValueError) -> &'static str {
             only contain letters, numbers, or the characters `-` or `_`, and must be 64 \
             characters or less; `<VARIANT>` must be 63 characters or less."
         }
+        SettingValueError::NotAScalar { .. } => {
+            "isn't a single value. Use a string, a number, or `true`/`false`."
+        }
+    }
+}
+
+/// What FR84's project-file text adds after `describe_invalid_value`'s
+/// reason, so it always names a concrete correction. There's no `rover
+/// config set` to suggest - the project file is hand-authored (FR71) - so a
+/// reason that doesn't already say how to fix the value gets an example.
+const fn project_value_correction(error: &SettingValueError) -> &'static str {
+    match error {
+        SettingValueError::InvalidWholeSeconds { .. } => {
+            " Use a whole number of seconds, for example `300`."
+        }
+        SettingValueError::InvalidUrl { .. }
+        | SettingValueError::UnsupportedUrlScheme { .. }
+        | SettingValueError::InvalidBool { .. }
+        | SettingValueError::InvalidGraphRef { .. }
+        | SettingValueError::NotAScalar { .. } => "",
     }
 }
 
@@ -1598,7 +1703,8 @@ const fn value_placeholder(error: &SettingValueError) -> &'static str {
         SettingValueError::InvalidUrl { .. }
         | SettingValueError::UnsupportedUrlScheme { .. }
         | SettingValueError::InvalidBool { .. }
-        | SettingValueError::InvalidGraphRef { .. } => "<value>",
+        | SettingValueError::InvalidGraphRef { .. }
+        | SettingValueError::NotAScalar { .. } => "<value>",
     }
 }
 
@@ -4006,5 +4112,270 @@ mod tests {
         .unwrap();
 
         assert_that!(rover.project_settings().unwrap()).is_equal_to(&first);
+    }
+
+    /// A run in a temp project whose `.rover/rover.yaml` is `project`
+    /// (or no project at all), with each `(profile, setting, value)` of
+    /// `stored` written to the config home first, and `args` before the
+    /// `config list` subcommand. The environment variables in `unset` are
+    /// cleared while clap reads them.
+    struct Scenario {
+        _config_home: tempfile::TempDir,
+        _tree: tempfile::TempDir,
+        rover: Rover,
+    }
+
+    fn scenario(
+        project: Option<&str>,
+        stored: &[(&str, &str, &str)],
+        args: &[&str],
+        unset: &[&str],
+    ) -> Scenario {
+        let config_home = tempfile::tempdir().unwrap();
+        let config_home_path = camino::Utf8Path::from_path(config_home.path()).unwrap();
+        let houston_config = houston::Config::new(Some(&config_home_path), None).unwrap();
+        for (profile, key, value) in stored {
+            houston::Profile::new(*profile, &houston_config)
+                .set_setting(key, value)
+                .unwrap();
+        }
+        let tree = tempfile::tempdir().unwrap();
+        let root = Utf8PathBuf::try_from(tree.path().to_path_buf()).unwrap();
+        let project = project.map(|contents| {
+            let dir = root.join("project").join(".rover");
+            fs::create_dir_all(&dir).unwrap();
+            fs::write(dir.join(MANIFEST_FILE), contents).unwrap();
+            dir
+        });
+        let mut full_args = vec![PKG_NAME, "--config-home", config_home_path.as_str()];
+        full_args.extend_from_slice(args);
+        full_args.extend(["config", "list"]);
+        let mut rover = temp_env::with_vars_unset(unset, || Rover::parse_from(full_args));
+        rover.set_manifest_dirs(ManifestDirs {
+            project,
+            global: None,
+        });
+        Scenario {
+            _config_home: config_home,
+            _tree: tree,
+            rover,
+        }
+    }
+
+    const REPO_REGISTRY: &str = "settings:\n  APOLLO_REGISTRY_URL: https://repo.example.com\n";
+
+    fn both_profiles() -> [(&'static str, &'static str, &'static str); 2] {
+        [
+            (
+                "staging",
+                "APOLLO_REGISTRY_URL",
+                "https://staging.example.com",
+            ),
+            (
+                "default",
+                "APOLLO_REGISTRY_URL",
+                "https://default.example.com",
+            ),
+        ]
+    }
+
+    /// AC: an explicit profile beats the project file, which beats the
+    /// default profile - and `--profile default` typed literally is
+    /// explicit.
+    #[rstest::rstest]
+    #[case::explicit_profile(Some(REPO_REGISTRY), &["--profile", "staging"], "https://staging.example.com")]
+    #[case::project_file(Some(REPO_REGISTRY), &[], "https://repo.example.com")]
+    #[case::default_profile(None, &[], "https://default.example.com")]
+    #[case::literal_profile_default(Some(REPO_REGISTRY), &["--profile", "default"], "https://default.example.com")]
+    #[tokio::test]
+    async fn the_six_tier_chain_orders_the_stored_tiers(
+        #[case] project: Option<&str>,
+        #[case] args: &[&str],
+        #[case] expected: &str,
+    ) {
+        let scenario = scenario(project, &both_profiles(), args, &["APOLLO_REGISTRY_URL"]);
+
+        let client_config = scenario.rover.get_client_config().await.unwrap();
+
+        assert_that!(client_config.uri()).is_equal_to(&expected.to_string());
+    }
+
+    #[tokio::test]
+    async fn the_environment_beats_the_project_file() {
+        let scenario = temp_env::with_var(
+            "APOLLO_REGISTRY_URL",
+            Some("https://env.example.com"),
+            || scenario(Some(REPO_REGISTRY), &[], &[], &[]),
+        );
+
+        let client_config = scenario.rover.get_client_config().await.unwrap();
+
+        assert_that!(client_config.uri()).is_equal_to(&"https://env.example.com".to_string());
+    }
+
+    #[tokio::test]
+    async fn an_explicit_profile_without_the_setting_falls_to_the_project_file() {
+        let scenario = scenario(
+            Some(REPO_REGISTRY),
+            &[("staging", "APOLLO_CHECKS_TIMEOUT_SECONDS", "600")],
+            &["--profile", "staging"],
+            &["APOLLO_REGISTRY_URL"],
+        );
+
+        let client_config = scenario.rover.get_client_config().await.unwrap();
+
+        assert_that!(client_config.uri()).is_equal_to(&"https://repo.example.com".to_string());
+    }
+
+    /// AC: the lowercase alias applies exactly as the canonical spelling.
+    #[tokio::test]
+    async fn the_lowercase_alias_applies() {
+        let scenario = scenario(
+            Some("settings:\n  apollo_registry_url: https://repo.example.com\n"),
+            &[],
+            &[],
+            &["APOLLO_REGISTRY_URL"],
+        );
+
+        let client_config = scenario.rover.get_client_config().await.unwrap();
+
+        assert_that!(client_config.uri()).is_equal_to(&"https://repo.example.com".to_string());
+    }
+
+    /// FR84's required project-file text, with the invalid-value code.
+    #[tokio::test]
+    async fn an_invalid_project_value_fails_with_the_project_text() {
+        let scenario = scenario(
+            Some("settings:\n  APOLLO_REGISTRY_URL: registry.example.com\n"),
+            &[],
+            &[],
+            &["APOLLO_REGISTRY_URL"],
+        );
+
+        let error = scenario.rover.get_client_config().await.unwrap_err();
+
+        assert_that!(error.message()).is_equal_to(
+            "`.rover/rover.yaml` sets `APOLLO_REGISTRY_URL` to `registry.example.com`, which \
+            isn't a valid URL. URLs must include a scheme, for example \
+            `https://registry.example.com`."
+                .to_string(),
+        );
+        assert_that!(error.code())
+            .is_some()
+            .is_equal_to(RoverErrorCode::E054);
+    }
+
+    #[rstest::rstest]
+    #[case::lowercase_alias_quoted_as_written(
+        "settings:\n  apollo_checks_timeout_seconds: soon\n",
+        "`.rover/rover.yaml` sets `apollo_checks_timeout_seconds` to `soon`, which isn't a \
+        whole number of seconds. Use a whole number of seconds, for example `300`."
+    )]
+    #[case::not_a_single_value(
+        "settings:\n  APOLLO_CHECKS_TIMEOUT_SECONDS: [300, 600]\n",
+        "`.rover/rover.yaml` sets `APOLLO_CHECKS_TIMEOUT_SECONDS` to `- 300 - 600`, which \
+        isn't a single value. Use a string, a number, or `true`/`false`."
+    )]
+    #[case::null(
+        "settings:\n  APOLLO_CHECKS_TIMEOUT_SECONDS:\n",
+        "`.rover/rover.yaml` sets `APOLLO_CHECKS_TIMEOUT_SECONDS` to `null`, which isn't a \
+        single value. Use a string, a number, or `true`/`false`."
+    )]
+    fn other_invalid_project_values_name_the_key_as_written(
+        #[case] project: &str,
+        #[case] expected: &str,
+    ) {
+        let scenario = scenario(Some(project), &[], &[], &["APOLLO_CHECKS_TIMEOUT_SECONDS"]);
+
+        let error = scenario.rover.get_checks_timeout_seconds().unwrap_err();
+
+        assert_that!(error.message()).is_equal_to(expected.to_string());
+        assert_that!(error.code())
+            .is_some()
+            .is_equal_to(RoverErrorCode::E054);
+    }
+
+    /// FR83: an invalid winning value never falls through to the next
+    /// tier, even one that's valid.
+    #[test]
+    fn an_invalid_project_value_does_not_fall_back_to_the_default_profile() {
+        let scenario = scenario(
+            Some("settings:\n  APOLLO_CHECKS_TIMEOUT_SECONDS: soon\n"),
+            &[("default", "APOLLO_CHECKS_TIMEOUT_SECONDS", "600")],
+            &[],
+            &["APOLLO_CHECKS_TIMEOUT_SECONDS"],
+        );
+
+        assert_that!(scenario.rover.get_checks_timeout_seconds()).is_err();
+    }
+
+    /// A tier that loses is never read, so its value is never validated.
+    #[test]
+    fn an_invalid_project_value_beneath_an_explicit_profile_is_not_read() {
+        let scenario = scenario(
+            Some("settings:\n  APOLLO_CHECKS_TIMEOUT_SECONDS: soon\n"),
+            &[("staging", "APOLLO_CHECKS_TIMEOUT_SECONDS", "600")],
+            &["--profile", "staging"],
+            &["APOLLO_CHECKS_TIMEOUT_SECONDS"],
+        );
+
+        assert_that!(scenario.rover.get_checks_timeout_seconds()).is_ok_containing(600);
+    }
+
+    /// FR24: a stored boolean is typed, so `false` in the file means
+    /// telemetry stays enabled.
+    #[rstest::rstest]
+    #[case::typed_true("settings:\n  APOLLO_TELEMETRY_DISABLED: true\n", true)]
+    #[case::typed_false("settings:\n  APOLLO_TELEMETRY_DISABLED: false\n", false)]
+    fn the_project_file_can_disable_telemetry(#[case] project: &str, #[case] disabled: bool) {
+        let scenario = scenario(Some(project), &[], &[], &[]);
+
+        assert_that!(scenario.rover.is_telemetry_disabled()).is_equal_to(disabled);
+    }
+
+    #[test]
+    fn the_project_file_can_redirect_telemetry() {
+        let scenario = scenario(
+            Some("settings:\n  APOLLO_TELEMETRY_URL: https://telemetry.example.com\n"),
+            &[],
+            &[],
+            &["APOLLO_TELEMETRY_URL", "APOLLO_TELEMETRY_DISABLED"],
+        );
+
+        assert_that!(scenario.rover.telemetry_url_override())
+            .is_some()
+            .is_equal_to("https://telemetry.example.com".to_string());
+    }
+
+    /// FR90: the graph ref a project sets is what's forwarded to a child
+    /// process, the same as one from a profile.
+    #[test]
+    fn the_project_file_supplies_the_graph_ref_to_forward() {
+        let scenario = scenario(
+            Some("settings:\n  APOLLO_GRAPH_REF: my-graph@staging\n"),
+            &[],
+            &[],
+            &[],
+        );
+
+        assert_that!(scenario.rover.resolve_graph_ref_setting())
+            .is_ok_containing(Some("my-graph@staging".to_string()));
+    }
+
+    /// FR29: with no project file, every setting resolves exactly as the
+    /// four-tier chain did - the active profile, whichever it is.
+    #[rstest::rstest]
+    #[case::explicit(&["--profile", "staging"], "https://staging.example.com")]
+    #[case::default(&[], "https://default.example.com")]
+    #[tokio::test]
+    async fn without_a_project_file_the_active_profile_supplies_the_value(
+        #[case] args: &[&str],
+        #[case] expected: &str,
+    ) {
+        let scenario = scenario(None, &both_profiles(), args, &["APOLLO_REGISTRY_URL"]);
+
+        let client_config = scenario.rover.get_client_config().await.unwrap();
+
+        assert_that!(client_config.uri()).is_equal_to(&expected.to_string());
     }
 }
