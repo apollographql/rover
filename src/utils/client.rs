@@ -1,5 +1,10 @@
 use core::fmt;
-use std::{io, str::FromStr, time::Duration};
+use std::{
+    io,
+    str::FromStr,
+    sync::{Arc, OnceLock},
+    time::Duration,
+};
 
 use anyhow::Result;
 use derive_getters::Getters;
@@ -172,6 +177,20 @@ impl From<Duration> for ClientTimeout {
     }
 }
 
+/// The FR64 override notice for a profile-resolved `APOLLO_ROVER_DOWNLOAD_HOST`,
+/// deferred from resolution time (`Rover::get_client_config`, where the value
+/// and the decision of whether to notice are both already settled) to the
+/// point a plugin download actually happens (spec.md:403/FR60: a command
+/// that downloads nothing must print nothing). `printed` is shared through
+/// `StudioClientConfig`'s `Clone` via the surrounding `Arc`, so cloned
+/// configs used across multiple plugin downloads in one process still only
+/// print once (FR61).
+#[derive(Debug)]
+struct DownloadHostNotice {
+    message: String,
+    printed: OnceLock<()>,
+}
+
 #[derive(Debug, Clone, Getters)]
 pub struct StudioClientConfig {
     #[getter(skip)]
@@ -184,6 +203,8 @@ pub struct StudioClientConfig {
     client_timeout: ClientTimeout,
     download_timeout: Duration,
     download_host: Option<String>,
+    #[getter(skip)]
+    download_host_notice: Option<Arc<DownloadHostNotice>>,
 }
 
 impl StudioClientConfig {
@@ -210,6 +231,7 @@ impl StudioClientConfig {
             client_timeout,
             download_timeout: DOWNLOAD_REQUEST_TIMEOUT,
             download_host: None,
+            download_host_notice: None,
         }
     }
 
@@ -218,12 +240,38 @@ impl StudioClientConfig {
         self
     }
 
-    /// Overrides the host plugin binaries (the `router` and `supergraph`
-    /// composition plugins) are downloaded from. Read by
-    /// [`crate::command::install::plugin::Plugin::get_tarball_url`].
+    /// Overrides the host plugin binaries (the `router`/`supergraph`
+    /// composition plugins, and the MCP server binary) are downloaded from.
+    /// Read by [`crate::command::install::plugin::Plugin::get_tarball_url`].
     pub fn with_download_host(mut self, download_host: String) -> Self {
         self.download_host = Some(download_host);
         self
+    }
+
+    /// Carries the FR64 override notice text to print the first time a
+    /// plugin download actually happens (see `DownloadHostNotice`), rather
+    /// than unconditionally at resolution time.
+    pub(crate) fn with_download_host_notice(mut self, message: String) -> Self {
+        self.download_host_notice = Some(Arc::new(DownloadHostNotice {
+            message,
+            printed: OnceLock::new(),
+        }));
+        self
+    }
+
+    /// Prints the download-host override notice the first time this is
+    /// called for a given resolved value (FR61: exactly one notice no
+    /// matter how many artifacts one process downloads) - a no-op if
+    /// there's no notice to print, or if it already printed.
+    pub(crate) fn print_download_host_notice_once(&self) {
+        use rover_print::{print::Print, style::StyledText};
+
+        if let Some(notice) = &self.download_host_notice {
+            notice.printed.get_or_init(|| {
+                rover_print::print::stderr::default()
+                    .print(&StyledText::plain(format!("Note: {}", notice.message)));
+            });
+        }
     }
 
     pub(crate) fn get_reqwest_client(&self) -> Result<Client> {
@@ -467,5 +515,38 @@ mod tests {
             let config = test_client_config().with_download_timeout(Duration::from_secs(secs));
             assert_eq!(*config.download_timeout(), Duration::from_secs(secs));
         }
+    }
+
+    // A command that never downloads a plugin never calls this at all
+    // (spec.md:403/FR60) - confirms the no-notice-set case is a safe no-op,
+    // not a panic on an absent `Option`.
+    #[test]
+    fn printing_with_no_download_host_notice_set_is_a_no_op() {
+        test_client_config().print_download_host_notice_once();
+    }
+
+    #[test]
+    fn the_download_host_notice_prints_at_most_once_even_across_clones() {
+        use std::sync::Arc;
+
+        let config = test_client_config().with_download_host_notice("test notice".to_string());
+        let notice = Arc::clone(config.download_host_notice.as_ref().unwrap());
+        assert!(notice.printed.get().is_none());
+
+        config.print_download_host_notice_once();
+        assert!(notice.printed.get().is_some());
+
+        // A clone shares the same underlying notice (and its print-once
+        // gate) through the surrounding `Arc`, not a fresh copy - a second
+        // plugin download sharing this cloned config still only notices
+        // once per process (FR61). The clone itself is the thing under
+        // test, even though nothing below needs owned access.
+        #[allow(clippy::redundant_clone)]
+        let cloned = config.clone();
+        assert!(Arc::ptr_eq(
+            &notice,
+            cloned.download_host_notice.as_ref().unwrap()
+        ));
+        cloned.print_download_host_notice_once();
     }
 }

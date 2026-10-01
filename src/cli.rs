@@ -489,6 +489,12 @@ impl Rover {
         self.telemetry_disabled
     }
 
+    /// The raw, clap-merged `--download-host`/`APOLLO_ROVER_DOWNLOAD_HOST`
+    /// value, before the profile tier applies. See `registry_url_flag_or_env`.
+    pub(crate) fn download_host_flag_or_env(&self) -> Option<String> {
+        self.download_host.clone()
+    }
+
     /// The resolved `--telemetry-url`/`APOLLO_TELEMETRY_URL` override, for
     /// `impl Report for Rover` (`src/utils/telemetry.rs`) - a different
     /// module, so it can't reach the private field directly.
@@ -915,8 +921,34 @@ impl Rover {
             Some(timeout) => client_config.with_download_timeout(timeout.get_duration()),
             None => client_config,
         };
-        Ok(match self.download_host.clone() {
+        // Note: the value's own syntactic validity is still checked eagerly
+        // here (via `resolve_setting`), even though the notice below is
+        // deferred to the point a download actually happens - an invalid
+        // stored `APOLLO_ROVER_DOWNLOAD_HOST` deliberately fails every
+        // command that builds a client config, the same way an invalid
+        // registry URL already does, rather than only commands that
+        // download a plugin.
+        let resolved_download_host =
+            self.resolve_setting(self.download_host_flag_or_env(), SettingName::DownloadHost)?;
+        // The override notice is decided here (so `config_override_notice`'s
+        // once-per-process gate is consumed exactly once regardless of
+        // whether a download ever happens) but not printed here - printing
+        // is deferred to `StudioClientConfig::print_download_host_notice_once`,
+        // called only at the point a plugin download actually starts
+        // (spec.md:403/FR60: a command that downloads nothing prints
+        // nothing).
+        let download_host_notice = self.config_override_notice(
+            SettingName::DownloadHost,
+            self.download_host_flag_or_env().as_deref(),
+            self.get_env_var(RoverEnvKey::RoverDownloadHost)?.as_deref(),
+            resolved_download_host.as_deref(),
+        )?;
+        let client_config = match resolved_download_host {
             Some(download_host) => client_config.with_download_host(download_host),
+            None => client_config,
+        };
+        Ok(match download_host_notice {
+            Some(message) => client_config.with_download_host_notice(message),
             None => client_config,
         })
     }
@@ -1343,6 +1375,137 @@ mod tests {
         });
         let client_config = rover.get_client_config().await.unwrap();
         assert_that!(client_config.download_host().as_deref()).is_equal_to(None);
+    }
+
+    #[tokio::test]
+    async fn download_host_profile_setting_applies_when_no_flag_or_env_is_set() {
+        let home = config_home_with_setting(
+            "staging",
+            "APOLLO_ROVER_DOWNLOAD_HOST",
+            "https://profile-mirror.example.com",
+        );
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = temp_env::with_var_unset("APOLLO_ROVER_DOWNLOAD_HOST", || {
+            Rover::parse_from([
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+                "config",
+                "list",
+            ])
+        });
+
+        let client_config = rover.get_client_config().await.unwrap();
+
+        assert_that!(client_config.download_host().as_deref())
+            .is_equal_to(Some("https://profile-mirror.example.com"));
+    }
+
+    #[tokio::test]
+    async fn download_host_flag_wins_over_profile_setting() {
+        let home = config_home_with_setting(
+            "staging",
+            "APOLLO_ROVER_DOWNLOAD_HOST",
+            "https://profile-mirror.example.com",
+        );
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = temp_env::with_var_unset("APOLLO_ROVER_DOWNLOAD_HOST", || {
+            Rover::parse_from([
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+                "--download-host",
+                "https://flag-mirror.example.com",
+                "config",
+                "list",
+            ])
+        });
+
+        let client_config = rover.get_client_config().await.unwrap();
+
+        assert_that!(client_config.download_host().as_deref())
+            .is_equal_to(Some("https://flag-mirror.example.com"));
+    }
+
+    // FR43/FR84 (and spec.md:391, the equivalent checks-timeout criterion) -
+    // :403 covers the override *notice*, not an invalid stored value.
+    #[tokio::test]
+    async fn an_invalid_profile_download_host_fails_the_command() {
+        let home = config_home_with_setting(
+            "staging",
+            "APOLLO_ROVER_DOWNLOAD_HOST",
+            "mirror.example.com",
+        );
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = temp_env::with_var_unset("APOLLO_ROVER_DOWNLOAD_HOST", || {
+            Rover::parse_from([
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+                "config",
+                "list",
+            ])
+        });
+
+        let error = rover
+            .get_client_config()
+            .await
+            .expect_err("expected an invalid stored download host to fail the command");
+
+        assert_that!(error.to_string()).is_equal_to(
+            "error[E054]: `APOLLO_ROVER_DOWNLOAD_HOST` in profile `staging` is set to \
+            `mirror.example.com`, which isn't a valid URL. URLs must include a scheme, for \
+            example `https://registry.example.com`. Run `rover config set \
+            APOLLO_ROVER_DOWNLOAD_HOST <value> --profile staging` to correct it.\n"
+                .to_string(),
+        );
+        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
+    }
+
+    // FR64: profile (explicit or default) supplies a non-default value for
+    // a network-destination setting - download-host is one (FR1's "Net"
+    // column), unlike checks-timeout.
+    #[tokio::test]
+    async fn download_host_profile_value_notices_through_the_real_call_path() {
+        let home = config_home_with_setting(
+            "staging",
+            "APOLLO_ROVER_DOWNLOAD_HOST",
+            "https://profile-mirror.example.com",
+        );
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+
+        let rover = with_notice_env_locked(&["APOLLO_ROVER_DOWNLOAD_HOST"], || {
+            temp_env::with_var_unset("APOLLO_ROVER_DOWNLOAD_HOST", || {
+                Rover::parse_from([
+                    PKG_NAME,
+                    "--config-home",
+                    home_path.as_str(),
+                    "--profile",
+                    "staging",
+                    "config",
+                    "list",
+                ])
+            })
+        });
+
+        rover.get_client_config().await.unwrap();
+
+        // The gate `get_client_config`'s own notice decision already
+        // consumed means a direct call for the same setting now returns
+        // `None` - proving the real call path decided the notice.
+        let message = rover.config_override_notice(
+            SettingName::DownloadHost,
+            None,
+            None,
+            Some("https://profile-mirror.example.com"),
+        );
+        assert_that!(message.unwrap()).is_none();
     }
 
     #[tokio::test]
