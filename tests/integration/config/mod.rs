@@ -14,7 +14,7 @@ use serde_json::Value;
 
 /// Every setting variable a developer's own environment might carry into the
 /// run and change what it reports.
-const SETTING_ENV: [&str; 14] = [
+const SETTING_ENV: [&str; 17] = [
     "APOLLO_KEY",
     "APOLLO_CLIENT_ID",
     "APOLLO_CLIENT_SECRET",
@@ -26,9 +26,12 @@ const SETTING_ENV: [&str; 14] = [
     "APOLLO_TEMPLATES_API",
     "APOLLO_GRAPH_REF",
     "APOLLO_ROVER_NO_CONFIG_NOTICES",
-    "APOLLO_OAUTH_TOKEN_URL",
-    "APOLLO_OAUTH_CLIENT_ID",
     "APOLLO_OAUTH_AUTHORIZATION_URL",
+    "APOLLO_OAUTH_TOKEN_URL",
+    "APOLLO_OAUTH_DEVICE_AUTHORIZATION_URL",
+    "APOLLO_OAUTH_REVOCATION_URL",
+    "APOLLO_OAUTH_WHOAMI_URL",
+    "APOLLO_OAUTH_CLIENT_ID",
 ];
 
 #[test]

@@ -8,7 +8,7 @@ use self::output::{ConfigShowOutput, CredentialReport, Overridden, SettingReport
 use crate::{
     RoverResult,
     cli::Rover,
-    options::{ProfileOpt, ProjectSettingValue, SettingName},
+    options::{ProfileOpt, SettingName},
     utils::env::RoverEnvKey,
 };
 
@@ -24,7 +24,6 @@ impl Show {
         let mut settings = vec![
             resolve_string_setting(
                 rover,
-                profile,
                 &houston_config,
                 SettingName::RegistryUrl,
                 rover.registry_url_flag_or_env(),
@@ -32,16 +31,14 @@ impl Show {
             )?,
             resolve_string_setting(
                 rover,
-                profile,
                 &houston_config,
                 SettingName::TelemetryUrl,
                 rover.telemetry_url_flag_or_env(),
                 RoverEnvKey::TelemetryUrl,
             )?,
-            resolve_telemetry_disabled(rover, profile, &houston_config)?,
+            resolve_telemetry_disabled(rover, &houston_config)?,
             resolve_string_setting(
                 rover,
-                profile,
                 &houston_config,
                 SettingName::ChecksTimeoutSeconds,
                 rover.checks_timeout_flag_or_env(),
@@ -49,7 +46,6 @@ impl Show {
             )?,
             resolve_string_setting(
                 rover,
-                profile,
                 &houston_config,
                 SettingName::ClientTimeout,
                 rover.client_timeout_flag_or_env(),
@@ -57,7 +53,6 @@ impl Show {
             )?,
             resolve_string_setting(
                 rover,
-                profile,
                 &houston_config,
                 SettingName::DownloadHost,
                 rover.download_host_flag_or_env(),
@@ -69,7 +64,6 @@ impl Show {
             // lets a real `APOLLO_TEMPLATES_API` report `source: Environment`.
             resolve_string_setting(
                 rover,
-                profile,
                 &houston_config,
                 SettingName::TemplatesApi,
                 rover.get_env_var(RoverEnvKey::TemplatesApi)?,
@@ -80,7 +74,6 @@ impl Show {
             // directly the same way `APOLLO_TEMPLATES_API`'s is above.
             resolve_string_setting(
                 rover,
-                profile,
                 &houston_config,
                 SettingName::GraphRef,
                 rover.get_env_var(RoverEnvKey::GraphRef)?,
@@ -98,7 +91,6 @@ impl Show {
         ] {
             settings.push(resolve_string_setting(
                 rover,
-                profile,
                 &houston_config,
                 name,
                 rover.oauth_flag_or_env(name),
@@ -115,54 +107,37 @@ impl Show {
     }
 }
 
-/// Every stored tier that supplies `name`, highest precedence first (FR25,
-/// FR53): the active profile and the project file, in whichever order the
-/// profile's selection puts them. Each value is as stored, never validated -
-/// a losing tier's stale or invalid value is reported, not judged (FR104) -
-/// and a project-file value that isn't a single value is rendered back to
-/// YAML.
+/// Every stored tier that supplies `name`, highest precedence first, as
+/// `Rover::stored_layers_with` orders them - so `config show` can't disagree
+/// with the resolver about which tier wins. Each value is as stored, never
+/// validated: a losing tier's stale or invalid value is reported, not judged
+/// (FR104).
 fn stored_layers(
     rover: &Rover,
-    profile: &ProfileOpt,
     houston_config: &houston::Config,
     name: SettingName,
 ) -> RoverResult<Vec<Overridden>> {
-    let profile_layer = Profile::new(&profile.profile_name, houston_config)
-        .get_setting(name.as_str())?
-        .map(|value| Overridden {
-            source: profile.selection.into(),
-            value,
-        });
-    let project_layer = rover
-        .project_settings()?
-        .get(name)
-        .map(|setting| Overridden {
-            source: Source::ProjectFile,
-            value: match &setting.value {
-                ProjectSettingValue::Scalar(raw) | ProjectSettingValue::NotAScalar(raw) => {
-                    raw.clone()
-                }
-            },
-        });
-    let layers = if profile.selection.is_explicit() {
-        [profile_layer, project_layer]
-    } else {
-        [project_layer, profile_layer]
-    };
-    Ok(layers.into_iter().flatten().collect())
+    Ok(rover
+        .stored_layers_with(houston_config, name)?
+        .iter()
+        .map(|layer| Overridden {
+            source: layer.tier.into(),
+            value: layer.as_written(),
+        })
+        .collect())
 }
 
-/// `stored_layers`, without the one that won.
+/// `stored_layers`, without the winner - which is always the first, since a
+/// winning stored value is by definition the highest stored tier present.
 fn losing_layers(
     rover: &Rover,
-    profile: &ProfileOpt,
     houston_config: &houston::Config,
     name: SettingName,
-    winner: Source,
 ) -> RoverResult<Vec<Overridden>> {
-    let mut layers = stored_layers(rover, profile, houston_config, name)?;
-    layers.retain(|layer| layer.source != winner);
-    Ok(layers)
+    Ok(stored_layers(rover, houston_config, name)?
+        .into_iter()
+        .skip(1)
+        .collect())
 }
 
 /// Resolves a string-valued setting (an `Option<String>` flag/env pair) to
@@ -177,7 +152,6 @@ fn losing_layers(
 /// as stored; see `stored_layers`.
 fn resolve_string_setting(
     rover: &Rover,
-    profile: &ProfileOpt,
     houston_config: &houston::Config,
     name: SettingName,
     flag_or_env: Option<String>,
@@ -206,7 +180,7 @@ fn resolve_string_setting(
                 value: env_value,
             });
         }
-        overridden.extend(stored_layers(rover, profile, houston_config, name)?);
+        overridden.extend(stored_layers(rover, houston_config, name)?);
 
         return Ok(SettingReport {
             name: name.as_str(),
@@ -223,7 +197,7 @@ fn resolve_string_setting(
                 name: name.as_str(),
                 value: Some(value),
                 source,
-                overridden: losing_layers(rover, profile, houston_config, name, source)?,
+                overridden: losing_layers(rover, houston_config, name)?,
             });
         }
         Ok(None) => {}
@@ -239,7 +213,10 @@ fn resolve_string_setting(
         // that happens to be the literal string "none".
         value: name.builtin_default(),
         source: Source::Builtin,
-        overridden: vec![],
+        // Only ever non-empty when a stored value was invalid and silently
+        // ignored (`APOLLO_TELEMETRY_URL`/`APOLLO_TELEMETRY_DISABLED`), which
+        // is exactly when a user needs to see what's stored.
+        overridden: stored_layers(rover, houston_config, name)?,
     })
 }
 
@@ -251,7 +228,6 @@ fn resolve_string_setting(
 /// own treatment of it everywhere else in the CLI.
 fn resolve_telemetry_disabled(
     rover: &Rover,
-    profile: &ProfileOpt,
     houston_config: &houston::Config,
 ) -> RoverResult<SettingReport> {
     let name = SettingName::TelemetryDisabled;
@@ -265,7 +241,7 @@ fn resolve_telemetry_disabled(
                 value: "true".to_string(),
             });
         }
-        overridden.extend(stored_layers(rover, profile, houston_config, name)?);
+        overridden.extend(stored_layers(rover, houston_config, name)?);
         return Ok(SettingReport {
             name: name.as_str(),
             value: Some("true".to_string()),
@@ -279,7 +255,7 @@ fn resolve_telemetry_disabled(
             name: name.as_str(),
             value: Some("true".to_string()),
             source: Source::Environment,
-            overridden: stored_layers(rover, profile, houston_config, name)?,
+            overridden: stored_layers(rover, houston_config, name)?,
         });
     }
 
@@ -294,7 +270,7 @@ fn resolve_telemetry_disabled(
             name: name.as_str(),
             value: Some(normalized.to_string()),
             source,
-            overridden: losing_layers(rover, profile, houston_config, name, source)?,
+            overridden: losing_layers(rover, houston_config, name)?,
         });
     }
 
@@ -302,7 +278,10 @@ fn resolve_telemetry_disabled(
         name: name.as_str(),
         value: name.builtin_default(),
         source: Source::Builtin,
-        overridden: vec![],
+        // Only ever non-empty when a stored value was invalid and silently
+        // ignored (`APOLLO_TELEMETRY_URL`/`APOLLO_TELEMETRY_DISABLED`), which
+        // is exactly when a user needs to see what's stored.
+        overridden: stored_layers(rover, houston_config, name)?,
     })
 }
 
@@ -1120,7 +1099,8 @@ mod tests {
         let (_tree, dirs) = project(
             "settings:\n  APOLLO_CHECKS_TIMEOUT_SECONDS: 900\n  \
             apollo_rover_download_host: https://mirror.example.com\n  \
-            APOLLO_REGISTRY_URL: https://repo.example.com\n",
+            APOLLO_REGISTRY_URL: https://repo.example.com\n  \
+            APOLLO_TELEMETRY_URL: https://telemetry.repo.example.com\n",
         );
         let env = [
             ("APOLLO_REGISTRY_URL", None),
@@ -1192,6 +1172,49 @@ mod tests {
             "value": "https://staging.example.com",
             "source": "explicit_profile",
             "overridden": [{ "source": "project_file", "value": "registry.example.com" }],
+        }));
+    }
+
+    /// An invalid stored `APOLLO_TELEMETRY_URL` is ignored, as it is
+    /// everywhere else - telemetry falls back to the built-in default, not to
+    /// the next tier - but the report still lists every value stored for it,
+    /// so the user can see why theirs isn't taking effect.
+    #[test]
+    fn an_ignored_invalid_telemetry_url_still_reports_what_is_stored() {
+        let home = config_home(&[(
+            "default",
+            "APOLLO_TELEMETRY_URL",
+            "https://telemetry.default.example.com",
+        )]);
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let (_tree, dirs) = project("settings:\n  APOLLO_TELEMETRY_URL: not-a-url\n");
+        let mut rover = parse_with_env_locked(
+            NO_REGISTRY_OR_TELEMETRY_ENV,
+            &[
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "config",
+                "show",
+            ],
+        );
+        rover.set_manifest_dirs(dirs);
+
+        let output = Show {}.run(&rover, &rover.get_profile_opt()).unwrap();
+        let telemetry_url = output
+            .settings
+            .iter()
+            .find(|setting| setting.name == "APOLLO_TELEMETRY_URL")
+            .unwrap();
+
+        assert_that!(serde_json::to_value(telemetry_url).unwrap()).is_equal_to(serde_json::json!({
+            "name": "APOLLO_TELEMETRY_URL",
+            "value": "https://rover.apollo.dev/telemetry",
+            "source": "builtin",
+            "overridden": [
+                { "source": "project_file", "value": "not-a-url" },
+                { "source": "default_profile", "value": "https://telemetry.default.example.com" },
+            ],
         }));
     }
 

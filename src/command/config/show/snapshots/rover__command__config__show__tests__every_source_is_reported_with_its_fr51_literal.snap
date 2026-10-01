@@ -19,7 +19,12 @@ expression: "serde_json::json!({\n    \"explicit_profile\": explicit, \"default_
       "name": "APOLLO_TELEMETRY_URL",
       "value": "https://env.example.com",
       "source": "environment",
-      "overridden": []
+      "overridden": [
+        {
+          "source": "project_file",
+          "value": "https://telemetry.repo.example.com"
+        }
+      ]
     },
     {
       "name": "APOLLO_TELEMETRY_DISABLED",
@@ -74,7 +79,12 @@ expression: "serde_json::json!({\n    \"explicit_profile\": explicit, \"default_
       "name": "APOLLO_TELEMETRY_URL",
       "value": "https://env.example.com",
       "source": "environment",
-      "overridden": []
+      "overridden": [
+        {
+          "source": "project_file",
+          "value": "https://telemetry.repo.example.com"
+        }
+      ]
     },
     {
       "name": "APOLLO_TELEMETRY_DISABLED",
