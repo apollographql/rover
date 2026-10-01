@@ -1790,10 +1790,10 @@ mod tests {
         assert_that!(error.to_string()).is_equal_to(
             "error[E054]: `APOLLO_GRAPH_REF` in profile `staging` is set to `not a graph ref!`, \
             which isn't a valid graph ref. Graph refs must be in the format `<NAME>` or \
-            `<NAME>@<VARIANT>`, where `<NAME>` can only contain letters, numbers, or the \
-            characters `-` or `_`, and must be 64 characters or less; `<VARIANT>` must be 64 \
-            characters or less. Run `rover config set APOLLO_GRAPH_REF <value> --profile \
-            staging` to correct it.\n"
+            `<NAME>@<VARIANT>`, where `<NAME>` must start with a letter and can otherwise \
+            only contain letters, numbers, or the characters `-` or `_`, and must be 64 \
+            characters or less; `<VARIANT>` must be 63 characters or less. Run `rover config \
+            set APOLLO_GRAPH_REF <value> --profile staging` to correct it.\n"
                 .to_string(),
         );
         assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
