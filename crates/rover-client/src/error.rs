@@ -13,7 +13,10 @@ use rover_studio::{
 };
 use thiserror::Error;
 
-use crate::shared::{CheckTaskStatus, CheckWorkflowResponse, LintResponse};
+use crate::{
+    operations::api_key::list::ApiKey,
+    shared::{CheckTaskStatus, CheckWorkflowResponse, LintResponse},
+};
 
 /// RoverClientError represents all possible failures that can occur during a client request.
 #[derive(Error, Debug)]
@@ -75,9 +78,12 @@ pub enum RoverClientError {
     /// [`crate::blocking::StudioClient::studio_graphql_service_with_timeout`], the only
     /// constructor `PermissionDeniedLayer` is wired into) for lack of permission, or because the
     /// organization isn't enrolled in client-credential support (spec FR73,
-    /// `specs/rover-431-identity-grant-management`). `list` needs the same classification for
-    /// its own FR16 branch but reads through the retrying `studio_graphql_service` instead, so
-    /// its own consumer PR has to decide how it gets there. Distinct from
+    /// `specs/rover-431-identity-grant-management`). `list`'s own FR16 branch does *not* use
+    /// this: checking the Platform API's actual implementation showed its pairs-listing field
+    /// returns the same empty, successful result for "no permission," "not enrolled," and
+    /// "genuinely no pairs" alike (spec.md §6 has the full account) - there's nothing to
+    /// classify there, so `list` only ever sees this kind of error from its own genuine-failure
+    /// path ([`RoverClientError::PairListFailure`]). Distinct from
     /// [`RoverClientError::InvalidKey`] (an authentication failure) and from the generic
     /// [`RoverClientError::PermissionError`] (a different, graph-scoped permission story) -
     /// this one names the organization and points at the specific requirement.
@@ -270,6 +276,24 @@ pub enum RoverClientError {
         publish_response: serde_json::Value,
     },
 
+    /// `rover api-key list`'s client-credential pairs query genuinely failed (a timeout, a 5xx,
+    /// any real error - an empty, successful pairs result is not this error; see spec FR16,
+    /// `specs/rover-431-identity-grant-management`). `keys` is the best-effort API-key list
+    /// already fetched, carried so the command still reports it despite the overall failure -
+    /// mirrors [`RoverClientError::PublishLaunchFailure`]/
+    /// [`RoverClientError::CheckWorkflowFailure`]'s existing pattern of a variant carrying
+    /// already-fetched structured data for the binary crate's `RoverError::print()`/
+    /// `get_internal_data_json()` to render at print time. `keys` is `None` when API keys were
+    /// never in scope either (spec FR17: `--type` named `client-credentials` alone) - there is
+    /// nothing left to show best-effort, so the command fails outright with no output.
+    #[error("{}", pair_list_failure_message(organization_id, &**source, keys))]
+    PairListFailure {
+        organization_id: String,
+        keys: Option<Vec<ApiKey>>,
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
     /// While linting the proposed schema, some rule violations were found
     #[error("While linting the proposed schema, some rule violations were found")]
     LintFailures { lint_response: LintResponse },
@@ -406,6 +430,34 @@ impl RoverClientError {
             RoverClientError::SendRequest { .. } | RoverClientError::RateLimitExceeded
         )
     }
+}
+
+/// The trailing sentence on [`RoverClientError::PairListFailure`]'s message - present only when
+/// `keys` actually has something to point at (spec FR16); a pairs-only failure (FR17, `keys:
+/// None`) reports no keys at all, so claiming keys are shown would be false.
+const fn pair_list_failure_suffix(keys: &Option<Vec<ApiKey>>) -> &'static str {
+    if keys.is_some() {
+        " API keys are shown above."
+    } else {
+        ""
+    }
+}
+
+/// [`RoverClientError::PairListFailure`]'s full message. `source`'s own rendered message is the
+/// Platform API's, verbatim and out of Rover's control - it may or may not already end in a
+/// period, so trim one off before appending Rover's own sentence(s) rather than risk a doubled
+/// `"..timed out.. API keys are shown above."`.
+fn pair_list_failure_message(
+    organization_id: &str,
+    source: &(dyn std::error::Error + Send + Sync),
+    keys: &Option<Vec<ApiKey>>,
+) -> String {
+    let source_message = source.to_string();
+    let source_message = source_message.trim_end_matches('.');
+    format!(
+        "Rover couldn't list client-credential pairs in organization `{organization_id}`: {source_message}.{}",
+        pair_list_failure_suffix(keys)
+    )
 }
 
 fn contract_publish_errors_msg(msgs: &[String], no_launch: &bool) -> String {
@@ -701,5 +753,66 @@ mod tests {
         )));
 
         assert!(matches!(err, RoverClientError::ClientError { .. }));
+    }
+
+    mod pair_list_failure_message {
+        use super::*;
+
+        /// A bare error whose `Display` is exactly its message - unlike
+        /// `RoverClientError::ClientError`, which decorates `msg` with its own extra text, this
+        /// lets these tests assert on the composed message's exact literal wording.
+        #[derive(Debug)]
+        struct BareError(&'static str);
+
+        impl std::fmt::Display for BareError {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "{}", self.0)
+            }
+        }
+
+        impl std::error::Error for BareError {}
+
+        fn source(msg: &'static str) -> BareError {
+            BareError(msg)
+        }
+
+        // A source message that doesn't already end in a period gets exactly one.
+        #[test]
+        fn appends_a_single_period_when_the_source_has_none() {
+            let message =
+                pair_list_failure_message("acme", &source("timed out"), &Some(Vec::new()));
+
+            assert_that!(message).is_equal_to(
+                "Rover couldn't list client-credential pairs in organization `acme`: timed out. \
+                 API keys are shown above."
+                    .to_string(),
+            );
+        }
+
+        // A source message that already ends in a period doesn't get a second one - the
+        // Platform API's own message text is out of Rover's control.
+        #[test]
+        fn does_not_double_a_period_the_source_already_has() {
+            let message =
+                pair_list_failure_message("acme", &source("timed out."), &Some(Vec::new()));
+
+            assert_that!(message).is_equal_to(
+                "Rover couldn't list client-credential pairs in organization `acme`: timed out. \
+                 API keys are shown above."
+                    .to_string(),
+            );
+        }
+
+        // FR17: no keys in scope - the trailing "API keys are shown above" sentence is dropped
+        // entirely rather than claim something false.
+        #[test]
+        fn drops_the_keys_sentence_when_keys_is_none() {
+            let message = pair_list_failure_message("acme", &source("timed out"), &None);
+
+            assert_that!(message).is_equal_to(
+                "Rover couldn't list client-credential pairs in organization `acme`: timed out."
+                    .to_string(),
+            );
+        }
     }
 }

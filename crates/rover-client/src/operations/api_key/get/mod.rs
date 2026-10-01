@@ -74,6 +74,9 @@ impl TryFrom<GetKeyQueryOrganizationApiKey> for ApiKey {
             expires_at,
             id: value.id.clone(),
             name: value.key_name.clone(),
+            // This operation's own query doesn't select `keyType` (it has no consumer today -
+            // no command in this crate calls `get::run`).
+            key_type: None,
         })
     }
 }

@@ -363,6 +363,10 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 RoverClientError::PairPermissionDenied { .. } => {
                     (None, Some(RoverErrorCode::E053))
                 }
+                // The message already names the organization; `data.keys` (rendered by
+                // `RoverError::print()`/`get_internal_data_json()`, not this metadata) carries
+                // the best-effort recovery.
+                RoverClientError::PairListFailure { .. } => (None, Some(RoverErrorCode::E056)),
                 RoverClientError::ServiceReady(_) => (None, None),
                 RoverClientError::Service { .. } => (None, None),
                 RoverClientError::InvalidTimestamp(_) => (None, None),

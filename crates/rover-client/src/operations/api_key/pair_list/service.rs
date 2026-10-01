@@ -1,4 +1,4 @@
-use std::{future::Future, pin::Pin};
+use std::{future::Future, pin::Pin, time::Duration};
 
 use rover_graphql::{GraphQLRequest, GraphQLServiceError};
 use rover_tower::service::replace_ready_service;
@@ -16,6 +16,14 @@ use crate::{
 /// page with `hasNextPage: true`, repeatedly). A well-behaved Platform API should never trip
 /// this; it exists so a misbehaving or malicious one can't hang this call indefinitely.
 const MAX_PAGES_WITHOUT_PROGRESS: usize = 20;
+
+/// Bounds a single HTTP attempt underneath this operation's retry budget (built via
+/// [`StudioClient::studio_graphql_service_with_attempt_timeout`](
+/// crate::blocking::StudioClient::studio_graphql_service_with_attempt_timeout)) - mirrors
+/// `pair_create`/`pair_rotate`/`pair_delete`'s own `*_ATTEMPT_TIMEOUT` constants. No latency data
+/// specific to this query has been observed yet, so this is the same conservative ~10s default
+/// those use rather than a value tuned from this operation's own traffic.
+pub const LIST_PAIRS_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// A failure listing an organization's client-credential pairs. This operation does not
 /// classify *why* the underlying query failed — a caller that needs to distinguish "no

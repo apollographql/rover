@@ -1,0 +1,40 @@
+---
+source: src/command/api_key/list/output.rs
+expression: "JsonOutput::from(&output)"
+---
+{
+  "json_version": "1",
+  "data": {
+    "keys": [
+      {
+        "created_at": "2026-01-04T12:00:00Z",
+        "expires_at": null,
+        "id": "key-123",
+        "name": "router-prod",
+        "key_type": "Operator"
+      }
+    ],
+    "client_credentials": [
+      {
+        "key_type": "ClientCredentials",
+        "id": "c_8f2a",
+        "client_id": "c_8f2a",
+        "name": "ci-deploy",
+        "graphs": [
+          "inventory"
+        ],
+        "scopes": [
+          "rover:cli"
+        ],
+        "created_at": "2026-09-25T16:00:00Z",
+        "created_by": {
+          "id": "user-123",
+          "type": "user"
+        }
+      }
+    ],
+    "client_credentials_next_after": null,
+    "success": true
+  },
+  "error": null
+}

@@ -11,7 +11,6 @@ use pluralizer::pluralize;
 use rover_client::{
     RoverClientError,
     operations::{
-        api_key::list::ApiKey,
         contract::{describe::ContractDescribeResponse, publish::ContractPublishResponse},
         graph::publish::GraphPublishResponse,
         graph_artifact::{
@@ -188,9 +187,6 @@ pub enum RoverOutput {
     },
     DeleteKeyResponse {
         id: String,
-    },
-    ListKeysResponse {
-        keys: Vec<ApiKey>,
     },
     RenameKeyResponse {
         id: String,
@@ -615,22 +611,6 @@ impl RoverOutput {
                 stderrln!("Deleted API Key {id}")?;
                 None
             }
-            RoverOutput::ListKeysResponse { keys } => {
-                let mut table = table::get_table();
-
-                table.set_header(vec!["ID", "Name", "Created At", "Expires At"]);
-                for key in keys {
-                    table.add_row(vec![
-                        key.id.clone(),
-                        key.name.clone().unwrap_or(String::new()),
-                        key.created_at.to_string(),
-                        key.expires_at
-                            .map(|timestamp| timestamp.to_string())
-                            .unwrap_or_else(|| "Never".to_string()),
-                    ]);
-                }
-                Some(format!("{table}"))
-            }
             RoverOutput::RenameKeyResponse {
                 id,
                 old_name,
@@ -841,9 +821,6 @@ impl RoverOutput {
             }
             RoverOutput::DeleteKeyResponse { id } => {
                 json!({ "id": id })
-            }
-            RoverOutput::ListKeysResponse { keys } => {
-                json!({ "keys": keys })
             }
             RoverOutput::RenameKeyResponse {
                 id,

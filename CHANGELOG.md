@@ -36,6 +36,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
+- **`rover api-key list` reports client-credential pairs alongside API keys - @dotdat**
+
+  `rover api-key list <ORGANIZATION_ID>` now also lists the organization's client-credential pairs, in a `Client-credential pairs` table after the existing API key table. `--format json` adds a `client_credentials` array (`key_type: "ClientCredentials"`, `client_id`, `name`, `graphs`, `scopes`, `created_at`, `created_by`) and a `key_type` field on every existing `keys` entry. A new `--type <operator|subgraph|client-credentials>` flag (repeatable) narrows which types are reported; a type excluded entirely is omitted from the JSON payload rather than reported as `[]`. Existing `keys`-only output is unchanged when an organization has no pairs, or when `--type` excludes them.
+
+  Pairs are paged and capped independently of API keys: by default, up to 100 are collected before returning, and a new `--limit <N>` flag overrides that cap. When more pairs exist beyond the cap, the command still succeeds, printing a resume note (and a JSON `client_credentials_next_after` cursor) that a new `--after <CURSOR>` flag accepts to continue from.
+
 - **`rover api-key create` supports `client-credentials`, a new API key type for CI setup - @dotdat**
 
   `rover api-key create <ORGANIZATION_ID> client-credentials <NAME> --graph-id <GRAPH_ID>... [--secret-lifetime-days <DAYS>]` registers an OAuth 2.0 client-credentials pair scoped to the named graphs, requesting exactly the `rover:cli` scope. On success it prints the client ID and secret to stdout (so CI setup can capture them) and a one-time reminder to stderr that the secret can't be shown again; `--format json` reports `client_id`, `client_secret`, `secret_expires_at`, `name`, `graphs`, and `scopes` under `key_type: "ClientCredentials"`. The pair is usable immediately by setting `APOLLO_CLIENT_ID`/`APOLLO_CLIENT_SECRET` to the reported values. Existing `operator`/`subgraph` behavior is unchanged.
