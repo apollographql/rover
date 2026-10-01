@@ -77,6 +77,7 @@ pub struct LspOpts {
 impl Lsp {
     pub async fn run(
         &self,
+        override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
         profile: &ProfileOpt,
     ) -> RoverResult<RoverOutput> {
@@ -85,12 +86,19 @@ impl Lsp {
             .elv2_license_accepter
             .require_elv2_license(&client_config)?;
 
-        run_lsp(client_config, self.opts.clone(), profile.clone()).await?;
+        run_lsp(
+            override_install_path,
+            client_config,
+            self.opts.clone(),
+            profile.clone(),
+        )
+        .await?;
         Ok(RoverOutput::EmptySuccess)
     }
 }
 
 async fn run_lsp(
+    override_install_path: Option<Utf8PathBuf>,
     client_config: StudioClientConfig,
     lsp_opts: LspOpts,
     profile: ProfileOpt,
@@ -137,11 +145,13 @@ async fn run_lsp(
             let lookup_supergraph_yaml_path = supergraph_yaml_path.clone();
             let lookup_plugin_opts = lsp_opts.plugin_opts.clone();
             let lookup_profile = profile.clone();
+            let lookup_install_path = override_install_path.clone();
             tokio::spawn(async move {
                 let mut plugin_provenance = PluginProvenanceTracker::new();
                 while let Some((path, response)) = spec_lookup_receiver.next().await {
                     let spec = load_spec_for_path(
                         path,
+                        lookup_install_path.clone(),
                         lookup_client_config.clone(),
                         lookup_supergraph_yaml_path.clone(),
                         lookup_profile.clone(),
@@ -154,9 +164,14 @@ async fn run_lsp(
             });
             // Create a composition runner first, so that we can use that to drive the initial
             // set of subgraphs that get reported to the LSP
-            let composition_runner =
-                create_composition_runner(supergraph_yaml_path, client_config, lsp_opts, profile)
-                    .await?;
+            let composition_runner = create_composition_runner(
+                supergraph_yaml_path,
+                override_install_path,
+                client_config,
+                lsp_opts,
+                profile,
+            )
+            .await?;
             let initial_subgraphs = composition_runner
                 .state
                 .initial_supergraph_config
@@ -203,6 +218,7 @@ async fn run_lsp(
 
 async fn load_spec_for_path(
     path: PathBuf,
+    override_install_path: Option<Utf8PathBuf>,
     client_config: StudioClientConfig,
     supergraph_yaml_path: Utf8PathBuf,
     profile: ProfileOpt,
@@ -212,7 +228,7 @@ async fn load_spec_for_path(
     let supergraph_binary = get_supergraph_binary(
         None,
         client_config,
-        None,
+        override_install_path,
         profile,
         plugin_opts,
         Some(FileDescriptorType::File(supergraph_yaml_path)),
@@ -408,6 +424,7 @@ fn create_subgraph_resolution_error(name: &str, error: ResolveSubgraphError) -> 
 
 async fn create_composition_runner(
     supergraph_config_path: Utf8PathBuf,
+    override_install_path: Option<Utf8PathBuf>,
     client_config: StudioClientConfig,
     lsp_opts: LspOpts,
     profile: ProfileOpt,
@@ -443,7 +460,7 @@ async fn create_composition_runner(
         .await?
         .install_supergraph_binary(
             client_config.clone(),
-            None,
+            override_install_path,
             lsp_opts.plugin_opts.elv2_license_accepter,
             lsp_opts.plugin_opts.skip_update,
         )
