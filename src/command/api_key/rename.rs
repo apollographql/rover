@@ -43,7 +43,7 @@ impl Rename {
             &self.id_opt.id,
         )
         .await?;
-        refuse_pairs(target)?;
+        target.refuse_pairs()?;
 
         let old_key_resp = run_get(
             GetKeyInput {
@@ -71,14 +71,16 @@ impl Rename {
     }
 }
 
-/// FR31: fails, without making any change, when the ID turned out to be a pair. Kept separate
-/// from the request so both branches are directly unit-testable.
-fn refuse_pairs(target: PairTarget) -> Result<(), RoverClientError> {
-    match target {
-        PairTarget::Pair(OAuthClientPair { client_id, .. }) => {
-            Err(RoverClientError::PairCannotBeRenamed { client_id })
+impl PairTarget {
+    /// FR31: fails, without making any change, when the ID turned out to be a pair. Kept
+    /// separate from the request so both branches are directly unit-testable.
+    fn refuse_pairs(self) -> Result<(), RoverClientError> {
+        match self {
+            PairTarget::Pair(OAuthClientPair { client_id, .. }) => {
+                Err(RoverClientError::PairCannotBeRenamed { client_id })
+            }
+            PairTarget::Key => Ok(()),
         }
-        PairTarget::Key => Ok(()),
     }
 }
 
@@ -94,7 +96,9 @@ mod tests {
 
     fn refused() -> RoverError {
         RoverError::new(
-            refuse_pairs(PairTarget::Pair(test_pair())).expect_err("expected a pair to be refused"),
+            PairTarget::Pair(test_pair())
+                .refuse_pairs()
+                .expect_err("expected a pair to be refused"),
         )
     }
 
@@ -120,7 +124,7 @@ mod tests {
     // FR19/FR20/FR83: not a pair, or can't tell - rename it as an API key, as before.
     #[test]
     fn a_key_is_renamed_as_before() {
-        assert_that!(refuse_pairs(PairTarget::Key))
+        assert_that!(PairTarget::Key.refuse_pairs())
             .is_ok()
             .is_equal_to(());
     }
