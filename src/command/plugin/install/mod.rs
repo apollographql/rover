@@ -61,7 +61,7 @@ impl PluginInstall {
         let installed = PluginInstaller::new(client_config, rover_installer, self.force)
             .requested_by(Some(RequestOrigin::PluginArgument))
             .without_downloads(self.download_control())
-            .install(&self.plugin, false)
+            .install(&self.plugin)
             .await?;
 
         // With downloads disabled, a floating request was resolved against

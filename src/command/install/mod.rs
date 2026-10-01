@@ -9,7 +9,7 @@ use rover_std::Style;
 use serde::Serialize;
 
 #[cfg(feature = "composition-js")]
-use crate::plugin::error::RequestOrigin;
+use crate::plugin::error::{DownloadControl, RequestOrigin};
 use crate::{
     PKG_NAME, RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
     command::{docs::shortlinks, plugin::PluginInstall},
@@ -130,17 +130,19 @@ impl Install {
         skip_update: bool,
         origin: Option<RequestOrigin>,
     ) -> RoverResult<PluginProvenance> {
-        // `APOLLO_ROVER_SKIP_UPDATE` opts out of all auto-updating; honor it here so
-        // every command that resolves a plugin on the fly (compose, dev, lsp) uses
-        // an already-installed plugin instead of reaching for the registry. The
-        // explicit `rover install` path doesn't go through here, so it still
-        // installs as asked. See #1892.
-        let skip_update = skip_update || crate::utils::skip_all_updates();
+        // `--skip-update`, or `APOLLO_ROVER_SKIP_UPDATE`, means every command that
+        // installs a plugin on the fly (compose, dev, lsp) uses an installed
+        // plugin and never reaches for the registry, failing by name when none
+        // is installed. The explicit `rover plugin install` doesn't go through
+        // here, so neither stops it downloading. See #1892.
+        let downloads_disabled_by = skip_update_control(skip_update);
         let rover_installer = installer(PKG_NAME, self.force, override_install_path)?;
         if let Some(plugin) = &self.plugin {
-            let plugin_installer = PluginInstaller::new(client_config, rover_installer, self.force)
-                .requested_by(origin);
-            plugin_installer.install(plugin, skip_update).await
+            PluginInstaller::new(client_config, rover_installer, self.force)
+                .requested_by(origin)
+                .without_downloads(downloads_disabled_by)
+                .install(plugin)
+                .await
         } else {
             let mut err =
                 RoverError::new(anyhow!("Could not find a plugin to get a version from."));
@@ -163,6 +165,19 @@ impl fmt::Display for DeprecatedAlias<'_> {
             self.0.name(),
             self.0.request()
         )
+    }
+}
+
+/// What `--skip-update` disables downloads as, if anything: the flag when it
+/// was passed, or failing that, `APOLLO_ROVER_SKIP_UPDATE`.
+#[cfg(feature = "composition-js")]
+fn skip_update_control(flag: bool) -> Option<DownloadControl> {
+    if flag {
+        Some(DownloadControl::SkipUpdateFlag)
+    } else if crate::utils::skip_all_updates() {
+        Some(DownloadControl::SkipUpdateEnvVar)
+    } else {
+        None
     }
 }
 
@@ -192,7 +207,34 @@ mod tests {
     use speculoos::prelude::*;
 
     use super::{DeprecatedAlias, Install};
+    #[cfg(feature = "composition-js")]
+    use super::{DownloadControl, skip_update_control};
     use crate::command::Plugins;
+
+    #[cfg(feature = "composition-js")]
+    #[rstest]
+    #[case::neither(false, None, None)]
+    #[case::the_variable(false, Some("true"), Some(DownloadControl::SkipUpdateEnvVar))]
+    #[case::the_flag(true, None, Some(DownloadControl::SkipUpdateFlag))]
+    #[case::the_flag_over_the_variable(true, Some("1"), Some(DownloadControl::SkipUpdateFlag))]
+    #[case::a_variable_that_is_off(false, Some("false"), None)]
+    // `APOLLO_ROVER_NO_DOWNLOAD` is set throughout: it guards only an explicit
+    // install, and must not reach the on-the-fly commands.
+    fn skip_update_names_the_control_the_user_spelled(
+        #[case] flag: bool,
+        #[case] variable: Option<&str>,
+        #[case] expected: Option<DownloadControl>,
+    ) {
+        temp_env::with_vars(
+            [
+                (crate::utils::SKIP_UPDATE_ENV, variable),
+                (crate::utils::NO_DOWNLOAD_ENV, Some("true")),
+            ],
+            || {
+                assert_that!(skip_update_control(flag)).is_equal_to(expected);
+            },
+        );
+    }
 
     #[rstest]
     #[case::plain(&["supergraph@=2.9.3"])]
