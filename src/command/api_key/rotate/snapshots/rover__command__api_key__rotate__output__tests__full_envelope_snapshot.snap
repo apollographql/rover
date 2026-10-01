@@ -1,0 +1,18 @@
+---
+source: src/command/api_key/rotate/output.rs
+expression: envelope
+---
+{
+  "json_version": "1",
+  "data": {
+    "key_type": "ClientCredentials",
+    "id": "c_8f2a",
+    "client_id": "c_8f2a",
+    "client_secret": "s_new-secret",
+    "secret_expires_at": "2028-09-25T16:00:00Z",
+    "grace_period_days": 1,
+    "previous_secrets_expire_at": "2026-09-25T16:00:00Z",
+    "success": true
+  },
+  "error": null
+}

@@ -367,6 +367,9 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 // `RoverError::print()`/`get_internal_data_json()`, not this metadata) carries
                 // the best-effort recovery.
                 RoverClientError::PairListFailure { .. } => (None, Some(RoverErrorCode::E056)),
+                // The message already names the ID and organization, and that it's rotate-only -
+                // no generic suggestion adds anything here either.
+                RoverClientError::PairNotFound { .. } => (None, Some(RoverErrorCode::E057)),
                 RoverClientError::ServiceReady(_) => (None, None),
                 RoverClientError::Service { .. } => (None, None),
                 RoverClientError::InvalidTimestamp(_) => (None, None),
