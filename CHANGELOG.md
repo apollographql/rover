@@ -90,6 +90,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   `--manifest-path <FILE>` (or `-m`) installs into the project whose manifest `<FILE>` is, rather than the one found by searching up from the working directory: the plugin goes in a `bin/` directory beside the manifest, and the install is recorded in the `plugin-versions.lock` there. It can't be combined with `--global`, and is refused before anything is installed when `APOLLO_ROVER_GLOBAL` is set.
 
+- **`rover plugin install --manifest-path` creates the project it names - @SharkBaitDLS**
+
+  When the manifest `--manifest-path` names doesn't exist yet, a successful install creates it, along with any missing parent directories, the `bin/` the plugin goes in, the lockfile, and a `.gitignore` ignoring `bin/` so the binaries aren't committed while `rover.yaml` and `plugin-versions.lock` are. An existing `.gitignore` is left as it is. If the install fails, the directories it was creating are removed again. This is the only way Rover ever creates a project: no other command does.
+
 - **`rover dev` gains `--router-version`/`--composition-version`; `rover template` gains `--templates-api` - @dotdat**
 
   `--router-version`/`APOLLO_ROVER_DEV_ROUTER_VERSION` and `--composition-version`/`APOLLO_ROVER_DEV_COMPOSITION_VERSION` are scoped to `rover dev`, matching the existing `--mcp-version` pairing; `--federation-version` still takes precedence over `--composition-version`, as it did over the env var before. `--templates-api`/`APOLLO_TEMPLATES_API` is scoped to `rover template` (`rover init` doesn't use the templates API - it fetches templates from GitHub - so it doesn't get this flag). All three were previously env-var-only.
