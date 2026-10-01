@@ -948,31 +948,25 @@ impl Rover {
     }
 
     /// Both manifest levels for this invocation: the project found from the
-    /// working directory, and the user level under `--rover-home`
-    /// (`APOLLO_HOME`) or the home directory, as plugins use.
+    /// process's working directory, and the user level under `--rover-home`
+    /// (`APOLLO_HOME`) or the home directory, as plugins use. See
+    /// [`manifest_dirs_for`] for the rule itself.
     #[cfg(not(test))]
     fn manifest_dirs(&self) -> crate::plugin::discovery::ManifestDirs {
-        use crate::plugin::discovery::ManifestDirs;
-
         let home = directories_next::BaseDirs::new()
             .and_then(|dirs| Utf8PathBuf::from_path_buf(dirs.home_dir().to_path_buf()).ok());
-        match std::env::current_dir()
+        let cwd = std::env::current_dir()
             .ok()
-            .and_then(|cwd| Utf8PathBuf::from_path_buf(cwd).ok())
-        {
-            Some(cwd) => ManifestDirs::discover(&cwd, self.rover_home.as_deref(), home.as_deref()),
-            // A working directory that's gone or isn't UTF-8 can't be inside
-            // a project Rover can name.
-            None => ManifestDirs {
-                global: crate::plugin::discovery::global_dir(
-                    self.rover_home.as_deref(),
-                    home.as_deref(),
-                ),
-                project: None,
-            },
-        }
+            .and_then(|cwd| Utf8PathBuf::from_path_buf(cwd).ok());
+        manifest_dirs_for(cwd.as_deref(), self.rover_home.as_deref(), home.as_deref())
     }
 
+    /// Unit tests never discover from the process's working directory: it's
+    /// shared by every test running in parallel, and on a developer's machine
+    /// it could sit under a real `.rover/rover.yaml` whose settings (or
+    /// credential) would leak into every test. A test that wants a project
+    /// points at a temp tree with `set_manifest_dirs`, usually through
+    /// [`manifest_dirs_for`], so the real rule is still what runs.
     #[cfg(test)]
     fn manifest_dirs(&self) -> crate::plugin::discovery::ManifestDirs {
         self.test_manifest_dirs
@@ -1605,6 +1599,27 @@ const fn value_placeholder(error: &SettingValueError) -> &'static str {
         | SettingValueError::UnsupportedUrlScheme { .. }
         | SettingValueError::InvalidBool { .. }
         | SettingValueError::InvalidGraphRef { .. } => "<value>",
+    }
+}
+
+/// Both manifest levels for a command run from `cwd`: the plugin system's
+/// one discovery rule (FR78), with `rover_home` (`--rover-home`/`APOLLO_HOME`)
+/// and `home` placing the user level. A working directory that's gone or
+/// isn't UTF-8 (`None`) can't be inside a project Rover can name, so only the
+/// user level is found.
+fn manifest_dirs_for(
+    cwd: Option<&camino::Utf8Path>,
+    rover_home: Option<&camino::Utf8Path>,
+    home: Option<&camino::Utf8Path>,
+) -> crate::plugin::discovery::ManifestDirs {
+    use crate::plugin::discovery::{ManifestDirs, global_dir};
+
+    match cwd {
+        Some(cwd) => ManifestDirs::discover(cwd, rover_home, home),
+        None => ManifestDirs {
+            global: global_dir(rover_home, home),
+            project: None,
+        },
     }
 }
 
@@ -3903,41 +3918,80 @@ mod tests {
             .is_equal_to(RoverErrorCode::E059);
     }
 
-    #[tokio::test]
-    async fn a_project_manifest_that_isnt_yaml_fails_the_command() {
-        let (_home, _tree, rover) = rover_in_project("settings: \"unterminated\n", None);
-
-        let error = rover.execute_command().await.unwrap_err();
-
-        assert_that!(error.code())
-            .is_some()
-            .is_equal_to(RoverErrorCode::E052);
-    }
-
-    /// FR89 and AC L394/L427: keys Rover doesn't apply only warn.
+    /// FR89 and AC L394/L427: keys Rover doesn't apply, and a project file
+    /// it can't read at all, only warn - and the command still succeeds.
     #[rstest::rstest]
-    #[case::unrecognized_key("settings:\n  APOLLO_FUTURE_SETTING: x\n", None)]
+    #[case::unrecognized_key(
+        "settings:\n  APOLLO_FUTURE_SETTING: x\n",
+        None,
+        "Warning: `.rover/rover.yaml` sets `APOLLO_FUTURE_SETTING`, which this version of Rover \
+        doesn't recognize. It will be ignored."
+    )]
     #[case::user_level_settings(
         "plugins: {}\n",
-        Some("settings:\n  APOLLO_REGISTRY_URL: https://registry.example.com\n")
+        Some("settings:\n  APOLLO_REGISTRY_URL: https://registry.example.com\n"),
+        "Warning: the user-level `rover.yaml` has a `settings:` section, which Rover ignores. Use \
+        `rover config set` to store user-level settings in a profile."
+    )]
+    #[case::not_yaml(
+        "settings: \"unterminated\n",
+        None,
+        "Warning: Rover can't read `.rover/rover.yaml`, so none of its settings apply: found \
+        unexpected end of stream at line 2 column 1, while scanning a quoted scalar at line 1 \
+        column 11"
     )]
     #[tokio::test]
-    async fn keys_rover_does_not_apply_do_not_fail_the_command(
+    async fn what_rover_does_not_apply_warns_without_failing_the_command(
         #[case] project: &str,
         #[case] user_level: Option<&str>,
+        #[case] warning: &str,
     ) {
         let (_home, _tree, rover) = rover_in_project(project, user_level);
 
         assert_that!(rover.execute_command().await).is_ok();
+        assert_that!(rover.project_settings().unwrap().warnings().to_vec())
+            .is_equal_to(vec![warning.to_string()]);
     }
 
-    /// FR29: with no project at all there's nothing to read and nothing to
-    /// warn about.
+    /// FR29: with no project at all, the real discovery rule finds nothing
+    /// to read and nothing to warn about.
     #[test]
     fn no_project_file_reads_as_no_settings() {
-        let rover = Rover::parse_from([PKG_NAME, "config", "list"]);
+        let tree = tempfile::tempdir().unwrap();
+        let root = Utf8PathBuf::try_from(dunce::canonicalize(tree.path()).unwrap()).unwrap();
+        let cwd = root.join("work").join("graph");
+        fs::create_dir_all(&cwd).unwrap();
+        let mut rover = Rover::parse_from([PKG_NAME, "config", "list"]);
+        rover.set_manifest_dirs(super::manifest_dirs_for(Some(&cwd), None, Some(&root)));
 
         assert_that!(rover.project_settings().unwrap()).is_equal_to(&ProjectSettings::default());
+    }
+
+    /// Discovery from a directory nested inside a project, from one outside
+    /// any project, and from a working directory Rover can't name. `home`
+    /// is the temp root, so no walk can climb out of the tree.
+    #[rstest::rstest]
+    #[case::nested_in_a_project(Some("project/graphs/products"), Some("project/.rover"))]
+    #[case::outside_any_project(Some("elsewhere"), None)]
+    #[case::no_working_directory(None, None)]
+    fn manifest_dirs_for_finds_the_nearest_project(
+        #[case] cwd: Option<&str>,
+        #[case] project: Option<&str>,
+    ) {
+        let tree = tempfile::tempdir().unwrap();
+        let root = Utf8PathBuf::try_from(dunce::canonicalize(tree.path()).unwrap()).unwrap();
+        fs::create_dir_all(root.join("project/.rover")).unwrap();
+        fs::create_dir_all(root.join("project/graphs/products")).unwrap();
+        fs::create_dir_all(root.join("elsewhere")).unwrap();
+        let rover_home = root.join("rover-home");
+        let cwd = cwd.map(|cwd| root.join(cwd));
+
+        let dirs = super::manifest_dirs_for(cwd.as_deref(), Some(&rover_home), Some(&root));
+
+        assert_that!(dirs).is_equal_to(ManifestDirs {
+            global: Some(rover_home.join(".rover")),
+            project: project.map(|project| root.join(project)),
+        });
     }
 
     #[test]
