@@ -4,6 +4,7 @@ pub mod get;
 pub mod list;
 pub mod pair_create;
 pub mod pair_delete;
+pub mod pair_get;
 pub mod pair_list;
 pub mod pair_rotate;
 pub mod rename;

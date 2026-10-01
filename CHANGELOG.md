@@ -284,6 +284,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🛠 Maintenance
 
+- **Add a `rover-client` operation to look up one client-credential pair by its client ID - @dotdat**
+
+  `pair_get::GetOAuthClient` looks up a single pair via `Organization.oauthClient`, reporting the Platform API's deliberately uninformative `null` (no such pair, no permission, or not enrolled) as `None` - the "not a pair, or can't tell" signal `rover api-key delete`/`rename` need to fall back to treating an ID as an API key. Also fixes `pair_delete` so a permission denial from `deleteOAuthClient` is reported as `E053`, matching `pair_create`. Not yet consumed by any command - foundation for rover-431's pair-aware `delete`/`rename`.
+
 - **Add a non-retrying, timeout-bounded Studio GraphQL service constructor - @dotdat**
 
   `StudioClient` gains `studio_graphql_service_with_timeout`, a sibling to `studio_graphql_service` that swaps its ambient retry layer for a single per-attempt timeout - for a non-idempotent mutation where a retry could double the effect of a request the server already committed. Also adds `RoverClientError::PairPermissionDenied` (error code `E053`) and wires the new `PermissionDeniedLayer` into `studio_graphql_service_with_timeout` only, so a permission-denied response is classified for the operations that use it without changing behavior for `studio_graphql_service`'s existing callers. Not yet consumed by any command - foundation for rover-431's client-credential pair management.

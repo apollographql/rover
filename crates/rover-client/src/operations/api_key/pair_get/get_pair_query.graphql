@@ -1,0 +1,18 @@
+query GetPairQuery($organizationId: ID!, $clientId: ID!) {
+    organization(id: $organizationId) {
+        oauthClient(clientId: $clientId) {
+            clientId
+            clientName
+            createdAt
+            createdBy {
+                actorId
+                type
+            }
+            resources {
+                resourceId
+                resourceType
+            }
+            scopes
+        }
+    }
+}
