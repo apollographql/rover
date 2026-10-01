@@ -15,10 +15,7 @@ use tower::{Service, ServiceExt};
 
 use crate::{
     RoverOutput, RoverResult,
-    command::api_key::{
-        IdOpt, OrganizationOpt,
-        pair_lookup::{PairTarget, lookup_pair, resolve_target},
-    },
+    command::api_key::{IdOpt, OrganizationOpt, pair_lookup::PairTarget},
     options::ProfileOpt,
     utils::client::StudioClientConfig,
 };
@@ -43,7 +40,7 @@ impl Delete {
 
         // FR18-FR20: an `<ID>` may be a pair's client ID or an API key's ID - find out which
         // before deleting anything.
-        match resolve_target(lookup_pair(&client, organization_id, id).await)? {
+        match PairTarget::lookup(&client, organization_id, id).await? {
             PairTarget::Pair(pair) => self.delete_pair(&client, pair).await,
             PairTarget::Key => self.delete_api_key(&client).await,
         }

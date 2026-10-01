@@ -21,19 +21,54 @@ pub(crate) enum PairTarget {
     Key,
 }
 
-/// Looks `id` up as a pair. A read, so it's composed under the retrying, per-attempt-timeout
-/// Studio service rather than the no-retry one the pair mutations use.
-pub(crate) async fn lookup_pair(
-    client: &StudioClient,
-    organization_id: &str,
-    id: &str,
-) -> Result<Option<OAuthClientPair>, RoverClientError> {
-    let service = client.studio_graphql_service_with_attempt_timeout(GET_PAIR_ATTEMPT_TIMEOUT)?;
-    lookup_pair_with_service(GetOAuthClient::new(service), organization_id, id).await
+impl PairTarget {
+    /// Looks `id` up as a pair and decides what to act on (see [`Self::from_lookup`]). A read, so
+    /// it's composed under the retrying, per-attempt-timeout Studio service rather than the
+    /// no-retry one the pair mutations use.
+    pub(crate) async fn lookup(
+        client: &StudioClient,
+        organization_id: &str,
+        id: &str,
+    ) -> Result<Self, RoverClientError> {
+        let service =
+            client.studio_graphql_service_with_attempt_timeout(GET_PAIR_ATTEMPT_TIMEOUT)?;
+        Self::from_lookup(
+            lookup_pair_with_service(GetOAuthClient::new(service), organization_id, id).await,
+        )
+    }
+
+    /// FR19/FR20: turns the lookup's outcome into what the command should act on. Kept
+    /// synchronous and separate from the request itself so every branch is directly
+    /// unit-testable.
+    ///
+    /// - A pair → act on the pair.
+    /// - `None` → act on the ID as an API key. The Platform API reports "no such pair", "no
+    ///   permission to see pairs", and "not enrolled" identically as `null`, so this covers both
+    ///   FR19's "not a pair" and FR20's "can't tell".
+    /// - A refused lookup (an HTTP 403) → also act as an API key. The resolver itself answers "no
+    ///   permission" with `null`, but if something in front of it refuses outright, a caller who
+    ///   manages only API keys must still see no change (FR20, FR83).
+    /// - An unknown organization → also act as an API key, so the caller gets exactly the error
+    ///   the key path has always reported for that (FR83), not a new one from the lookup.
+    /// - Anything else (a timeout, a 5xx) → fail. FR20 is explicit that a transient failure of
+    ///   the lookup isn't "can't tell" and mustn't be guessed through.
+    fn from_lookup(
+        lookup: Result<Option<OAuthClientPair>, RoverClientError>,
+    ) -> Result<Self, RoverClientError> {
+        match lookup {
+            Ok(Some(pair)) => Ok(Self::Pair(pair)),
+            Ok(None)
+            | Err(
+                RoverClientError::PairPermissionDenied { .. }
+                | RoverClientError::OrganizationIDNotFound { .. },
+            ) => Ok(Self::Key),
+            Err(err) => Err(err),
+        }
+    }
 }
 
-/// The part of [`lookup_pair`] that's generic over the lookup service, so a test can inject a
-/// mock and assert on the exact request sent.
+/// The request half of [`PairTarget::lookup`], generic over the lookup service so a test can
+/// inject a mock and assert on the exact request sent.
 async fn lookup_pair_with_service<S>(
     mut service: S,
     organization_id: &str,
@@ -52,34 +87,6 @@ where
                 .build(),
         )
         .await
-}
-
-/// FR19/FR20: turns the lookup's outcome into what the command should act on. Kept synchronous
-/// and separate from the request itself so every branch is directly unit-testable.
-///
-/// - A pair → act on the pair.
-/// - `None` → act on the ID as an API key. The Platform API reports "no such pair", "no
-///   permission to see pairs", and "not enrolled" identically as `null`, so this covers both
-///   FR19's "not a pair" and FR20's "can't tell".
-/// - A refused lookup (an HTTP 403) → also act as an API key. The resolver itself answers "no
-///   permission" with `null`, but if something in front of it refuses outright, a caller who
-///   manages only API keys must still see no change (FR20, FR83).
-/// - An unknown organization → also act as an API key, so the caller gets exactly the error the
-///   key path has always reported for that (FR83), not a new one from the lookup.
-/// - Anything else (a timeout, a 5xx) → fail. FR20 is explicit that a transient failure of the
-///   lookup isn't "can't tell" and mustn't be guessed through.
-pub(crate) fn resolve_target(
-    lookup: Result<Option<OAuthClientPair>, RoverClientError>,
-) -> Result<PairTarget, RoverClientError> {
-    match lookup {
-        Ok(Some(pair)) => Ok(PairTarget::Pair(pair)),
-        Ok(None)
-        | Err(
-            RoverClientError::PairPermissionDenied { .. }
-            | RoverClientError::OrganizationIDNotFound { .. },
-        ) => Ok(PairTarget::Key),
-        Err(err) => Err(err),
-    }
 }
 
 #[cfg(test)]
@@ -117,7 +124,7 @@ pub(crate) mod tests {
 
     #[test]
     fn a_found_pair_is_acted_on_as_a_pair() {
-        assert_that!(resolve_target(Ok(Some(test_pair()))))
+        assert_that!(PairTarget::from_lookup(Ok(Some(test_pair()))))
             .is_ok()
             .is_equal_to(PairTarget::Pair(test_pair()));
     }
@@ -125,7 +132,7 @@ pub(crate) mod tests {
     // FR19/FR20: "not a pair" and "can't tell" both arrive as `None`.
     #[test]
     fn no_pair_is_acted_on_as_a_key() {
-        assert_that!(resolve_target(Ok(None)))
+        assert_that!(PairTarget::from_lookup(Ok(None)))
             .is_ok()
             .is_equal_to(PairTarget::Key);
     }
@@ -137,7 +144,7 @@ pub(crate) mod tests {
             organization_id: "acme".to_string(),
         });
 
-        assert_that!(resolve_target(lookup))
+        assert_that!(PairTarget::from_lookup(lookup))
             .is_ok()
             .is_equal_to(PairTarget::Key);
     }
@@ -149,7 +156,7 @@ pub(crate) mod tests {
             organization_id: "acme".to_string(),
         });
 
-        assert_that!(resolve_target(lookup))
+        assert_that!(PairTarget::from_lookup(lookup))
             .is_ok()
             .is_equal_to(PairTarget::Key);
     }
@@ -161,7 +168,8 @@ pub(crate) mod tests {
             msg: "timed out".to_string(),
         });
 
-        let err = resolve_target(lookup).expect_err("expected the lookup failure to propagate");
+        let err =
+            PairTarget::from_lookup(lookup).expect_err("expected the lookup failure to propagate");
         assert_that!(err).matches(
             |err| matches!(err, RoverClientError::ClientError { msg } if msg == "timed out"),
         );
