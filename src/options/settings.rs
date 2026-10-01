@@ -335,19 +335,26 @@ pub(crate) enum SettingValueError {
     /// [`SettingType::validate`], since a profile, an environment variable,
     /// and a flag can only ever hold a single value; `input` is the value
     /// rendered back to YAML.
-    #[error("`{input}` isn't a single value. Use a string, a number, or `true`/`false`.")]
+    #[error("`{input}` isn't a single value.")]
     NotAScalar { input: String },
+    /// A project-file key with nothing after it. Like `NotAScalar`, never
+    /// produced by [`SettingType::validate`].
+    #[error("no value is set.")]
+    NoValue,
 }
 
 impl SettingValueError {
-    /// The value that failed, as written.
+    /// The value that failed, as written - empty for `NoValue`.
     pub(crate) fn input(&self) -> &str {
         let (SettingValueError::InvalidUrl { input }
         | SettingValueError::UnsupportedUrlScheme { input }
         | SettingValueError::InvalidBool { input }
         | SettingValueError::InvalidWholeSeconds { input }
         | SettingValueError::InvalidGraphRef { input }
-        | SettingValueError::NotAScalar { input }) = self;
+        | SettingValueError::NotAScalar { input }) = self
+        else {
+            return "";
+        };
         input
     }
 }

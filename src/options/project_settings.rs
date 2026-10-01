@@ -74,7 +74,10 @@ pub(crate) enum ProjectSettingValue {
     /// way YAML parsed it, not necessarily the way it was written: `0x258`
     /// reads as `"600"`, `1e3` as `"1000.0"`, and `600.0` stays `"600.0"`.
     Scalar(String),
-    /// A null, sequence, mapping, or tagged value, none of which any setting
+    /// A key with nothing after it (a YAML null). Kept rather than dropped,
+    /// like `NotAScalar`, so the read-time check fails loudly (FR83).
+    Null,
+    /// A sequence, mapping, or tagged value, none of which any setting
     /// accepts. Kept rather than dropped so the read-time check fails loudly
     /// instead of silently falling through to the next tier (FR83); holds the
     /// value rendered back to YAML for that message.
@@ -255,6 +258,7 @@ impl From<&Value> for ProjectSettingValue {
             Value::String(string) => ProjectSettingValue::Scalar(string.clone()),
             Value::Number(number) => ProjectSettingValue::Scalar(number.to_string()),
             Value::Bool(boolean) => ProjectSettingValue::Scalar(boolean.to_string()),
+            Value::Null => ProjectSettingValue::Null,
             other => ProjectSettingValue::NotAScalar(render(other)),
         }
     }
@@ -471,12 +475,18 @@ mod tests {
     }
 
     #[rstest]
-    #[case::null("APOLLO_REGISTRY_URL:", "null")]
-    #[case::sequence("APOLLO_REGISTRY_URL: [a, b]", "- a - b")]
-    #[case::mapping("APOLLO_REGISTRY_URL: {url: x}", "url: x")]
+    #[case::null("APOLLO_REGISTRY_URL:", ProjectSettingValue::Null)]
+    #[case::sequence(
+        "APOLLO_REGISTRY_URL: [a, b]",
+        ProjectSettingValue::NotAScalar("- a - b".to_string())
+    )]
+    #[case::mapping(
+        "APOLLO_REGISTRY_URL: {url: x}",
+        ProjectSettingValue::NotAScalar("url: x".to_string())
+    )]
     fn a_non_scalar_value_is_kept_for_read_time_validation(
         #[case] yaml: &str,
-        #[case] rendered: &str,
+        #[case] value: ProjectSettingValue,
     ) {
         let settings = classify(yaml).unwrap();
 
@@ -484,7 +494,7 @@ mod tests {
             .is_some()
             .is_equal_to(&ProjectSetting {
                 key: "APOLLO_REGISTRY_URL".to_string(),
-                value: ProjectSettingValue::NotAScalar(rendered.to_string()),
+                value,
             });
     }
 
