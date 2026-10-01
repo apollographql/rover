@@ -3,7 +3,6 @@ use std::{io::stdin, str::FromStr};
 use anyhow::anyhow;
 use apollo_federation_types::config::{FederationVersion, RouterVersion};
 use camino::Utf8PathBuf;
-use dotenvy::dotenv;
 use futures::StreamExt;
 use rover_client::RoverClientError;
 use rover_print::{print::Print, style::StyledText};
@@ -61,8 +60,12 @@ impl Dev {
         log_level: Option<Level>,
         profile: &ProfileOpt,
         stderr: &impl Print,
+        graph_ref_setting: Option<String>,
     ) -> RoverResult<RoverOutput> {
-        dotenv().ok();
+        // `.env` is loaded by the caller (`cli.rs`'s `Command::Dev` dispatch),
+        // before `graph_ref_setting` above was resolved - not here, which
+        // would be too late for a `.env`-supplied `APOLLO_GRAPH_REF` to be
+        // seen by that resolution.
         let elv2_license_accepter = self.opts.plugin_opts.elv2_license_accepter;
         let skip_update = self.opts.plugin_opts.skip_update;
         let read_file_impl = FsReadFile::default();
@@ -192,12 +195,6 @@ impl Dev {
 
         let api_key_override = std::env::var(RoverEnvKey::Key.to_string()).ok();
         let home_override = std::env::var(RoverEnvKey::Home.to_string()).ok();
-        // Not part of Rover's own config surface (RoverEnvKey) -- Rover never reads this value
-        // itself. It's inherited by the spawned router process because child processes inherit
-        // the parent's environment by default (see router::binary's use of Command::envs, which
-        // never calls env_clear), so a graph ref can reach the router this way without
-        // `--graph-ref` ever being set.
-        let graph_ref_in_env = std::env::var("APOLLO_GRAPH_REF").is_ok();
 
         // Set up an updater config, but only if we're not overriding the version ourselves. If
         // we are then we don't need one, so it becomes None.
@@ -332,7 +329,7 @@ impl Dev {
                 log_level,
                 supergraph_output,
                 self.opts.supergraph_opts.license.clone(),
-                graph_ref_in_env,
+                graph_ref_setting,
             )
             .await?
             .watch_for_changes(write_file_impl, composition_messages)

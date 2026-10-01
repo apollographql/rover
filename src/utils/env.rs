@@ -109,6 +109,7 @@ pub enum RoverEnvKey {
     ChecksTimeoutSeconds,
     RoverDownloadHost,
     TemplatesApi,
+    GraphRef,
 }
 
 impl fmt::Display for RoverEnvKey {
@@ -143,6 +144,12 @@ mod tests {
     fn it_parses_templates_api() {
         let expected_key = "APOLLO_TEMPLATES_API";
         assert_eq!(&RoverEnvKey::TemplatesApi.to_string(), expected_key);
+    }
+
+    #[test]
+    fn it_parses_graph_ref() {
+        let expected_key = "APOLLO_GRAPH_REF";
+        assert_eq!(&RoverEnvKey::GraphRef.to_string(), expected_key);
     }
 
     #[test]

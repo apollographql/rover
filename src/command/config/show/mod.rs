@@ -66,6 +66,17 @@ impl Show {
                 rover.get_env_var(RoverEnvKey::TemplatesApi)?,
                 RoverEnvKey::TemplatesApi,
             )?,
+            // `APOLLO_GRAPH_REF` has no flag at all (FR6) - the real env
+            // var is the highest tier this setting has, so it's passed
+            // directly the same way `APOLLO_TEMPLATES_API`'s is above.
+            resolve_string_setting(
+                rover,
+                profile,
+                &houston_config,
+                SettingName::GraphRef,
+                rover.get_env_var(RoverEnvKey::GraphRef)?,
+                RoverEnvKey::GraphRef,
+            )?,
         ];
 
         Ok(ConfigShowOutput {
