@@ -1,3 +1,4 @@
+mod in_scope;
 mod output;
 mod project_root;
 
@@ -7,7 +8,11 @@ use camino::{Utf8Path, Utf8PathBuf};
 use clap::Parser;
 use serde::Serialize;
 
-use self::{output::PluginInstallOutput, project_root::NewProjectRoot};
+use self::{
+    in_scope::{InScope, nothing_to_install},
+    output::PluginInstallOutput,
+    project_root::NewProjectRoot,
+};
 use super::LockfileWrite;
 use crate::{
     PKG_NAME, RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
@@ -18,17 +23,21 @@ use crate::{
         error::{DownloadControl, RequestOrigin},
         layering::LayeredDeclarations,
         lockfile::{LOCKFILE, LockedPlugin, PluginLockfile},
-        manifest::{MANIFEST_FILE, RoverManifest},
-        precedence::{self, RequestInputs},
+        manifest::MANIFEST_FILE,
+        precedence::{self, PluginRequest, RequestInputs},
     },
     utils::{GLOBAL_ENV, client::StudioClientConfig},
 };
 
 #[derive(Debug, Serialize, Parser)]
 pub struct PluginInstall {
-    /// The plugin to install, as `<NAME>@<VERSION>`, e.g. `supergraph@=2.9.3` or `router@2`
+    /// The plugin to install, as `<NAME>@<VERSION>`, e.g. `supergraph@=2.9.3` or `router@2`.
+    /// Leave it out to install every plugin in scope
+    ///
+    /// Without it, every plugin the lockfile in scope records is installed at
+    /// exactly the version it records, without asking the plugin registry.
     #[arg(value_name = "NAME@VERSION")]
-    pub(crate) plugin: Plugin,
+    pub(crate) plugin: Option<Plugin>,
 
     /// Overwrite any existing binary without prompting for confirmation.
     #[arg(long = "force", short = 'f')]
@@ -76,15 +85,16 @@ impl PluginInstall {
         client_config: StudioClientConfig,
     ) -> RoverResult<RoverOutput> {
         let project_manifest = self.project_manifest(override_install_path.as_deref())?;
-        if self.plugin.requires_elv2_license() {
-            self.elv2_license_accepter
-                .require_elv2_license(&client_config)?;
-        }
-        let mut rover_installer = installer(PKG_NAME, self.force, override_install_path.clone())?;
-        rover_installer.install_root = project_manifest
-            .as_deref()
-            .and_then(Utf8Path::parent)
-            .map(Utf8Path::to_path_buf);
+        let make_installer = || -> RoverResult<Installer> {
+            let mut rover_installer =
+                installer(PKG_NAME, self.force, override_install_path.clone())?;
+            rover_installer.install_root = project_manifest
+                .as_deref()
+                .and_then(Utf8Path::parent)
+                .map(Utf8Path::to_path_buf);
+            Ok(rover_installer)
+        };
+        let rover_installer = make_installer()?;
         // Only a named manifest makes a project root where there was none.
         let new_root = project_manifest
             .as_deref()
@@ -94,31 +104,69 @@ impl PluginInstall {
         // Read before installing, so that a lockfile this can't update
         // stops the install rather than leaving a plugin it doesn't record,
         // and a manifest asking for a redirected install root stops it
-        // rather than see the plugin put somewhere it didn't ask for.
-        if let Some(level) = &level {
-            PluginLockfile::load(&level.join(LOCKFILE))?;
-            let manifest = project_manifest
-                .clone()
-                .unwrap_or_else(|| level.join(MANIFEST_FILE));
-            RoverManifest::load(&manifest)?;
+        // rather than see the plugin put somewhere it didn't ask for. An
+        // install into `node_modules/.bin` is no level's and records nothing,
+        // but a bare one still installs from the global level, and fails as
+        // a named install does when there is no home to find it in.
+        let read_from = match (&level, &self.plugin) {
+            (Some(level), _) => Some(level.clone()),
+            (None, None) => Some(rover_installer.get_base_dir_path()?),
+            (None, Some(_)) => None,
+        };
+        let in_scope = read_from
+            .map(|dir| InScope::load(dir, project_manifest.as_deref()))
+            .transpose()?;
+
+        // Each request, with whether to record what it installs.
+        let installs = match &self.plugin {
+            // A plugin named on the command line is the most specific source
+            // on the ladder every plugin-using command shares, so nothing
+            // below it is consulted. It is never pinned by a lockfile
+            // either: a plugin named on the command line is resolved afresh.
+            Some(named) => {
+                let request = precedence::resolve(
+                    named.name(),
+                    RequestInputs::new(named.request())
+                        .with_override(Some((named.request(), RequestOrigin::PluginArgument))),
+                    &LayeredDeclarations::default(),
+                );
+                vec![(request, true)]
+            }
+            // A locked plugin is already recorded, as it was locked.
+            None => in_scope
+                .as_ref()
+                .ok_or_else(|| nothing_to_install(None))?
+                .requests()?
+                .into_iter()
+                .map(|request| (request, false))
+                .collect(),
+        };
+        let plugins = installs
+            .iter()
+            .map(|(request, _)| Plugin::from_request(request.plugin, &request.request))
+            .collect::<Result<Vec<_>, _>>()?;
+        if plugins.iter().any(Plugin::requires_elv2_license) {
+            self.elv2_license_accepter
+                .require_elv2_license(&client_config)?;
         }
 
-        // The positional is required, so it is always the most specific
-        // source on the ladder every plugin-using command shares, and nothing
-        // below it is consulted. It is never pinned by a lockfile either: a
-        // plugin named on the command line is resolved afresh.
-        let request = precedence::resolve(
-            self.plugin.name(),
-            RequestInputs::new(self.plugin.request())
-                .with_override(Some((self.plugin.request(), RequestOrigin::PluginArgument))),
-            &LayeredDeclarations::default(),
-        );
-        let plugin = Plugin::from_request(request.plugin, &request.request)?;
-        let installed = PluginInstaller::new(client_config, rover_installer, self.force)
-            .requested_by(request.origin())
-            .without_downloads(self.download_control())
-            .install(&plugin)
-            .await;
+        let installed = async {
+            let mut installed = Vec::new();
+            for ((request, record), plugin) in installs.iter().zip(&plugins) {
+                let provenance =
+                    PluginInstaller::new(client_config.clone(), make_installer()?, self.force)
+                        .requested_by(request.origin())
+                        .without_downloads(self.download_control())
+                        .install(plugin)
+                        .await?;
+                if *record && let Some(level) = &level {
+                    self.record(level, request, &provenance)?;
+                }
+                installed.push(provenance);
+            }
+            Ok(installed)
+        }
+        .await;
         // A failed install leaves no half-made project root behind.
         let installed = match (installed, new_root) {
             (Ok(installed), Some(new_root)) => {
@@ -134,30 +182,39 @@ impl PluginInstall {
             }
         };
 
+        Ok(RoverOutput::CliOutput(Box::new(PluginInstallOutput {
+            plugins: installed,
+        })))
+    }
+
+    /// Record in `level`'s lockfile that `request` installed `installed`,
+    /// leaving every other plugin's entry as it was.
+    fn record(
+        &self,
+        level: &Utf8Path,
+        request: &PluginRequest,
+        installed: &PluginProvenance,
+    ) -> RoverResult<()> {
         // With downloads disabled, a floating request was resolved against
         // nothing: the newest release on disk is not what it resolves to, and
         // locking it would say so. An exact request needs no resolving.
-        let resolved = self.download_control().is_none() || !self.plugin.request().is_floating();
-        if let Some(level) =
-            level.filter(|level| resolved && belongs_in_lockfile(&installed, level))
-        {
-            let path = level.join(LOCKFILE);
-            // Read again rather than reuse the first read: another install
-            // may have recorded a plugin while this one downloaded.
-            PluginLockfile::load(&path)?
-                .unwrap_or_default()
-                .with(LockedPlugin {
-                    name: self.plugin.name(),
-                    requested: self.plugin.request(),
-                    resolved: installed.version.clone(),
-                    checksum: None,
-                })
-                .write(&path, &LockfileWrite(()))?;
+        let resolved = self.download_control().is_none() || !request.request.is_floating();
+        if !resolved || !belongs_in_lockfile(installed, level) {
+            return Ok(());
         }
-
-        Ok(RoverOutput::CliOutput(Box::new(PluginInstallOutput {
-            plugins: vec![installed],
-        })))
+        let path = level.join(LOCKFILE);
+        // Read again rather than reuse the first read: another install may
+        // have recorded a plugin while this one downloaded.
+        PluginLockfile::load(&path)?
+            .unwrap_or_default()
+            .with(LockedPlugin {
+                name: request.plugin,
+                requested: request.request.clone(),
+                resolved: installed.version.clone(),
+                checksum: None,
+            })
+            .write(&path, &LockfileWrite(()))?;
+        Ok(())
     }
 
     /// The manifest of the project this installs into, or `None` to install
