@@ -78,7 +78,10 @@ pub(crate) enum SettingType {
     /// an env var, FR21) - a *stored* boolean is always a real boolean
     /// (FR24).
     Bool,
-    /// An opaque string with no further syntactic constraint.
+    /// An opaque string with no further syntactic constraint. Only ever
+    /// produced for `APOLLO_OAUTH_CLIENT_ID`, so it's otherwise dead code
+    /// when the `oauth` feature isn't compiled in.
+    #[cfg_attr(not(feature = "oauth"), allow(dead_code))]
     String,
     /// A non-negative whole number of seconds.
     WholeSeconds,
