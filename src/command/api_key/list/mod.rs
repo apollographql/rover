@@ -399,9 +399,9 @@ mod tests {
     }
 
     // FR16: keys are still in scope - a pairs failure is reported best-effort alongside a loud
-    // failure that carries E054, not a bare, uncoded error (the bug this test guards against).
+    // failure that carries E056, not a bare, uncoded error (the bug this test guards against).
     #[test]
-    fn fr16_a_pairs_failure_with_keys_in_scope_keeps_the_keys_and_gets_e054() {
+    fn fr16_a_pairs_failure_with_keys_in_scope_keeps_the_keys_and_gets_e056() {
         let result = build_output(
             true,
             vec![a_key()],
@@ -412,7 +412,7 @@ mod tests {
         let error = result.expect_err("expected an Err for a pairs failure");
         assert_that!(error.code().map(|code| code.to_string()))
             .is_some()
-            .is_equal_to("E054".to_string());
+            .is_equal_to("E056".to_string());
         assert_that!(error.get_internal_data_json()).is_equal_to(serde_json::json!({
             "keys": [a_key_json()],
             "client_credentials": null,
@@ -421,9 +421,9 @@ mod tests {
     }
 
     // FR17: keys are excluded too (`--type client-credentials` only) - the same failure reports
-    // no keys at all, but still carries E054, not a bare, uncoded error.
+    // no keys at all, but still carries E056, not a bare, uncoded error.
     #[test]
-    fn fr17_a_pairs_failure_with_keys_out_of_scope_reports_nothing_but_still_gets_e054() {
+    fn fr17_a_pairs_failure_with_keys_out_of_scope_reports_nothing_but_still_gets_e056() {
         let result = build_output(
             false,
             vec![a_key()],
@@ -434,7 +434,7 @@ mod tests {
         let error = result.expect_err("expected an Err for a pairs failure");
         assert_that!(error.code().map(|code| code.to_string()))
             .is_some()
-            .is_equal_to("E054".to_string());
+            .is_equal_to("E056".to_string());
         assert_that!(error.get_internal_data_json()).is_equal_to(serde_json::json!({
             "client_credentials": null,
             "client_credentials_next_after": null,

@@ -573,7 +573,7 @@ mod tests {
 
             assert_that!(error.code().map(|code| code.to_string()))
                 .is_some()
-                .is_equal_to("E054".to_string());
+                .is_equal_to("E056".to_string());
         }
 
         // FR17: a pairs-only failure (keys never in scope) reports no keys field at all -
