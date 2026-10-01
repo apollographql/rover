@@ -394,6 +394,80 @@ fn a_standing_opt_in_never_overrides_no_download(
     )));
 }
 
+/// FR80: `rover plugin install` is the explicit install step, never an
+/// automatic one, so it downloads with nothing opted in, and even where a
+/// manifest opts out, whether it names the plugin or, bare, installs what the
+/// project's lockfile records. A gate threaded through a code path it shares
+/// with the on-the-fly commands would fail this.
+#[rstest]
+#[case::into_the_project_with_nothing_opted_in(Level::Project, false, false)]
+#[case::into_the_project_with_the_project_opted_out(Level::Project, true, false)]
+#[case::globally_with_the_global_level_opted_out(Level::Global, true, false)]
+#[case::bare_from_the_lockfile_with_nothing_opted_in(Level::Project, false, true)]
+#[case::bare_from_the_lockfile_with_the_project_opted_out(Level::Project, true, true)]
+fn an_explicit_install_downloads_without_the_opt_in(
+    two_levels: TwoLevels,
+    #[case] into: Level,
+    #[case] opted_out: bool,
+    #[case] bare: bool,
+) {
+    let dir = match into {
+        Level::Global => two_levels.global.rover_dir(),
+        Level::Project => two_levels.project.rover_dir(),
+    };
+    let opt_out = if opted_out {
+        "allow_automatic_download: false\n"
+    } else {
+        ""
+    };
+    if bare {
+        fs::write(
+            dir.join("rover.yaml"),
+            format!("{opt_out}plugins:\n  supergraph: \"2\"\n"),
+        )
+        .unwrap();
+        fs::write(
+            dir.join("plugin-versions.lock"),
+            "version = 1\n\n[[plugins]]\nname = \"supergraph\"\nrequested = \"2\"\nresolved = \
+             \"2.9.3\"\n",
+        )
+        .unwrap();
+    } else if opted_out {
+        fs::write(dir.join("rover.yaml"), opt_out).unwrap();
+    }
+    let registry = Registry::new();
+    let mut command = Command::new(cargo_bin("rover"));
+    two_levels.apply(&mut command);
+    command.args(["plugin", "install"]);
+    if !bare {
+        command.arg("supergraph@=2.9.3");
+    }
+    if into == Level::Global {
+        command.arg("--global");
+    }
+
+    let run = rover(&mut command, &registry, &[]);
+
+    let binary = two_levels
+        .bin_dir(into)
+        .join(format!("supergraph-v2.9.3{}", std::env::consts::EXE_SUFFIX));
+    assert_that!((
+        run.code,
+        &run.json["data"]["plugins"][0]["source"],
+        &run.json["data"]["plugins"][0]["path"],
+        run.requests,
+        binary.exists(),
+    ))
+    .named(&run.json.to_string())
+    .is_equal_to((
+        Some(0),
+        &Value::from("downloaded"),
+        &Value::from(binary.as_str()),
+        1,
+        true,
+    ));
+}
+
 /// The stub plugins are shell scripts, so these are Unix-only.
 #[cfg(unix)]
 mod with_a_runnable_plugin {
