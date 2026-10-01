@@ -1,0 +1,121 @@
+---
+source: src/command/config/show/mod.rs
+expression: "serde_json::json!({\n    \"explicit_profile\": explicit, \"default_profile\": default,\n})"
+---
+{
+  "explicit_profile": [
+    {
+      "name": "APOLLO_REGISTRY_URL",
+      "value": "https://flag.example.com",
+      "source": "flag",
+      "overridden": [
+        {
+          "source": "project_file",
+          "value": "https://repo.example.com"
+        }
+      ]
+    },
+    {
+      "name": "APOLLO_TELEMETRY_URL",
+      "value": "https://env.example.com",
+      "source": "environment",
+      "overridden": []
+    },
+    {
+      "name": "APOLLO_TELEMETRY_DISABLED",
+      "value": "false",
+      "source": "builtin",
+      "overridden": []
+    },
+    {
+      "name": "APOLLO_CHECKS_TIMEOUT_SECONDS",
+      "value": "600",
+      "source": "explicit_profile",
+      "overridden": [
+        {
+          "source": "project_file",
+          "value": "900"
+        }
+      ]
+    },
+    {
+      "name": "APOLLO_CLIENT_TIMEOUT",
+      "value": "30",
+      "source": "builtin",
+      "overridden": []
+    },
+    {
+      "name": "APOLLO_ROVER_DOWNLOAD_HOST",
+      "value": "https://mirror.example.com",
+      "source": "project_file",
+      "overridden": []
+    },
+    {
+      "name": "APOLLO_TEMPLATES_API",
+      "value": "https://rover.apollo.dev/templates",
+      "source": "builtin",
+      "overridden": []
+    },
+    {
+      "name": "APOLLO_GRAPH_REF",
+      "value": null,
+      "source": "builtin",
+      "overridden": []
+    }
+  ],
+  "default_profile": [
+    {
+      "name": "APOLLO_REGISTRY_URL",
+      "value": "https://repo.example.com",
+      "source": "project_file",
+      "overridden": []
+    },
+    {
+      "name": "APOLLO_TELEMETRY_URL",
+      "value": "https://env.example.com",
+      "source": "environment",
+      "overridden": []
+    },
+    {
+      "name": "APOLLO_TELEMETRY_DISABLED",
+      "value": "false",
+      "source": "builtin",
+      "overridden": []
+    },
+    {
+      "name": "APOLLO_CHECKS_TIMEOUT_SECONDS",
+      "value": "900",
+      "source": "project_file",
+      "overridden": [
+        {
+          "source": "default_profile",
+          "value": "450"
+        }
+      ]
+    },
+    {
+      "name": "APOLLO_CLIENT_TIMEOUT",
+      "value": "45",
+      "source": "default_profile",
+      "overridden": []
+    },
+    {
+      "name": "APOLLO_ROVER_DOWNLOAD_HOST",
+      "value": "https://mirror.example.com",
+      "source": "project_file",
+      "overridden": []
+    },
+    {
+      "name": "APOLLO_TEMPLATES_API",
+      "value": "https://rover.apollo.dev/templates",
+      "source": "builtin",
+      "overridden": []
+    },
+    {
+      "name": "APOLLO_GRAPH_REF",
+      "value": null,
+      "source": "builtin",
+      "overridden": []
+    }
+  ]
+}

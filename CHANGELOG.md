@@ -210,6 +210,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   A project file that redirects a network destination (for example, `APOLLO_ROVER_DOWNLOAD_HOST`) prints ``Note: `rover.yaml` sets `APOLLO_ROVER_DOWNLOAD_HOST` to `https://mirror.example.com`.`` once, the first time Rover sends a request there. An environment variable overriding a project-file value prints a notice too, worded like the one for overriding an explicitly selected profile. A profile named with `--profile` outranking the project file prints nothing about the file. As with every configuration notice, only `--no-config-notices` or `APOLLO_ROVER_NO_CONFIG_NOTICES` can suppress these, not a key in the project file itself.
 
+- **`rover config show` reports project-file settings - @dotdat**
+
+  A setting supplied by the project's `.rover/rover.yaml` now reports `source: "project_file"`, under its canonical name even when the file uses the lowercase spelling. Every lower-precedence value it beat, or that beat it, is listed under `overridden`, highest first. A losing value is reported as stored, even if it wouldn't pass validation; a winning value that fails validation fails the command with `E054`, as it does everywhere else.
+
 - **Profiles can now store `APOLLO_CLIENT_TIMEOUT` - @dotdat**
 
   The same profile tier, `rover config show`/`set`/`unset` support, and override notice that `APOLLO_CHECKS_TIMEOUT_SECONDS` already has now also cover `APOLLO_CLIENT_TIMEOUT`, which bounds how long Rover waits on an individual HTTP request before giving up - distinct from `--checks-timeout`'s polling budget. A profile-resolved value also extends to plugin downloads' longer timeout, the same way an explicit `--client-timeout` already did. A stored value that isn't a whole number of seconds fails the command at write time (`rover config set`) or read time, carrying the same stable `error.code` (`E054`) the other settings' invalid values do.

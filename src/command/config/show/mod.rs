@@ -8,7 +8,7 @@ use self::output::{ConfigShowOutput, CredentialReport, Overridden, SettingReport
 use crate::{
     RoverResult,
     cli::Rover,
-    options::{ProfileOpt, SettingName},
+    options::{ProfileOpt, ProjectSettingValue, SettingName},
     utils::env::RoverEnvKey,
 };
 
@@ -115,18 +115,66 @@ impl Show {
     }
 }
 
+/// Every stored tier that supplies `name`, highest precedence first (FR25,
+/// FR53): the active profile and the project file, in whichever order the
+/// profile's selection puts them. Each value is as stored, never validated -
+/// a losing tier's stale or invalid value is reported, not judged (FR104) -
+/// and a project-file value that isn't a single value is rendered back to
+/// YAML.
+fn stored_layers(
+    rover: &Rover,
+    profile: &ProfileOpt,
+    houston_config: &houston::Config,
+    name: SettingName,
+) -> RoverResult<Vec<Overridden>> {
+    let profile_layer = Profile::new(&profile.profile_name, houston_config)
+        .get_setting(name.as_str())?
+        .map(|value| Overridden {
+            source: profile.selection.into(),
+            value,
+        });
+    let project_layer = rover
+        .project_settings()?
+        .get(name)
+        .map(|setting| Overridden {
+            source: Source::ProjectFile,
+            value: match &setting.value {
+                ProjectSettingValue::Scalar(raw) | ProjectSettingValue::NotAScalar(raw) => {
+                    raw.clone()
+                }
+            },
+        });
+    let layers = if profile.selection.is_explicit() {
+        [profile_layer, project_layer]
+    } else {
+        [project_layer, profile_layer]
+    };
+    Ok(layers.into_iter().flatten().collect())
+}
+
+/// `stored_layers`, without the one that won.
+fn losing_layers(
+    rover: &Rover,
+    profile: &ProfileOpt,
+    houston_config: &houston::Config,
+    name: SettingName,
+    winner: Source,
+) -> RoverResult<Vec<Overridden>> {
+    let mut layers = stored_layers(rover, profile, houston_config, name)?;
+    layers.retain(|layer| layer.source != winner);
+    Ok(layers)
+}
+
 /// Resolves a string-valued setting (an `Option<String>` flag/env pair) to
 /// its effective value, source, and what it overrode (FR52).
 ///
-/// A losing profile value is read and reported as-is, without validating
-/// it, because `config show`'s job is diagnostic reporting of what's on
-/// disk, and a losing tier's stale, invalid value shouldn't stop it from
-/// reporting the winning one. A *winning* profile value goes through
-/// `Rover::resolve_profile_setting_with`, which validates and fails the
+/// A *winning* stored value goes through
+/// `Rover::resolve_stored_setting_with`, which validates and fails the
 /// command on an invalid value (FR39/FR83) exactly as every other command
 /// does - except `APOLLO_TELEMETRY_URL`, where an invalid stored value is
 /// silently ignored, mirroring `Rover::telemetry_url_override`'s own
-/// treatment of it everywhere else in the CLI.
+/// treatment of it everywhere else in the CLI. Losing values are reported
+/// as stored; see `stored_layers`.
 fn resolve_string_setting(
     rover: &Rover,
     profile: &ProfileOpt,
@@ -158,14 +206,7 @@ fn resolve_string_setting(
                 value: env_value,
             });
         }
-        if let Some(profile_value) =
-            Profile::new(&profile.profile_name, houston_config).get_setting(name.as_str())?
-        {
-            overridden.push(Overridden {
-                source: profile.selection.into(),
-                value: profile_value,
-            });
-        }
+        overridden.extend(stored_layers(rover, profile, houston_config, name)?);
 
         return Ok(SettingReport {
             name: name.as_str(),
@@ -175,13 +216,14 @@ fn resolve_string_setting(
         });
     }
 
-    match rover.resolve_profile_setting_with(houston_config, name) {
-        Ok(Some(value)) => {
+    match rover.resolve_stored_setting_with(houston_config, name) {
+        Ok(Some((tier, value))) => {
+            let source = Source::from(tier);
             return Ok(SettingReport {
                 name: name.as_str(),
                 value: Some(value),
-                source: profile.selection.into(),
-                overridden: vec![],
+                source,
+                overridden: losing_layers(rover, profile, houston_config, name, source)?,
             });
         }
         Ok(None) => {}
@@ -214,8 +256,6 @@ fn resolve_telemetry_disabled(
 ) -> RoverResult<SettingReport> {
     let name = SettingName::TelemetryDisabled;
     let raw_env = rover.get_env_var(RoverEnvKey::TelemetryDisabled)?;
-    let profile_raw =
-        Profile::new(&profile.profile_name, houston_config).get_setting(name.as_str())?;
 
     if rover.telemetry_disabled_flag() {
         let mut overridden = Vec::new();
@@ -225,12 +265,7 @@ fn resolve_telemetry_disabled(
                 value: "true".to_string(),
             });
         }
-        if let Some(profile_value) = profile_raw {
-            overridden.push(Overridden {
-                source: profile.selection.into(),
-                value: profile_value,
-            });
-        }
+        overridden.extend(stored_layers(rover, profile, houston_config, name)?);
         return Ok(SettingReport {
             name: name.as_str(),
             value: Some("true".to_string()),
@@ -240,32 +275,26 @@ fn resolve_telemetry_disabled(
     }
 
     if raw_env.is_some() {
-        let mut overridden = Vec::new();
-        if let Some(profile_value) = profile_raw {
-            overridden.push(Overridden {
-                source: profile.selection.into(),
-                value: profile_value,
-            });
-        }
         return Ok(SettingReport {
             name: name.as_str(),
             value: Some("true".to_string()),
             source: Source::Environment,
-            overridden,
+            overridden: stored_layers(rover, profile, houston_config, name)?,
         });
     }
 
-    if let Ok(Some(value)) = rover.resolve_profile_setting_with(houston_config, name) {
+    if let Ok(Some((tier, value))) = rover.resolve_stored_setting_with(houston_config, name) {
         let normalized = if value.eq_ignore_ascii_case("true") {
             "true"
         } else {
             "false"
         };
+        let source = Source::from(tier);
         return Ok(SettingReport {
             name: name.as_str(),
             value: Some(normalized.to_string()),
-            source: profile.selection.into(),
-            overridden: vec![],
+            source,
+            overridden: losing_layers(rover, profile, houston_config, name, source)?,
         });
     }
 
@@ -1033,5 +1062,198 @@ mod tests {
         assert_that!(telemetry_disabled.source).is_equal_to(Source::Builtin);
         assert_that!(&telemetry_disabled.value)
             .is_equal_to(SettingName::TelemetryDisabled.builtin_default());
+    }
+
+    /// A temp project whose `.rover/rover.yaml` is `contents`, as discovery
+    /// would find it.
+    fn project(contents: &str) -> (tempfile::TempDir, crate::plugin::discovery::ManifestDirs) {
+        let tree = tempfile::tempdir().unwrap();
+        let dir = camino::Utf8PathBuf::try_from(tree.path().join(".rover")).unwrap();
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join(crate::plugin::manifest::MANIFEST_FILE), contents).unwrap();
+        (
+            tree,
+            crate::plugin::discovery::ManifestDirs {
+                project: Some(dir),
+                global: None,
+            },
+        )
+    }
+
+    /// A config home with each `(profile, setting, value)` stored.
+    fn config_home(stored: &[(&str, &str, &str)]) -> tempfile::TempDir {
+        let home = tempfile::tempdir().unwrap();
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let houston_config = houston::Config::new(Some(&home_path), None).unwrap();
+        for (profile, key, value) in stored {
+            Profile::new(*profile, &houston_config)
+                .set_setting(key, value)
+                .unwrap();
+        }
+        home
+    }
+
+    /// `config show`'s settings, minus the OAuth rows - they exist only in
+    /// builds with the `oauth` feature, and one snapshot serves every build.
+    fn shown(rover: &Rover) -> serde_json::Value {
+        let output = Show {}.run(rover, &rover.get_profile_opt()).unwrap();
+        let settings: Vec<_> = output
+            .settings
+            .iter()
+            .filter(|setting| !setting.name.starts_with("APOLLO_OAUTH_"))
+            .collect();
+        serde_json::to_value(settings).unwrap()
+    }
+
+    /// AC: every one of the six source literals, with each loser reported
+    /// under `overridden` highest-first (FR52/FR53). An explicit profile and
+    /// the default profile can't both be active at once, so it takes one run
+    /// with `--profile` and one without.
+    #[test]
+    fn every_source_is_reported_with_its_fr51_literal() {
+        let home = config_home(&[
+            ("staging", "APOLLO_CHECKS_TIMEOUT_SECONDS", "600"),
+            ("default", "APOLLO_CHECKS_TIMEOUT_SECONDS", "450"),
+            ("default", "APOLLO_CLIENT_TIMEOUT", "45"),
+        ]);
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let (_tree, dirs) = project(
+            "settings:\n  APOLLO_CHECKS_TIMEOUT_SECONDS: 900\n  \
+            apollo_rover_download_host: https://mirror.example.com\n  \
+            APOLLO_REGISTRY_URL: https://repo.example.com\n",
+        );
+        let env = [
+            ("APOLLO_REGISTRY_URL", None),
+            ("APOLLO_TELEMETRY_URL", Some("https://env.example.com")),
+            ("APOLLO_CHECKS_TIMEOUT_SECONDS", None),
+            ("APOLLO_CLIENT_TIMEOUT", None),
+            ("APOLLO_ROVER_DOWNLOAD_HOST", None),
+        ];
+        let parse = |extra: &[&str]| {
+            let mut args = vec![PKG_NAME, "--config-home", home_path.as_str()];
+            args.extend_from_slice(extra);
+            args.extend(["config", "show"]);
+            let mut rover = parse_with_env_locked(env, &args);
+            rover
+                .insert_env_var(RoverEnvKey::TelemetryUrl, "https://env.example.com")
+                .unwrap();
+            rover.set_manifest_dirs(dirs.clone());
+            rover
+        };
+
+        let explicit = shown(&parse(&[
+            "--profile",
+            "staging",
+            "--registry-url",
+            "https://flag.example.com",
+        ]));
+        let default = shown(&parse(&[]));
+
+        insta::assert_json_snapshot!(serde_json::json!({
+            "explicit_profile": explicit,
+            "default_profile": default,
+        }));
+    }
+
+    /// FR104: a losing project-file value is reported as stored, even when
+    /// it would fail validation.
+    #[test]
+    fn an_invalid_losing_project_value_is_reported_unvalidated() {
+        let home = config_home(&[(
+            "staging",
+            "APOLLO_REGISTRY_URL",
+            "https://staging.example.com",
+        )]);
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let (_tree, dirs) = project("settings:\n  APOLLO_REGISTRY_URL: registry.example.com\n");
+        let mut rover = parse_with_env_locked(
+            NO_REGISTRY_OR_TELEMETRY_ENV,
+            &[
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+                "config",
+                "show",
+            ],
+        );
+        rover.set_manifest_dirs(dirs);
+
+        let output = Show {}.run(&rover, &rover.get_profile_opt()).unwrap();
+        let registry = output
+            .settings
+            .iter()
+            .find(|setting| setting.name == "APOLLO_REGISTRY_URL")
+            .unwrap();
+
+        assert_that!(serde_json::to_value(registry).unwrap()).is_equal_to(serde_json::json!({
+            "name": "APOLLO_REGISTRY_URL",
+            "value": "https://staging.example.com",
+            "source": "explicit_profile",
+            "overridden": [{ "source": "project_file", "value": "registry.example.com" }],
+        }));
+    }
+
+    /// FR83: a winning project-file value that's invalid fails the report,
+    /// as it fails every other command.
+    #[test]
+    fn an_invalid_winning_project_value_fails_the_report() {
+        let home = tempfile::tempdir().unwrap();
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let (_tree, dirs) = project("settings:\n  APOLLO_REGISTRY_URL: registry.example.com\n");
+        let mut rover = parse_with_env_locked(
+            NO_REGISTRY_OR_TELEMETRY_ENV,
+            &[
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "config",
+                "show",
+            ],
+        );
+        rover.set_manifest_dirs(dirs);
+
+        let error = Show {}.run(&rover, &rover.get_profile_opt()).unwrap_err();
+
+        assert_that!(error.code())
+            .is_some()
+            .is_equal_to(crate::RoverErrorCode::E054);
+    }
+
+    /// FR24: the project file's typed `false` reports as `false`, from the
+    /// project file.
+    #[test]
+    fn a_project_file_telemetry_boolean_is_reported_from_the_project_file() {
+        let home = tempfile::tempdir().unwrap();
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let (_tree, dirs) = project("settings:\n  APOLLO_TELEMETRY_DISABLED: false\n");
+        let mut rover = parse_with_env_locked(
+            NO_REGISTRY_OR_TELEMETRY_ENV,
+            &[
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "config",
+                "show",
+            ],
+        );
+        rover.set_manifest_dirs(dirs);
+
+        let output = Show {}.run(&rover, &rover.get_profile_opt()).unwrap();
+        let telemetry_disabled = output
+            .settings
+            .iter()
+            .find(|setting| setting.name == "APOLLO_TELEMETRY_DISABLED")
+            .unwrap();
+
+        assert_that!(serde_json::to_value(telemetry_disabled).unwrap()).is_equal_to(
+            serde_json::json!({
+                "name": "APOLLO_TELEMETRY_DISABLED",
+                "value": "false",
+                "source": "project_file",
+                "overridden": [],
+            }),
+        );
     }
 }
