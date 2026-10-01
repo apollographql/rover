@@ -13,6 +13,7 @@ use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult,
+    cli::Rover,
     options::{OutputOpts, ProfileOpt},
     utils::client::StudioClientConfig,
 };
@@ -61,19 +62,29 @@ impl Subgraph {
         &self,
         client_config: StudioClientConfig,
         git_context: GitContext,
-        checks_timeout_seconds: u64,
+        rover: &Rover,
         output_opts: &OutputOpts,
         profile: &ProfileOpt,
     ) -> RoverResult<RoverOutput> {
         match &self.command {
+            // Only `check`/`delete`/`preview`/`publish` poll, so only they
+            // resolve the checks timeout (FR60: "uses" is not "resolves") -
+            // a bad stored value or an env-overriding-profile notice must
+            // not affect `fetch`/`introspect`/`lint`/`list`, which never
+            // read it.
             Command::Check(command) => {
                 command
-                    .run(client_config, git_context, checks_timeout_seconds, profile)
+                    .run(
+                        client_config,
+                        git_context,
+                        rover.get_checks_timeout_seconds()?,
+                        profile,
+                    )
                     .await
             }
             Command::Delete(command) => {
                 command
-                    .run(client_config, checks_timeout_seconds, profile)
+                    .run(client_config, rover.get_checks_timeout_seconds()?, profile)
                     .await
             }
             Command::Introspect(command) => {
@@ -92,7 +103,7 @@ impl Subgraph {
                 command
                     .run(
                         client_config,
-                        checks_timeout_seconds,
+                        rover.get_checks_timeout_seconds()?,
                         profile,
                         &rover_print::print::stderr::default(),
                     )
@@ -103,7 +114,7 @@ impl Subgraph {
                     .run(
                         client_config,
                         git_context,
-                        checks_timeout_seconds,
+                        rover.get_checks_timeout_seconds()?,
                         profile,
                         &rover_print::print::stderr::default(),
                     )

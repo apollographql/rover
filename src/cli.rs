@@ -329,11 +329,7 @@ impl Rover {
             }
             Command::Contract(command) => {
                 command
-                    .run(
-                        self.get_client_config().await?,
-                        self.get_checks_timeout_seconds()?,
-                        &profile_opt,
-                    )
+                    .run(self.get_client_config().await?, self, &profile_opt)
                     .await
             }
             Command::Schema(command) => command.run(self.get_client_config().await?).await,
@@ -364,7 +360,7 @@ impl Rover {
                     .run(
                         self.get_client_config().await?,
                         self.get_git_context()?,
-                        self.get_checks_timeout_seconds()?,
+                        self,
                         &self.output_opts,
                         &profile_opt,
                     )
@@ -381,7 +377,7 @@ impl Rover {
                     .run(
                         self.get_client_config().await?,
                         self.get_git_context()?,
-                        self.get_checks_timeout_seconds()?,
+                        self,
                         &self.output_opts,
                         &profile_opt,
                     )
