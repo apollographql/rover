@@ -683,7 +683,9 @@ impl Rover {
         let value = name.setting_type().validate(raw).map_err(|error| {
             let (SettingValueError::InvalidUrl { input: raw }
             | SettingValueError::UnsupportedUrlScheme { input: raw }
-            | SettingValueError::InvalidBool { input: raw }) = &error;
+            | SettingValueError::InvalidBool { input: raw }
+            | SettingValueError::InvalidWholeSeconds { input: raw }
+            | SettingValueError::InvalidGraphRef { input: raw }) = &error;
             let message = format!(
                 "`{name}` in profile `{profile_name}` is set to `{raw}`, which {reason} Run \
                 `rover config set {name} <value> --profile {profile_name}` to correct it.",
@@ -759,7 +761,9 @@ impl Rover {
             // the wrong of two identical sources), not corrected here.
             if profile_is_explicit && raw_env == Some(explicit_value) {
                 profile_raw.map(|profile_value| {
-                    if name.is_network_destination() && profile_value != name.builtin_default() {
+                    if name.is_network_destination()
+                        && Some(profile_value.as_str()) != name.builtin_default().as_deref()
+                    {
                         format!(
                             "`{name}` from the environment is set to `{explicit_value}`, \
                             overriding the value set in profile `{profile_name}`.",
@@ -777,12 +781,13 @@ impl Rover {
                 None
             }
         } else if let Some(value) = resolved {
-            (name.is_network_destination() && value != name.builtin_default()).then(|| {
-                format!(
-                    "profile `{profile_name}` sets `{name}` to `{value}`.",
-                    profile_name = profile.profile_name,
-                )
-            })
+            (name.is_network_destination() && Some(value) != name.builtin_default().as_deref())
+                .then(|| {
+                    format!(
+                        "profile `{profile_name}` sets `{name}` to `{value}`.",
+                        profile_name = profile.profile_name,
+                    )
+                })
         } else {
             None
         };
@@ -1222,6 +1227,13 @@ const fn describe_invalid_value(error: &SettingValueError) -> &'static str {
             "isn't a valid URL. Rover only accepts `http`/`https` URLs for this setting."
         }
         SettingValueError::InvalidBool { .. } => "isn't a valid boolean. Use `true` or `false`.",
+        SettingValueError::InvalidWholeSeconds { .. } => "isn't a whole number of seconds.",
+        SettingValueError::InvalidGraphRef { .. } => {
+            "isn't a valid graph ref. Graph refs must be in the format `<NAME>` or \
+            `<NAME>@<VARIANT>`, where `<NAME>` must start with a letter and can otherwise \
+            only contain letters, numbers, or the characters `-` or `_`, and must be 64 \
+            characters or less; `<VARIANT>` must be 63 characters or less."
+        }
     }
 }
 
@@ -1751,7 +1763,7 @@ mod tests {
                 SettingName::RegistryUrl,
                 None,
                 None,
-                Some(&SettingName::RegistryUrl.builtin_default()),
+                Some(&SettingName::RegistryUrl.builtin_default().unwrap()),
             )
         })
         .unwrap();
