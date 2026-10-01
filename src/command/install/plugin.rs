@@ -13,7 +13,7 @@ use crate::{
     RoverError, RoverErrorSuggestion, RoverResult,
     federation::reject_federation_one,
     plugin::{
-        error::{PluginFailure, RequestOrigin},
+        error::{DownloadControl, PluginFailure, RequestOrigin},
         version::{PluginName, VersionRequest},
     },
     utils::client::StudioClientConfig,
@@ -251,6 +251,8 @@ pub struct PluginInstaller {
     /// Where the version request came from, to name when an exact release
     /// turns out to have been withdrawn. `None` until a caller says.
     origin: Option<RequestOrigin>,
+    /// What forbids downloading, if anything does. `None` until a caller says.
+    downloads_disabled_by: Option<DownloadControl>,
 }
 
 fn skip_update_error(plugin_name: &str, version: &str) -> RoverError {
@@ -286,6 +288,7 @@ impl PluginInstaller {
             installer,
             force,
             origin: None,
+            downloads_disabled_by: None,
         }
     }
 
@@ -294,11 +297,25 @@ impl PluginInstaller {
         Self { origin, ..self }
     }
 
+    /// Forbids downloading, because `control` is in force. [`Self::install`]
+    /// then only finds a release already installed that the request allows,
+    /// and fails without any network call when there is none.
+    pub fn without_downloads(self, control: Option<DownloadControl>) -> Self {
+        Self {
+            downloads_disabled_by: control,
+            ..self
+        }
+    }
+
     pub async fn install(
         &self,
         plugin: &Plugin,
         skip_update: bool,
     ) -> RoverResult<PluginProvenance> {
+        if let Some(control) = self.downloads_disabled_by {
+            return self.find_installed_only(plugin, control);
+        }
+
         let (install_location, source) = match plugin {
             Plugin::Router(version) => match version {
                 RouterVersion::Exact(version) => {
@@ -361,6 +378,38 @@ impl PluginInstaller {
             PluginLevel::Global,
             install_location,
         ))
+    }
+
+    /// The newest installed release `plugin`'s request allows, or the
+    /// failure that says none is installed and `control` forbids downloading
+    /// one. Only the disk is consulted.
+    fn find_installed_only(
+        &self,
+        plugin: &Plugin,
+        control: DownloadControl,
+    ) -> RoverResult<PluginProvenance> {
+        let bin_dir = self.installer.bin_dir_location()?;
+        let requested = plugin.request();
+        let newest = installed_releases(&bin_dir, plugin.name())?
+            .into_iter()
+            .filter(|(version, _)| allows(&requested, version))
+            .max_by(|(a, _), (b, _)| a.cmp(b));
+
+        match newest {
+            Some((version, path)) => Ok(PluginProvenance::new(
+                plugin.get_name(),
+                version,
+                PluginSource::Installed,
+                PluginLevel::Global,
+                path,
+            )),
+            None => Err(RoverError::new(PluginFailure::DownloadsDisabled {
+                plugin: plugin.name(),
+                requested,
+                searched: vec![bin_dir],
+                control,
+            })),
+        }
     }
 
     async fn find_or_install_exact(
@@ -697,6 +746,50 @@ fn find_installed_plugins(
         })
         .collect();
     Ok(installed_plugins)
+}
+
+/// Every release of `plugin` installed in `bin_dir`, with the path to each.
+/// A directory that doesn't exist holds nothing, and so does not fail.
+fn installed_releases(
+    bin_dir: &Utf8PathBuf,
+    plugin: PluginName,
+) -> RoverResult<Vec<(Version, Utf8PathBuf)>> {
+    let entries = match bin_dir.read_dir_utf8() {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => {
+            return Err(RoverError::new(
+                anyhow!(error).context(format!("Couldn't list the plugins in `{bin_dir}`.")),
+            ));
+        }
+    };
+    let prefix = format!("{plugin}-v");
+    Ok(entries
+        .filter_map(Result::ok)
+        // Following symlinks, as the exact lookup does: a plugin linked into
+        // place by a package manager is installed.
+        .filter(|entry| {
+            entry
+                .path()
+                .metadata()
+                .is_ok_and(|metadata| metadata.is_file())
+        })
+        .filter_map(|entry| {
+            let name = entry.file_name();
+            let name = name.strip_suffix(consts::EXE_SUFFIX).unwrap_or(name);
+            let version = Version::parse(name.strip_prefix(&prefix)?).ok()?;
+            Some((version, entry.into_path()))
+        })
+        .collect())
+}
+
+/// Whether `version` is a release `requested` could resolve to.
+fn allows(requested: &VersionRequest, version: &Version) -> bool {
+    match (requested.exact(), requested.major()) {
+        (Some(exact), _) => exact == version,
+        (None, Some(major)) => version.major == major,
+        (None, None) => true,
+    }
 }
 
 fn version_from_installed_path(path: &Utf8PathBuf, plugin_name: &str) -> RoverResult<Version> {
@@ -1153,6 +1246,150 @@ mod tests {
         Plugin::Router(RouterVersion::LatestTwo)
             .get_arch_for_env("", "")
             .unwrap_err();
+    }
+
+    #[cfg(not(target_env = "musl"))]
+    mod with_downloads_disabled {
+        use houston::Config;
+        use httpmock::MockServer;
+        use rstest::rstest;
+
+        use super::*;
+        use crate::{
+            RoverErrorCode,
+            utils::client::{ClientBuilder, ClientTimeout},
+        };
+
+        /// Install `request` for `supergraph` with downloads disabled, from a
+        /// home whose `.rover/bin` holds `installed`, against a registry that
+        /// answers everything. Returns the outcome and how many requests the
+        /// registry saw, which must always be none.
+        async fn install(
+            request: &str,
+            installed: &[&str],
+        ) -> (RoverResult<PluginProvenance>, Utf8PathBuf, usize) {
+            install_with(request, |bin_dir| {
+                if !installed.is_empty() {
+                    std::fs::create_dir_all(bin_dir).unwrap();
+                }
+                for version in installed {
+                    std::fs::write(
+                        bin_dir.join(format!("supergraph-v{version}{}", consts::EXE_SUFFIX)),
+                        "",
+                    )
+                    .unwrap();
+                }
+            })
+            .await
+        }
+
+        /// [`install`], with `seed` putting whatever it likes in `.rover/bin`.
+        async fn install_with(
+            request: &str,
+            seed: impl FnOnce(&Utf8PathBuf),
+        ) -> (RoverResult<PluginProvenance>, Utf8PathBuf, usize) {
+            let server = MockServer::start();
+            let registry = server.mock(|_, then| {
+                then.status(200);
+            });
+            let home_dir = tempfile::tempdir().unwrap();
+            let home = Utf8PathBuf::from_path_buf(home_dir.path().to_path_buf()).unwrap();
+            let bin_dir = home.join(".rover").join("bin");
+            seed(&bin_dir);
+            let client_config = StudioClientConfig::new(
+                None,
+                Config {
+                    home: home.join("config"),
+                    override_api_key: None,
+                    override_client_credentials_token: None,
+                },
+                false,
+                ClientBuilder::default(),
+                ClientTimeout::new(1),
+            )
+            .with_download_host(format!("http://{}", server.address()));
+            let installer = Installer {
+                binary_name: "rover".to_string(),
+                force_install: false,
+                executable_location: home.join("rover"),
+                override_install_path: Some(home),
+            };
+
+            let outcome = PluginInstaller::new(client_config, installer, false)
+                .without_downloads(Some(DownloadControl::NoDownloadFlag))
+                .install(&request.parse().unwrap(), false)
+                .await;
+            let calls = registry.calls();
+            // Keep the home alive until the lookup is done.
+            drop(home_dir);
+            (outcome, bin_dir, calls)
+        }
+
+        #[rstest]
+        #[case::the_exact_release("supergraph@=2.9.3", &["2.9.0", "2.9.3", "2.10.0"], "2.9.3")]
+        #[case::the_newest_in_the_major("supergraph@2", &["2.8.0", "2.10.1", "2.9.3"], "2.10.1")]
+        #[tokio::test]
+        async fn an_installed_release_the_request_allows_is_used(
+            #[case] request: &str,
+            #[case] installed: &[&str],
+            #[case] expected: &str,
+        ) {
+            let (outcome, bin_dir, calls) = install(request, installed).await;
+
+            let provenance = outcome.expect("should find the installed plugin");
+            assert_that!((
+                provenance.version.to_string(),
+                provenance.source,
+                provenance.path,
+                calls
+            ))
+            .is_equal_to((
+                expected.to_string(),
+                PluginSource::Installed,
+                bin_dir.join(format!("supergraph-v{expected}{}", consts::EXE_SUFFIX)),
+                0,
+            ));
+        }
+
+        // Creating a symlink on Windows needs a privilege a test cannot count on.
+        #[cfg(unix)]
+        #[tokio::test]
+        async fn a_release_linked_into_place_is_installed() {
+            let target = tempfile::tempdir().unwrap();
+            let binary = target.path().join("supergraph");
+            std::fs::write(&binary, "").unwrap();
+
+            let (outcome, bin_dir, calls) = install_with("supergraph@=2.9.3", |bin_dir| {
+                std::fs::create_dir_all(bin_dir).unwrap();
+                std::os::unix::fs::symlink(&binary, bin_dir.join("supergraph-v2.9.3")).unwrap();
+            })
+            .await;
+
+            let provenance = outcome.expect("should find the linked plugin");
+            assert_that!((provenance.path, calls))
+                .is_equal_to((bin_dir.join("supergraph-v2.9.3"), 0));
+        }
+
+        #[rstest]
+        #[case::nothing_installed("supergraph@=2.9.3", &[], "the `supergraph` plugin v2.9.3, but it isn't")]
+        #[case::another_release("supergraph@=2.9.3", &["2.9.0"], "the `supergraph` plugin v2.9.3, but it isn't")]
+        #[case::another_major("supergraph@2", &["3.0.0"], "a `supergraph` plugin v2.x, but none is")]
+        #[tokio::test]
+        async fn a_release_that_is_not_installed_fails_without_contacting_the_registry(
+            #[case] request: &str,
+            #[case] installed: &[&str],
+            #[case] needed: &str,
+        ) {
+            let (outcome, bin_dir, calls) = install(request, installed).await;
+
+            let error = outcome.expect_err("should not install");
+            assert_that!((error.code(), calls)).is_equal_to((Some(RoverErrorCode::E058), 0));
+            assert_that!(error.plugin_failure().map(ToString::to_string)).is_equal_to(Some(format!(
+                "Rover needs {needed} installed in `{bin_dir}` and downloads are disabled by `--no-download`."
+            )));
+            // Looking must not create the directory it looked in.
+            assert_that!(installed.is_empty() && bin_dir.exists()).is_false();
+        }
     }
 
     #[cfg(not(target_env = "musl"))]
