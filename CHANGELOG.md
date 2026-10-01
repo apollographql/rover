@@ -78,6 +78,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   Run inside a project, meaning a directory that has a `.rover/` directory in it or in one of its parents, `rover plugin install` now puts the plugin in that project's `.rover/bin/` and records it in the project's `.rover/plugin-versions.lock`, leaving `~/.rover` untouched. `--format json` reports the install with `"level": "project"`. Outside a project nothing changes: Rover never creates a `.rover/` directory on its own, so the plugin installs into `~/.rover/bin/` (or `$APOLLO_HOME/.rover/bin/`) exactly as before. A `rover.yaml` that sets `install_root` at the level being installed into stops the install with error E052, since Rover doesn't support redirecting an install root yet.
 
+- **`rover plugin install --global` installs for the whole machine, even inside a project - @SharkBaitDLS**
+
+  `--global` (or `-g`) installs into `~/.rover/bin/` (or `$APOLLO_HOME/.rover/bin/`) and records the install in the global lockfile, leaving the project's `.rover/` untouched. For CI images that can't pass flags, `APOLLO_ROVER_GLOBAL=true` (or `1`) does the same.
+
 - **`rover dev` gains `--router-version`/`--composition-version`; `rover template` gains `--templates-api` - @dotdat**
 
   `--router-version`/`APOLLO_ROVER_DEV_ROUTER_VERSION` and `--composition-version`/`APOLLO_ROVER_DEV_COMPOSITION_VERSION` are scoped to `rover dev`, matching the existing `--mcp-version` pairing; `--federation-version` still takes precedence over `--composition-version`, as it did over the env var before. `--templates-api`/`APOLLO_TEMPLATES_API` is scoped to `rover template` (`rover init` doesn't use the templates API - it fetches templates from GitHub - so it doesn't get this flag). All three were previously env-var-only.

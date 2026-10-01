@@ -38,6 +38,17 @@ pub(crate) fn no_download() -> bool {
     switched_on(NO_DOWNLOAD_ENV)
 }
 
+/// The environment variable equivalent of `rover plugin install --global`,
+/// for CI images that cannot pass flags.
+pub(crate) const GLOBAL_ENV: &str = "APOLLO_ROVER_GLOBAL";
+
+/// Whether the user has asked, via [`GLOBAL_ENV`], for `rover plugin install`
+/// to install globally even inside a project, read the way
+/// [`skip_all_updates`] is.
+pub(crate) fn global_install() -> bool {
+    switched_on(GLOBAL_ENV)
+}
+
 /// Whether the boolean environment variable `name` is `1` or `true`.
 fn switched_on(name: &str) -> bool {
     std::env::var(name)
@@ -99,6 +110,27 @@ mod no_download_tests {
             [(SKIP_UPDATE_ENV, Some("true")), (NO_DOWNLOAD_ENV, None)],
             || assert!(!no_download()),
         );
+    }
+}
+
+#[cfg(test)]
+mod global_install_tests {
+    use rstest::rstest;
+    use speculoos::prelude::*;
+
+    use super::{GLOBAL_ENV, global_install};
+
+    #[rstest]
+    #[case::one(Some("1"), true)]
+    #[case::true_in_any_case(Some(" TRUE "), true)]
+    #[case::zero(Some("0"), false)]
+    #[case::false_(Some("false"), false)]
+    #[case::empty(Some(""), false)]
+    #[case::unset(None, false)]
+    fn only_one_or_true_installs_globally(#[case] value: Option<&str>, #[case] expected: bool) {
+        temp_env::with_var(GLOBAL_ENV, value, || {
+            assert_that!(global_install()).is_equal_to(expected);
+        });
     }
 }
 
