@@ -756,7 +756,7 @@ mod tests {
 
         assert_that!(error.code())
             .is_some()
-            .is_equal_to(RoverErrorCode::E058);
+            .is_equal_to(RoverErrorCode::E059);
     }
 
     #[test]
