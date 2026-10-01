@@ -21,7 +21,7 @@ use super::version::{ACCEPTED_FORMS, PluginName, VersionRequest};
 
 mod load;
 
-pub use load::MANIFEST_FILE;
+pub use load::{MANIFEST_FILE, ManifestSettings};
 
 /// The contents of one `rover.yaml`, at either the global or the project level.
 ///

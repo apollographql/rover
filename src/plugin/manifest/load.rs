@@ -10,7 +10,7 @@ use camino::Utf8Path;
 use rover_std::Fs;
 use serde::{
     Deserializer,
-    de::{IgnoredAny, MapAccess, Visitor},
+    de::{self, IgnoredAny, MapAccess, Visitor},
 };
 
 use super::RoverManifest;
@@ -71,24 +71,35 @@ impl RoverManifest {
     }
 }
 
+/// What a manifest's top level holds for settings resolution, read by
+/// [`RoverManifest::load_settings`].
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct ManifestSettings {
+    /// The `settings:` value as written: `None` when there's no file or no
+    /// `settings` key, `Some(Value::Null)` for a `settings:` with nothing
+    /// after it, so a caller can tell "present but empty" from "absent".
+    pub section: Option<serde_yaml::Value>,
+    /// Whether the top level has a YAML merge key (`<<`). serde_yaml doesn't
+    /// expand merge keys, so a `settings:` merged in through one is never
+    /// seen; this lets the caller say so rather than drop it silently.
+    pub merge_key: bool,
+}
+
 impl RoverManifest {
     /// The `settings:` section of the manifest at `path`, read without
-    /// judging anything else in the file: a broken `plugins:` section, or an
-    /// `install_root`, refuses the manifest for plugins but not for settings,
-    /// and a broken `settings:` section never refuses it for plugins (FR80 of
-    /// the profile-configuration spec). Only a file that can't be read, isn't
-    /// UTF-8 text, or isn't a single YAML mapping is refused here, as it is
-    /// for plugins.
-    ///
-    /// `None` when there's no file, or the file has no `settings` key;
-    /// `Some(Value::Null)` for a `settings:` with nothing after it, so a
-    /// caller can tell "present but empty" from "absent".
-    pub fn load_settings(path: &Utf8Path) -> Result<Option<serde_yaml::Value>, Box<PluginFailure>> {
+    /// judging anything else in the file: a broken `plugins:` section - even
+    /// one that repeats a key - or an `install_root` refuses the manifest for
+    /// plugins but not for settings, and a broken `settings:` section never
+    /// refuses it for plugins (FR80 of the profile-configuration spec). Every
+    /// top-level value but `settings` is skipped unparsed. Only a file that
+    /// can't be read, isn't UTF-8 text, isn't a single YAML mapping, or sets
+    /// `settings` twice is refused here.
+    pub fn load_settings(path: &Utf8Path) -> Result<ManifestSettings, Box<PluginFailure>> {
         let contents = match Fs::read_if_present(path) {
             Ok(Some(bytes)) => String::from_utf8(bytes).map_err(|error| {
                 unusable(path, ManifestProblem::Malformed(Arc::new(NotUtf8(error))))
             })?,
-            Ok(None) => return Ok(None),
+            Ok(None) => return Ok(ManifestSettings::default()),
             Err(source) => {
                 return Err(unusable(
                     path,
@@ -97,9 +108,64 @@ impl RoverManifest {
             }
         };
 
-        serde_yaml::from_str::<Option<serde_yaml::Mapping>>(&contents)
-            .map(|manifest| manifest.and_then(|mut manifest| manifest.remove("settings")))
-            .map_err(|problem| unusable(path, ManifestProblem::Malformed(Arc::new(problem))))
+        let malformed = |problem: serde_yaml::Error| {
+            unusable(path, ManifestProblem::Malformed(Arc::new(problem)))
+        };
+        let mut documents = serde_yaml::Deserializer::from_str(&contents);
+        let Some(first) = documents.next() else {
+            return Ok(ManifestSettings::default());
+        };
+        let settings = first.deserialize_any(TopLevelSettings).map_err(malformed)?;
+        if documents.next().is_some() {
+            return Err(malformed(de::Error::custom(
+                "a manifest must be a single YAML document",
+            )));
+        }
+        Ok(settings)
+    }
+}
+
+/// Walks a manifest's top-level keys, keeping only `settings`.
+struct TopLevelSettings;
+
+impl<'de> Visitor<'de> for TopLevelSettings {
+    type Value = ManifestSettings;
+
+    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("a mapping of manifest keys such as `plugins`")
+    }
+
+    // A file that is empty, only comments, or only a null declares nothing.
+    fn visit_unit<E: de::Error>(self) -> Result<Self::Value, E> {
+        Ok(ManifestSettings::default())
+    }
+
+    fn visit_none<E: de::Error>(self) -> Result<Self::Value, E> {
+        Ok(ManifestSettings::default())
+    }
+
+    fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+        let mut found = ManifestSettings::default();
+        while let Some(key) = map.next_key::<serde_yaml::Value>()? {
+            match key.as_str() {
+                Some("settings") => {
+                    // serde_yaml would otherwise keep the last of the two
+                    // without saying so.
+                    if found.section.is_some() {
+                        return Err(de::Error::custom("`settings` is set more than once"));
+                    }
+                    found.section = Some(map.next_value()?);
+                }
+                Some("<<") => {
+                    found.merge_key = true;
+                    map.next_value::<IgnoredAny>()?;
+                }
+                _ => {
+                    map.next_value::<IgnoredAny>()?;
+                }
+            }
+        }
+        Ok(found)
     }
 }
 
@@ -384,11 +450,22 @@ Caused by:
         );
     }
 
-    fn settings_of(contents: &str) -> Result<Option<serde_yaml::Value>, Box<PluginFailure>> {
+    fn settings_of(contents: &str) -> Result<ManifestSettings, Box<PluginFailure>> {
         let (_temp, root) = temp_dir();
         let path = root.join(MANIFEST_FILE);
         fs::write(&path, contents).unwrap();
         RoverManifest::load_settings(&path)
+    }
+
+    /// Just the `settings:` value, for the cases with no merge key.
+    fn section_of(contents: &str) -> Option<serde_yaml::Value> {
+        let settings = settings_of(contents).unwrap();
+        assert_that!(settings.merge_key).is_false();
+        settings.section
+    }
+
+    fn yaml(contents: &str) -> serde_yaml::Value {
+        serde_yaml::from_str(contents).unwrap()
     }
 
     #[rstest]
@@ -396,34 +473,33 @@ Caused by:
         let (_temp, root) = temp_dir();
 
         assert_that!(RoverManifest::load_settings(&root.join(MANIFEST_FILE)))
-            .is_ok()
-            .is_none();
+            .is_ok_containing(ManifestSettings::default());
     }
 
     #[rstest]
     #[case::empty_file("")]
     #[case::null("null\n")]
+    #[case::comments_only("# nothing yet\n")]
+    #[case::document_marker("---\n")]
     #[case::only_plugins("plugins:\n  router: latest\n")]
     fn a_manifest_without_a_settings_key_has_no_settings(#[case] contents: &str) {
-        assert_that!(settings_of(contents)).is_ok().is_none();
+        assert_that!(section_of(contents)).is_none();
     }
 
     #[rstest]
     fn an_empty_settings_key_is_present_but_null() {
-        assert_that!(settings_of("settings:\n"))
-            .is_ok()
+        assert_that!(section_of("settings:\n"))
             .is_some()
             .is_equal_to(serde_yaml::Value::Null);
     }
 
     #[rstest]
     fn the_settings_section_is_handed_back_as_written() {
-        let section = settings_of(indoc! {r#"
+        let section = section_of(indoc! {r#"
             settings:
               APOLLO_REGISTRY_URL: https://registry.example.com
               apollo_checks_timeout_seconds: 600
         "#})
-        .unwrap()
         .unwrap();
 
         assert_that!(section).is_equal_to(
@@ -439,18 +515,32 @@ Caused by:
     #[rstest]
     #[case::install_root("install_root: ../vendor\nsettings:\n  APOLLO_KEY: x\n")]
     #[case::an_unknown_plugin("plugins:\n  apollo-router: latest\nsettings:\n  APOLLO_KEY: x\n")]
-    #[case::merge_keys("<<: {plugins: {}}\nsettings:\n  APOLLO_KEY: x\n")]
+    #[case::a_duplicate_plugin(
+        "plugins:\n  router: latest\n  router: 1.0.0\nsettings:\n  APOLLO_KEY: x\n"
+    )]
+    #[case::a_duplicate_top_level_key("plugins: {}\nplugins: {}\nsettings:\n  APOLLO_KEY: x\n")]
     fn a_manifest_refused_for_plugins_still_has_settings(#[case] contents: &str) {
-        assert_that!(settings_of(contents))
-            .is_ok()
+        assert_that!(section_of(contents))
             .is_some()
-            .is_equal_to(serde_yaml::from_str::<serde_yaml::Value>("APOLLO_KEY: x").unwrap());
+            .is_equal_to(yaml("APOLLO_KEY: x"));
+    }
+
+    #[rstest]
+    fn a_top_level_merge_key_is_reported_not_expanded() {
+        assert_that!(settings_of(
+            "<<: {settings: {APOLLO_REGISTRY_URL: https://a.example.com}}\nplugins: {}\n"
+        ))
+        .is_ok_containing(ManifestSettings {
+            section: None,
+            merge_key: true,
+        });
     }
 
     #[rstest]
     #[case::not_yaml("settings:\n  APOLLO_REGISTRY_URL: \"https\n")]
     #[case::not_a_mapping("- settings\n")]
     #[case::two_documents("settings: {}\n---\nsettings: {}\n")]
+    #[case::settings_twice("settings: {}\nsettings: {}\n")]
     fn a_manifest_that_isnt_one_yaml_mapping_is_refused_for_settings_too(#[case] contents: &str) {
         let error = settings_of(contents).expect_err("should not load");
 

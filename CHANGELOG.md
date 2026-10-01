@@ -188,7 +188,11 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **`rover.yaml`'s JSON schema documents the `settings:` section - @dotdat**
 
-  The project manifest's `settings:` section is read separately from `plugins:`, so a problem in one section never refuses the other. A `settings:` section in the user-level `rover.yaml` is never applied; once project settings are wired up, it prints a warning pointing at `rover config set` instead.
+  The project manifest's `settings:` section is read separately from `plugins:`, so a problem in one section never refuses the other. That holds even for a repeated key under `plugins:`. Once project settings are wired up, these cases print a warning and apply nothing, instead of failing the command:
+
+  - a `settings:` section in the user-level `rover.yaml`, whose warning points at `rover config set`
+  - a project manifest Rover can't read or parse at all
+  - a top-level YAML merge key (`<<`)
 
 - **Profiles can now store `APOLLO_CLIENT_TIMEOUT` - @dotdat**
 
