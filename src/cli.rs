@@ -646,13 +646,7 @@ impl Rover {
     /// supplied a value, so the caller falls through to its own built-in
     /// default. A stored profile value that fails validation fails the
     /// command outright (FR39/FR83) rather than falling through.
-    ///
-    /// `pub(crate)` (not private) because a setting whose flag lives on a
-    /// command's own opts struct rather than on `Rover` itself (e.g.
-    /// `APOLLO_TEMPLATES_API`, scoped to `template`/`init` per FR1) has no
-    /// `Rover`-level accessor to call this through - that command's own
-    /// `run` calls this directly instead.
-    pub(crate) fn resolve_setting(
+    fn resolve_setting(
         &self,
         explicit: Option<String>,
         name: SettingName,
@@ -661,6 +655,28 @@ impl Rover {
             return Ok(explicit);
         }
         self.resolve_profile_setting(name)
+    }
+
+    /// Resolves `APOLLO_TEMPLATES_API` (FR1), printing the FR64 override
+    /// notice when a profile value takes effect - `--templates-api` is
+    /// scoped to `rover template`'s own opts struct rather than living on
+    /// `Rover`, so `Template::run` calls this directly instead of going
+    /// through a `Rover`-level flag accessor the way every other
+    /// network-destination setting's resolution does.
+    pub(crate) fn resolve_templates_api(
+        &self,
+        explicit: Option<String>,
+    ) -> RoverResult<Option<String>> {
+        let resolved = self.resolve_setting(explicit.clone(), SettingName::TemplatesApi)?;
+        if let Some(message) = self.config_override_notice(
+            SettingName::TemplatesApi,
+            explicit.as_deref(),
+            self.get_env_var(RoverEnvKey::TemplatesApi)?.as_deref(),
+            resolved.as_deref(),
+        )? {
+            self.print_config_notice(message);
+        }
+        Ok(resolved)
     }
 
     /// The active profile's stored value for `name`, validated against its
@@ -1516,9 +1532,10 @@ mod tests {
 
     // `APOLLO_TEMPLATES_API` has no flag on `Rover` itself - its flag is
     // scoped to `template`/`init` (FR1), living on `TemplatesApiOpt`
-    // instead - so these test `resolve_setting` directly with the same
-    // call `command::template::Template::run` makes, rather than through
-    // `Rover::parse_from` (which has no `--templates-api` to parse).
+    // instead - so these test `resolve_templates_api` directly with the
+    // same call `command::template::Template::run` makes, rather than
+    // through `Rover::parse_from` (which has no `--templates-api` to
+    // parse).
     #[test]
     fn templates_api_profile_setting_applies_when_no_explicit_value_is_set() {
         let home = config_home_with_setting(
@@ -1537,9 +1554,7 @@ mod tests {
             "list",
         ]);
 
-        let resolved = rover
-            .resolve_setting(None, SettingName::TemplatesApi)
-            .unwrap();
+        let resolved = rover.resolve_templates_api(None).unwrap();
 
         assert_that!(resolved).is_equal_to(Some("https://templates.example.com".to_string()));
     }
@@ -1563,10 +1578,7 @@ mod tests {
         ]);
 
         let resolved = rover
-            .resolve_setting(
-                Some("https://flag-templates.example.com".to_string()),
-                SettingName::TemplatesApi,
-            )
+            .resolve_templates_api(Some("https://flag-templates.example.com".to_string()))
             .unwrap();
 
         assert_that!(resolved).is_equal_to(Some("https://flag-templates.example.com".to_string()));
@@ -1588,7 +1600,7 @@ mod tests {
         ]);
 
         let error = rover
-            .resolve_setting(None, SettingName::TemplatesApi)
+            .resolve_templates_api(None)
             .expect_err("expected an invalid stored templates API URL to fail the command");
 
         assert_that!(error.to_string()).is_equal_to(
@@ -1599,6 +1611,83 @@ mod tests {
                 .to_string(),
         );
         assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
+    }
+
+    // `APOLLO_TEMPLATES_API` is a network-destination setting (FR1's "Net"
+    // column), so a profile value taking effect must print the same FR64
+    // notice every other such setting's resolution does.
+    #[test]
+    fn templates_api_profile_value_notices_through_the_real_call_path() {
+        let home = config_home_with_setting(
+            "staging",
+            "APOLLO_TEMPLATES_API",
+            "https://profile-templates.example.com",
+        );
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+
+        let rover = with_notice_env_locked(&["APOLLO_TEMPLATES_API"], || {
+            temp_env::with_var_unset("APOLLO_TEMPLATES_API", || {
+                Rover::parse_from([
+                    PKG_NAME,
+                    "--config-home",
+                    home_path.as_str(),
+                    "--profile",
+                    "staging",
+                    "config",
+                    "list",
+                ])
+            })
+        });
+
+        rover.resolve_templates_api(None).unwrap();
+
+        // The gate `resolve_templates_api`'s own notice decision already
+        // consumed means a direct call for the same setting now returns
+        // `None` - proving the real call path decided the notice.
+        let message = rover.config_override_notice(
+            SettingName::TemplatesApi,
+            None,
+            None,
+            Some("https://profile-templates.example.com"),
+        );
+        assert_that!(message.unwrap()).is_none();
+    }
+
+    // `config_override_notice_is_suppressed_by_the_flag` already proves
+    // `--no-config-notices` suppresses the notice mechanism generically
+    // (it doesn't care which setting it's deciding for). This pins down
+    // the other half for this setting specifically: suppressing the
+    // notice must not also break `resolve_templates_api`'s actual value
+    // resolution.
+    #[test]
+    fn templates_api_still_resolves_with_notices_suppressed() {
+        let home = config_home_with_setting(
+            "staging",
+            "APOLLO_TEMPLATES_API",
+            "https://profile-templates.example.com",
+        );
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+
+        let resolved = with_notice_env_locked(&["APOLLO_TEMPLATES_API"], || {
+            temp_env::with_var_unset("APOLLO_TEMPLATES_API", || {
+                let rover = Rover::parse_from([
+                    PKG_NAME,
+                    "--config-home",
+                    home_path.as_str(),
+                    "--profile",
+                    "staging",
+                    "--no-config-notices",
+                    "config",
+                    "list",
+                ]);
+
+                rover.resolve_templates_api(None)
+            })
+        })
+        .unwrap();
+
+        assert_that!(resolved)
+            .is_equal_to(Some("https://profile-templates.example.com".to_string()));
     }
 
     #[tokio::test]

@@ -9,11 +9,7 @@ pub use list::List;
 use serde::Serialize;
 pub use r#use::Use;
 
-use crate::{
-    RoverOutput, RoverResult,
-    cli::Rover,
-    options::{SettingName, TemplatesApiOpt},
-};
+use crate::{RoverOutput, RoverResult, cli::Rover, options::TemplatesApiOpt};
 
 #[derive(Debug, Clone, Parser, Serialize)]
 pub struct Template {
@@ -35,10 +31,8 @@ enum Command {
 
 impl Template {
     pub(crate) async fn run(&self, rover: &Rover) -> RoverResult<RoverOutput> {
-        let templates_api = rover.resolve_setting(
-            self.templates_api.templates_api.clone(),
-            SettingName::TemplatesApi,
-        )?;
+        let templates_api =
+            rover.resolve_templates_api(self.templates_api.templates_api.clone())?;
         let templates_api = templates_api.as_deref();
         match &self.command {
             Command::Use(use_template) => use_template.run(templates_api).await,

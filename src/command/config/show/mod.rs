@@ -54,17 +54,10 @@ impl Show {
                 rover.download_host_flag_or_env(),
                 RoverEnvKey::RoverDownloadHost,
             )?,
-            // `--templates-api` is scoped to `template`/`init` (FR1), not
-            // global, so `config show`'s own invocation never parses that
-            // flag - unlike every other setting in this slice, there's no
-            // `Rover`-level clap field for `resolve_string_setting` to read
-            // an already-resolved flag-or-env value from. Passing the real
-            // env var directly here (rather than `None`) is what lets it
-            // still report `source: Environment` correctly when only the
-            // env var, not a flag, supplies a value - `resolve_string_
-            // setting`'s own env check (`raw_env`) is otherwise exactly
-            // this same lookup, so this doesn't change its behavior when
-            // the env var isn't set.
+            // `--templates-api` has no `Rover`-level field (it's scoped to
+            // `template`/`init`, FR1), so there's no flag-or-env value to
+            // pass as `explicit` - passing the real env var directly still
+            // lets a real `APOLLO_TEMPLATES_API` report `source: Environment`.
             resolve_string_setting(
                 rover,
                 profile,
