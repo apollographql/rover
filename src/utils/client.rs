@@ -259,10 +259,6 @@ impl StudioClientConfig {
         self
     }
 
-    /// Prints the download-host override notice the first time this is
-    /// called for a given resolved value (FR61: exactly one notice no
-    /// matter how many artifacts one process downloads) - a no-op if
-    /// there's no notice to print, or if it already printed.
     /// The download-host notice this config will print on its first
     /// download, if one was decided.
     #[cfg(test)]
@@ -272,6 +268,10 @@ impl StudioClientConfig {
             .map(|notice| notice.message.as_str())
     }
 
+    /// Prints the download-host override notice the first time this is
+    /// called for a given resolved value (FR61: exactly one notice no
+    /// matter how many artifacts one process downloads) - a no-op if
+    /// there's no notice to print, or if it already printed.
     pub(crate) fn print_download_host_notice_once(&self) {
         use rover_print::{print::Print, style::StyledText};
 

@@ -84,6 +84,18 @@ pub(crate) enum ProjectSettingValue {
     NotAScalar(String),
 }
 
+impl ProjectSettingValue {
+    /// The value as the file spells it, for reporting rather than use: a
+    /// scalar as read, nothing at all for a null, and anything else rendered
+    /// back to YAML.
+    pub(crate) fn as_written(&self) -> String {
+        match self {
+            ProjectSettingValue::Scalar(raw) | ProjectSettingValue::NotAScalar(raw) => raw.clone(),
+            ProjectSettingValue::Null => String::new(),
+        }
+    }
+}
+
 /// The classified contents of a `settings:` section.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct ProjectSettings {
