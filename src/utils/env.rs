@@ -111,6 +111,12 @@ pub enum RoverEnvKey {
     RoverDownloadHost,
     TemplatesApi,
     GraphRef,
+    OauthAuthorizationUrl,
+    OauthTokenUrl,
+    OauthDeviceAuthorizationUrl,
+    OauthRevocationUrl,
+    OauthWhoamiUrl,
+    OauthClientId,
 }
 
 impl fmt::Display for RoverEnvKey {
@@ -133,6 +139,20 @@ mod tests {
     fn it_parses_config_home() {
         let expected_key = "APOLLO_CONFIG_HOME";
         assert_eq!(&RoverEnvKey::ConfigHome.to_string(), expected_key);
+    }
+
+    #[rstest::rstest]
+    #[case(RoverEnvKey::OauthAuthorizationUrl, "APOLLO_OAUTH_AUTHORIZATION_URL")]
+    #[case(RoverEnvKey::OauthTokenUrl, "APOLLO_OAUTH_TOKEN_URL")]
+    #[case(
+        RoverEnvKey::OauthDeviceAuthorizationUrl,
+        "APOLLO_OAUTH_DEVICE_AUTHORIZATION_URL"
+    )]
+    #[case(RoverEnvKey::OauthRevocationUrl, "APOLLO_OAUTH_REVOCATION_URL")]
+    #[case(RoverEnvKey::OauthWhoamiUrl, "APOLLO_OAUTH_WHOAMI_URL")]
+    #[case(RoverEnvKey::OauthClientId, "APOLLO_OAUTH_CLIENT_ID")]
+    fn it_parses_oauth_settings(#[case] key: RoverEnvKey, #[case] expected: &str) {
+        assert_eq!(&key.to_string(), expected);
     }
 
     #[test]

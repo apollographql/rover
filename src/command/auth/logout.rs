@@ -12,7 +12,10 @@ use serde::Serialize;
 use tower::{Service, ServiceBuilder, ServiceExt};
 
 use super::OauthConfig;
-use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult, options::ProfileOpt};
+use crate::{
+    RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
+    options::{ProfileOpt, SettingName},
+};
 
 /// How long to wait for the OAuth server to respond to a single token
 /// revocation request, matching `src/utils/client.rs`'s `ClientTimeout`
@@ -44,6 +47,12 @@ impl From<std::convert::Infallible> for RevokeHttpError {
 pub struct Logout {}
 
 impl Logout {
+    /// The OAuth settings this invocation actually sends a request to (or
+    /// identifies itself with).
+    pub(super) fn oauth_settings_used(&self) -> Vec<SettingName> {
+        vec![SettingName::OauthClientId, SettingName::OauthRevocationUrl]
+    }
+
     pub async fn run(
         &self,
         config: Config,

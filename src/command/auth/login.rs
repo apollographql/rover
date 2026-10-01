@@ -14,7 +14,10 @@ use tower::{ServiceBuilder, retry::RetryLayer};
 use url::Url;
 
 use super::OauthConfig;
-use crate::{RoverOutput, RoverResult, options::ProfileOpt};
+use crate::{
+    RoverOutput, RoverResult,
+    options::{ProfileOpt, SettingName},
+};
 
 /// Bounds a single device-code-request attempt. Kept short and independent of
 /// `DEVICE_CODE_RETRY_PERIOD` (the overall retry budget), the same reasoning
@@ -77,6 +80,22 @@ impl OpenUrl for BrowserOpener {
 }
 
 impl Login {
+    /// The OAuth settings this invocation actually sends a request to (or
+    /// identifies itself with) - the browser and device flows use different
+    /// authorization endpoints.
+    pub(super) fn oauth_settings_used(&self) -> Vec<SettingName> {
+        let authorization = if self.no_browser {
+            SettingName::OauthDeviceAuthorizationUrl
+        } else {
+            SettingName::OauthAuthorizationUrl
+        };
+        vec![
+            SettingName::OauthClientId,
+            authorization,
+            SettingName::OauthTokenUrl,
+        ]
+    }
+
     pub async fn run(
         &self,
         config: Config,

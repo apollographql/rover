@@ -7,7 +7,11 @@ use clap::{Parser, Subcommand};
 use serde::Serialize;
 
 pub use self::config::OauthConfig;
-use crate::{RoverResult, options::ProfileOpt, utils::client::StudioClientConfig};
+use crate::{
+    RoverResult,
+    options::{ProfileOpt, SettingName},
+    utils::client::StudioClientConfig,
+};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Auth {
@@ -26,6 +30,17 @@ pub enum AuthCommand {
 }
 
 impl Auth {
+    /// The OAuth settings this invocation's subcommand actually sends a
+    /// request to - the only ones whose override notices may fire (FR60:
+    /// "uses" is not "resolves").
+    pub(crate) fn oauth_settings_used(&self) -> Vec<SettingName> {
+        match &self.command {
+            AuthCommand::Login(command) => command.oauth_settings_used(),
+            AuthCommand::Logout(command) => command.oauth_settings_used(),
+            AuthCommand::Whoami(command) => command.oauth_settings_used(),
+        }
+    }
+
     pub async fn run(
         &self,
         client_config: StudioClientConfig,

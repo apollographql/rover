@@ -6,8 +6,8 @@ use crate::options::{
 };
 
 /// The OAuth server endpoints (and client ID) `rover auth login`/`rover auth
-/// logout` use, built from [`crate::options::OauthOpts`] (which already
-/// resolves each field to a CLI-flag override or its default).
+/// logout` use, built by `Rover::get_oauth_config` from each setting's
+/// flag/env value or profile value, falling back here to the built-in default.
 ///
 /// `rover` uses a single static client ID (registered with the OAuth server
 /// ahead of time), not one dynamically registered per installation.
