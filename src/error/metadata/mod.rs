@@ -375,6 +375,8 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 // - not spec-required to have its own stable code, and the message is already
                 // self-explanatory.
                 RoverClientError::GracePeriodTooLarge { .. } => (None, None),
+                // The message already names the ID and says why - no suggestion adds anything.
+                RoverClientError::PairCannotBeRenamed { .. } => (None, Some(RoverErrorCode::E059)),
                 RoverClientError::ServiceReady(_) => (None, None),
                 RoverClientError::Service { .. } => (None, None),
                 RoverClientError::InvalidTimestamp(_) => (None, None),

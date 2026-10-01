@@ -121,6 +121,14 @@ pub enum RoverClientError {
     #[error("the requested grace period ({days} days) is too large to represent as a date")]
     GracePeriodTooLarge { days: i64 },
 
+    /// `rover api-key rename <ORGANIZATION_ID> <ID> <NEW_NAME>` was given a client-credential
+    /// pair's client ID. The Platform API has no way to rename a pair yet, so this fails without
+    /// making any change (spec FR31, `specs/rover-431-identity-grant-management`).
+    #[error(
+        "`{client_id}` is a client-credential pair. Client-credential pairs can't be renamed."
+    )]
+    PairCannotBeRenamed { client_id: String },
+
     /// when attempting to create a key the associated Organization cannot be found
     #[error("Could not find the API Key with ID '{api_key_id}'")]
     ApiKeyNotFound { api_key_id: String },
