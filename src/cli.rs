@@ -217,9 +217,10 @@ pub struct Rover {
     #[arg(long = "skip-update-check", global = true)]
     skip_update_check: bool,
 
-    /// Suppress the notices Rover prints when a profile overrides a
-    /// network destination, or when an environment variable overrides a
-    /// value an explicitly selected profile also set.
+    /// Suppress the notices Rover prints when a profile or the project file
+    /// overrides a network destination, or when an environment variable
+    /// overrides a value an explicitly selected profile or the project file
+    /// also set.
     ///
     /// Set the `APOLLO_ROVER_NO_CONFIG_NOTICES` environment variable (to
     /// `1` or `true`) to suppress them the same way. Neither a profile nor
@@ -655,26 +656,25 @@ impl Rover {
             return Ok(None);
         }
 
-        let profile = self.get_profile_opt();
-        if !profile.selection.is_explicit() {
-            return Ok(None);
-        }
         let houston_config = self.get_rover_config_read_only()?;
-        let profile_raw =
-            Profile::new(&profile.profile_name, &houston_config).get_setting(name.as_str())?;
+        // As in `config_override_notice`, overriding the default profile
+        // isn't surfaced; overriding an explicit profile or the project file
+        // is.
+        let Some((tier @ (StoredTier::ExplicitProfile | StoredTier::ProjectFile), stored_raw)) =
+            self.stored_raw_with(&houston_config, name)?
+        else {
+            return Ok(None);
+        };
         // The env var disables telemetry on any value it's set to, so it
-        // only overrides anything when the profile wasn't already disabling
-        // it - a profile that already stores `true` sees no change to notice
-        // about.
-        Ok(profile_raw
-            .filter(|value| !value.eq_ignore_ascii_case("true"))
-            .map(|_| {
-                format!(
-                    "`{name}` from the environment overrides the value set in profile \
-                    `{profile_name}`.",
-                    profile_name = profile.profile_name,
-                )
-            }))
+        // only overrides anything when the stored value wasn't already
+        // disabling it - one that already stores `true` sees no change to
+        // notice about.
+        Ok((!stored_raw.eq_ignore_ascii_case("true")).then(|| {
+            format!(
+                "`{name}` from the environment overrides the value set in {source}.",
+                source = self.stored_tier_label(tier),
+            )
+        }))
     }
 
     pub(crate) fn get_rover_config(&self) -> RoverResult<Config> {
@@ -908,53 +908,56 @@ impl Rover {
             return Ok(None);
         }
 
-        let profile = self.get_profile_opt();
-        let profile_is_explicit = profile.selection.is_explicit();
         let houston_config = self.get_rover_config()?;
-        let profile_raw =
-            Profile::new(&profile.profile_name, &houston_config).get_setting(name.as_str())?;
+        // The stored tier beneath the flag/environment: what an environment
+        // value overrode, or what supplied `resolved` when nothing did.
+        let Some((tier, stored_raw)) = self.stored_raw_with(&houston_config, name)? else {
+            // Nothing stored: only a non-default value can have come from a
+            // profile the caller resolved some other way, so keep the
+            // profile wording for it.
+            return Ok(resolved
+                .filter(|_| explicit.is_none())
+                .filter(|value| {
+                    name.is_network_destination()
+                        && Some(*value) != name.builtin_default().as_deref()
+                })
+                .map(|value| {
+                    format!(
+                        "profile `{profile_name}` sets `{name}` to `{value}`.",
+                        profile_name = self.get_profile_opt().profile_name,
+                    )
+                }));
+        };
+        let source = self.stored_tier_label(tier);
+        let is_non_default_destination = |value: &str| {
+            name.is_network_destination() && Some(value) != name.builtin_default().as_deref()
+        };
 
         let message = if let Some(explicit_value) = explicit {
             // Credits the environment whenever its current value matches
             // what actually resolved, even if the flag (not the env var)
             // supplied that same value - harmless (the message just names
-            // the wrong of two identical sources), not corrected here.
-            if profile_is_explicit && raw_env == Some(explicit_value) {
-                profile_raw.map(|profile_value| {
-                    if name.is_network_destination()
-                        && Some(profile_value.as_str()) != name.builtin_default().as_deref()
-                    {
-                        format!(
-                            "`{name}` from the environment is set to `{explicit_value}`, \
-                            overriding the value set in profile `{profile_name}`.",
-                            profile_name = profile.profile_name,
-                        )
-                    } else {
-                        format!(
-                            "`{name}` from the environment overrides the value set in profile \
-                            `{profile_name}`.",
-                            profile_name = profile.profile_name,
-                        )
-                    }
-                })
-            } else {
-                None
-            }
-        } else if let Some(value) = resolved {
-            // A value the project file supplied gets no notice yet.
-            let from_project_file =
-                self.stored_tier_with(&houston_config, name)? == Some(StoredTier::ProjectFile);
-            (!from_project_file
-                && name.is_network_destination()
-                && Some(value) != name.builtin_default().as_deref())
-            .then(|| {
-                format!(
-                    "profile `{profile_name}` sets `{name}` to `{value}`.",
-                    profile_name = profile.profile_name,
-                )
+            // the wrong of two identical sources), not corrected here. The
+            // environment overriding the default profile isn't surfaced
+            // (FR59(a) names only an explicitly selected one); overriding the
+            // project file is, the same way.
+            let surfaced = matches!(tier, StoredTier::ExplicitProfile | StoredTier::ProjectFile);
+            (surfaced && raw_env == Some(explicit_value)).then(|| {
+                if is_non_default_destination(&stored_raw) {
+                    format!(
+                        "`{name}` from the environment is set to `{explicit_value}`, overriding \
+                        the value set in {source}."
+                    )
+                } else {
+                    format!("`{name}` from the environment overrides the value set in {source}.")
+                }
             })
         } else {
-            None
+            // FR32: an explicit profile outranking the project file isn't an
+            // override, so only the winner is ever named.
+            resolved
+                .filter(|value| is_non_default_destination(value))
+                .map(|value| format!("{source} sets `{name}` to `{value}`."))
         };
 
         Ok(message)
@@ -966,6 +969,49 @@ impl Rover {
     /// sources can.
     fn config_notices_suppressed(&self) -> bool {
         self.no_config_notices || crate::utils::config_notices_suppressed_by_env()
+    }
+
+    /// The winning stored tier for `name` and its value as stored - not
+    /// validated, since a notice only ever describes a value the caller has
+    /// already resolved (or one the environment overrode, which is never
+    /// read for use). A project-file value that isn't a single value is
+    /// rendered back to YAML.
+    fn stored_raw_with(
+        &self,
+        houston_config: &Config,
+        name: SettingName,
+    ) -> RoverResult<Option<(StoredTier, String)>> {
+        let Some(tier) = self.stored_tier_with(houston_config, name)? else {
+            return Ok(None);
+        };
+        let raw = match tier {
+            StoredTier::ExplicitProfile | StoredTier::DefaultProfile => {
+                Profile::new(&self.get_profile_opt().profile_name, houston_config)
+                    .get_setting(name.as_str())?
+            }
+            StoredTier::ProjectFile => {
+                self.project_settings()?
+                    .get(name)
+                    .map(|setting| match &setting.value {
+                        ProjectSettingValue::Scalar(raw) | ProjectSettingValue::NotAScalar(raw) => {
+                            raw.clone()
+                        }
+                    })
+            }
+        };
+        Ok(raw.map(|raw| (tier, raw)))
+    }
+
+    /// How a notice names a stored tier: "profile `staging`" (FR64, FR66)
+    /// or "`.rover/rover.yaml`" (FR65).
+    fn stored_tier_label(&self, tier: StoredTier) -> String {
+        match tier {
+            StoredTier::ExplicitProfile | StoredTier::DefaultProfile => format!(
+                "profile `{profile_name}`",
+                profile_name = self.get_profile_opt().profile_name
+            ),
+            StoredTier::ProjectFile => format!("`{PROJECT_FILE}`"),
+        }
     }
 
     /// Records that `name` has had its one notice-worth-of-attention for
@@ -4008,8 +4054,8 @@ mod tests {
             .is_equal_to(Some(camino::Utf8PathBuf::from("/env/rover-home")));
     }
 
-    // The project file's startup checks (FR70, FR72, FR73, FR76), run by
-    // every command before it does anything.
+    // The project file: its startup checks (FR70, FR72, FR73, FR76), its
+    // place in the precedence chain (FR25), and its notices (FR65).
 
     /// A `rover config list` run (which sends no request of its own) in a
     /// project whose `rover.yaml` is `project`, with a user-level
@@ -4468,5 +4514,296 @@ mod tests {
         let client_config = scenario.rover.get_client_config().await.unwrap();
 
         assert_that!(client_config.uri()).is_equal_to(&expected.to_string());
+    }
+
+    /// Runs `body` with the notice-suppression variable cleared (or set,
+    /// when `suppressed`), since it's read straight from the process
+    /// environment at the moment a notice is decided.
+    fn with_notices<R>(suppressed: bool, body: impl FnOnce() -> R) -> R {
+        temp_env::with_var(
+            "APOLLO_ROVER_NO_CONFIG_NOTICES",
+            suppressed.then_some("true"),
+            body,
+        )
+    }
+
+    const MIRROR: &str = "settings:\n  APOLLO_ROVER_DOWNLOAD_HOST: https://mirror.example.com\n";
+
+    /// FR65's required text.
+    #[test]
+    fn a_project_file_network_value_gets_the_project_file_notice() {
+        let scenario = scenario(Some(MIRROR), &[], &[], &["APOLLO_ROVER_DOWNLOAD_HOST"]);
+
+        let message = with_notices(false, || {
+            scenario.rover.config_override_notice(
+                SettingName::DownloadHost,
+                None,
+                None,
+                Some("https://mirror.example.com"),
+            )
+        });
+
+        assert_that!(message.unwrap()).is_some().is_equal_to(
+            "`.rover/rover.yaml` sets `APOLLO_ROVER_DOWNLOAD_HOST` to \
+            `https://mirror.example.com`."
+                .to_string(),
+        );
+    }
+
+    /// The B5 metric: a project file redirecting plugin downloads is
+    /// surfaced by exactly one notice, decided through the real call
+    /// path - which consumes the once-per-process gate, so a second
+    /// decision for the same setting comes back empty.
+    #[tokio::test]
+    async fn a_project_file_download_host_is_noticed_exactly_once() {
+        let scenario = scenario(Some(MIRROR), &[], &[], &["APOLLO_ROVER_DOWNLOAD_HOST"]);
+        temp_env::async_with_vars([("APOLLO_ROVER_NO_CONFIG_NOTICES", None::<&str>)], async {
+            let client_config = scenario.rover.get_client_config().await.unwrap();
+
+            assert_that!(client_config.download_host_notice_message())
+                .is_some()
+                .is_equal_to(
+                    "`.rover/rover.yaml` sets `APOLLO_ROVER_DOWNLOAD_HOST` to \
+                        `https://mirror.example.com`.",
+                );
+            assert_that!(scenario.rover.config_override_notice(
+                SettingName::DownloadHost,
+                None,
+                None,
+                Some("https://mirror.example.com"),
+            ))
+            .is_ok_containing(None);
+        })
+        .await;
+    }
+
+    /// FR63: only the flag or its environment variable can silence it -
+    /// and a project-file key trying to is merely unrecognized.
+    #[test]
+    fn a_project_file_cannot_suppress_its_own_notice() {
+        let scenario = scenario(
+            Some(
+                "settings:\n  APOLLO_ROVER_DOWNLOAD_HOST: https://mirror.example.com\n  \
+                APOLLO_ROVER_NO_CONFIG_NOTICES: true\n",
+            ),
+            &[],
+            &[],
+            &["APOLLO_ROVER_DOWNLOAD_HOST"],
+        );
+
+        let message = with_notices(false, || {
+            scenario.rover.config_override_notice(
+                SettingName::DownloadHost,
+                None,
+                None,
+                Some("https://mirror.example.com"),
+            )
+        });
+
+        assert_that!(message.unwrap()).is_some();
+        assert_that!(
+            scenario
+                .rover
+                .project_settings()
+                .unwrap()
+                .warnings()
+                .to_vec()
+        )
+        .is_equal_to(vec![
+            "Warning: `.rover/rover.yaml` sets `APOLLO_ROVER_NO_CONFIG_NOTICES`, which \
+                this version of Rover doesn't recognize. It will be ignored."
+                .to_string(),
+        ]);
+    }
+
+    #[rstest::rstest]
+    #[case::by_the_environment(true, &[])]
+    #[case::by_the_flag(false, &["--no-config-notices"])]
+    fn the_project_file_notice_is_suppressed(#[case] env: bool, #[case] args: &[&str]) {
+        let scenario = scenario(Some(MIRROR), &[], args, &["APOLLO_ROVER_DOWNLOAD_HOST"]);
+
+        let message = with_notices(env, || {
+            scenario.rover.config_override_notice(
+                SettingName::DownloadHost,
+                None,
+                None,
+                Some("https://mirror.example.com"),
+            )
+        });
+
+        assert_that!(message).is_ok_containing(None);
+    }
+
+    #[test]
+    fn a_project_file_value_equal_to_the_default_is_silent() {
+        let scenario = scenario(
+            Some("settings:\n  APOLLO_ROVER_DOWNLOAD_HOST: https://rover.apollo.dev\n"),
+            &[],
+            &[],
+            &["APOLLO_ROVER_DOWNLOAD_HOST"],
+        );
+
+        let message = with_notices(false, || {
+            scenario.rover.config_override_notice(
+                SettingName::DownloadHost,
+                None,
+                None,
+                Some("https://rover.apollo.dev"),
+            )
+        });
+
+        assert_that!(message).is_ok_containing(None);
+    }
+
+    /// FR32 and its AC: the explicit profile's own FR64 notice is the only
+    /// one, and nothing mentions the project-file value it outranked.
+    #[test]
+    fn an_explicit_profile_outranking_the_project_file_names_only_the_profile() {
+        let scenario = scenario(
+            Some(REPO_REGISTRY),
+            &both_profiles(),
+            &["--profile", "staging"],
+            &["APOLLO_REGISTRY_URL"],
+        );
+
+        let message = with_notices(false, || {
+            scenario.rover.config_override_notice(
+                SettingName::RegistryUrl,
+                None,
+                None,
+                Some("https://staging.example.com"),
+            )
+        });
+
+        assert_that!(message.unwrap()).is_some().is_equal_to(
+            "profile `staging` sets `APOLLO_REGISTRY_URL` to `https://staging.example.com`."
+                .to_string(),
+        );
+    }
+
+    /// The environment overriding the project file is surfaced the way
+    /// it is for an explicit profile (FR66/FR67's wording, with the file
+    /// named in the profile's place).
+    #[rstest::rstest]
+    #[case::network_destination(
+        REPO_REGISTRY,
+        SettingName::RegistryUrl,
+        "https://env.example.com",
+        "`APOLLO_REGISTRY_URL` from the environment is set to `https://env.example.com`, \
+        overriding the value set in `.rover/rover.yaml`."
+    )]
+    #[case::not_a_network_destination(
+        "settings:\n  APOLLO_CHECKS_TIMEOUT_SECONDS: 600\n",
+        SettingName::ChecksTimeoutSeconds,
+        "900",
+        "`APOLLO_CHECKS_TIMEOUT_SECONDS` from the environment overrides the value set in \
+        `.rover/rover.yaml`."
+    )]
+    fn the_environment_overriding_the_project_file_is_noticed(
+        #[case] project: &str,
+        #[case] name: SettingName,
+        #[case] env_value: &str,
+        #[case] expected: &str,
+    ) {
+        let scenario = scenario(Some(project), &both_profiles(), &[], &[]);
+
+        let message = with_notices(false, || {
+            scenario.rover.config_override_notice(
+                name,
+                Some(env_value),
+                Some(env_value),
+                Some(env_value),
+            )
+        });
+
+        assert_that!(message.unwrap())
+            .is_some()
+            .is_equal_to(expected.to_string());
+    }
+
+    /// The environment overriding an explicit profile is still named as
+    /// the profile, even with a project file beneath it.
+    #[test]
+    fn the_environment_overriding_an_explicit_profile_names_the_profile() {
+        let scenario = scenario(
+            Some(REPO_REGISTRY),
+            &both_profiles(),
+            &["--profile", "staging"],
+            &[],
+        );
+
+        let message = with_notices(false, || {
+            scenario.rover.config_override_notice(
+                SettingName::RegistryUrl,
+                Some("https://env.example.com"),
+                Some("https://env.example.com"),
+                Some("https://env.example.com"),
+            )
+        });
+
+        assert_that!(message.unwrap()).is_some().is_equal_to(
+            "`APOLLO_REGISTRY_URL` from the environment is set to `https://env.example.com`, \
+            overriding the value set in profile `staging`."
+                .to_string(),
+        );
+    }
+
+    /// FR59(a) is about an explicitly selected profile; the default
+    /// profile being overridden stays silent, project file or not.
+    #[test]
+    fn the_environment_overriding_the_default_profile_is_silent() {
+        let scenario = scenario(None, &both_profiles(), &[], &[]);
+
+        let message = with_notices(false, || {
+            scenario.rover.config_override_notice(
+                SettingName::RegistryUrl,
+                Some("https://env.example.com"),
+                Some("https://env.example.com"),
+                Some("https://env.example.com"),
+            )
+        });
+
+        assert_that!(message).is_ok_containing(None);
+    }
+
+    /// A flag, unlike the environment, is never surfaced as an override.
+    #[test]
+    fn a_flag_overriding_the_project_file_is_silent() {
+        let scenario = scenario(Some(REPO_REGISTRY), &[], &[], &[]);
+
+        let message = with_notices(false, || {
+            scenario.rover.config_override_notice(
+                SettingName::RegistryUrl,
+                Some("https://flag.example.com"),
+                None,
+                Some("https://flag.example.com"),
+            )
+        });
+
+        assert_that!(message).is_ok_containing(None);
+    }
+
+    #[rstest::rstest]
+    #[case::stored_false("settings:\n  APOLLO_TELEMETRY_DISABLED: false\n", true)]
+    #[case::already_disabled("settings:\n  APOLLO_TELEMETRY_DISABLED: true\n", false)]
+    fn the_environment_disabling_telemetry_over_the_project_file(
+        #[case] project: &str,
+        #[case] noticed: bool,
+    ) {
+        let mut scenario = scenario(Some(project), &[], &[], &[]);
+        scenario
+            .rover
+            .insert_env_var(crate::utils::env::RoverEnvKey::TelemetryDisabled, "1")
+            .unwrap();
+
+        let message = with_notices(false, || {
+            scenario.rover.telemetry_disabled_override_notice()
+        });
+
+        assert_that!(message.unwrap()).is_equal_to(noticed.then(|| {
+            "`APOLLO_TELEMETRY_DISABLED` from the environment overrides the value set in \
+            `.rover/rover.yaml`."
+                .to_string()
+        }));
     }
 }

@@ -263,6 +263,15 @@ impl StudioClientConfig {
     /// called for a given resolved value (FR61: exactly one notice no
     /// matter how many artifacts one process downloads) - a no-op if
     /// there's no notice to print, or if it already printed.
+    /// The download-host notice this config will print on its first
+    /// download, if one was decided.
+    #[cfg(test)]
+    pub(crate) fn download_host_notice_message(&self) -> Option<&str> {
+        self.download_host_notice
+            .as_deref()
+            .map(|notice| notice.message.as_str())
+    }
+
     pub(crate) fn print_download_host_notice_once(&self) {
         use rover_print::{print::Print, style::StyledText};
 
