@@ -4,6 +4,7 @@ mod delete;
 // `RoverClientError::PairListFailure` can reach `list::output`'s `keys_table_text`/`keys_json`.
 pub(crate) mod list;
 mod rename;
+mod rotate;
 
 use std::fmt::{Display, Formatter};
 
@@ -12,7 +13,9 @@ use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult,
-    command::api_key::{create::Create, delete::Delete, list::List, rename::Rename},
+    command::api_key::{
+        create::Create, delete::Delete, list::List, rename::Rename, rotate::Rotate,
+    },
     options::ProfileOpt,
     utils::client::StudioClientConfig,
 };
@@ -33,6 +36,11 @@ pub enum Command {
     List(List),
     #[clap(name = "rename", about = "Rename an existing API key")]
     Rename(Rename),
+    #[clap(
+        name = "rotate",
+        about = "Rotate an existing client-credential pair's secret"
+    )]
+    Rotate(Rotate),
 }
 
 impl ApiKeys {
@@ -46,6 +54,7 @@ impl ApiKeys {
             Command::Delete(command) => command.run(client_config, profile).await,
             Command::List(command) => command.run(client_config, profile).await,
             Command::Rename(command) => command.run(client_config, profile).await,
+            Command::Rotate(command) => command.run(client_config, profile).await,
         }
     }
 }

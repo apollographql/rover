@@ -367,6 +367,14 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 // `RoverError::print()`/`get_internal_data_json()`, not this metadata) carries
                 // the best-effort recovery.
                 RoverClientError::PairListFailure { .. } => (None, Some(RoverErrorCode::E056)),
+                // The message already names the ID and organization, and that it's rotate-only -
+                // no generic suggestion adds anything here either.
+                RoverClientError::PairNotFound { .. } => (None, Some(RoverErrorCode::E057)),
+                // A usage-adjacent failure (FR23 leaves the actual bound to the Platform API,
+                // but a value this large overflows `chrono` itself before any request is made)
+                // - not spec-required to have its own stable code, and the message is already
+                // self-explanatory.
+                RoverClientError::GracePeriodTooLarge { .. } => (None, None),
                 RoverClientError::ServiceReady(_) => (None, None),
                 RoverClientError::Service { .. } => (None, None),
                 RoverClientError::InvalidTimestamp(_) => (None, None),

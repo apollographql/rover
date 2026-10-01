@@ -1,13 +1,16 @@
 use std::{future::Future, pin::Pin, time::Duration};
 
+use chrono::Utc;
 use rover_graphql::{GraphQLRequest, GraphQLServiceError};
 use rover_tower::service::replace_ready_service;
 use tower::Service;
 
 use crate::{
+    error::{pair_not_found_in, permission_denied_in},
     operations::api_key::pair_rotate::{
+        previous_secrets_expire_at,
         rotate_pair_mutation::{self, Variables},
-        RotatePairInput, RotatePairMutation, RotatedPair,
+        rotated_pair_from, RotatePairInput, RotatePairMutation, RotatedPair,
     },
     RoverClientError,
 };
@@ -69,16 +72,35 @@ where
         let mut inner = replace_ready_service(&mut self.inner);
         Box::pin(async move {
             let organization_id = input.organization_id;
+            let client_id = input.client_id;
+            let grace_period_days = input.grace_period_days;
+
+            // Computed - and, critically, validated - before the mutation is ever sent: an
+            // out-of-range grace period fails right here, while nothing has changed yet,
+            // rather than after the secret has already rotated server-side (FR71).
+            let previous_secrets_expire_at =
+                previous_secrets_expire_at(Utc::now(), grace_period_days)?;
+
             let vars = Variables {
                 organization_id: organization_id.clone(),
-                client_id: input.client_id,
-                grace_period_days: input.grace_period_days,
+                client_id: client_id.clone(),
+                grace_period_days,
             };
-            let data = inner.call(GraphQLRequest::new(vars)).await?;
+            let data = match inner.call(GraphQLRequest::new(vars)).await {
+                Ok(data) => data,
+                Err(err) => {
+                    return Err(permission_denied_in(&err, organization_id.clone())
+                        .or_else(|| pair_not_found_in(&err, organization_id.clone(), client_id))
+                        .unwrap_or_else(|| err.into()))
+                }
+            };
             let organization = data
                 .organization
                 .ok_or(RoverClientError::OrganizationIDNotFound { organization_id })?;
-            organization.rotate_o_auth_client_secret.try_into()
+            rotated_pair_from(
+                organization.rotate_o_auth_client_secret,
+                previous_secrets_expire_at,
+            )
         })
     }
 }
@@ -104,6 +126,8 @@ pub mod mock {
 #[cfg(test)]
 mod tests {
     use futures::future;
+    use rover_http::HttpServiceError;
+    use rover_studio::service::permission_denied::PermissionDenied;
     use rover_tower::test::{expect_poll_ready, MockCloneService};
     use rstest::{fixture, rstest};
     use serde_json::json;
@@ -129,6 +153,7 @@ mod tests {
             "organization": {
                 "rotateOAuthClientSecret": {
                     "clientId": "c_8f2a",
+                    "clientName": "ci-deploy",
                     "clientSecret": client_secret,
                     "secretExpiresAt": secret_expires_at
                 }
@@ -160,17 +185,116 @@ mod tests {
                 )))
             });
 
+        let before = Utc::now();
         let response = RotatePair::new(MockCloneService::new(mock))
             .oneshot(input)
             .await
             .unwrap();
+        let after = Utc::now();
 
-        assert_that!(response).is_equal_to(RotatedPair {
-            client_id: "c_8f2a".to_string(),
-            client_secret: "s_new-secret".to_string(),
-            secret_expires_at: chrono::DateTime::parse_from_rfc3339("2028-09-25T16:00:00Z")
-                .unwrap(),
+        assert_that!(response.client_id).is_equal_to("c_8f2a".to_string());
+        assert_that!(response.name)
+            .is_some()
+            .is_equal_to("ci-deploy".to_string());
+        assert_that!(response.client_secret).is_equal_to("s_new-secret".to_string());
+        assert_that!(response.secret_expires_at)
+            .is_equal_to(chrono::DateTime::parse_from_rfc3339("2028-09-25T16:00:00Z").unwrap());
+        // 1-day grace period: `previous_secrets_expire_at` falls between "before + 1 day" and
+        // "after + 1 day" - this brackets the service's own `Utc::now()` capture without pinning
+        // an exact instant a test can't predict.
+        let timestamp = response.previous_secrets_expire_at.timestamp();
+        assert_that!(timestamp)
+            .is_greater_than_or_equal_to((before + chrono::Duration::days(1)).timestamp());
+        assert_that!(timestamp)
+            .is_less_than_or_equal_to((after + chrono::Duration::days(1)).timestamp());
+    }
+
+    /// FR26: a zero grace period reports `previous_secrets_expire_at` as the moment of rotation
+    /// itself, never absent - this is the zero-day counterpart to the above.
+    #[rstest]
+    #[tokio::test]
+    async fn call_reports_the_moment_of_rotation_for_a_zero_grace_period() {
+        let input = RotatePairInput::builder()
+            .organization_id("acme")
+            .client_id("c_8f2a")
+            .build();
+
+        let mut mock = MockRotatePairInnerService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call().times(1).return_once(|_| {
+            future::ready(Ok(response_with(
+                json!("s_new-secret"),
+                json!("2028-09-25T16:00:00Z"),
+            )))
         });
+
+        let before = Utc::now();
+        let response = RotatePair::new(MockCloneService::new(mock))
+            .oneshot(input)
+            .await
+            .unwrap();
+        let after = Utc::now();
+
+        let timestamp = response.previous_secrets_expire_at.timestamp();
+        assert_that!(timestamp).is_greater_than_or_equal_to(before.timestamp());
+        assert_that!(timestamp).is_less_than_or_equal_to(after.timestamp());
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn call_reports_a_permission_denial_naming_the_organization(input: RotatePairInput) {
+        let mut mock = MockRotatePairInnerService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call().times(1).return_once(|_| {
+            future::ready(Err(GraphQLServiceError::UpstreamService(Box::new(
+                HttpServiceError::Unexpected(Box::new(PermissionDenied)),
+            ))))
+        });
+
+        let err = RotatePair::new(MockCloneService::new(mock))
+            .oneshot(input)
+            .await
+            .unwrap_err();
+
+        assert_that!(err.to_string()).is_equal_to(
+            "You don't have permission to manage client-credential pairs in organization \
+            `acme`. This requires the organization admin role, and during the initial rollout \
+            the organization must be enrolled in client-credential support."
+                .to_string(),
+        );
+    }
+
+    /// FR27: the Platform API's own "not found" text (confirmed against its source - see
+    /// `pair_not_found_in`'s doc comment) is classified into the stable, spec-required message,
+    /// rather than falling through as a generic `GraphQl` error.
+    #[rstest]
+    #[tokio::test]
+    async fn call_reports_a_pair_not_found_naming_the_organization_and_client(
+        input: RotatePairInput,
+    ) {
+        let mut mock = MockRotatePairInnerService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call().times(1).return_once(|_| {
+            future::ready(Err(GraphQLServiceError::NoData(vec![
+                graphql_client::Error {
+                    message: "Client not found for client 'c_8f2a'".to_string(),
+                    locations: None,
+                    path: None,
+                    extensions: None,
+                },
+            ])))
+        });
+
+        let err = RotatePair::new(MockCloneService::new(mock))
+            .oneshot(input)
+            .await
+            .unwrap_err();
+
+        assert_that!(err.to_string()).is_equal_to(
+            "`c_8f2a` isn't a client-credential pair in organization `acme`. `rover api-key \
+            rotate` supports client-credential pairs only."
+                .to_string(),
+        );
     }
 
     /// FR22: `None` must reach the server as `null` (an immediate cutover, the Platform API's
@@ -284,5 +408,29 @@ mod tests {
             .unwrap_err();
 
         assert_that!(err).matches(|err| matches!(err, RoverClientError::InvalidTimestamp(_)));
+    }
+
+    /// FR71: an out-of-range grace period must fail *before* the mutation is ever sent. This
+    /// mock's inner `expect_call()` is deliberately never set up, so the test fails (via
+    /// mockall's own "no matching expectation" panic) if `call` ever reaches it.
+    #[tokio::test]
+    async fn call_rejects_an_overflowing_grace_period_before_sending_the_mutation() {
+        let mut mock = MockRotatePairInnerService::new();
+        expect_poll_ready!(mock);
+
+        let input = RotatePairInput::builder()
+            .organization_id("acme")
+            .client_id("c_8f2a")
+            .grace_period_days(i64::MAX)
+            .build();
+
+        let err = RotatePair::new(MockCloneService::new(mock))
+            .oneshot(input)
+            .await
+            .unwrap_err();
+
+        assert_that!(err).matches(|err| {
+            matches!(err, RoverClientError::GracePeriodTooLarge { days } if *days == i64::MAX)
+        });
     }
 }

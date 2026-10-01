@@ -1,0 +1,11 @@
+---
+source: src/command/api_key/rotate/output.rs
+expression: strip_ansi_codes(&output.text()).to_string()
+---
+┌───────────────────┬──────────────────────┐
+│ Client ID         ┆ c_8f2a               │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Client Secret     ┆ s_new-secret         │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Secret Expires At ┆ 2028-09-25T16:00:00Z │
+└───────────────────┴──────────────────────┘

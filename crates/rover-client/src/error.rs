@@ -94,6 +94,33 @@ pub enum RoverClientError {
     )]
     PairPermissionDenied { organization_id: String },
 
+    /// `rover api-key rotate <ORGANIZATION_ID> <CLIENT_ID>` was given an ID that doesn't resolve
+    /// to a client-credentials pair owned by that organization - genuinely nonexistent, belongs
+    /// to a different organization, or isn't a `client_credentials` client at all (spec FR27,
+    /// `specs/rover-431-identity-grant-management`). Distinct from
+    /// [`RoverClientError::PairPermissionDenied`]: the rotate mutation checks org-level
+    /// permission *before* looking at the client ID at all, so the two arrive as different
+    /// failures from the Platform API, not two readings of the same ambiguous signal (unlike
+    /// `list`'s FR16 case).
+    #[error(
+        "`{client_id}` isn't a client-credential pair in organization `{organization_id}`. \
+        `rover api-key rotate` supports client-credential pairs only."
+    )]
+    PairNotFound {
+        organization_id: String,
+        client_id: String,
+    },
+
+    /// `rover api-key rotate --grace-period-days <DAYS>` was given a value too large to
+    /// represent as a date (spec FR23 leaves the upper bound to the Platform API, but a date
+    /// this far out overflows `chrono` itself before any request is ever made). Its own variant,
+    /// not the generic [`RoverClientError::ClientError`], specifically so the command layer can
+    /// tell it apart from a post-mutation failure: this one is raised *before* `rotate`'s mutation
+    /// is ever sent, so - unlike every other error that reaches that match - nothing has
+    /// changed, and "the outcome is unknown" would be actively misleading here.
+    #[error("the requested grace period ({days} days) is too large to represent as a date")]
+    GracePeriodTooLarge { days: i64 },
+
     /// when attempting to create a key the associated Organization cannot be found
     #[error("Could not find the API Key with ID '{api_key_id}'")]
     ApiKeyNotFound { api_key_id: String },
@@ -619,6 +646,44 @@ where
             }),
         _ => None,
     }
+}
+
+/// The exact substring the Platform API's `OAuthClientError.ClientNotFound` renders as (confirmed
+/// by reading `apps/identity/service/services/.../OAuth2ManagementService.kt`'s
+/// `validateAdminTarget`/`OAuthClientError.kt` in the Platform API's own source - not a
+/// contractually-guaranteed wire format, just the message text as of this writing). Covers a
+/// nonexistent client ID, one belonging to another organization, and one that isn't a
+/// `client_credentials` client at all - the backend deliberately reports all three identically
+/// (the same "don't reveal what you can't manage" shape as `list`'s FR16 ambiguity), so Rover
+/// can't and doesn't try to tell them apart either.
+const PAIR_NOT_FOUND_MESSAGE: &str = "Client not found for client";
+
+/// Recovers a "this ID isn't a client-credential pair" failure (spec FR27) from a raw GraphQL
+/// error, by matching [`PAIR_NOT_FOUND_MESSAGE`] against each error's own message - the only
+/// signal available, since `rotateOAuthClientSecret` returns a plain object with no typed error
+/// union (same reasoning as [`permission_denied_in`]'s doc comment, for the "not found" case
+/// instead of the permission-denied one). A reviewer should treat this classification as resting
+/// on confirmed-via-source, not contractually-guaranteed, backend behavior.
+pub(crate) fn pair_not_found_in<T>(
+    err: &GraphQLServiceError<T>,
+    organization_id: impl Into<String>,
+    client_id: impl Into<String>,
+) -> Option<RoverClientError>
+where
+    T: Debug + Send + Sync,
+{
+    let errors = match err {
+        GraphQLServiceError::NoData(errors) => errors,
+        GraphQLServiceError::PartialError { errors, .. } => errors,
+        _ => return None,
+    };
+    errors
+        .iter()
+        .any(|error| error.message.contains(PAIR_NOT_FOUND_MESSAGE))
+        .then(|| RoverClientError::PairNotFound {
+            organization_id: organization_id.into(),
+            client_id: client_id.into(),
+        })
 }
 
 impl<T: Debug + Send + Sync> From<GraphQLServiceError<T>> for RoverClientError {
