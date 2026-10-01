@@ -236,6 +236,7 @@ async fn e2e_test_rover_install_plugins_from_latest_version(
         force_install: false,
         executable_location: temp_dir.clone(),
         override_install_path: None,
+        install_root: None,
     };
     // Roughly matches the overall retry budget `run_with_retries` gives the subsequent
     // `rover install` call below (3 attempts x 5s sleep).

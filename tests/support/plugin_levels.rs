@@ -350,6 +350,7 @@ mod tests {
             force_install: false,
             executable_location: Utf8PathBuf::from("rover"),
             override_install_path: Some(global_level.home().to_path_buf()),
+            install_root: None,
         };
 
         let bin_dir = installer

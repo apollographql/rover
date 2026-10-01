@@ -40,6 +40,7 @@ fn test_install() {
         force_install: true, // necessary to bypass TTY prompt
         executable_location: executable_location_utf,
         override_install_path: Some(install_dir.clone()),
+        install_root: None,
     };
     installer.install().unwrap();
     let expected_install_path = install_dir.join(".test").join("bin").join("test");
@@ -98,6 +99,7 @@ pub async fn test_install_plugin() {
         force_install: true,
         executable_location,
         override_install_path: Some(override_path),
+        install_root: None,
     };
 
     let http_service = ReqwestService::builder()

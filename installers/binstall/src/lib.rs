@@ -56,7 +56,9 @@ pub fn base_dir(
         .map(|dir| dir.join(format!(".{binary_name}")))
 }
 
-pub(crate) fn get_home_dir_path() -> Result<Utf8PathBuf, InstallerError> {
+/// The user's home directory, the one [`base_dir`] places Rover's own
+/// directory under when nothing overrides it.
+pub fn get_home_dir_path() -> Result<Utf8PathBuf, InstallerError> {
     match BaseDirs::new() {
         Some(base_dirs) => Ok(Utf8PathBuf::try_from(base_dirs.home_dir().to_path_buf())?),
         None => Err(no_home()),
@@ -120,6 +122,7 @@ mod tests {
             force_install: false,
             override_install_path: Some(base_dir.clone()),
             executable_location: Utf8PathBuf::try_from(std::env::current_exe().unwrap()).unwrap(),
+            install_root: None,
         }
         .install()
         .unwrap()

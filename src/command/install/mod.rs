@@ -194,6 +194,7 @@ pub(crate) fn installer(
             force_install,
             override_install_path,
             executable_location,
+            install_root: None,
         })
     } else {
         Err(anyhow!("Failed to get the current executable's path.").into())
