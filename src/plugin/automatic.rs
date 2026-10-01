@@ -5,7 +5,7 @@
 //! which outranks both. "Automatic" is the load-bearing word: an explicit
 //! `rover plugin install` is never automatic, so nothing here governs it.
 
-use super::layering::LayeredDeclarations;
+use super::{error::DownloadControl, layering::LayeredDeclarations};
 
 /// Whether a command may download a plugin installed at neither level.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -29,6 +29,16 @@ impl AutomaticDownloads {
             Self::Allowed
         } else {
             Self::NotAllowed
+        }
+    }
+
+    /// The control this amounts to for a command that installs on the fly,
+    /// if it forbids downloading: [`DownloadControl::NotOptedIn`] unless
+    /// something opted in.
+    pub const fn control(self) -> Option<DownloadControl> {
+        match self {
+            Self::NotAllowed => Some(DownloadControl::NotOptedIn),
+            Self::Allowed => None,
         }
     }
 }
