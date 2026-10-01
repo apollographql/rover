@@ -116,7 +116,7 @@ impl Report for Rover {
     }
 
     fn client(&self) -> anyhow::Result<Client, SputnikError> {
-        self.get_reqwest_client()
+        self.get_reqwest_client(None)
             .map_err(|error| SputnikError::AdhocError(anyhow::anyhow!(error.to_string())))
     }
 }

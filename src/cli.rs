@@ -289,7 +289,8 @@ impl Rover {
         } else if !self.skip_update_check && !crate::utils::skip_all_updates() {
             let config = self.get_rover_config();
             if let Ok(config) = config {
-                let _ = version::check_for_update(config, false, self.get_reqwest_client()?).await;
+                let _ =
+                    version::check_for_update(config, false, self.get_reqwest_client(None)?).await;
             }
         }
 
@@ -395,7 +396,7 @@ impl Rover {
             }
             Command::Update(command) => {
                 command
-                    .run(self.get_rover_config()?, self.get_reqwest_client()?)
+                    .run(self.get_rover_config()?, self.get_reqwest_client(None)?)
                     .await
             }
             Command::Install(command) => {
@@ -936,17 +937,23 @@ impl Rover {
         } else {
             false
         };
+        // Resolved once, here, and threaded into everything below that
+        // needs it - each of those used to re-resolve it independently
+        // (re-reading the profile and re-deciding the override notice,
+        // though the notice's once-per-process gate kept it from actually
+        // re-printing).
+        let client_timeout = self.get_client_timeout()?;
         let mut config = self.get_rover_config()?;
         if config.override_api_key.is_none() {
-            config.override_client_credentials_token =
-                self.resolve_client_credentials_token().await?;
+            config.override_client_credentials_token = self
+                .resolve_client_credentials_token(client_timeout)
+                .await?;
         }
-        let client_timeout = self.get_client_timeout()?;
         let client_config = StudioClientConfig::new(
             override_endpoint,
             config,
             is_sudo,
-            self.get_reqwest_client_builder()?,
+            self.get_reqwest_client_builder(client_timeout)?,
             client_timeout.unwrap_or_default(),
         );
         // Downloads should honor the client timeout if resolved (from a flag,
@@ -992,7 +999,10 @@ impl Rover {
     /// interactive `rover auth login` flow isn't an option. Returns `Ok(None)` when
     /// neither env var is set, so callers can fall back to a stored profile credential.
     #[cfg(feature = "oauth")]
-    async fn resolve_client_credentials_token(&self) -> RoverResult<Option<String>> {
+    async fn resolve_client_credentials_token(
+        &self,
+        client_timeout: Option<ClientTimeout>,
+    ) -> RoverResult<Option<String>> {
         use std::time::Duration;
 
         use bytes::Bytes;
@@ -1048,7 +1058,7 @@ impl Rover {
             .map_err(|e| anyhow::anyhow!("invalid client credentials: {e}"))?;
 
         let raw_service = ReqwestService::builder()
-            .client(self.get_reqwest_client()?)
+            .client(self.get_reqwest_client(client_timeout)?)
             .build()
             .map_err(|e| anyhow::anyhow!("failed to build an HTTP client: {e}"))?;
 
@@ -1058,9 +1068,7 @@ impl Rover {
         // whoami lookup in `command::auth::whoami`.
         let http_service = ServiceBuilder::new()
             .layer(retry_with_attempt_timeout(
-                self.get_client_timeout()?
-                    .unwrap_or_default()
-                    .get_duration(),
+                client_timeout.unwrap_or_default().get_duration(),
                 CLIENT_CREDENTIALS_ATTEMPT_TIMEOUT,
             ))
             .service(raw_service);
@@ -1079,7 +1087,10 @@ impl Rover {
     }
 
     #[cfg(not(feature = "oauth"))]
-    async fn resolve_client_credentials_token(&self) -> RoverResult<Option<String>> {
+    async fn resolve_client_credentials_token(
+        &self,
+        _client_timeout: Option<ClientTimeout>,
+    ) -> RoverResult<Option<String>> {
         Ok(None)
     }
 
@@ -1101,24 +1112,41 @@ impl Rover {
         Ok(git_context)
     }
 
-    pub(crate) fn get_reqwest_client(&self) -> RoverResult<Client> {
+    /// `client_timeout` lets a caller that's already resolved the setting
+    /// (`get_client_config`) pass it straight through instead of this
+    /// re-resolving it (a second profile read and override-notice decision);
+    /// pass `None` when there's nothing already resolved to hand in. Only
+    /// matters on a cold cache - once `self.client` is populated the value
+    /// passed in here is moot.
+    pub(crate) fn get_reqwest_client(
+        &self,
+        client_timeout: Option<ClientTimeout>,
+    ) -> RoverResult<Client> {
         if let Some(client) = self.client.borrow() {
             Ok(client.clone())
         } else {
-            let client = self.get_reqwest_client_builder()?.build()?;
+            let client = self.get_reqwest_client_builder(client_timeout)?.build()?;
             let _ = self.client.fill(client);
-            self.get_reqwest_client()
+            self.get_reqwest_client(None)
         }
     }
 
-    pub(crate) fn get_reqwest_client_builder(&self) -> RoverResult<ClientBuilder> {
+    /// See `get_reqwest_client` - same `client_timeout` contract.
+    pub(crate) fn get_reqwest_client_builder(
+        &self,
+        client_timeout: Option<ClientTimeout>,
+    ) -> RoverResult<ClientBuilder> {
         // return a copy of the underlying client builder if it's already been populated
         if let Some(client_builder) = self.client_builder.borrow() {
             Ok(*client_builder)
         } else {
             // if a request hasn't been made yet, this cell won't be populated yet -
-            // resolution (and thus a profile read) only happens on this first call
-            let client_timeout = self.get_client_timeout()?.unwrap_or_default();
+            // resolution (and thus a profile read) only happens on this first call,
+            // and only if the caller didn't already resolve it itself
+            let client_timeout = match client_timeout {
+                Some(client_timeout) => client_timeout,
+                None => self.get_client_timeout()?.unwrap_or_default(),
+            };
             self.client_builder
                 .fill(
                     ClientBuilder::new()
@@ -1127,7 +1155,7 @@ impl Rover {
                         .with_timeout(client_timeout.get_duration()),
                 )
                 .ok();
-            self.get_reqwest_client_builder()
+            self.get_reqwest_client_builder(None)
         }
     }
 
