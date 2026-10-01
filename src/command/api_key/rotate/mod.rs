@@ -53,11 +53,15 @@ impl Rotate {
 
         let pair = match rotate_pair.call(input).await {
             Ok(pair) => pair,
-            // All three mean nothing was rotated - safe to report as an ordinary failure.
+            // All four mean nothing was rotated - safe to report as an ordinary failure.
+            // `GracePeriodTooLarge` in particular is raised before the mutation is ever sent
+            // (see `pair_rotate::previous_secrets_expire_at`'s doc comment), so - unlike every
+            // other error below - this one is never ambiguous about the outcome.
             Err(
                 err @ (RoverClientError::PairPermissionDenied { .. }
                 | RoverClientError::PairNotFound { .. }
-                | RoverClientError::OrganizationIDNotFound { .. }),
+                | RoverClientError::OrganizationIDNotFound { .. }
+                | RoverClientError::GracePeriodTooLarge { .. }),
             ) => return Err(err.into()),
             // Everything else (a timeout, a 5xx, a malformed response) is genuinely ambiguous:
             // `pair_rotate::service`'s own doc comment on `RotatePair` requires the consumer to

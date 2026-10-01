@@ -8,6 +8,7 @@ use tower::Service;
 use crate::{
     error::{pair_not_found_in, permission_denied_in},
     operations::api_key::pair_rotate::{
+        previous_secrets_expire_at,
         rotate_pair_mutation::{self, Variables},
         rotated_pair_from, RotatePairInput, RotatePairMutation, RotatedPair,
     },
@@ -73,6 +74,13 @@ where
             let organization_id = input.organization_id;
             let client_id = input.client_id;
             let grace_period_days = input.grace_period_days;
+
+            // Computed - and, critically, validated - before the mutation is ever sent: an
+            // out-of-range grace period fails right here, while nothing has changed yet,
+            // rather than after the secret has already rotated server-side (FR71).
+            let previous_secrets_expire_at =
+                previous_secrets_expire_at(Utc::now(), grace_period_days)?;
+
             let vars = Variables {
                 organization_id: organization_id.clone(),
                 client_id: client_id.clone(),
@@ -86,14 +94,12 @@ where
                         .unwrap_or_else(|| err.into()))
                 }
             };
-            let now = Utc::now();
             let organization = data
                 .organization
                 .ok_or(RoverClientError::OrganizationIDNotFound { organization_id })?;
             rotated_pair_from(
                 organization.rotate_o_auth_client_secret,
-                now,
-                grace_period_days,
+                previous_secrets_expire_at,
             )
         })
     }
@@ -402,5 +408,29 @@ mod tests {
             .unwrap_err();
 
         assert_that!(err).matches(|err| matches!(err, RoverClientError::InvalidTimestamp(_)));
+    }
+
+    /// FR71: an out-of-range grace period must fail *before* the mutation is ever sent. This
+    /// mock's inner `expect_call()` is deliberately never set up, so the test fails (via
+    /// mockall's own "no matching expectation" panic) if `call` ever reaches it.
+    #[tokio::test]
+    async fn call_rejects_an_overflowing_grace_period_before_sending_the_mutation() {
+        let mut mock = MockRotatePairInnerService::new();
+        expect_poll_ready!(mock);
+
+        let input = RotatePairInput::builder()
+            .organization_id("acme")
+            .client_id("c_8f2a")
+            .grace_period_days(i64::MAX)
+            .build();
+
+        let err = RotatePair::new(MockCloneService::new(mock))
+            .oneshot(input)
+            .await
+            .unwrap_err();
+
+        assert_that!(err).matches(|err| {
+            matches!(err, RoverClientError::GracePeriodTooLarge { days } if *days == i64::MAX)
+        });
     }
 }

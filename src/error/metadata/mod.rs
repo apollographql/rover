@@ -370,6 +370,11 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 // The message already names the ID and organization, and that it's rotate-only -
                 // no generic suggestion adds anything here either.
                 RoverClientError::PairNotFound { .. } => (None, Some(RoverErrorCode::E057)),
+                // A usage-adjacent failure (FR23 leaves the actual bound to the Platform API,
+                // but a value this large overflows `chrono` itself before any request is made)
+                // - not spec-required to have its own stable code, and the message is already
+                // self-explanatory.
+                RoverClientError::GracePeriodTooLarge { .. } => (None, None),
                 RoverClientError::ServiceReady(_) => (None, None),
                 RoverClientError::Service { .. } => (None, None),
                 RoverClientError::InvalidTimestamp(_) => (None, None),

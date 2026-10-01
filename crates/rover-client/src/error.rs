@@ -111,6 +111,16 @@ pub enum RoverClientError {
         client_id: String,
     },
 
+    /// `rover api-key rotate --grace-period-days <DAYS>` was given a value too large to
+    /// represent as a date (spec FR23 leaves the upper bound to the Platform API, but a date
+    /// this far out overflows `chrono` itself before any request is ever made). Its own variant,
+    /// not the generic [`RoverClientError::ClientError`], specifically so the command layer can
+    /// tell it apart from a post-mutation failure: this one is raised *before* `rotate`'s mutation
+    /// is ever sent, so - unlike every other error that reaches that match - nothing has
+    /// changed, and "the outcome is unknown" would be actively misleading here.
+    #[error("the requested grace period ({days} days) is too large to represent as a date")]
+    GracePeriodTooLarge { days: i64 },
+
     /// when attempting to create a key the associated Organization cannot be found
     #[error("Could not find the API Key with ID '{api_key_id}'")]
     ApiKeyNotFound { api_key_id: String },
