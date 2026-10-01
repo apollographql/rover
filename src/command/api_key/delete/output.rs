@@ -69,7 +69,9 @@ mod tests {
     use speculoos::prelude::*;
 
     use super::*;
-    use crate::{RoverOutput, command::api_key::pair_lookup::test_pair, options::JsonOutput};
+    use crate::{
+        RoverOutput, command::api_key::pair_lookup::tests::test_pair, options::JsonOutput,
+    };
 
     #[test]
     fn a_successful_delete_reports_the_pair() {

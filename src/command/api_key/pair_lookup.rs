@@ -82,38 +82,38 @@ pub(crate) fn resolve_target(
     }
 }
 
-/// A pair for tests in `api_key`'s commands to share, so `delete`/`rename` and this module agree on
-/// one fixture rather than each keeping a copy.
 #[cfg(test)]
-pub(crate) fn test_pair() -> OAuthClientPair {
+pub(crate) mod tests {
     use chrono::DateTime;
-    use rover_client::operations::api_key::pair_list::PairActor;
-
-    OAuthClientPair {
-        client_id: "c_8f2a".to_string(),
-        name: Some("ci-deploy".to_string()),
-        created_at: DateTime::parse_from_rfc3339("2026-09-25T16:00:00Z").unwrap(),
-        created_by: PairActor {
-            id: "user-123".to_string(),
-            kind: "user".to_string(),
-        },
-        resources: vec![],
-        scopes: vec!["rover:cli".to_string()],
-    }
-}
-
-#[cfg(test)]
-mod tests {
     use futures::future;
-    use rover_client::operations::api_key::pair_get::{
-        get_pair_query::Variables,
-        service::mock::{GetPairResp, MockGetPairInnerService},
+    use rover_client::operations::api_key::{
+        pair_get::{
+            get_pair_query::Variables,
+            service::mock::{GetPairResp, MockGetPairInnerService},
+        },
+        pair_list::PairActor,
     };
     use rover_graphql::GraphQLRequest;
     use rover_tower::test::{MockCloneService, expect_poll_ready};
     use speculoos::prelude::*;
 
     use super::*;
+
+    /// A pair for tests in `api_key`'s commands to share, so `delete`/`rename` and this module
+    /// agree on one fixture rather than each keeping a copy.
+    pub(crate) fn test_pair() -> OAuthClientPair {
+        OAuthClientPair {
+            client_id: "c_8f2a".to_string(),
+            name: Some("ci-deploy".to_string()),
+            created_at: DateTime::parse_from_rfc3339("2026-09-25T16:00:00Z").unwrap(),
+            created_by: PairActor {
+                id: "user-123".to_string(),
+                kind: "user".to_string(),
+            },
+            resources: vec![],
+            scopes: vec!["rover:cli".to_string()],
+        }
+    }
 
     #[test]
     fn a_found_pair_is_acted_on_as_a_pair() {
