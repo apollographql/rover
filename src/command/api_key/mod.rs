@@ -3,6 +3,7 @@ mod delete;
 // `pub(crate)`, not the default private `mod`, so `crate::error::mod`'s special-casing of
 // `RoverClientError::PairListFailure` can reach `list::output`'s `keys_table_text`/`keys_json`.
 pub(crate) mod list;
+mod pair_lookup;
 mod rename;
 mod rotate;
 
