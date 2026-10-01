@@ -192,6 +192,7 @@ fn run(levels: &TwoLevels, args: &[String], scenario: &Scenario) -> Said {
         .env_remove("APOLLO_NODE_MODULES_BIN_DIR")
         .env_remove("APOLLO_ROVER_NO_DOWNLOAD")
         .env_remove("APOLLO_ROVER_SKIP_UPDATE")
+        .env_remove("APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD")
         .env_remove("APOLLO_ROVER_DEV_COMPOSITION_VERSION")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -377,7 +378,7 @@ fn registry() -> (httpmock::MockServer, usize) {
 /// A floating manifest declaration with no lockfile beside it resolves
 /// against the registry, and the run writes no lockfile; with a committed
 /// lockfile, the locked release is downloaded without asking the registry to
-/// resolve anything.
+/// resolve anything. The manifest opts in to downloading either.
 #[rstest]
 #[case::without_a_lock(None, "2.9.3", 1)]
 #[case::with_a_committed_lock(Some("2.9.0"), "2.9.0", 0)]
@@ -393,6 +394,10 @@ fn a_floating_declaration_resolves_unless_its_lockfile_pins_it(
         ..Default::default()
     };
     declare(&two_levels, &scenario);
+    write(
+        two_levels.project.rover_dir().join("rover.yaml"),
+        "allow_automatic_download: true\nplugins:\n  supergraph: \"2\"\n",
+    );
     let (server, resolution) = registry();
     let host = format!("http://{}", server.address());
     let args = [

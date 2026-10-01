@@ -84,6 +84,7 @@ fn rover(command: &mut Command, registry: &Registry, env: &[(&str, &str)]) -> Ru
         .env_remove("APOLLO_NODE_MODULES_BIN_DIR")
         .env_remove("APOLLO_ROVER_NO_DOWNLOAD")
         .env_remove("APOLLO_ROVER_SKIP_UPDATE")
+        .env_remove("APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD")
         .envs(env.iter().copied())
         .output()
         .unwrap();
@@ -323,12 +324,20 @@ mod with_a_runnable_plugin {
         .is_equal_to((Some(0), 0, &Value::from("2.9.3")));
     }
 
-    /// `--no-download` guards the explicit install step, not a build.
+    /// `--no-download` guards the explicit install step, not a build, so a
+    /// build opted in to downloading still downloads.
     #[rstest]
     fn no_download_does_not_stop_a_build_from_downloading(two_levels: TwoLevels) {
         write_config(&two_levels, "=2.9.3");
 
-        let run = compose(&two_levels, &[], &[("APOLLO_ROVER_NO_DOWNLOAD", "true")]);
+        let run = compose(
+            &two_levels,
+            &[],
+            &[
+                ("APOLLO_ROVER_NO_DOWNLOAD", "true"),
+                ("APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD", "true"),
+            ],
+        );
 
         // The stub the registry serves prints nothing, so composition itself
         // fails; what matters is that the plugin was fetched to try.
