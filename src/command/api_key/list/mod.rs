@@ -316,7 +316,8 @@ mod tests {
     fn limit_zero_is_rejected_at_parse_time() {
         let result = List::try_parse_from(["api-key list", "acme", "--limit", "0"]);
 
-        assert_that!(result.is_err()).is_true();
+        let error = result.expect_err("expected --limit 0 to be rejected");
+        assert_that!(error.kind()).is_equal_to(clap::error::ErrorKind::ValueValidation);
     }
 
     fn pair(client_id: &str) -> rover_client::operations::api_key::pair_list::OAuthClientPair {
@@ -337,6 +338,17 @@ mod tests {
         key_of_type(ApiKeyBackendType::Operator)
     }
 
+    /// The full JSON rendering of `a_key()`, for whole-value assertions.
+    fn a_key_json() -> serde_json::Value {
+        serde_json::json!({
+            "created_at": "2026-01-04T12:00:00Z",
+            "expires_at": null,
+            "id": "key-123",
+            "name": null,
+            "key_type": "Operator",
+        })
+    }
+
     // FR11: pairs out of scope (`--type` excluded `client-credentials`) reports no pairs at all,
     // regardless of whether keys are in scope.
     #[test]
@@ -347,12 +359,14 @@ mod tests {
         let RoverOutput::CliOutput(output) = output else {
             panic!("expected a CliOutput");
         };
-        let json = output.json().unwrap();
-        assert_that!(json.get("client_credentials")).is_none();
-        assert_that!(json.get("keys")).is_some();
+
+        assert_that!(output.json().unwrap()).is_equal_to(serde_json::json!({
+            "keys": [a_key_json()],
+        }));
     }
 
-    // A clean pairs fetch reports both keys and pairs.
+    // A clean pairs fetch reports both keys and pairs, with no resume cursor once everything's
+    // been collected.
     #[test]
     fn a_clean_fetch_reports_keys_and_pairs() {
         let response = ListOAuthClientsResponse {
@@ -365,9 +379,23 @@ mod tests {
         let RoverOutput::CliOutput(output) = output else {
             panic!("expected a CliOutput");
         };
-        let json = output.json().unwrap();
-        assert_that!(json.get("keys")).is_some();
-        assert_that!(json.get("client_credentials")).is_some();
+
+        assert_that!(output.json().unwrap()).is_equal_to(serde_json::json!({
+            "keys": [a_key_json()],
+            "client_credentials": [
+                {
+                    "key_type": "ClientCredentials",
+                    "id": "c_1",
+                    "client_id": "c_1",
+                    "name": null,
+                    "graphs": [],
+                    "scopes": [],
+                    "created_at": "2026-01-04T12:00:00Z",
+                    "created_by": { "id": "user-123", "type": "user" },
+                }
+            ],
+            "client_credentials_next_after": null,
+        }));
     }
 
     // FR16: keys are still in scope - a pairs failure is reported best-effort alongside a loud
@@ -385,12 +413,11 @@ mod tests {
         assert_that!(error.code().map(|code| code.to_string()))
             .is_some()
             .is_equal_to("E054".to_string());
-
-        let data = error.get_internal_data_json();
-        assert_that!(data.get("keys")).is_some();
-        assert_that!(data.get("client_credentials"))
-            .is_some()
-            .is_equal_to(&serde_json::Value::Null);
+        assert_that!(error.get_internal_data_json()).is_equal_to(serde_json::json!({
+            "keys": [a_key_json()],
+            "client_credentials": null,
+            "client_credentials_next_after": null,
+        }));
     }
 
     // FR17: keys are excluded too (`--type client-credentials` only) - the same failure reports
@@ -408,6 +435,9 @@ mod tests {
         assert_that!(error.code().map(|code| code.to_string()))
             .is_some()
             .is_equal_to("E054".to_string());
-        assert_that!(error.get_internal_data_json().get("keys")).is_none();
+        assert_that!(error.get_internal_data_json()).is_equal_to(serde_json::json!({
+            "client_credentials": null,
+            "client_credentials_next_after": null,
+        }));
     }
 }
