@@ -436,7 +436,11 @@ impl Rover {
             #[cfg(feature = "composition-js")]
             Command::Lsp(command) => {
                 command
-                    .run(self.get_client_config().await?, &profile_opt)
+                    .run(
+                        self.get_install_override_path()?,
+                        self.get_client_config().await?,
+                        &profile_opt,
+                    )
                     .await
             }
             Command::ApiKeys(command) => {

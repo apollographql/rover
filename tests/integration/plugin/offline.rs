@@ -336,3 +336,63 @@ mod with_a_runnable_plugin {
         assert_that!(&run.json["error"]["code"]).is_not_equal_to(Value::from("E058"));
     }
 }
+
+/// `rover lsp` looks for its plugin under the Rover home the run was given,
+/// as every other plugin-using command does, not under `~/.rover`.
+#[rstest]
+fn lsp_uses_the_plugin_installed_under_the_rover_home(two_levels: TwoLevels) {
+    use std::{
+        io::{BufRead, BufReader},
+        process::Stdio,
+        sync::mpsc,
+        time::Duration,
+    };
+
+    two_levels.seed_plugin(Level::Global, "supergraph", "2.9.3");
+    write_config(&two_levels, "=2.9.3");
+    let mut command = Command::new(cargo_bin("rover"));
+    two_levels.apply(&mut command);
+    let mut child = command
+        .args([
+            "lsp",
+            "--supergraph-config",
+            "supergraph.yaml",
+            "--skip-update",
+        ])
+        .args(["--skip-update-check", "--telemetry-disabled"])
+        .env("NO_COLOR", "1")
+        .env_remove("APOLLO_ROVER_SKIP_UPDATE")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let stderr = child.stderr.take().unwrap();
+    let (sender, receiver) = mpsc::channel();
+    std::thread::spawn(move || {
+        for line in BufReader::new(stderr).lines().map_while(Result::ok) {
+            if sender.send(line).is_err() {
+                break;
+            }
+        }
+    });
+
+    // The session runs until it is stopped, so stop it once it has said
+    // which plugin it is using.
+    let mut seen = Vec::new();
+    while let Ok(line) = receiver.recv_timeout(Duration::from_secs(60)) {
+        let using = line.starts_with("Using the `supergraph` plugin");
+        seen.push(line);
+        if using {
+            break;
+        }
+    }
+    let _ = child.kill();
+    let _ = child.wait();
+
+    assert_that!(seen.last().cloned())
+        .named(&seen.join("\n"))
+        .is_equal_to(Some(
+            "Using the `supergraph` plugin v2.9.3 (already installed).".to_string(),
+        ));
+}
