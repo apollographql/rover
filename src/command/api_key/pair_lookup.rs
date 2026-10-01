@@ -61,6 +61,9 @@ where
 /// - `None` → act on the ID as an API key. The Platform API reports "no such pair", "no
 ///   permission to see pairs", and "not enrolled" identically as `null`, so this covers both
 ///   FR19's "not a pair" and FR20's "can't tell".
+/// - A refused lookup (an HTTP 403) → also act as an API key. The resolver itself answers "no
+///   permission" with `null`, but if something in front of it refuses outright, a caller who
+///   manages only API keys must still see no change (FR20, FR83).
 /// - An unknown organization → also act as an API key, so the caller gets exactly the error the
 ///   key path has always reported for that (FR83), not a new one from the lookup.
 /// - Anything else (a timeout, a 5xx) → fail. FR20 is explicit that a transient failure of the
@@ -70,21 +73,41 @@ pub(crate) fn resolve_target(
 ) -> Result<PairTarget, RoverClientError> {
     match lookup {
         Ok(Some(pair)) => Ok(PairTarget::Pair(pair)),
-        Ok(None) | Err(RoverClientError::OrganizationIDNotFound { .. }) => Ok(PairTarget::Key),
+        Ok(None)
+        | Err(
+            RoverClientError::PairPermissionDenied { .. }
+            | RoverClientError::OrganizationIDNotFound { .. },
+        ) => Ok(PairTarget::Key),
         Err(err) => Err(err),
+    }
+}
+
+/// A pair for tests in `api_key`'s commands to share, so `delete`/`rename` and this module agree on
+/// one fixture rather than each keeping a copy.
+#[cfg(test)]
+pub(crate) fn test_pair() -> OAuthClientPair {
+    use chrono::DateTime;
+    use rover_client::operations::api_key::pair_list::PairActor;
+
+    OAuthClientPair {
+        client_id: "c_8f2a".to_string(),
+        name: Some("ci-deploy".to_string()),
+        created_at: DateTime::parse_from_rfc3339("2026-09-25T16:00:00Z").unwrap(),
+        created_by: PairActor {
+            id: "user-123".to_string(),
+            kind: "user".to_string(),
+        },
+        resources: vec![],
+        scopes: vec!["rover:cli".to_string()],
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use chrono::DateTime;
     use futures::future;
-    use rover_client::operations::api_key::{
-        pair_get::{
-            get_pair_query::Variables,
-            service::mock::{GetPairResp, MockGetPairInnerService},
-        },
-        pair_list::PairActor,
+    use rover_client::operations::api_key::pair_get::{
+        get_pair_query::Variables,
+        service::mock::{GetPairResp, MockGetPairInnerService},
     };
     use rover_graphql::GraphQLRequest;
     use rover_tower::test::{MockCloneService, expect_poll_ready};
@@ -92,25 +115,11 @@ mod tests {
 
     use super::*;
 
-    fn pair() -> OAuthClientPair {
-        OAuthClientPair {
-            client_id: "c_8f2a".to_string(),
-            name: Some("ci-deploy".to_string()),
-            created_at: DateTime::parse_from_rfc3339("2026-09-25T16:00:00Z").unwrap(),
-            created_by: PairActor {
-                id: "user-123".to_string(),
-                kind: "user".to_string(),
-            },
-            resources: vec![],
-            scopes: vec!["rover:cli".to_string()],
-        }
-    }
-
     #[test]
     fn a_found_pair_is_acted_on_as_a_pair() {
-        assert_that!(resolve_target(Ok(Some(pair()))))
+        assert_that!(resolve_target(Ok(Some(test_pair()))))
             .is_ok()
-            .is_equal_to(PairTarget::Pair(pair()));
+            .is_equal_to(PairTarget::Pair(test_pair()));
     }
 
     // FR19/FR20: "not a pair" and "can't tell" both arrive as `None`.
@@ -125,6 +134,18 @@ mod tests {
     #[test]
     fn an_unknown_organization_is_acted_on_as_a_key() {
         let lookup = Err(RoverClientError::OrganizationIDNotFound {
+            organization_id: "acme".to_string(),
+        });
+
+        assert_that!(resolve_target(lookup))
+            .is_ok()
+            .is_equal_to(PairTarget::Key);
+    }
+
+    // FR20/FR83: a refused lookup can't tell either - the API-key path must still work.
+    #[test]
+    fn a_refused_lookup_is_acted_on_as_a_key() {
+        let lookup = Err(RoverClientError::PairPermissionDenied {
             organization_id: "acme".to_string(),
         });
 
@@ -182,6 +203,6 @@ mod tests {
         .await
         .unwrap();
 
-        assert_that!(response).is_some().is_equal_to(pair());
+        assert_that!(response).is_some().is_equal_to(test_pair());
     }
 }

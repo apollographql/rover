@@ -114,29 +114,14 @@ fn delete_pair_outcome(
 
 #[cfg(test)]
 mod tests {
-    use chrono::DateTime;
-    use rover_client::operations::api_key::pair_list::PairActor;
     use speculoos::prelude::*;
 
     use super::*;
-
-    fn pair() -> OAuthClientPair {
-        OAuthClientPair {
-            client_id: "c_8f2a".to_string(),
-            name: Some("ci-deploy".to_string()),
-            created_at: DateTime::parse_from_rfc3339("2026-09-25T16:00:00Z").unwrap(),
-            created_by: PairActor {
-                id: "user-123".to_string(),
-                kind: "user".to_string(),
-            },
-            resources: vec![],
-            scopes: vec!["rover:cli".to_string()],
-        }
-    }
+    use crate::command::api_key::pair_lookup::test_pair;
 
     #[test]
     fn a_successful_delete_reports_the_pair() {
-        let output = delete_pair_outcome("acme", pair(), Ok(()))
+        let output = delete_pair_outcome("acme", test_pair(), Ok(()))
             .expect("expected a successful delete to succeed");
 
         let RoverOutput::CliOutput(output) = output else {
@@ -153,7 +138,7 @@ mod tests {
     fn a_permission_denial_is_an_ordinary_failure() {
         let err = delete_pair_outcome(
             "acme",
-            pair(),
+            test_pair(),
             Err(RoverClientError::PairPermissionDenied {
                 organization_id: "acme".to_string(),
             }),
@@ -177,7 +162,7 @@ mod tests {
     fn an_ambiguous_failure_says_the_outcome_is_unknown() {
         let err = delete_pair_outcome(
             "acme",
-            pair(),
+            test_pair(),
             Err(RoverClientError::ClientError {
                 msg: "timed out".to_string(),
             }),

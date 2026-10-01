@@ -38,30 +38,14 @@ impl CliOutput for DeletePairOutput {
 
 #[cfg(test)]
 mod tests {
-    use chrono::DateTime;
-    use rover_client::operations::api_key::pair_list::PairActor;
     use speculoos::prelude::*;
 
     use super::*;
-    use crate::{RoverOutput, options::JsonOutput};
-
-    fn pair() -> OAuthClientPair {
-        OAuthClientPair {
-            client_id: "c_8f2a".to_string(),
-            name: Some("ci-deploy".to_string()),
-            created_at: DateTime::parse_from_rfc3339("2026-09-25T16:00:00Z").unwrap(),
-            created_by: PairActor {
-                id: "user-123".to_string(),
-                kind: "user".to_string(),
-            },
-            resources: vec![],
-            scopes: vec!["rover:cli".to_string()],
-        }
-    }
+    use crate::{RoverOutput, command::api_key::pair_lookup::test_pair, options::JsonOutput};
 
     #[test]
     fn stderr_carries_fr29s_exact_text() {
-        let output = DeletePairOutput { pair: pair() };
+        let output = DeletePairOutput { pair: test_pair() };
 
         assert_that!(output.stderr()).is_some().is_equal_to(
             "Deleted client-credential pair `ci-deploy` (`c_8f2a`). It can no longer obtain \
@@ -76,7 +60,7 @@ mod tests {
         let output = DeletePairOutput {
             pair: OAuthClientPair {
                 name: None,
-                ..pair()
+                ..test_pair()
             },
         };
 
@@ -91,12 +75,12 @@ mod tests {
     // Matches deleting an API key: nothing on stdout.
     #[test]
     fn text_is_empty() {
-        assert_that!(DeletePairOutput { pair: pair() }.text()).is_equal_to(String::new());
+        assert_that!(DeletePairOutput { pair: test_pair() }.text()).is_equal_to(String::new());
     }
 
     #[test]
     fn full_envelope_snapshot() {
-        let output = RoverOutput::CliOutput(Box::new(DeletePairOutput { pair: pair() }));
+        let output = RoverOutput::CliOutput(Box::new(DeletePairOutput { pair: test_pair() }));
 
         insta::assert_json_snapshot!(JsonOutput::from(&output));
     }
