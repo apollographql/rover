@@ -11,10 +11,7 @@ use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult,
-    command::api_key::{
-        IdOpt, OrganizationOpt,
-        pair_lookup::{PairTarget, lookup_pair, resolve_target},
-    },
+    command::api_key::{IdOpt, OrganizationOpt, pair_lookup::PairTarget},
     options::ProfileOpt,
     utils::client::StudioClientConfig,
 };
@@ -40,13 +37,13 @@ impl Rename {
         // FR18-FR20, FR31: a pair can't be renamed, so find out whether `<ID>` is one before
         // changing anything. Not a pair, or Rover can't tell, renames it as an API key exactly
         // as before.
-        let lookup = lookup_pair(
+        let target = PairTarget::lookup(
             &client,
             &self.organization_opt.organization_id,
             &self.id_opt.id,
         )
-        .await;
-        refuse_pairs(resolve_target(lookup)?)?;
+        .await?;
+        refuse_pairs(target)?;
 
         let old_key_resp = run_get(
             GetKeyInput {
