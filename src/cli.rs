@@ -289,7 +289,8 @@ impl Rover {
         } else if !self.skip_update_check && !crate::utils::skip_all_updates() {
             let config = self.get_rover_config();
             if let Ok(config) = config {
-                let _ = version::check_for_update(config, false, self.get_reqwest_client()?).await;
+                let _ =
+                    version::check_for_update(config, false, self.get_reqwest_client(None)?).await;
             }
         }
 
@@ -395,7 +396,7 @@ impl Rover {
             }
             Command::Update(command) => {
                 command
-                    .run(self.get_rover_config()?, self.get_reqwest_client()?)
+                    .run(self.get_rover_config()?, self.get_reqwest_client(None)?)
                     .await
             }
             Command::Install(command) => {
@@ -936,20 +937,28 @@ impl Rover {
         } else {
             false
         };
+        // Resolved once, here, and threaded into everything below that
+        // needs it - each of those used to re-resolve it independently
+        // (re-reading the profile and re-deciding the override notice,
+        // though the notice's once-per-process gate kept it from actually
+        // re-printing).
+        let client_timeout = self.get_client_timeout()?;
         let mut config = self.get_rover_config()?;
         if config.override_api_key.is_none() {
-            config.override_client_credentials_token =
-                self.resolve_client_credentials_token().await?;
+            config.override_client_credentials_token = self
+                .resolve_client_credentials_token(client_timeout)
+                .await?;
         }
         let client_config = StudioClientConfig::new(
             override_endpoint,
             config,
             is_sudo,
-            self.get_reqwest_client_builder(),
-            self.client_timeout.unwrap_or_default(),
+            self.get_reqwest_client_builder(client_timeout)?,
+            client_timeout.unwrap_or_default(),
         );
-        // Downloads should honor the client timeout if set despite having a different default
-        let client_config = match self.client_timeout {
+        // Downloads should honor the client timeout if resolved (from a flag,
+        // env var, or profile) despite having a different default
+        let client_config = match client_timeout {
             Some(timeout) => client_config.with_download_timeout(timeout.get_duration()),
             None => client_config,
         };
@@ -990,7 +999,10 @@ impl Rover {
     /// interactive `rover auth login` flow isn't an option. Returns `Ok(None)` when
     /// neither env var is set, so callers can fall back to a stored profile credential.
     #[cfg(feature = "oauth")]
-    async fn resolve_client_credentials_token(&self) -> RoverResult<Option<String>> {
+    async fn resolve_client_credentials_token(
+        &self,
+        client_timeout: Option<ClientTimeout>,
+    ) -> RoverResult<Option<String>> {
         use std::time::Duration;
 
         use bytes::Bytes;
@@ -1046,7 +1058,7 @@ impl Rover {
             .map_err(|e| anyhow::anyhow!("invalid client credentials: {e}"))?;
 
         let raw_service = ReqwestService::builder()
-            .client(self.get_reqwest_client()?)
+            .client(self.get_reqwest_client(client_timeout)?)
             .build()
             .map_err(|e| anyhow::anyhow!("failed to build an HTTP client: {e}"))?;
 
@@ -1056,7 +1068,7 @@ impl Rover {
         // whoami lookup in `command::auth::whoami`.
         let http_service = ServiceBuilder::new()
             .layer(retry_with_attempt_timeout(
-                self.client_timeout.unwrap_or_default().get_duration(),
+                client_timeout.unwrap_or_default().get_duration(),
                 CLIENT_CREDENTIALS_ATTEMPT_TIMEOUT,
             ))
             .service(raw_service);
@@ -1075,7 +1087,10 @@ impl Rover {
     }
 
     #[cfg(not(feature = "oauth"))]
-    async fn resolve_client_credentials_token(&self) -> RoverResult<Option<String>> {
+    async fn resolve_client_credentials_token(
+        &self,
+        _client_timeout: Option<ClientTimeout>,
+    ) -> RoverResult<Option<String>> {
         Ok(None)
     }
 
@@ -1097,33 +1112,50 @@ impl Rover {
         Ok(git_context)
     }
 
-    // WARNING: I _think_ this should be an anyhow error (it gets converted to a sputnik error and
-    // there's no impl from a rovererror)
-    pub(crate) fn get_reqwest_client(&self) -> anyhow::Result<Client> {
+    /// `client_timeout` lets a caller that's already resolved the setting
+    /// (`get_client_config`) pass it straight through instead of this
+    /// re-resolving it (a second profile read and override-notice decision);
+    /// pass `None` when there's nothing already resolved to hand in. Only
+    /// matters on a cold cache - once `self.client` is populated the value
+    /// passed in here is moot.
+    pub(crate) fn get_reqwest_client(
+        &self,
+        client_timeout: Option<ClientTimeout>,
+    ) -> RoverResult<Client> {
         if let Some(client) = self.client.borrow() {
             Ok(client.clone())
         } else {
-            let client = self.get_reqwest_client_builder().build()?;
+            let client = self.get_reqwest_client_builder(client_timeout)?.build()?;
             let _ = self.client.fill(client);
-            self.get_reqwest_client()
+            self.get_reqwest_client(None)
         }
     }
 
-    pub(crate) fn get_reqwest_client_builder(&self) -> ClientBuilder {
+    /// See `get_reqwest_client` - same `client_timeout` contract.
+    pub(crate) fn get_reqwest_client_builder(
+        &self,
+        client_timeout: Option<ClientTimeout>,
+    ) -> RoverResult<ClientBuilder> {
         // return a copy of the underlying client builder if it's already been populated
         if let Some(client_builder) = self.client_builder.borrow() {
-            *client_builder
+            Ok(*client_builder)
         } else {
-            // if a request hasn't been made yet, this cell won't be populated yet
+            // if a request hasn't been made yet, this cell won't be populated yet -
+            // resolution (and thus a profile read) only happens on this first call,
+            // and only if the caller didn't already resolve it itself
+            let client_timeout = match client_timeout {
+                Some(client_timeout) => client_timeout,
+                None => self.get_client_timeout()?.unwrap_or_default(),
+            };
             self.client_builder
                 .fill(
                     ClientBuilder::new()
                         .accept_invalid_certs(self.accept_invalid_certs)
                         .accept_invalid_hostnames(self.accept_invalid_hostnames)
-                        .with_timeout(self.client_timeout.unwrap_or_default().get_duration()),
+                        .with_timeout(client_timeout.get_duration()),
                 )
                 .ok();
-            self.get_reqwest_client_builder()
+            self.get_reqwest_client_builder(None)
         }
     }
 
@@ -1155,6 +1187,45 @@ impl Rover {
                 "a resolved APOLLO_CHECKS_TIMEOUT_SECONDS value was already validated as a \
                 whole number of seconds",
             ))
+    }
+
+    /// The raw, clap-merged `--client-timeout`/`APOLLO_CLIENT_TIMEOUT` value,
+    /// before the profile tier applies. See `registry_url_flag_or_env`.
+    pub(crate) fn client_timeout_flag_or_env(&self) -> Option<String> {
+        self.client_timeout.map(|value| value.to_string())
+    }
+
+    /// Resolves `APOLLO_CLIENT_TIMEOUT`'s effective value (FR1), printing the
+    /// FR59(a) override notice when a real env var overrides an explicit
+    /// profile (this setting isn't a network destination, so FR59(b)'s
+    /// "profile sets a non-default value" case never fires for it - matches
+    /// `get_checks_timeout_seconds`). `Ok(None)` means nothing resolved from
+    /// a flag, env var, or profile - callers that need a concrete value fall
+    /// back to `ClientTimeout::default()` themselves; callers like
+    /// `get_client_config` that also decide whether to extend this timeout
+    /// to plugin downloads need to tell "nothing resolved" apart from "the
+    /// resolved value happens to be the default", so this returns the
+    /// `Option` rather than pre-applying the fallback the way
+    /// `get_checks_timeout_seconds` does.
+    pub(crate) fn get_client_timeout(&self) -> RoverResult<Option<ClientTimeout>> {
+        let resolved = self.resolve_setting(
+            self.client_timeout_flag_or_env(),
+            SettingName::ClientTimeout,
+        )?;
+        if let Some(message) = self.config_override_notice(
+            SettingName::ClientTimeout,
+            self.client_timeout_flag_or_env().as_deref(),
+            self.get_env_var(RoverEnvKey::ClientTimeout)?.as_deref(),
+            resolved.as_deref(),
+        )? {
+            self.print_config_notice(message);
+        }
+        Ok(resolved.map(|value| {
+            ClientTimeout::new(value.parse().expect(
+                "a resolved APOLLO_CLIENT_TIMEOUT value was already validated as a whole \
+                number of seconds",
+            ))
+        }))
     }
 
     /// Resolves `APOLLO_GRAPH_REF`'s effective value (FR6): the real
@@ -1372,7 +1443,11 @@ mod tests {
     use speculoos::prelude::*;
 
     use super::Rover;
-    use crate::{PKG_NAME, options::SettingName, utils::env::RoverEnvKey};
+    use crate::{
+        PKG_NAME,
+        options::SettingName,
+        utils::{client::ClientTimeout, env::RoverEnvKey},
+    };
 
     #[test]
     fn checks_timeout_defaults_to_five_minutes() {
@@ -1400,6 +1475,32 @@ mod tests {
             Rover::parse_from([PKG_NAME, "config", "list"])
         });
         assert_that!(rover.get_checks_timeout_seconds().unwrap()).is_equal_to(99);
+    }
+
+    #[test]
+    fn client_timeout_defaults_to_thirty_seconds() {
+        // See `checks_timeout_defaults_to_five_minutes` for why this is
+        // wrapped in `temp_env` even though it doesn't set anything.
+        let rover = temp_env::with_var_unset("APOLLO_CLIENT_TIMEOUT", || {
+            Rover::parse_from([PKG_NAME, "config", "list"])
+        });
+        assert_that!(rover.get_client_timeout().unwrap()).is_none();
+    }
+
+    #[test]
+    fn client_timeout_flag_wins_over_env_var() {
+        let rover = temp_env::with_var("APOLLO_CLIENT_TIMEOUT", Some("999"), || {
+            Rover::parse_from([PKG_NAME, "config", "list", "--client-timeout", "42"])
+        });
+        assert_that!(rover.get_client_timeout().unwrap()).is_equal_to(Some(ClientTimeout::new(42)));
+    }
+
+    #[test]
+    fn client_timeout_env_var_applies_alone() {
+        let rover = temp_env::with_var("APOLLO_CLIENT_TIMEOUT", Some("99"), || {
+            Rover::parse_from([PKG_NAME, "config", "list"])
+        });
+        assert_that!(rover.get_client_timeout().unwrap()).is_equal_to(Some(ClientTimeout::new(99)));
     }
 
     #[tokio::test]
@@ -2186,6 +2287,215 @@ mod tests {
                 .to_string(),
         );
         assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
+    }
+
+    // FR59(b) is network-destination-only, and client-timeout isn't one
+    // (FR1's blank "Net" column) - a non-default resolved value alone must
+    // never notice, unlike APOLLO_REGISTRY_URL's own equivalent case.
+    #[test]
+    fn client_timeout_resolved_value_alone_does_not_notice() {
+        let home = tempfile::tempdir().unwrap();
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+
+        let message = with_notice_env_locked(&["APOLLO_CLIENT_TIMEOUT"], || {
+            let rover = Rover::parse_from([
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+                "config",
+                "list",
+            ]);
+            rover.config_override_notice(SettingName::ClientTimeout, None, None, Some("60"))
+        })
+        .unwrap();
+
+        assert_that!(message).is_none();
+    }
+
+    // FR59(a) applies to every setting, not just network destinations - an
+    // env var silently overriding an explicitly-selected profile's value
+    // must still notice for client-timeout.
+    #[test]
+    fn client_timeout_env_overriding_an_explicit_profile_notices() {
+        let home = config_home_with_setting("staging", "APOLLO_CLIENT_TIMEOUT", "60");
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+
+        let message = with_notice_env_locked(&["APOLLO_CLIENT_TIMEOUT"], || {
+            let rover = Rover::parse_from([
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+                "config",
+                "list",
+            ]);
+            rover.config_override_notice(
+                SettingName::ClientTimeout,
+                Some("15"),
+                Some("15"),
+                Some("15"),
+            )
+        })
+        .unwrap()
+        .unwrap();
+
+        assert_that!(message).is_equal_to(
+            "`APOLLO_CLIENT_TIMEOUT` from the environment overrides the value set in profile \
+            `staging`."
+                .to_string(),
+        );
+    }
+
+    // Confirms `get_client_timeout` actually reaches the notice system at
+    // all (not just that hand-built inputs decide correctly) - the gate it
+    // consumes means a direct call for the same setting afterward is always
+    // `None`, regardless of what it's called with.
+    #[test]
+    fn get_client_timeout_decides_a_notice_through_the_real_call_path() {
+        let home = config_home_with_setting("staging", "APOLLO_CLIENT_TIMEOUT", "60");
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+
+        let message = with_notice_env_locked(&["APOLLO_CLIENT_TIMEOUT"], || {
+            let rover = temp_env::with_var_unset("APOLLO_CLIENT_TIMEOUT", || {
+                Rover::parse_from([
+                    PKG_NAME,
+                    "--config-home",
+                    home_path.as_str(),
+                    "--profile",
+                    "staging",
+                    "config",
+                    "list",
+                ])
+            });
+
+            rover.get_client_timeout().unwrap();
+
+            rover.config_override_notice(SettingName::ClientTimeout, None, None, Some("60"))
+        })
+        .unwrap();
+
+        assert_that!(message).is_none();
+    }
+
+    #[test]
+    fn client_timeout_profile_setting_applies_when_no_flag_or_env_is_set() {
+        let home = config_home_with_setting("staging", "APOLLO_CLIENT_TIMEOUT", "60");
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = temp_env::with_var_unset("APOLLO_CLIENT_TIMEOUT", || {
+            Rover::parse_from([
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+                "config",
+                "list",
+            ])
+        });
+
+        assert_that!(rover.get_client_timeout()).is_ok_containing(Some(ClientTimeout::new(60)));
+    }
+
+    #[test]
+    fn client_timeout_flag_wins_over_profile_setting() {
+        let home = config_home_with_setting("staging", "APOLLO_CLIENT_TIMEOUT", "60");
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = temp_env::with_var_unset("APOLLO_CLIENT_TIMEOUT", || {
+            Rover::parse_from([
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+                "--client-timeout",
+                "15",
+                "config",
+                "list",
+            ])
+        });
+
+        assert_that!(rover.get_client_timeout()).is_ok_containing(Some(ClientTimeout::new(15)));
+    }
+
+    #[test]
+    fn client_timeout_falls_back_to_the_builtin_default_with_no_flag_env_or_profile() {
+        let home = tempfile::tempdir().unwrap();
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = temp_env::with_var_unset("APOLLO_CLIENT_TIMEOUT", || {
+            Rover::parse_from([
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "config",
+                "list",
+            ])
+        });
+
+        let resolved = rover.get_client_timeout().unwrap();
+
+        assert_that!(resolved).is_none();
+        assert_that!(resolved.unwrap_or_default().get_duration())
+            .is_equal_to(ClientTimeout::default().get_duration());
+    }
+
+    // FR43/FR84: the same example-text shape as every other whole-seconds setting.
+    #[test]
+    fn an_invalid_profile_client_timeout_fails_the_command() {
+        let home = config_home_with_setting("staging", "APOLLO_CLIENT_TIMEOUT", "soon");
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = temp_env::with_var_unset("APOLLO_CLIENT_TIMEOUT", || {
+            Rover::parse_from([
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+                "config",
+                "list",
+            ])
+        });
+
+        let error = rover
+            .get_client_timeout()
+            .expect_err("expected an invalid stored client timeout to fail the command");
+
+        assert_that!(error.to_string()).is_equal_to(
+            "error[E054]: `APOLLO_CLIENT_TIMEOUT` in profile `staging` is set to `soon`, which \
+            isn't a whole number of seconds. Run `rover config set APOLLO_CLIENT_TIMEOUT \
+            <seconds> --profile staging` to correct it.\n"
+                .to_string(),
+        );
+        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
+    }
+
+    // Extends the "an explicit value also shortens/lengthens the download
+    // timeout" behavior (previously flag/env-only) to a profile-resolved
+    // value too - leaving it flag/env-only here would be the same kind of
+    // partially-wired bug the review pass on this spec's other settings
+    // caught (the download-host notice firing everywhere but plugin
+    // installs, templates-api never noticing at all, and so on).
+    #[tokio::test]
+    async fn client_timeout_profile_value_also_overrides_the_download_timeout() {
+        let home = config_home_with_setting("staging", "APOLLO_CLIENT_TIMEOUT", "15");
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = temp_env::with_var_unset("APOLLO_CLIENT_TIMEOUT", || {
+            Rover::parse_from([
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+                "config",
+                "list",
+            ])
+        });
+
+        let client_config = rover.get_client_config().await.unwrap();
+
+        assert_that!(client_config.download_timeout().as_secs()).is_equal_to(15);
     }
 
     #[test]
