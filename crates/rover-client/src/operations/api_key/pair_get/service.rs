@@ -5,6 +5,7 @@ use rover_tower::service::replace_ready_service;
 use tower::Service;
 
 use crate::{
+    error::permission_denied_in,
     operations::api_key::{
         pair_get::{
             get_pair_query::{self, Variables},
@@ -25,8 +26,17 @@ use crate::{
 pub const GET_PAIR_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// A [`Service`] that looks up one client-credential pair by its client ID, layered over the
-/// studio GraphQL service. `Ok(None)` is the Platform API's deliberately uninformative `null` -
-/// see [`GetPairQuery`]'s doc comment for why that means "not a pair, or can't tell".
+/// studio GraphQL service.
+///
+/// Two outcomes mean "not a pair, or can't tell" (spec FR20), and a caller should treat the ID
+/// as an API key on either:
+/// - `Ok(None)`: the Platform API's deliberately uninformative `null` (see [`GetPairQuery`]).
+/// - `Err(RoverClientError::PairPermissionDenied { .. })`: an HTTP 403. The resolver itself
+///   answers "no permission" with `null`, but something in front of it could still refuse the
+///   request outright, and that must not break the API-key path either.
+///
+/// Every other `Err` - a timeout, a 5xx, a GraphQL error - is final: FR20 says a failed lookup
+/// isn't "can't tell" and mustn't be guessed through.
 #[derive(Clone)]
 pub struct GetOAuthClient<S: Clone> {
     inner: S,
@@ -70,7 +80,13 @@ where
                 organization_id: organization_id.clone(),
                 client_id: input.client_id,
             };
-            let data = inner.call(GraphQLRequest::new(vars)).await?;
+            let data = match inner.call(GraphQLRequest::new(vars)).await {
+                Ok(data) => data,
+                Err(err) => {
+                    return Err(permission_denied_in(&err, organization_id.clone())
+                        .unwrap_or_else(|| err.into()))
+                }
+            };
             let organization = data
                 .organization
                 .ok_or(RoverClientError::OrganizationIDNotFound { organization_id })?;
@@ -99,6 +115,8 @@ pub mod mock {
 mod tests {
     use chrono::DateTime;
     use futures::future;
+    use rover_http::HttpServiceError;
+    use rover_studio::service::permission_denied::PermissionDenied;
     use rover_tower::test::{expect_poll_ready, MockCloneService};
     use rstest::{fixture, rstest};
     use serde_json::json;
@@ -231,5 +249,56 @@ mod tests {
             .unwrap_err();
 
         assert_that!(err).matches(|err| matches!(err, RoverClientError::InvalidTimestamp(_)));
+    }
+
+    // FR20: a refused lookup is "can't tell", so it's classified for the caller to fall back on.
+    #[rstest]
+    #[tokio::test]
+    async fn call_reports_a_403_as_a_permission_denial(input: GetOAuthClientInput) {
+        let mut mock = MockGetPairInnerService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call().times(1).return_once(|_| {
+            future::ready(Err(GraphQLServiceError::UpstreamService(Box::new(
+                HttpServiceError::Unexpected(Box::new(PermissionDenied)),
+            ))))
+        });
+
+        let err = GetOAuthClient::new(MockCloneService::new(mock))
+            .oneshot(input)
+            .await
+            .unwrap_err();
+
+        assert_that!(err).matches(|err| {
+            matches!(err, RoverClientError::PairPermissionDenied { organization_id } if organization_id == "acme")
+        });
+    }
+
+    // FR20: any other failure is final - passed through, not reported as "can't tell".
+    #[rstest]
+    #[tokio::test]
+    async fn call_passes_any_other_failure_through(input: GetOAuthClientInput) {
+        let mut mock = MockGetPairInnerService::new();
+        expect_poll_ready!(mock);
+        let graphql_error = graphql_client::Error {
+            message: "something went wrong".to_string(),
+            locations: None,
+            path: None,
+            extensions: None,
+        };
+        // `RoverClientError::GraphQl` renders each error through `graphql_client::Error`'s own
+        // `Display`, so that's the exact message to expect.
+        let expected_msg = graphql_error.to_string();
+        mock.expect_call().times(1).return_once(move |_| {
+            future::ready(Err(GraphQLServiceError::NoData(vec![graphql_error])))
+        });
+
+        let err = GetOAuthClient::new(MockCloneService::new(mock))
+            .oneshot(input)
+            .await
+            .unwrap_err();
+
+        assert_that!(err).matches(
+            |err| matches!(err, RoverClientError::GraphQl { msg } if *msg == expected_msg),
+        );
     }
 }

@@ -44,10 +44,11 @@ type RemoteOAuthClient = get_pair_query::GetPairQueryOrganizationOauthClient;
 type RemoteActor = get_pair_query::GetPairQueryOrganizationOauthClientCreatedBy;
 type RemoteResource = get_pair_query::GetPairQueryOrganizationOauthClientResources;
 
-/// The same lowercased rendering `pair_list` gives its own `ActorType` (spec FR15) - derived
-/// from the enum's serialized schema spelling rather than a second hand-written match, so the
-/// two can't drift apart when the schema gains a variant: `SERVICE_ACCOUNT` becomes
-/// `service_account`, and an unknown variant's raw value is lowercased the same way.
+/// Renders this query's `ActorType` the way `pair_list`'s hand-written `Display` renders its own
+/// (spec FR15): the serialized schema spelling, lowercased - `SERVICE_ACCOUNT` becomes
+/// `service_account`, and an unknown variant's raw value is lowercased the same way. The two
+/// agree today because lowercasing the schema spelling is exactly what `pair_list`'s match does,
+/// but nothing ties them together; the tests below pin this side's output.
 fn actor_kind(actor_type: &get_pair_query::ActorType) -> String {
     serde_json::to_value(actor_type)
         .ok()
