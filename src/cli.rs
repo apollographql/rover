@@ -941,7 +941,8 @@ impl Rover {
             SettingName::OauthDeviceAuthorizationUrl => RoverEnvKey::OauthDeviceAuthorizationUrl,
             SettingName::OauthRevocationUrl => RoverEnvKey::OauthRevocationUrl,
             SettingName::OauthWhoamiUrl => RoverEnvKey::OauthWhoamiUrl,
-            _ => RoverEnvKey::OauthClientId,
+            SettingName::OauthClientId => RoverEnvKey::OauthClientId,
+            _ => panic!("not an OAuth setting"),
         }
     }
 
@@ -974,7 +975,11 @@ impl Rover {
     /// Builds the OAuth endpoints and client ID through the profile tier.
     /// Every value is resolved (and so validated) eagerly, but only the
     /// settings in `used` - the ones the running `auth` subcommand actually
-    /// contacts - can print an override notice.
+    /// contacts - can print an override notice. Eager validation is
+    /// deliberate: an invalid stored value for any of the six fails every
+    /// `auth` subcommand, even one that never contacts that endpoint, the
+    /// same tradeoff an invalid `APOLLO_ROVER_DOWNLOAD_HOST` makes for every
+    /// command that builds a client config.
     #[cfg(feature = "oauth")]
     pub(crate) fn get_oauth_config(
         &self,
@@ -2883,6 +2888,38 @@ mod tests {
         let config = rover.get_oauth_config(&[]).unwrap();
 
         assert_that!(config.token_url.as_str()).is_equal_to("https://auth.flag.example.com/token");
+    }
+
+    #[cfg(feature = "oauth")]
+    #[test]
+    fn oauth_env_var_wins_over_profile_setting() {
+        let home = config_home_with_setting(
+            "staging",
+            "APOLLO_OAUTH_TOKEN_URL",
+            "https://auth.staging.example.com/token",
+        );
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = temp_env::with_vars_unset(OAUTH_ENV, || {
+            temp_env::with_var(
+                "APOLLO_OAUTH_TOKEN_URL",
+                Some("https://auth.env.example.com/token"),
+                || {
+                    Rover::parse_from([
+                        PKG_NAME,
+                        "--config-home",
+                        home_path.as_str(),
+                        "--profile",
+                        "staging",
+                        "config",
+                        "list",
+                    ])
+                },
+            )
+        });
+
+        let config = rover.get_oauth_config(&[]).unwrap();
+
+        assert_that!(config.token_url.as_str()).is_equal_to("https://auth.env.example.com/token");
     }
 
     #[cfg(feature = "oauth")]

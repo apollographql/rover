@@ -30,9 +30,14 @@ pub enum AuthCommand {
 }
 
 impl Auth {
-    /// The OAuth settings this invocation's subcommand actually sends a
-    /// request to - the only ones whose override notices may fire (FR60:
-    /// "uses" is not "resolves").
+    /// The OAuth settings this invocation's subcommand sends a request to -
+    /// the only ones whose override notices may fire (FR60: "uses" is not
+    /// "resolves"). Decided per subcommand, not per code path, so it can
+    /// still over-approximate: `whoami` with a legacy or environment
+    /// credential never contacts the OAuth whoami endpoint, and `logout`
+    /// fails before revoking anything when the profile has no OAuth session.
+    /// Closing that gap means deciding notices inside `run`, once the
+    /// credential's origin is known.
     pub(crate) fn oauth_settings_used(&self) -> Vec<SettingName> {
         match &self.command {
             AuthCommand::Login(command) => command.oauth_settings_used(),
