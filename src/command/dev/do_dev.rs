@@ -3,7 +3,6 @@ use std::{io::stdin, str::FromStr};
 use anyhow::anyhow;
 use apollo_federation_types::config::{FederationVersion, RouterVersion};
 use camino::Utf8PathBuf;
-use dotenvy::dotenv;
 use futures::StreamExt;
 use rover_client::RoverClientError;
 use rover_print::{print::Print, style::StyledText};
@@ -63,7 +62,10 @@ impl Dev {
         stderr: &impl Print,
         graph_ref_setting: Option<String>,
     ) -> RoverResult<RoverOutput> {
-        dotenv().ok();
+        // `.env` is loaded by the caller (`cli.rs`'s `Command::Dev` dispatch),
+        // before `graph_ref_setting` above was resolved - not here, which
+        // would be too late for a `.env`-supplied `APOLLO_GRAPH_REF` to be
+        // seen by that resolution.
         let elv2_license_accepter = self.opts.plugin_opts.elv2_license_accepter;
         let skip_update = self.opts.plugin_opts.skip_update;
         let read_file_impl = FsReadFile::default();

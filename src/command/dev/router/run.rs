@@ -275,23 +275,28 @@ impl RunRouter<state::Run> {
     /// already covered the same gap.
     fn notify_if_credential_free(
         &self,
-        graph_ref_in_env: bool,
+        graph_ref_from_setting: bool,
         license: &Option<Utf8PathBuf>,
         already_warned: bool,
     ) {
-        if license.is_none() && !self.has_usable_graph_ref(graph_ref_in_env) && !already_warned {
+        if license.is_none()
+            && !self.has_usable_graph_ref(graph_ref_from_setting)
+            && !already_warned
+        {
             infoln!(
                 "Running without GraphOS credentials. GraphOS Router Enterprise features and @connect are disabled. Pass --graph-ref, set APOLLO_KEY/APOLLO_GRAPH_REF, or pass --license to enable them."
             );
         }
     }
 
-    /// A graph ref reaches the spawned router either because `--graph-ref` resolved a
-    /// `RemoteRouterConfig`, or because a bare `APOLLO_GRAPH_REF` env var is set: the router process
-    /// inherits Rover's environment (see `router::binary`'s use of `Command::envs`, which never
-    /// calls `env_clear`), so that env var reaches the router even with no `--graph-ref` flag.
-    const fn has_usable_graph_ref(&self, graph_ref_in_env: bool) -> bool {
-        self.state.remote_config.is_some() || graph_ref_in_env
+    /// A graph ref reaches the spawned router because `--graph-ref` resolved a
+    /// `RemoteRouterConfig`, or because `APOLLO_GRAPH_REF` resolved to a real value from either
+    /// the environment or the active profile (FR6/FR90): the router process inherits Rover's
+    /// environment (see `router::binary`'s use of `Command::envs`, which never calls
+    /// `env_clear`), so a real env var reaches the router on its own, while a profile-resolved
+    /// value needs `auth_env` to insert it explicitly (see below).
+    const fn has_usable_graph_ref(&self, graph_ref_from_setting: bool) -> bool {
+        self.state.remote_config.is_some() || graph_ref_from_setting
     }
 
     fn auth_env(

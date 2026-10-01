@@ -334,6 +334,15 @@ impl Rover {
             }
             Command::Schema(command) => command.run(self.get_client_config().await?).await,
             Command::Dev(command) => {
+                // Must run before `resolve_graph_ref_setting` below, not
+                // inside `Dev::run` - `Rover`'s env-var cache (`env_store`,
+                // a `LazyCell<RoverEnv>`) is filled on first `get_env_var`
+                // call and never refreshed, so a `.env`-supplied
+                // `APOLLO_GRAPH_REF` loaded any later would be invisible to
+                // it, letting a stored profile value wrongly win instead
+                // (inverting FR25's tier order) and spuriously triggering
+                // the "running without GraphOS credentials" notice.
+                dotenvy::dotenv().ok();
                 command
                     .run(
                         self.get_install_override_path()?,
@@ -1155,6 +1164,15 @@ impl Rover {
     /// deliberately keeps `--graph-ref` as a separate, unrelated flag - so
     /// the real env var is itself the highest tier, unlike every other
     /// setting in this slice, which has a flag above its own env var.
+    ///
+    /// Called unconditionally for every `rover dev` invocation, so an
+    /// invalid stored value fails the command even when `--graph-ref`
+    /// already resolved a `RemoteRouterConfig` and the profile value would
+    /// never actually be read (`RunRouter::auth_env`'s `Some(remote_config)`
+    /// branch wins first). This is a deliberate eager-validation tradeoff,
+    /// consistent with how an invalid `APOLLO_ROVER_DOWNLOAD_HOST` also
+    /// fails every command rather than only ones that download a plugin -
+    /// not deferred to the point of actual use.
     pub(crate) fn resolve_graph_ref_setting(&self) -> RoverResult<Option<String>> {
         let raw_env = self.get_env_var(RoverEnvKey::GraphRef)?;
         let resolved = self.resolve_setting(raw_env.clone(), SettingName::GraphRef)?;
