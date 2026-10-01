@@ -481,12 +481,11 @@ impl PluginInstaller {
                 source: source.into(),
             })
         };
+        let tarball_url = plugin.get_tarball_url(self.client_config.download_host().as_deref())?;
+        self.client_config.print_download_host_notice_once();
         let named = self
             .installer
-            .get_latest_plugin_version(
-                self.client_config.plugin_version_service()?,
-                &plugin.get_tarball_url(self.client_config.download_host().as_deref())?,
-            )
+            .get_latest_plugin_version(self.client_config.plugin_version_service()?, &tarball_url)
             .await
             .map_err(|err| resolution_failed(Box::new(err)))?;
         let parsed = parse_resolved_version(&named).map_err(|err| {
@@ -568,6 +567,7 @@ impl PluginInstaller {
         let plugin_name = plugin.get_name();
         let plugin_tarball_url =
             plugin.get_tarball_url(self.client_config.download_host().as_deref())?;
+        self.client_config.print_download_host_notice_once();
         // only print the download message if the username and password have been stripped from the URL
         if let Some(sanitized_url) = sanitize_url(&plugin_tarball_url) {
             eprintln!("downloading the '{plugin_name}' plugin from {sanitized_url}");

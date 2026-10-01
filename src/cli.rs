@@ -921,18 +921,34 @@ impl Rover {
             Some(timeout) => client_config.with_download_timeout(timeout.get_duration()),
             None => client_config,
         };
+        // Note: the value's own syntactic validity is still checked eagerly
+        // here (via `resolve_setting`), even though the notice below is
+        // deferred to the point a download actually happens - an invalid
+        // stored `APOLLO_ROVER_DOWNLOAD_HOST` deliberately fails every
+        // command that builds a client config, the same way an invalid
+        // registry URL already does, rather than only commands that
+        // download a plugin.
         let resolved_download_host =
             self.resolve_setting(self.download_host_flag_or_env(), SettingName::DownloadHost)?;
-        if let Some(message) = self.config_override_notice(
+        // The override notice is decided here (so `config_override_notice`'s
+        // once-per-process gate is consumed exactly once regardless of
+        // whether a download ever happens) but not printed here - printing
+        // is deferred to `StudioClientConfig::print_download_host_notice_once`,
+        // called only at the point a plugin download actually starts
+        // (spec.md:403/FR60: a command that downloads nothing prints
+        // nothing).
+        let download_host_notice = self.config_override_notice(
             SettingName::DownloadHost,
             self.download_host_flag_or_env().as_deref(),
             self.get_env_var(RoverEnvKey::RoverDownloadHost)?.as_deref(),
             resolved_download_host.as_deref(),
-        )? {
-            self.print_config_notice(message);
-        }
-        Ok(match resolved_download_host {
+        )?;
+        let client_config = match resolved_download_host {
             Some(download_host) => client_config.with_download_host(download_host),
+            None => client_config,
+        };
+        Ok(match download_host_notice {
+            Some(message) => client_config.with_download_host_notice(message),
             None => client_config,
         })
     }
@@ -1415,7 +1431,8 @@ mod tests {
             .is_equal_to(Some("https://flag-mirror.example.com"));
     }
 
-    // FR43/FR84, per the download-host acceptance criterion at spec.md:403.
+    // FR43/FR84 (and spec.md:391, the equivalent checks-timeout criterion) -
+    // :403 covers the override *notice*, not an invalid stored value.
     #[tokio::test]
     async fn an_invalid_profile_download_host_fails_the_command() {
         let home = config_home_with_setting(
