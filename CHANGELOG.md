@@ -196,7 +196,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Every command checks the project's `.rover/rover.yaml` `settings:` section before it runs - @dotdat**
 
-  Run inside a project, every command first reads the `settings:` section of the `.rover/rover.yaml` that plugin discovery finds. A credential in that section fails the command before it sends any request, including the update check (`E058`), as does one setting spelled both ways (`E059`). In these cases Rover prints one warning and the command carries on:
+  Run inside a project, every command first reads the `settings:` section of the `.rover/rover.yaml` that plugin discovery finds. A credential in that section fails the command before it sends any request, including the update check (`E059`), as does one setting spelled both ways (`E060`). In these cases Rover prints one warning and the command carries on:
 
   - an unrecognized key
   - a `settings:` section in the user-level `rover.yaml`

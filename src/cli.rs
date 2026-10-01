@@ -3894,7 +3894,7 @@ mod tests {
         );
         assert_that!(error.code())
             .is_some()
-            .is_equal_to(RoverErrorCode::E058);
+            .is_equal_to(RoverErrorCode::E059);
     }
 
     #[tokio::test]
@@ -3915,7 +3915,7 @@ mod tests {
         );
         assert_that!(error.code())
             .is_some()
-            .is_equal_to(RoverErrorCode::E059);
+            .is_equal_to(RoverErrorCode::E060);
     }
 
     /// FR89 and AC L394/L427: keys Rover doesn't apply, and a project file
