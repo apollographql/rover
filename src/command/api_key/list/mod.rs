@@ -144,9 +144,33 @@ async fn fetch_pairs(
     let service = client
         .studio_graphql_service_with_attempt_timeout(LIST_PAIRS_ATTEMPT_TIMEOUT)
         .map_err(|err| ListOAuthClientsError::Other(RoverClientError::from(err)))?;
-    let mut list_pairs = ListOAuthClients::new(service);
+    fetch_pairs_with_service(
+        ListOAuthClients::new(service),
+        organization_id,
+        after,
+        limit,
+    )
+    .await
+}
 
-    list_pairs
+/// The part of [`fetch_pairs`] that's generic over the pairs service, rather than a concrete
+/// `StudioClient`-backed one - so a test can inject a mock in its place and assert on the exact
+/// `ListOAuthClientsInput` the command builds from `--after`/`--limit`, and that pagination
+/// actually respects `--limit`'s value, not just that clap parses the flag.
+async fn fetch_pairs_with_service<S>(
+    mut service: S,
+    organization_id: String,
+    after: Option<String>,
+    limit: usize,
+) -> Result<ListOAuthClientsResponse, ListOAuthClientsError>
+where
+    S: Service<
+            ListOAuthClientsInput,
+            Response = ListOAuthClientsResponse,
+            Error = ListOAuthClientsError,
+        >,
+{
+    service
         .ready()
         .await?
         .call(
@@ -198,7 +222,12 @@ fn build_output(
 
 #[cfg(test)]
 mod tests {
-    use rover_client::operations::api_key::list::ApiKey;
+    use futures::future;
+    use rover_client::operations::api_key::{
+        list::ApiKey,
+        pair_list::service::mock::{ListPairsResp, MockListPairsInnerService},
+    };
+    use rover_tower::test::{MockCloneService, expect_poll_ready};
     use speculoos::prelude::*;
 
     use super::*;
@@ -318,6 +347,70 @@ mod tests {
 
         let error = result.expect_err("expected --limit 0 to be rejected");
         assert_that!(error.kind()).is_equal_to(clap::error::ErrorKind::ValueValidation);
+    }
+
+    fn raw_pair_page(has_next: bool, end_cursor: Option<&str>, client_id: &str) -> ListPairsResp {
+        serde_json::from_value(serde_json::json!({
+            "organization": {
+                "oauthClients": {
+                    "pageInfo": {
+                        "endCursor": end_cursor,
+                        "hasNextPage": has_next
+                    },
+                    "edges": [{
+                        "node": {
+                            "clientId": client_id,
+                            "clientName": "ci-deploy",
+                            "createdAt": "2026-09-25T16:00:00Z",
+                            "createdBy": { "actorId": "user-123", "type": "USER" },
+                            "resources": [],
+                            "scopes": ["rover:cli"]
+                        }
+                    }]
+                }
+            }
+        }))
+        .unwrap()
+    }
+
+    // FR90/FR91: this is the one place `--limit`'s value, the real `ListOAuthClients` service,
+    // and the command's own request-building (`fetch_pairs_with_service`) are all exercised
+    // together - the clap-parsing tests above only prove the flag parses, and
+    // `pair_list::service`'s own tests only prove `ListOAuthClients` respects `limit` in
+    // isolation. Three raw pages are available (`c_1`/`c_2`/`c_3`), each with its own
+    // `hasNextPage: true`, but `--limit 1`'s worth of request should still stop after the
+    // first - proving the limit reaches the service and is actually respected, not just parsed.
+    #[tokio::test]
+    async fn fetch_pairs_sends_the_requested_limit_and_the_service_respects_it() {
+        let pages = std::sync::Arc::new(std::sync::Mutex::new(vec![
+            raw_pair_page(true, Some("cursor-1"), "c_1"),
+            raw_pair_page(true, Some("cursor-2"), "c_2"),
+            raw_pair_page(false, None, "c_3"),
+        ]));
+
+        let mut mock = MockListPairsInnerService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call().times(1).returning(move |_| {
+            let mut pages = pages.lock().unwrap();
+            future::ready(Ok(pages.remove(0)))
+        });
+
+        let service = ListOAuthClients::new(MockCloneService::new(mock));
+        let response = fetch_pairs_with_service(service, "acme".to_string(), None, 1)
+            .await
+            .unwrap();
+
+        assert_that!(
+            response
+                .pairs
+                .iter()
+                .map(|pair| pair.client_id.as_str())
+                .collect::<Vec<_>>()
+        )
+        .is_equal_to(vec!["c_1"]);
+        assert_that!(response.next_after)
+            .is_some()
+            .is_equal_to("cursor-1".to_string());
     }
 
     fn pair(client_id: &str) -> rover_client::operations::api_key::pair_list::OAuthClientPair {
