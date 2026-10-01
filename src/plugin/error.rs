@@ -24,7 +24,8 @@ use semver::Version;
 use serde::Serialize;
 
 use super::{
-    lockfile::LockedPlugin,
+    lockfile::{LOCKFILE, LockedPlugin},
+    manifest::MANIFEST_FILE,
     version::{PluginName, VersionRequest},
 };
 use crate::{RoverErrorCode, utils::client::DOWNLOAD_REQUEST_TIMEOUT};
@@ -516,6 +517,11 @@ pub enum RequestOrigin {
     /// `federation_version` in the supergraph config, at this path when it
     /// was read from a file.
     SupergraphConfig(Option<Utf8PathBuf>),
+    /// A declaration in `rover.yaml` that asked for this exact version.
+    Manifest,
+    /// A floating declaration in `rover.yaml` that its lockfile pinned to
+    /// this version.
+    Lockfile,
 }
 
 impl RequestOrigin {
@@ -553,6 +559,8 @@ impl fmt::Display for RequestOrigin {
                 "set by `federation_version` in {}",
                 Self::supergraph_config(path.as_ref())
             ),
+            Self::Manifest => write!(f, "declared in `{MANIFEST_FILE}`"),
+            Self::Lockfile => write!(f, "locked in `{LOCKFILE}`"),
         }
     }
 }
@@ -654,9 +662,14 @@ impl fmt::Display for PluginNextStep {
                     }
                 };
                 match origin {
-                    RequestOrigin::PluginArgument => {
+                    // Installing the replacement is what updates a lockfile.
+                    RequestOrigin::PluginArgument | RequestOrigin::Lockfile => {
                         write!(f, "Run `rover plugin install {plugin}@{request}`{newest}.")
                     }
+                    RequestOrigin::Manifest => write!(
+                        f,
+                        "Declare `{plugin}: \"{request}\"` in `{MANIFEST_FILE}`{newest}."
+                    ),
                     RequestOrigin::Flag(flag) => {
                         write!(f, "Re-run with `{flag} {request}`{newest}.")
                     }
@@ -1204,6 +1217,16 @@ mod tests {
         Some("2.9.5"),
         "Set `federation_version: =2.9.5` in the supergraph config."
     )]
+    #[case::manifest(
+        RequestOrigin::Manifest,
+        Some("2.9.5"),
+        "Declare `supergraph: \"=2.9.5\"` in `rover.yaml`."
+    )]
+    #[case::lockfile(
+        RequestOrigin::Lockfile,
+        Some("2.9.5"),
+        "Run `rover plugin install supergraph@=2.9.5`."
+    )]
     fn a_withdrawn_version_suggests_changing_the_request_where_it_was_made(
         #[case] origin: RequestOrigin,
         #[case] newest: Option<&str>,
@@ -1282,6 +1305,14 @@ mod tests {
     #[case::supergraph_config_from_stdin(
         RequestOrigin::SupergraphConfig(None),
         "The `supergraph` plugin v2.9.3, set by `federation_version` in the supergraph config, is no longer available from the plugin registry."
+    )]
+    #[case::manifest(
+        RequestOrigin::Manifest,
+        "The `supergraph` plugin v2.9.3, declared in `rover.yaml`, is no longer available from the plugin registry."
+    )]
+    #[case::lockfile(
+        RequestOrigin::Lockfile,
+        "The `supergraph` plugin v2.9.3, locked in `plugin-versions.lock`, is no longer available from the plugin registry."
     )]
     fn a_withdrawn_version_names_where_the_request_came_from(
         #[case] origin: RequestOrigin,
