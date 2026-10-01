@@ -1610,13 +1610,17 @@ const fn value_placeholder(error: &SettingValueError) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
+    use camino::Utf8PathBuf;
     use clap::Parser;
     use speculoos::prelude::*;
 
     use super::Rover;
     use crate::{
-        PKG_NAME,
-        options::SettingName,
+        PKG_NAME, RoverErrorCode,
+        options::{ProjectSettings, SettingName},
+        plugin::{discovery::ManifestDirs, manifest::MANIFEST_FILE},
         utils::{client::ClientTimeout, env::RoverEnvKey},
     };
 
@@ -3821,147 +3825,132 @@ mod tests {
             .is_equal_to(Some(camino::Utf8PathBuf::from("/env/rover-home")));
     }
 
-    /// The project file's startup checks (FR70, FR72, FR73, FR76), run by
-    /// every command before it does anything.
-    mod project_file {
-        use std::fs;
+    // The project file's startup checks (FR70, FR72, FR73, FR76), run by
+    // every command before it does anything.
 
-        use camino::Utf8PathBuf;
-        use clap::Parser;
-        use speculoos::prelude::*;
-
-        use super::{Rover, config_home_with_setting};
-        use crate::{
-            PKG_NAME, RoverErrorCode,
-            options::ProjectSettings,
-            plugin::{discovery::ManifestDirs, manifest::MANIFEST_FILE},
+    /// A `rover config list` run (which sends no request of its own) in a
+    /// project whose `.rover/rover.yaml` is `project`, with a user-level
+    /// manifest of `user_level` when given.
+    fn rover_in_project(
+        project: &str,
+        user_level: Option<&str>,
+    ) -> (tempfile::TempDir, tempfile::TempDir, Rover) {
+        let config_home =
+            config_home_with_setting("default", "APOLLO_CHECKS_TIMEOUT_SECONDS", "300");
+        let config_home_path = camino::Utf8Path::from_path(config_home.path()).unwrap();
+        let tree = tempfile::tempdir().unwrap();
+        let root = Utf8PathBuf::try_from(tree.path().to_path_buf()).unwrap();
+        let level = |name: &str, contents: Option<&str>| {
+            let dir = root.join(name).join(".rover");
+            fs::create_dir_all(&dir).unwrap();
+            if let Some(contents) = contents {
+                fs::write(dir.join(MANIFEST_FILE), contents).unwrap();
+            }
+            dir
         };
+        let dirs = ManifestDirs {
+            project: Some(level("project", Some(project))),
+            global: Some(level("home", user_level)),
+        };
+        let mut rover = Rover::parse_from([
+            PKG_NAME,
+            "--skip-update-check",
+            "--config-home",
+            config_home_path.as_str(),
+            "config",
+            "list",
+        ]);
+        rover.set_manifest_dirs(dirs);
+        (config_home, tree, rover)
+    }
 
-        /// A `rover config list` run (which sends no request of its own) in a
-        /// project whose `.rover/rover.yaml` is `project`, with a user-level
-        /// manifest of `user_level` when given.
-        fn rover_in_project(
-            project: &str,
-            user_level: Option<&str>,
-        ) -> (tempfile::TempDir, tempfile::TempDir, Rover) {
-            let config_home =
-                config_home_with_setting("default", "APOLLO_CHECKS_TIMEOUT_SECONDS", "300");
-            let config_home_path = camino::Utf8Path::from_path(config_home.path()).unwrap();
-            let tree = tempfile::tempdir().unwrap();
-            let root = Utf8PathBuf::try_from(tree.path().to_path_buf()).unwrap();
-            let level = |name: &str, contents: Option<&str>| {
-                let dir = root.join(name).join(".rover");
-                fs::create_dir_all(&dir).unwrap();
-                if let Some(contents) = contents {
-                    fs::write(dir.join(MANIFEST_FILE), contents).unwrap();
-                }
-                dir
-            };
-            let dirs = ManifestDirs {
-                project: Some(level("project", Some(project))),
-                global: Some(level("home", user_level)),
-            };
-            let mut rover = Rover::parse_from([
-                PKG_NAME,
-                "--skip-update-check",
-                "--config-home",
-                config_home_path.as_str(),
-                "config",
-                "list",
-            ]);
-            rover.set_manifest_dirs(dirs);
-            (config_home, tree, rover)
-        }
+    #[tokio::test]
+    async fn a_credential_in_the_project_file_fails_the_command() {
+        let (_home, _tree, rover) =
+            rover_in_project("settings:\n  APOLLO_KEY: service:x:y\n", None);
 
-        #[tokio::test]
-        async fn a_credential_in_the_project_file_fails_the_command() {
-            let (_home, _tree, rover) =
-                rover_in_project("settings:\n  APOLLO_KEY: service:x:y\n", None);
+        let error = rover.execute_command().await.unwrap_err();
 
-            let error = rover.execute_command().await.unwrap_err();
+        assert_that!(error.message()).is_equal_to(
+            "`.rover/rover.yaml` sets `APOLLO_KEY` under `settings:`. Credentials can't be \
+            stored in a project file. Run `rover auth login`, or set `APOLLO_KEY` in the \
+            environment."
+                .to_string(),
+        );
+        assert_that!(error.code())
+            .is_some()
+            .is_equal_to(RoverErrorCode::E058);
+    }
 
-            assert_that!(error.message()).is_equal_to(
-                "`.rover/rover.yaml` sets `APOLLO_KEY` under `settings:`. Credentials can't be \
-                stored in a project file. Run `rover auth login`, or set `APOLLO_KEY` in the \
-                environment."
-                    .to_string(),
-            );
-            assert_that!(error.code())
-                .is_some()
-                .is_equal_to(RoverErrorCode::E058);
-        }
+    #[tokio::test]
+    async fn a_setting_spelled_both_ways_fails_the_command() {
+        let (_home, _tree, rover) = rover_in_project(
+            "settings:\n  APOLLO_REGISTRY_URL: https://a.example.com\n  \
+            apollo_registry_url: https://b.example.com\n",
+            None,
+        );
 
-        #[tokio::test]
-        async fn a_setting_spelled_both_ways_fails_the_command() {
-            let (_home, _tree, rover) = rover_in_project(
-                "settings:\n  APOLLO_REGISTRY_URL: https://a.example.com\n  \
-                apollo_registry_url: https://b.example.com\n",
-                None,
-            );
+        let error = rover.execute_command().await.unwrap_err();
 
-            let error = rover.execute_command().await.unwrap_err();
+        assert_that!(error.message()).is_equal_to(
+            "`.rover/rover.yaml` sets `APOLLO_REGISTRY_URL` twice, once as \
+            `APOLLO_REGISTRY_URL` and once as `apollo_registry_url`. These are the same \
+            setting. Remove one."
+                .to_string(),
+        );
+        assert_that!(error.code())
+            .is_some()
+            .is_equal_to(RoverErrorCode::E059);
+    }
 
-            assert_that!(error.message()).is_equal_to(
-                "`.rover/rover.yaml` sets `APOLLO_REGISTRY_URL` twice, once as \
-                `APOLLO_REGISTRY_URL` and once as `apollo_registry_url`. These are the same \
-                setting. Remove one."
-                    .to_string(),
-            );
-            assert_that!(error.code())
-                .is_some()
-                .is_equal_to(RoverErrorCode::E059);
-        }
+    #[tokio::test]
+    async fn a_project_manifest_that_isnt_yaml_fails_the_command() {
+        let (_home, _tree, rover) = rover_in_project("settings: \"unterminated\n", None);
 
-        #[tokio::test]
-        async fn a_project_manifest_that_isnt_yaml_fails_the_command() {
-            let (_home, _tree, rover) = rover_in_project("settings: \"unterminated\n", None);
+        let error = rover.execute_command().await.unwrap_err();
 
-            let error = rover.execute_command().await.unwrap_err();
+        assert_that!(error.code())
+            .is_some()
+            .is_equal_to(RoverErrorCode::E052);
+    }
 
-            assert_that!(error.code())
-                .is_some()
-                .is_equal_to(RoverErrorCode::E052);
-        }
+    /// FR89 and AC L394/L427: keys Rover doesn't apply only warn.
+    #[rstest::rstest]
+    #[case::unrecognized_key("settings:\n  APOLLO_FUTURE_SETTING: x\n", None)]
+    #[case::user_level_settings(
+        "plugins: {}\n",
+        Some("settings:\n  APOLLO_REGISTRY_URL: https://registry.example.com\n")
+    )]
+    #[tokio::test]
+    async fn keys_rover_does_not_apply_do_not_fail_the_command(
+        #[case] project: &str,
+        #[case] user_level: Option<&str>,
+    ) {
+        let (_home, _tree, rover) = rover_in_project(project, user_level);
 
-        /// FR89 and AC L394/L427: keys Rover doesn't apply only warn.
-        #[rstest::rstest]
-        #[case::unrecognized_key("settings:\n  APOLLO_FUTURE_SETTING: x\n", None)]
-        #[case::user_level_settings(
-            "plugins: {}\n",
-            Some("settings:\n  APOLLO_REGISTRY_URL: https://registry.example.com\n")
-        )]
-        #[tokio::test]
-        async fn keys_rover_does_not_apply_do_not_fail_the_command(
-            #[case] project: &str,
-            #[case] user_level: Option<&str>,
-        ) {
-            let (_home, _tree, rover) = rover_in_project(project, user_level);
+        assert_that!(rover.execute_command().await).is_ok();
+    }
 
-            assert_that!(rover.execute_command().await).is_ok();
-        }
+    /// FR29: with no project at all there's nothing to read and nothing to
+    /// warn about.
+    #[test]
+    fn no_project_file_reads_as_no_settings() {
+        let rover = Rover::parse_from([PKG_NAME, "config", "list"]);
 
-        /// FR29: with no project at all there's nothing to read and nothing to
-        /// warn about.
-        #[test]
-        fn no_project_file_reads_as_no_settings() {
-            let rover = Rover::parse_from([PKG_NAME, "config", "list"]);
+        assert_that!(rover.project_settings().unwrap()).is_equal_to(&ProjectSettings::default());
+    }
 
-            assert_that!(rover.project_settings().unwrap())
-                .is_equal_to(&ProjectSettings::default());
-        }
+    #[test]
+    fn the_project_file_is_read_once_per_process() {
+        let (_home, tree, rover) =
+            rover_in_project("settings:\n  APOLLO_FUTURE_SETTING: x\n", None);
+        let first = rover.project_settings().unwrap().clone();
+        fs::write(
+            tree.path().join("project/.rover").join(MANIFEST_FILE),
+            "settings:\n  APOLLO_KEY: x\n",
+        )
+        .unwrap();
 
-        #[test]
-        fn the_project_file_is_read_once_per_process() {
-            let (_home, tree, rover) =
-                rover_in_project("settings:\n  APOLLO_FUTURE_SETTING: x\n", None);
-            let first = rover.project_settings().unwrap().clone();
-            fs::write(
-                tree.path().join("project/.rover").join(MANIFEST_FILE),
-                "settings:\n  APOLLO_KEY: x\n",
-            )
-            .unwrap();
-
-            assert_that!(rover.project_settings().unwrap()).is_equal_to(&first);
-        }
+        assert_that!(rover.project_settings().unwrap()).is_equal_to(&first);
     }
 }
