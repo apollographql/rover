@@ -1,6 +1,9 @@
-//! Which level's install root `rover plugin install` installs into, through
-//! the real binary: the project in scope by default, and the global level
-//! when there is no project.
+//! The two install roots through the real binary: which one `rover plugin
+//! install` installs into (the project in scope by default, the global level
+//! when there is none or `--global` asks for it, the project `--manifest-path`
+//! names, created if need be), which one a command finds a plugin in (the
+//! project's first), and that a project root is self-contained and is never
+//! made by anything else.
 
 use std::{fs, process::Command};
 
@@ -179,6 +182,57 @@ fn a_variable_that_is_not_switched_on_leaves_the_project_default(two_levels: Two
         .is_equal_to((Some(0), &downloaded(&two_levels, Level::Project)));
 }
 
+/// What `data.plugins` reports for `supergraph` v2.9.3 already installed at
+/// `at`.
+fn installed(levels: &TwoLevels, at: Level) -> Value {
+    let mut plugins = downloaded(levels, at);
+    plugins[0]["source"] = Value::from("installed");
+    plugins
+}
+
+/// An explicit install that can't download uses a copy already at the level
+/// it installs into, and only that level: a global copy doesn't make the
+/// project's root whole.
+#[rstest]
+fn an_install_that_cannot_download_uses_its_own_level(two_levels: TwoLevels) {
+    two_levels.seed_plugin(Level::Project, "supergraph", "2.9.3");
+    two_levels.seed_plugin(Level::Global, "supergraph", "2.9.3");
+
+    let (code, json) = rover(
+        &two_levels,
+        &["plugin", "install", "supergraph@=2.9.3", "--no-download"],
+        &[],
+    );
+
+    assert_that!((code, &json["data"]["plugins"]))
+        .named(&json.to_string())
+        .is_equal_to((Some(0), &installed(&two_levels, Level::Project)));
+    assert_that!(lockfile(&two_levels.project.rover_dir()))
+        .is_equal_to(Some(format!("{HEADER}{LOCKED}")));
+}
+
+#[rstest]
+fn an_install_that_cannot_download_ignores_a_copy_at_the_other_level(two_levels: TwoLevels) {
+    two_levels.seed_plugin(Level::Global, "supergraph", "2.9.3");
+
+    let (code, json) = rover(
+        &two_levels,
+        &["plugin", "install", "supergraph@=2.9.3", "--no-download"],
+        &[],
+    );
+
+    assert_that!((code, &json["error"]["code"], &json["error"]["message"])).is_equal_to((
+        Some(1),
+        &Value::from("E058"),
+        &Value::from(format!(
+            "Rover needs the `supergraph` plugin v2.9.3, but it isn't installed in `{}` and \
+             downloads are disabled by `--no-download`.",
+            two_levels.bin_dir(Level::Project),
+        )),
+    ));
+    assert_that!(entries(&two_levels.project.rover_dir())).is_equal_to(Vec::<String>::new());
+}
+
 #[rstest]
 fn manifest_path_overrides_discovery(mut two_levels: TwoLevels) {
     let nested = two_levels.project.subdirectory("packages/b/.rover");
@@ -205,6 +259,82 @@ fn manifest_path_overrides_discovery(mut two_levels: TwoLevels) {
         .is_equal_to(Some(format!("{HEADER}{LOCKED}")));
     // The project the working directory is in is ignored entirely.
     assert_that!(fs::read_dir(&nested).unwrap().count()).is_equal_to(0);
+}
+
+/// The entries of `dir`, sorted, with a `/` after each directory.
+fn entries(dir: &Utf8Path) -> Vec<String> {
+    let mut entries: Vec<String> = fs::read_dir(dir)
+        .unwrap()
+        .map(|entry| {
+            let entry = entry.unwrap();
+            let slash = if entry.path().is_dir() { "/" } else { "" };
+            format!("{}{slash}", entry.file_name().to_string_lossy())
+        })
+        .collect();
+    entries.sort();
+    entries
+}
+
+#[rstest]
+fn manifest_path_creates_the_project_root_it_names(two_levels: TwoLevels) {
+    fs::remove_dir(two_levels.project.rover_dir()).unwrap();
+
+    let (code, json) = rover(
+        &two_levels,
+        &[
+            "plugin",
+            "install",
+            "supergraph@=2.9.3",
+            "--manifest-path",
+            ".rover/rover.yaml",
+        ],
+        &[],
+    );
+
+    assert_that!((code, &json["data"]["plugins"]))
+        .named(&json.to_string())
+        .is_equal_to((Some(0), &downloaded(&two_levels, Level::Project)));
+    let root = two_levels.project.rover_dir();
+    assert_that!(entries(&root)).is_equal_to(
+        [".gitignore", "bin/", "plugin-versions.lock", "rover.yaml"]
+            .map(String::from)
+            .to_vec(),
+    );
+    assert_that!((
+        fs::read_to_string(root.join(".gitignore")).unwrap(),
+        fs::read_to_string(root.join("rover.yaml")).unwrap(),
+        lockfile(&root),
+    ))
+    .is_equal_to((
+        "bin/\n".to_string(),
+        String::new(),
+        Some(format!("{HEADER}{LOCKED}")),
+    ));
+    assert_that!(two_levels.global.bin_dir().exists()).is_false();
+}
+
+#[rstest]
+fn a_failed_install_leaves_no_project_root_behind(two_levels: TwoLevels) {
+    // A global copy doesn't satisfy an install into the new project.
+    two_levels.seed_plugin(Level::Global, "supergraph", "2.9.3");
+
+    let (code, json) = rover(
+        &two_levels,
+        &[
+            "plugin",
+            "install",
+            "supergraph@=2.9.3",
+            "--no-download",
+            "--manifest-path",
+            "app/.rover/rover.yaml",
+        ],
+        &[],
+    );
+
+    assert_that!((code, &json["error"]["code"]))
+        .named(&json.to_string())
+        .is_equal_to((Some(1), &Value::from("E058")));
+    assert_that!(two_levels.project.root().join("app").exists()).is_false();
 }
 
 #[rstest]
@@ -261,4 +391,201 @@ fn manifest_path_with_the_global_variable_is_refused(two_levels: TwoLevels) {
     )
     .is_equal_to(0);
     assert_that!(two_levels.global.bin_dir().exists()).is_false();
+}
+
+/// FR28: a project's plugins come back from the project alone. A global
+/// copy is there to tempt the reinstall, and must be neither used nor
+/// changed.
+#[rstest]
+fn a_project_root_is_restored_without_the_global_level(two_levels: TwoLevels) {
+    let install = ["plugin", "install", "supergraph@=2.9.3"];
+    let (code, json) = rover(&two_levels, &install, &[]);
+    assert_that!(code)
+        .named(&json.to_string())
+        .is_equal_to(Some(0));
+    let global_copy = two_levels.seed_plugin(Level::Global, "supergraph", "2.9.3");
+    fs::write(&global_copy, "global").unwrap();
+    fs::remove_dir_all(two_levels.project.bin_dir()).unwrap();
+
+    let (code, json) = rover(&two_levels, &install, &[]);
+
+    assert_that!((code, &json["data"]["plugins"]))
+        .named(&json.to_string())
+        .is_equal_to((Some(0), &downloaded(&two_levels, Level::Project)));
+    assert_that!(lockfile(&two_levels.project.rover_dir()))
+        .is_equal_to(Some(format!("{HEADER}{LOCKED}")));
+    assert_that!((
+        entries(&two_levels.global.rover_dir()),
+        fs::read_to_string(&global_copy).unwrap(),
+    ))
+    .is_equal_to((vec!["bin/".to_string()], "global".to_string()));
+}
+
+/// FR22: only `rover plugin install --manifest-path` makes a project, and a
+/// command that uses a plugin adds nothing to one, even when it downloads.
+#[rstest]
+fn a_command_that_uses_a_plugin_creates_nothing(
+    mut two_levels: TwoLevels,
+    #[values(true, false)] in_a_project: bool,
+    #[values(&[][..], &["--skip-update"][..])] flags: &[&str],
+) {
+    if !in_a_project {
+        fs::remove_dir(two_levels.project.rover_dir()).unwrap();
+    }
+    two_levels.run_from("services/users");
+    fs::write(
+        two_levels.working_dir().join("supergraph.yaml"),
+        "federation_version: \"=2.9.3\"\nsubgraphs:\n  users:\n    routing_url: \
+         http://localhost:4002\n    schema:\n      file: ./users.graphql\n",
+    )
+    .unwrap();
+    fs::write(
+        two_levels.working_dir().join("users.graphql"),
+        "type Query { hello: String }\n",
+    )
+    .unwrap();
+    let args: Vec<&str> = ["supergraph", "compose", "--config", "supergraph.yaml"]
+        .iter()
+        .chain(flags)
+        .copied()
+        .collect();
+
+    // The stub plugin composes nothing, so the run fails either way; what
+    // matters is what it leaves behind.
+    rover(&two_levels, &args, &[("APOLLO_ROVER_SKIP_UPDATE", "false")]);
+
+    let project = in_a_project.then(|| two_levels.project.rover_dir());
+    assert_that!((
+        entries(two_levels.project.root()),
+        entries(two_levels.working_dir()),
+        project.map(|project| entries(&project)),
+    ))
+    .is_equal_to((
+        if in_a_project {
+            vec![".rover/".to_string(), "services/".to_string()]
+        } else {
+            vec!["services/".to_string()]
+        },
+        vec!["supergraph.yaml".to_string(), "users.graphql".to_string()],
+        in_a_project.then(Vec::new),
+    ));
+}
+
+/// FR26 for the commands that use a plugin, through `rover supergraph
+/// compose` and a stub plugin, which is a shell script.
+#[cfg(unix)]
+mod lookup {
+    use super::*;
+
+    const COMPOSED: &str = r#"{"Ok":{"supergraphSdl":"type Query { hello: String }","hints":[]}}"#;
+
+    fn compose(levels: &TwoLevels, version: &str, flags: &[&str]) -> (Option<i32>, Value) {
+        fs::write(
+            levels.working_dir().join("supergraph.yaml"),
+            format!(
+                "federation_version: \"{version}\"\nsubgraphs:\n  users:\n    routing_url: \
+                 http://localhost:4002\n    schema:\n      file: ./users.graphql\n"
+            ),
+        )
+        .unwrap();
+        fs::write(
+            levels.working_dir().join("users.graphql"),
+            "type Query { hello: String }\n",
+        )
+        .unwrap();
+        let args: Vec<&str> = ["supergraph", "compose", "--config", "supergraph.yaml"]
+            .iter()
+            .chain(flags)
+            .copied()
+            .collect();
+        rover(levels, &args, &[("APOLLO_ROVER_SKIP_UPDATE", "false")])
+    }
+
+    #[rstest]
+    fn the_project_copy_is_preferred_and_the_global_one_stands_in(
+        mut two_levels: TwoLevels,
+        #[values(&[][..], &["--skip-update"][..])] flags: &[&str],
+    ) {
+        two_levels.run_from("services/users");
+        two_levels.seed_runnable_plugin(Level::Global, "supergraph", "2.9.3", COMPOSED);
+
+        let (code, json) = compose(&two_levels, "=2.9.3", flags);
+        assert_that!((code, &json["data"]["plugins"]))
+            .named(&json.to_string())
+            .is_equal_to((Some(0), &installed(&two_levels, Level::Global)));
+
+        two_levels.seed_runnable_plugin(Level::Project, "supergraph", "2.9.3", COMPOSED);
+
+        let (code, json) = compose(&two_levels, "=2.9.3", flags);
+        assert_that!((code, &json["data"]["plugins"]))
+            .named(&json.to_string())
+            .is_equal_to((Some(0), &installed(&two_levels, Level::Project)));
+    }
+
+    /// The registry here can't resolve a floating version, so compose falls
+    /// back to an installed release, and the project's comes first.
+    #[rstest]
+    fn a_fallback_prefers_the_project_copy(two_levels: TwoLevels) {
+        two_levels.seed_runnable_plugin(Level::Global, "supergraph", "2.9.4", COMPOSED);
+        two_levels.seed_runnable_plugin(Level::Project, "supergraph", "2.9.3", COMPOSED);
+
+        let (code, json) = compose(&two_levels, "2", &[]);
+
+        let mut expected = installed(&two_levels, Level::Project);
+        expected[0]["source"] = Value::from("fallback");
+        assert_that!((code, &json["data"]["plugins"]))
+            .named(&json.to_string())
+            .is_equal_to((Some(0), &expected));
+    }
+
+    /// Run `rover <args>` at the global level of `levels`, from a working
+    /// directory that is deleted just before Rover starts.
+    fn rover_in_a_deleted_directory(levels: &TwoLevels, args: &[&str]) -> (Option<i32>, Value) {
+        let parent = tempfile::TempDir::new().unwrap();
+        let gone = parent.path().join("gone");
+        fs::create_dir(&gone).unwrap();
+        let mut command = Command::new("sh");
+        levels.global.apply(&mut command);
+        let output = command
+            .arg("-c")
+            .arg(r#"cd "$0" && rmdir "$0" && exec "$@""#)
+            .arg(&gone)
+            .arg(cargo_bin("rover"))
+            .args(args)
+            .args([
+                "--skip-update-check",
+                "--telemetry-disabled",
+                "--format",
+                "json",
+            ])
+            .env("NO_COLOR", "1")
+            .env_remove("APOLLO_NODE_MODULES_BIN_DIR")
+            .env_remove("APOLLO_ROVER_NO_DOWNLOAD")
+            .env_remove("APOLLO_ROVER_GLOBAL")
+            .env_remove("APOLLO_ROVER_SKIP_UPDATE")
+            .output()
+            .unwrap();
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        let json = serde_json::from_slice(&output.stdout)
+            .unwrap_or_else(|err| panic!("stdout isn't JSON ({err})\nstderr: {stderr}"));
+        (output.status.code(), json)
+    }
+
+    /// A working directory Rover can't read has no project, so the global
+    /// level is all there is, rather than a reason to fail. Through `rover
+    /// plugin install`, since `rover supergraph compose` needs a working
+    /// directory for reasons of its own.
+    #[rstest]
+    fn a_deleted_working_directory_is_no_project(two_levels: TwoLevels) {
+        two_levels.seed_plugin(Level::Global, "supergraph", "2.9.3");
+
+        let (code, json) = rover_in_a_deleted_directory(
+            &two_levels,
+            &["plugin", "install", "supergraph@=2.9.3", "--no-download"],
+        );
+
+        assert_that!((code, &json["data"]["plugins"]))
+            .named(&json.to_string())
+            .is_equal_to((Some(0), &installed(&two_levels, Level::Global)));
+    }
 }
