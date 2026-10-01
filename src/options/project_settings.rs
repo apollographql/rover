@@ -273,6 +273,10 @@ fn render(value: &Value) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
+    use assert_fs::TempDir;
+    use camino::Utf8PathBuf;
     use rstest::rstest;
     use speculoos::prelude::*;
 
@@ -551,157 +555,147 @@ mod tests {
         assert_that!(error.code()).is_some().is_equal_to(code);
     }
 
-    mod load {
-        use std::fs;
+    /// A temp tree with a `.rover/` per level, each holding `rover.yaml`
+    /// when its contents are given.
+    struct Levels {
+        _temp: TempDir,
+        dirs: ManifestDirs,
+    }
 
-        use assert_fs::TempDir;
-        use camino::Utf8PathBuf;
+    fn levels(project: Option<&str>, global: Option<&str>) -> Levels {
+        let temp = TempDir::new().unwrap();
+        let root = Utf8PathBuf::try_from(temp.path().to_path_buf()).unwrap();
+        let level = |name: &str, contents: Option<&str>| {
+            let dir = root.join(name).join(".rover");
+            fs::create_dir_all(&dir).unwrap();
+            if let Some(contents) = contents {
+                fs::write(dir.join(MANIFEST_FILE), contents).unwrap();
+            }
+            dir
+        };
+        let dirs = ManifestDirs {
+            project: Some(level("project", project)),
+            global: Some(level("home", global)),
+        };
+        Levels { _temp: temp, dirs }
+    }
 
-        use super::*;
+    #[test]
+    fn no_project_and_no_user_level_settings_is_empty() {
+        let levels = levels(None, Some("plugins:\n  router: latest\n"));
+        let dirs = ManifestDirs {
+            project: None,
+            global: levels.dirs.global,
+        };
 
-        /// A temp tree with a `.rover/` per level, each holding `rover.yaml`
-        /// when its contents are given.
-        struct Levels {
-            _temp: TempDir,
-            dirs: ManifestDirs,
-        }
+        assert_that!(ProjectSettings::load(&dirs).unwrap()).is_equal_to(ProjectSettings::default());
+    }
 
-        fn levels(project: Option<&str>, global: Option<&str>) -> Levels {
-            let temp = TempDir::new().unwrap();
-            let root = Utf8PathBuf::try_from(temp.path().to_path_buf()).unwrap();
-            let level = |name: &str, contents: Option<&str>| {
-                let dir = root.join(name).join(".rover");
-                fs::create_dir_all(&dir).unwrap();
-                if let Some(contents) = contents {
-                    fs::write(dir.join(MANIFEST_FILE), contents).unwrap();
-                }
-                dir
-            };
-            let dirs = ManifestDirs {
-                project: Some(level("project", project)),
-                global: Some(level("home", global)),
-            };
-            Levels { _temp: temp, dirs }
-        }
+    #[test]
+    fn a_project_without_a_manifest_is_empty() {
+        let levels = levels(None, None);
 
-        #[test]
-        fn no_project_and_no_user_level_settings_is_empty() {
-            let levels = levels(None, Some("plugins:\n  router: latest\n"));
-            let dirs = ManifestDirs {
-                project: None,
-                global: levels.dirs.global,
-            };
+        assert_that!(ProjectSettings::load(&levels.dirs).unwrap())
+            .is_equal_to(ProjectSettings::default());
+    }
 
-            assert_that!(ProjectSettings::load(&dirs).unwrap())
-                .is_equal_to(ProjectSettings::default());
-        }
+    #[test]
+    fn the_project_files_settings_apply() {
+        let levels = levels(
+            Some("settings:\n  APOLLO_REGISTRY_URL: https://registry.example.com\n"),
+            None,
+        );
 
-        #[test]
-        fn a_project_without_a_manifest_is_empty() {
-            let levels = levels(None, None);
+        let settings = ProjectSettings::load(&levels.dirs).unwrap();
 
-            assert_that!(ProjectSettings::load(&levels.dirs).unwrap())
-                .is_equal_to(ProjectSettings::default());
-        }
+        assert_that!(settings.get(SettingName::RegistryUrl))
+            .is_some()
+            .is_equal_to(&scalar(
+                "APOLLO_REGISTRY_URL",
+                "https://registry.example.com",
+            ));
+        assert_that!(settings.warnings().to_vec()).is_equal_to(Vec::<String>::new());
+    }
 
-        #[test]
-        fn the_project_files_settings_apply() {
-            let levels = levels(
-                Some("settings:\n  APOLLO_REGISTRY_URL: https://registry.example.com\n"),
-                None,
-            );
+    #[test]
+    fn user_level_settings_never_apply_and_warn_once() {
+        let levels = levels(
+            Some("settings:\n  APOLLO_CHECKS_TIMEOUT_SECONDS: 600\n"),
+            Some("settings:\n  APOLLO_REGISTRY_URL: https://registry.example.com\n"),
+        );
 
-            let settings = ProjectSettings::load(&levels.dirs).unwrap();
+        let settings = ProjectSettings::load(&levels.dirs).unwrap();
 
-            assert_that!(settings.get(SettingName::RegistryUrl))
-                .is_some()
-                .is_equal_to(&scalar(
-                    "APOLLO_REGISTRY_URL",
-                    "https://registry.example.com",
-                ));
-            assert_that!(settings.warnings().to_vec()).is_equal_to(Vec::<String>::new());
-        }
+        assert_that!(settings.get(SettingName::RegistryUrl)).is_none();
+        assert_that!(settings.get(SettingName::ChecksTimeoutSeconds))
+            .is_some()
+            .is_equal_to(&scalar("APOLLO_CHECKS_TIMEOUT_SECONDS", "600"));
+        assert_that!(settings.warnings().to_vec()).is_equal_to(vec![
+            "Warning: the user-level `rover.yaml` has a `settings:` section, which Rover \
+            ignores. Use `rover config set` to store user-level settings in a profile."
+                .to_string(),
+        ]);
+    }
 
-        #[test]
-        fn user_level_settings_never_apply_and_warn_once() {
-            let levels = levels(
-                Some("settings:\n  APOLLO_CHECKS_TIMEOUT_SECONDS: 600\n"),
-                Some("settings:\n  APOLLO_REGISTRY_URL: https://registry.example.com\n"),
-            );
+    #[test]
+    fn an_empty_user_level_settings_section_still_warns() {
+        let levels = levels(None, Some("settings:\n"));
 
-            let settings = ProjectSettings::load(&levels.dirs).unwrap();
+        assert_that!(
+            ProjectSettings::load(&levels.dirs)
+                .unwrap()
+                .warnings()
+                .to_vec()
+        )
+        .is_equal_to(vec![USER_LEVEL_SETTINGS_WARNING.to_string()]);
+    }
 
-            assert_that!(settings.get(SettingName::RegistryUrl)).is_none();
-            assert_that!(settings.get(SettingName::ChecksTimeoutSeconds))
-                .is_some()
-                .is_equal_to(&scalar("APOLLO_CHECKS_TIMEOUT_SECONDS", "600"));
-            assert_that!(settings.warnings().to_vec()).is_equal_to(vec![
-                "Warning: the user-level `rover.yaml` has a `settings:` section, which Rover \
-                ignores. Use `rover config set` to store user-level settings in a profile."
-                    .to_string(),
-            ]);
-        }
+    #[test]
+    fn a_broken_user_level_manifest_is_skipped() {
+        let levels = levels(None, Some("settings: \"unterminated\n"));
 
-        #[test]
-        fn an_empty_user_level_settings_section_still_warns() {
-            let levels = levels(None, Some("settings:\n"));
+        assert_that!(ProjectSettings::load(&levels.dirs).unwrap())
+            .is_equal_to(ProjectSettings::default());
+    }
 
-            assert_that!(
-                ProjectSettings::load(&levels.dirs)
-                    .unwrap()
-                    .warnings()
-                    .to_vec()
-            )
-            .is_equal_to(vec![USER_LEVEL_SETTINGS_WARNING.to_string()]);
-        }
+    #[test]
+    fn a_project_manifest_that_isnt_yaml_fails_with_the_manifest_code() {
+        let levels = levels(Some("settings: \"unterminated\n"), None);
 
-        #[test]
-        fn a_broken_user_level_manifest_is_skipped() {
-            let levels = levels(None, Some("settings: \"unterminated\n"));
+        let error = ProjectSettings::load(&levels.dirs).unwrap_err();
 
-            assert_that!(ProjectSettings::load(&levels.dirs).unwrap())
-                .is_equal_to(ProjectSettings::default());
-        }
+        assert_that!(error.code())
+            .is_some()
+            .is_equal_to(RoverErrorCode::E052);
+    }
 
-        #[test]
-        fn a_project_manifest_that_isnt_yaml_fails_with_the_manifest_code() {
-            let levels = levels(Some("settings: \"unterminated\n"), None);
+    /// FR80: a manifest the plugin system refuses still supplies settings.
+    #[test]
+    fn a_project_manifest_refused_for_plugins_still_applies_its_settings() {
+        let levels = levels(
+            Some(
+                "install_root: ../vendor\nplugins:\n  apollo-router: latest\nsettings:\n  \
+                APOLLO_CHECKS_TIMEOUT_SECONDS: 600\n",
+            ),
+            None,
+        );
 
-            let error = ProjectSettings::load(&levels.dirs).unwrap_err();
+        let settings = ProjectSettings::load(&levels.dirs).unwrap();
 
-            assert_that!(error.code())
-                .is_some()
-                .is_equal_to(RoverErrorCode::E052);
-        }
+        assert_that!(settings.get(SettingName::ChecksTimeoutSeconds))
+            .is_some()
+            .is_equal_to(&scalar("APOLLO_CHECKS_TIMEOUT_SECONDS", "600"));
+    }
 
-        /// FR80: a manifest the plugin system refuses still supplies settings.
-        #[test]
-        fn a_project_manifest_refused_for_plugins_still_applies_its_settings() {
-            let levels = levels(
-                Some(
-                    "install_root: ../vendor\nplugins:\n  apollo-router: latest\nsettings:\n  \
-                    APOLLO_CHECKS_TIMEOUT_SECONDS: 600\n",
-                ),
-                None,
-            );
+    #[test]
+    fn a_credential_in_the_project_file_fails_the_load() {
+        let levels = levels(Some("settings:\n  APOLLO_KEY: service:x:y\n"), None);
 
-            let settings = ProjectSettings::load(&levels.dirs).unwrap();
+        let error = ProjectSettings::load(&levels.dirs).unwrap_err();
 
-            assert_that!(settings.get(SettingName::ChecksTimeoutSeconds))
-                .is_some()
-                .is_equal_to(&scalar("APOLLO_CHECKS_TIMEOUT_SECONDS", "600"));
-        }
-
-        #[test]
-        fn a_credential_in_the_project_file_fails_the_load() {
-            let levels = levels(Some("settings:\n  APOLLO_KEY: service:x:y\n"), None);
-
-            let error = ProjectSettings::load(&levels.dirs).unwrap_err();
-
-            assert_that!(error.code())
-                .is_some()
-                .is_equal_to(RoverErrorCode::E058);
-        }
+        assert_that!(error.code())
+            .is_some()
+            .is_equal_to(RoverErrorCode::E058);
     }
 
     #[test]
