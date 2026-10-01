@@ -220,6 +220,13 @@ impl StudioClient {
     /// [`retry_with_attempt_timeout`] rather than the bare [`RetryLayer`] `studio_graphql_service`
     /// uses, nesting the timeout inside the retry per this repo's composition guidance
     /// (AGENTS.md). Safe only for idempotent operations, same caveat as `studio_graphql_service`.
+    ///
+    /// Also classifies an HTTP 403 via `PermissionDeniedLayer`, like
+    /// [`Self::studio_graphql_service_with_timeout`]. That's safe here, unlike in the shared
+    /// `studio_graphql_service`, because this constructor's only callers are the client-credential
+    /// pair reads (`pair_list`, `pair_get`), which need a 403 told apart from other failures - in
+    /// particular so `rover api-key delete`/`rename` can fall back to the API-key path when the
+    /// pair lookup is refused (spec FR20). A 403 is never retried either way.
     pub fn studio_graphql_service_with_attempt_timeout(
         &self,
         attempt_timeout: Duration,
@@ -238,6 +245,7 @@ impl StudioClient {
                         self.is_sudo,
                     )?)
                     .layer(RejectedCredentialLayer::new(self.credential.clone()))
+                    .layer(PermissionDeniedLayer)
                     .into_inner(),
             ))
             .layer(retry_with_attempt_timeout(
@@ -564,5 +572,31 @@ mod tests {
             .expect_err("a 401 should have become an error");
 
         assert_that!(upstream_http_error(&err).and_then(rejected_credential)).is_some();
+    }
+
+    // `studio_graphql_service_with_attempt_timeout` serves the pair reads, which need a 403
+    // classified (spec FR20's fall-back for `rover api-key delete`/`rename`) - and, unlike a 5xx,
+    // a refusal must not be retried, since retrying can't change the answer.
+    #[tokio::test]
+    async fn the_attempt_timeout_service_classifies_a_403_without_retrying_it() {
+        let server = MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.method(POST).path("/graphql");
+            then.status(403);
+        });
+
+        let mut service = client_against(&server)
+            .studio_graphql_service_with_attempt_timeout(Duration::from_secs(5))
+            .unwrap();
+        let service = ServiceExt::<GraphQLRequest<TestQuery>>::ready(&mut service)
+            .await
+            .unwrap();
+        let err = service
+            .call(GraphQLRequest::<TestQuery>::new(TestQueryVariables {}))
+            .await
+            .expect_err("a 403 should have become an error");
+
+        assert_that!(upstream_http_error(&err).and_then(permission_denied)).is_some();
+        assert_that!(mock.calls()).is_equal_to(1);
     }
 }
