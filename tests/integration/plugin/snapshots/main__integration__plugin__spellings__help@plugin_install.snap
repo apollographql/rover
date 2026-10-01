@@ -4,11 +4,11 @@ expression: own
 ---
 Download and install an officially supported plugin
 
-Usage: rover plugin install [OPTIONS] <NAME@VERSION>
+Usage: rover plugin install [OPTIONS] [NAME@VERSION]
 
 Arguments:
-  <NAME@VERSION>
-          The plugin to install, as `<NAME>@<VERSION>`, e.g. `supergraph@=2.9.3` or `router@2`
+  [NAME@VERSION]
+          The plugin to install, as `<NAME>@<VERSION>`, e.g. `supergraph@=2.9.3` or `router@2`. Leave it out to install every plugin in scope
 
 Options:
   -f, --force
