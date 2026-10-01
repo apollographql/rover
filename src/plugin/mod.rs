@@ -5,4 +5,5 @@ pub mod install;
 pub mod layering;
 pub mod lockfile;
 pub mod manifest;
+pub mod precedence;
 pub mod version;
