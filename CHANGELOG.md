@@ -164,6 +164,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   The same profile tier, `rover config show`/`set`/`unset` support, and override notice as `APOLLO_REGISTRY_URL`/`APOLLO_TELEMETRY_URL` now also cover `APOLLO_ROVER_DOWNLOAD_HOST`, which redirects where Rover downloads plugin binaries (the `router`/`supergraph` composition plugins, and the MCP server binary) from. A stored non-default value prints the same one-line notice a profile-stored registry or telemetry override already does, the first time a plugin download actually happens - a command that never downloads anything prints no notice.
 
+- **Profiles can now store `APOLLO_TEMPLATES_API` for `rover template` - @dotdat**
+
+  `rover template use`/`list` now resolve `APOLLO_TEMPLATES_API` through the same profile tier as every other profile-eligible setting, and `rover config show`/`set`/`unset` report and store it. `rover init`'s own template source is unaffected for now - it fetches templates through a separate, GitHub-based path this doesn't touch yet.
+
 ## 🐛 Fixes
 
 - **An empty `APOLLO_HOME` no longer installs Rover and its plugins into the working directory - @SharkBaitDLS**

@@ -108,6 +108,7 @@ pub enum RoverEnvKey {
     NodeModulesBin,
     ChecksTimeoutSeconds,
     RoverDownloadHost,
+    TemplatesApi,
 }
 
 impl fmt::Display for RoverEnvKey {
@@ -136,6 +137,12 @@ mod tests {
     fn it_parses_rover_download_host() {
         let expected_key = "APOLLO_ROVER_DOWNLOAD_HOST";
         assert_eq!(&RoverEnvKey::RoverDownloadHost.to_string(), expected_key);
+    }
+
+    #[test]
+    fn it_parses_templates_api() {
+        let expected_key = "APOLLO_TEMPLATES_API";
+        assert_eq!(&RoverEnvKey::TemplatesApi.to_string(), expected_key);
     }
 
     #[test]
