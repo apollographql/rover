@@ -10,8 +10,10 @@
 use camino::Utf8PathBuf;
 
 use super::{
-    error::RequestOrigin,
+    discovery::ManifestDirs,
+    error::{PluginFailure, RequestOrigin},
     layering::{DeclarationLevel, LayeredDeclarations},
+    lockfile::{LOCKFILE, PluginLockfile},
     version::{PluginName, VersionRequest},
 };
 
@@ -32,6 +34,9 @@ pub enum RequestSource {
     SupergraphConfig(Option<Utf8PathBuf>),
     /// A declaration in the manifest at this level.
     Manifest(DeclarationLevel),
+    /// A floating declaration in the manifest at this level, pinned to the
+    /// exact release that level's lockfile records for it.
+    Lockfile(DeclarationLevel),
     /// Nothing asked for a version, so the plugin's built-in default applies.
     Default,
 }
@@ -88,6 +93,53 @@ pub struct PluginRequest {
     pub plugin: PluginName,
     pub request: VersionRequest,
     pub source: RequestSource,
+}
+
+impl PluginRequest {
+    /// This request, pinned to the release the lockfile at the level that
+    /// supplied it records, when it is floating and that lockfile has an
+    /// entry for the plugin. A pinned request needs nothing from the
+    /// registry. A request from anywhere but a manifest is never pinned,
+    /// since no lockfile records it.
+    pub fn locked(self, dirs: &ManifestDirs) -> Result<Self, Box<PluginFailure>> {
+        let RequestSource::Manifest(level) = self.source else {
+            return Ok(self);
+        };
+        let dir = match level {
+            DeclarationLevel::Project => dirs.project.as_deref(),
+            DeclarationLevel::Global => dirs.global.as_deref(),
+        };
+        let Some(dir) = dir.filter(|_| self.request.is_floating()) else {
+            return Ok(self);
+        };
+        let lockfile = PluginLockfile::load(&dir.join(LOCKFILE))?;
+
+        Ok(
+            match lockfile.as_ref().and_then(|lock| lock.get(self.plugin)) {
+                Some(entry) => Self {
+                    request: VersionRequest::Exact(entry.resolved.clone()),
+                    source: RequestSource::Lockfile(level),
+                    ..self
+                },
+                None => self,
+            },
+        )
+    }
+
+    /// Where this request came from, as an error about it names that, or
+    /// `None` for the built-in default, which nobody asked for.
+    pub fn origin(&self) -> Option<RequestOrigin> {
+        match &self.source {
+            RequestSource::Argument(origin) => Some(origin.clone()),
+            RequestSource::EnvVar(var) => Some(RequestOrigin::EnvVar(var)),
+            RequestSource::SupergraphConfig(path) => {
+                Some(RequestOrigin::SupergraphConfig(path.clone()))
+            }
+            RequestSource::Manifest(_) => Some(RequestOrigin::Manifest),
+            RequestSource::Lockfile(_) => Some(RequestOrigin::Lockfile),
+            RequestSource::Default => None,
+        }
+    }
 }
 
 /// The request for `plugin`: the first present of `inputs` and
@@ -240,5 +292,122 @@ mod tests {
             request: exact(1),
             source: expected,
         });
+    }
+
+    mod locked {
+        use std::fs;
+
+        use assert_fs::TempDir;
+
+        use super::*;
+
+        const LOCK: &str = "version = 1\n\n[[plugins]]\nname = \"supergraph\"\nrequested = \"2\"\nresolved = \"2.9.3\"\n";
+
+        /// A project and a global level, with `lockfile` written at
+        /// `locked_at` only.
+        fn levels(locked_at: DeclarationLevel, lockfile: &str) -> (TempDir, ManifestDirs) {
+            let temp = TempDir::new().unwrap();
+            let root = Utf8PathBuf::try_from(temp.path().to_path_buf()).unwrap();
+            let dirs = ManifestDirs {
+                global: Some(root.join("global")),
+                project: Some(root.join("project")),
+            };
+            let dir = match locked_at {
+                DeclarationLevel::Project => dirs.project.clone(),
+                DeclarationLevel::Global => dirs.global.clone(),
+            }
+            .unwrap();
+            fs::create_dir_all(&dir).unwrap();
+            fs::write(dir.join(LOCKFILE), lockfile).unwrap();
+            (temp, dirs)
+        }
+
+        fn request(request: VersionRequest, source: RequestSource) -> PluginRequest {
+            PluginRequest {
+                plugin: PluginName::Supergraph,
+                request,
+                source,
+            }
+        }
+
+        #[rstest]
+        #[case::project(DeclarationLevel::Project)]
+        #[case::global(DeclarationLevel::Global)]
+        fn a_floating_declaration_takes_its_own_levels_locked_release(
+            #[case] level: DeclarationLevel,
+        ) {
+            let (_temp, dirs) = levels(level, LOCK);
+            let declared = request(VersionRequest::Major(2), RequestSource::Manifest(level));
+
+            assert_that!(declared.locked(&dirs).unwrap()).is_equal_to(request(
+                VersionRequest::Exact(Version::new(2, 9, 3)),
+                RequestSource::Lockfile(level),
+            ));
+        }
+
+        #[rstest]
+        #[case::declared_at_the_other_level(
+            DeclarationLevel::Global,
+            request(
+                VersionRequest::Major(2),
+                RequestSource::Manifest(DeclarationLevel::Project)
+            )
+        )]
+        #[case::declared_exactly(
+            DeclarationLevel::Project,
+            request(exact(8), RequestSource::Manifest(DeclarationLevel::Project))
+        )]
+        #[case::from_a_flag(
+            DeclarationLevel::Project,
+            request(VersionRequest::Major(2), RequestSource::Argument(FLAG))
+        )]
+        #[case::from_the_environment(
+            DeclarationLevel::Project,
+            request(VersionRequest::Major(2), RequestSource::EnvVar(ENV))
+        )]
+        #[case::from_supergraph_yaml(
+            DeclarationLevel::Project,
+            request(VersionRequest::Major(2), RequestSource::SupergraphConfig(None))
+        )]
+        #[case::the_default(
+            DeclarationLevel::Project,
+            request(VersionRequest::Major(2), RequestSource::Default)
+        )]
+        fn any_other_request_resolves_as_asked(
+            #[case] locked_at: DeclarationLevel,
+            #[case] asked: PluginRequest,
+        ) {
+            let (_temp, dirs) = levels(locked_at, LOCK);
+
+            assert_that!(asked.clone().locked(&dirs).unwrap()).is_equal_to(asked);
+        }
+
+        #[rstest]
+        fn a_lockfile_without_the_plugin_leaves_the_request_floating() {
+            let lock = LOCK.replace("supergraph", "router");
+            let (_temp, dirs) = levels(DeclarationLevel::Project, &lock);
+            let declared = request(
+                VersionRequest::Latest,
+                RequestSource::Manifest(DeclarationLevel::Project),
+            );
+
+            assert_that!(declared.clone().locked(&dirs).unwrap()).is_equal_to(declared);
+        }
+
+        #[rstest]
+        fn an_unusable_lockfile_is_reported_rather_than_skipped() {
+            let (temp, dirs) = levels(DeclarationLevel::Project, "version = 9\n");
+            let declared = request(
+                VersionRequest::Major(2),
+                RequestSource::Manifest(DeclarationLevel::Project),
+            );
+
+            let failure = declared.locked(&dirs).expect_err("should not pin");
+
+            assert_that!(failure.to_string()).is_equal_to(format!(
+                "`{}` was written by a newer version of Rover, in lockfile format version 9.",
+                Utf8PathBuf::try_from(temp.path().join("project").join(LOCKFILE)).unwrap()
+            ));
+        }
     }
 }
