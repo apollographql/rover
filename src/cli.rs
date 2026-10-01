@@ -329,11 +329,7 @@ impl Rover {
             }
             Command::Contract(command) => {
                 command
-                    .run(
-                        self.get_client_config().await?,
-                        self.get_checks_timeout_seconds()?,
-                        &profile_opt,
-                    )
+                    .run(self.get_client_config().await?, self, &profile_opt)
                     .await
             }
             Command::Schema(command) => command.run(self.get_client_config().await?).await,
@@ -364,7 +360,7 @@ impl Rover {
                     .run(
                         self.get_client_config().await?,
                         self.get_git_context()?,
-                        self.get_checks_timeout_seconds()?,
+                        self,
                         &self.output_opts,
                         &profile_opt,
                     )
@@ -381,7 +377,7 @@ impl Rover {
                     .run(
                         self.get_client_config().await?,
                         self.get_git_context()?,
-                        self.get_checks_timeout_seconds()?,
+                        self,
                         &self.output_opts,
                         &profile_opt,
                     )
@@ -688,9 +684,10 @@ impl Rover {
             | SettingValueError::InvalidGraphRef { input: raw }) = &error;
             let message = format!(
                 "`{name}` in profile `{profile_name}` is set to `{raw}`, which {reason} Run \
-                `rover config set {name} <value> --profile {profile_name}` to correct it.",
+                `rover config set {name} {placeholder} --profile {profile_name}` to correct it.",
                 profile_name = profile.profile_name,
                 reason = describe_invalid_value(&error),
+                placeholder = value_placeholder(&error),
             );
             // Keeps `error`'s real type in the chain (unlike
             // `anyhow::anyhow!("{error}")`, which would format it into a new,
@@ -1066,9 +1063,34 @@ impl Rover {
         }
     }
 
+    /// The raw, clap-merged `--checks-timeout`/`APOLLO_CHECKS_TIMEOUT_SECONDS`
+    /// value, before the profile tier applies. See `registry_url_flag_or_env`.
+    pub(crate) fn checks_timeout_flag_or_env(&self) -> Option<String> {
+        self.checks_timeout.map(|value| value.to_string())
+    }
+
     pub(crate) fn get_checks_timeout_seconds(&self) -> RoverResult<u64> {
-        // default to 5 minutes
-        Ok(self.checks_timeout.unwrap_or(300))
+        let resolved = self.resolve_setting(
+            self.checks_timeout_flag_or_env(),
+            SettingName::ChecksTimeoutSeconds,
+        )?;
+        if let Some(message) = self.config_override_notice(
+            SettingName::ChecksTimeoutSeconds,
+            self.checks_timeout_flag_or_env().as_deref(),
+            self.get_env_var(RoverEnvKey::ChecksTimeoutSeconds)?
+                .as_deref(),
+            resolved.as_deref(),
+        )? {
+            self.print_config_notice(message);
+        }
+        let resolved = resolved.or_else(|| SettingName::ChecksTimeoutSeconds.builtin_default());
+        Ok(resolved
+            .expect("APOLLO_CHECKS_TIMEOUT_SECONDS always has a builtin default")
+            .parse()
+            .expect(
+                "a resolved APOLLO_CHECKS_TIMEOUT_SECONDS value was already validated as a \
+                whole number of seconds",
+            ))
     }
 
     pub(crate) fn get_env_var(&self, key: RoverEnvKey) -> io::Result<Option<String>> {
@@ -1212,11 +1234,10 @@ pub enum RoverOutputKind {
 }
 
 /// The FR84 "which {reason}" tail of a stored setting's validation-failure
-/// message, for the type this repo's slice-one settings actually use.
-/// Deliberately doesn't reuse `SettingValueError`'s own `Display` impl,
-/// which is written for `rover config set`'s write-time framing ("`{input}`
-/// isn't a valid ...") rather than this read-time one ("... is set to
-/// `{value}`, which isn't a valid ...").
+/// message. Deliberately doesn't reuse `SettingValueError`'s own `Display`
+/// impl, which is written for `rover config set`'s write-time framing
+/// ("`{input}` isn't a valid ...") rather than this read-time one ("... is
+/// set to `{value}`, which isn't a valid ...").
 const fn describe_invalid_value(error: &SettingValueError) -> &'static str {
     match error {
         SettingValueError::InvalidUrl { .. } => {
@@ -1234,6 +1255,20 @@ const fn describe_invalid_value(error: &SettingValueError) -> &'static str {
             only contain letters, numbers, or the characters `-` or `_`, and must be 64 \
             characters or less; `<VARIANT>` must be 63 characters or less."
         }
+    }
+}
+
+/// The FR84 "Run `rover config set {name} {placeholder} ...`" suggestion's
+/// argument placeholder - `<value>` for most settings, but a setting whose
+/// spec.md example names a more specific placeholder (`APOLLO_CHECKS_
+/// TIMEOUT_SECONDS`'s `<seconds>`) uses that instead.
+const fn value_placeholder(error: &SettingValueError) -> &'static str {
+    match error {
+        SettingValueError::InvalidWholeSeconds { .. } => "<seconds>",
+        SettingValueError::InvalidUrl { .. }
+        | SettingValueError::UnsupportedUrlScheme { .. }
+        | SettingValueError::InvalidBool { .. }
+        | SettingValueError::InvalidGraphRef { .. } => "<value>",
     }
 }
 
@@ -1498,6 +1533,184 @@ mod tests {
             `registry.example.com`, which isn't a valid URL. URLs must include a scheme, for \
             example `https://registry.example.com`. Run `rover config set APOLLO_REGISTRY_URL \
             <value> --profile staging` to correct it.\n"
+                .to_string(),
+        );
+        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
+    }
+
+    // FR59(b) is network-destination-only, and checks-timeout isn't one
+    // (FR1's blank "Net" column) - a non-default resolved value alone must
+    // never notice, unlike APOLLO_REGISTRY_URL's own equivalent case.
+    #[test]
+    fn checks_timeout_resolved_value_alone_does_not_notice() {
+        let home = tempfile::tempdir().unwrap();
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+
+        let message = with_notice_env_locked(&["APOLLO_CHECKS_TIMEOUT_SECONDS"], || {
+            let rover = Rover::parse_from([
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+                "config",
+                "list",
+            ]);
+            rover.config_override_notice(SettingName::ChecksTimeoutSeconds, None, None, Some("600"))
+        })
+        .unwrap();
+
+        assert_that!(message).is_none();
+    }
+
+    // FR59(a) applies to every setting, not just network destinations - an
+    // env var silently overriding an explicitly-selected profile's value
+    // must still notice for checks-timeout.
+    #[test]
+    fn checks_timeout_env_overriding_an_explicit_profile_notices() {
+        let home = config_home_with_setting("staging", "APOLLO_CHECKS_TIMEOUT_SECONDS", "600");
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+
+        let message = with_notice_env_locked(&["APOLLO_CHECKS_TIMEOUT_SECONDS"], || {
+            let rover = Rover::parse_from([
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+                "config",
+                "list",
+            ]);
+            rover.config_override_notice(
+                SettingName::ChecksTimeoutSeconds,
+                Some("120"),
+                Some("120"),
+                Some("120"),
+            )
+        })
+        .unwrap()
+        .unwrap();
+
+        assert_that!(message).is_equal_to(
+            "`APOLLO_CHECKS_TIMEOUT_SECONDS` from the environment overrides the value set in \
+            profile `staging`."
+                .to_string(),
+        );
+    }
+
+    // Confirms `get_checks_timeout_seconds` actually reaches the notice
+    // system at all (not just that hand-built inputs decide correctly) -
+    // the gate it consumes means a direct call for the same setting
+    // afterward is always `None`, regardless of what it's called with.
+    #[test]
+    fn get_checks_timeout_seconds_decides_a_notice_through_the_real_call_path() {
+        let home = config_home_with_setting("staging", "APOLLO_CHECKS_TIMEOUT_SECONDS", "600");
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+
+        let message = with_notice_env_locked(&["APOLLO_CHECKS_TIMEOUT_SECONDS"], || {
+            let rover = temp_env::with_var_unset("APOLLO_CHECKS_TIMEOUT_SECONDS", || {
+                Rover::parse_from([
+                    PKG_NAME,
+                    "--config-home",
+                    home_path.as_str(),
+                    "--profile",
+                    "staging",
+                    "config",
+                    "list",
+                ])
+            });
+
+            rover.get_checks_timeout_seconds().unwrap();
+
+            rover.config_override_notice(SettingName::ChecksTimeoutSeconds, None, None, Some("600"))
+        })
+        .unwrap();
+
+        assert_that!(message).is_none();
+    }
+
+    #[test]
+    fn checks_timeout_profile_setting_applies_when_no_flag_or_env_is_set() {
+        let home = config_home_with_setting("staging", "APOLLO_CHECKS_TIMEOUT_SECONDS", "600");
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = temp_env::with_var_unset("APOLLO_CHECKS_TIMEOUT_SECONDS", || {
+            Rover::parse_from([
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+                "config",
+                "list",
+            ])
+        });
+
+        assert_that!(rover.get_checks_timeout_seconds()).is_ok_containing(600);
+    }
+
+    #[test]
+    fn checks_timeout_flag_wins_over_profile_setting() {
+        let home = config_home_with_setting("staging", "APOLLO_CHECKS_TIMEOUT_SECONDS", "600");
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = temp_env::with_var_unset("APOLLO_CHECKS_TIMEOUT_SECONDS", || {
+            Rover::parse_from([
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+                "--checks-timeout",
+                "120",
+                "config",
+                "list",
+            ])
+        });
+
+        assert_that!(rover.get_checks_timeout_seconds()).is_ok_containing(120);
+    }
+
+    #[test]
+    fn checks_timeout_falls_back_to_the_builtin_default_with_no_flag_env_or_profile() {
+        let home = tempfile::tempdir().unwrap();
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = temp_env::with_var_unset("APOLLO_CHECKS_TIMEOUT_SECONDS", || {
+            Rover::parse_from([
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "config",
+                "list",
+            ])
+        });
+
+        assert_that!(rover.get_checks_timeout_seconds()).is_ok_containing(300);
+    }
+
+    // FR43/FR84: the exact example text spec.md gives for this setting.
+    #[test]
+    fn an_invalid_profile_checks_timeout_fails_the_command() {
+        let home = config_home_with_setting("staging", "APOLLO_CHECKS_TIMEOUT_SECONDS", "soon");
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = temp_env::with_var_unset("APOLLO_CHECKS_TIMEOUT_SECONDS", || {
+            Rover::parse_from([
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+                "config",
+                "list",
+            ])
+        });
+
+        let error = rover
+            .get_checks_timeout_seconds()
+            .expect_err("expected an invalid stored checks timeout to fail the command");
+
+        assert_that!(error.to_string()).is_equal_to(
+            "error[E054]: `APOLLO_CHECKS_TIMEOUT_SECONDS` in profile `staging` is set to `soon`, \
+            which isn't a whole number of seconds. Run `rover config set \
+            APOLLO_CHECKS_TIMEOUT_SECONDS <seconds> --profile staging` to correct it.\n"
                 .to_string(),
         );
         assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));

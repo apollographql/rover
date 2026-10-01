@@ -38,6 +38,14 @@ impl Show {
                 RoverEnvKey::TelemetryUrl,
             )?,
             resolve_telemetry_disabled(rover, profile, &houston_config)?,
+            resolve_string_setting(
+                rover,
+                profile,
+                &houston_config,
+                SettingName::ChecksTimeoutSeconds,
+                rover.checks_timeout_flag_or_env(),
+                RoverEnvKey::ChecksTimeoutSeconds,
+            )?,
         ];
 
         Ok(ConfigShowOutput {
@@ -332,6 +340,13 @@ mod tests {
             .find(|s| s.name == "APOLLO_REGISTRY_URL")
             .unwrap();
         assert_that!(&registry.value).is_equal_to(SettingName::RegistryUrl.builtin_default());
+        let checks_timeout = output
+            .settings
+            .iter()
+            .find(|s| s.name == "APOLLO_CHECKS_TIMEOUT_SECONDS")
+            .unwrap();
+        assert_that!(&checks_timeout.value)
+            .is_equal_to(SettingName::ChecksTimeoutSeconds.builtin_default());
     }
 
     #[test]

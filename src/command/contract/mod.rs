@@ -5,7 +5,9 @@ mod publish;
 use clap::Parser;
 use serde::Serialize;
 
-use crate::{RoverOutput, RoverResult, options::ProfileOpt, utils::client::StudioClientConfig};
+use crate::{
+    RoverOutput, RoverResult, cli::Rover, options::ProfileOpt, utils::client::StudioClientConfig,
+};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Contract {
@@ -29,16 +31,20 @@ impl Contract {
     pub async fn run(
         &self,
         client_config: StudioClientConfig,
-        checks_timeout_seconds: u64,
+        rover: &Rover,
         profile: &ProfileOpt,
     ) -> RoverResult<RoverOutput> {
         match &self.command {
             Command::Describe(command) => command.run(client_config, profile).await,
+            // Only `preview` polls, so only it resolves the checks timeout
+            // (FR60: "uses" is not "resolves") - a bad stored value or an
+            // env-overriding-profile notice must not affect `describe`/
+            // `publish`, which never read it.
             Command::Preview(command) => {
                 command
                     .run(
                         client_config,
-                        checks_timeout_seconds,
+                        rover.get_checks_timeout_seconds()?,
                         profile,
                         &rover_print::print::stderr::default(),
                     )
