@@ -148,6 +148,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   An exact version the registry has no artifact for is told apart from a failed download: a release the registry says was withdrawn (`410 Gone`) is reported as `E051`, naming where the version was set — `rover install --plugin`, a version flag, an environment variable, or `supergraph.yaml` — and the newest release in the same major to set there instead, and a version the registry never published (`404 Not Found`) is reported as `E048`.
 
+- **`config show` reports a setting with no built-in default as `none` (text) or `null` (JSON), not the string `"none"` - @dotdat**
+
+  `rover config show`'s `value` field is now `null` in `--format json` for a setting that falls all the way through to the builtin tier with no default of its own (currently only `APOLLO_GRAPH_REF`, once its own profile tier lands), rather than the literal string `"none"` - which is itself a valid value for some settings, so a script could no longer tell an unset setting apart from a real one that happened to be set to that string. Text output is unaffected, still rendering `none`.
+
 ## 🐛 Fixes
 
 - **An empty `APOLLO_HOME` no longer installs Rover and its plugins into the working directory - @SharkBaitDLS**
