@@ -409,7 +409,7 @@ mod tests {
             .unwrap();
         assert_that!(templates_api.source).is_equal_to(Source::Environment);
         assert_that!(&templates_api.value)
-            .is_equal_to("https://env-templates.example.com".to_string());
+            .is_equal_to(Some("https://env-templates.example.com".to_string()));
     }
 
     #[test]
