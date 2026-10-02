@@ -105,7 +105,17 @@ pub enum GraphQLServiceError<T: Send + Sync + fmt::Debug> {
     #[error("Serialization error")]
     Serialization(serde_json::Error),
     /// Data deserialization error
-    #[error("Deserialization error")]
+    ///
+    /// The message names the HTTP status and where parsing failed, but deliberately never the
+    /// body or `serde_json`'s own message: a body that failed to parse may still carry a secret
+    /// (a client-credential pair's, from a create or rotate), and `serde_json`'s message can quote
+    /// a string value from it.
+    #[error(
+        "Deserialization error: the response (HTTP {status_code}) had a {} error at line {}, column {}",
+        describe_category(error.classify()),
+        error.line(),
+        error.column()
+    )]
     Deserialization {
         /// The source error
         error: serde_json::Error,
@@ -295,6 +305,18 @@ where
 }
 
 //noinspection HttpUrlsUsage
+/// Names a [`serde_json::error::Category`] for [`GraphQLServiceError::Deserialization`]'s
+/// message: `syntax` means the body wasn't JSON at all, `data` that it was JSON of the wrong
+/// shape.
+const fn describe_category(category: serde_json::error::Category) -> &'static str {
+    match category {
+        serde_json::error::Category::Io => "I/O",
+        serde_json::error::Category::Syntax => "syntax",
+        serde_json::error::Category::Data => "data",
+        serde_json::error::Category::Eof => "unexpected end-of-input",
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
@@ -644,7 +666,8 @@ mod tests {
 
         let result = service_call_fut.await;
 
-        assert_that!(result).is_err().matches(|err| match err {
+        let err = result.unwrap_err();
+        assert_that!(err).matches(|err| match err {
             GraphQLServiceError::Deserialization {
                 data, status_code, ..
             } => {
@@ -653,6 +676,28 @@ mod tests {
             }
             _ => false,
         });
+        // The message locates the failure without quoting the body, which may hold a secret.
+        assert_that!(err.to_string()).is_equal_to(format!(
+            "Deserialization error: the response (HTTP {expected_status_code}) had a syntax error \
+            at line 1, column 1"
+        ));
+    }
+
+    // A body of the right JSON syntax but the wrong shape is a `data` error, located precisely.
+    #[test]
+    fn a_mistyped_body_is_reported_as_a_data_error() {
+        let error = serde_json::from_str::<()>("true").unwrap_err();
+        let err = GraphQLServiceError::<()>::Deserialization {
+            error,
+            data: Bytes::from_static(b"true"),
+            status_code: StatusCode::OK,
+        };
+
+        assert_that!(err.to_string()).is_equal_to(
+            "Deserialization error: the response (HTTP 200 OK) had a data error at line 1, \
+            column 4"
+                .to_string(),
+        );
     }
 
     #[test]

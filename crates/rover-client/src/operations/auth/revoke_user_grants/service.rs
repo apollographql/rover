@@ -227,4 +227,33 @@ mod tests {
             matches!(err, RoverClientError::GraphQl { msg } if msg == "No data field provided")
         });
     }
+
+    // The schema says `revokeUserOAuthTokens` is always null, but production has returned a non-null value
+    // for a call that succeeded. Whatever comes back, a successful call is a success.
+    #[rstest]
+    #[case::null(json!(null))]
+    #[case::a_boolean(json!(true))]
+    #[case::a_string(json!("c_8f2a"))]
+    #[case::an_object(json!({}))]
+    #[tokio::test]
+    async fn call_succeeds_whatever_value_a_successful_call_returns(
+        input: RevokeUserGrantsInput,
+        #[case] value: serde_json::Value,
+    ) {
+        let data: revoke_user_grants_mutation::ResponseData = serde_json::from_value(json!({
+            "organization": { "revokeUserOAuthTokens": value }
+        }))
+        .unwrap();
+        let mut mock = MockRevokeUserGrantsInnerService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call()
+            .times(1)
+            .return_once(move |_| future::ready(Ok(data)));
+
+        let response = RevokeUserGrants::new(MockCloneService::new(mock))
+            .oneshot(input)
+            .await;
+
+        assert_that!(response).is_ok().is_equal_to(());
+    }
 }

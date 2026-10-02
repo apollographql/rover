@@ -5,8 +5,11 @@ pub mod service;
 
 pub use service::{RevokeUserGrants, REVOKE_USER_GRANTS_ATTEMPT_TIMEOUT};
 
-/// `revokeUserOAuthTokens` returns nothing to read back on success.
-type Void = ();
+/// `revokeUserOAuthTokens` returns nothing to read back on success. The schema documents its `Void`
+/// result as "always null", but the Platform API has been seen returning a non-null value for a
+/// successful call, which `()` can only reject - reporting a change that took effect as a failure.
+/// Any value is accepted, and ignored.
+type Void = serde_json::Value;
 
 /// Revokes every grant (refresh token) one user holds under one OAuth client, in an
 /// organization - one step of `rover auth grants revoke`'s per-user sweep (spec FR55-FR66,

@@ -5,8 +5,11 @@ pub mod service;
 
 pub use service::DeletePair;
 
-/// `deleteOAuthClient` returns nothing to read back on success.
-type Void = ();
+/// `deleteOAuthClient` returns nothing to read back on success. The schema documents its `Void`
+/// result as "always null", but the Platform API has been seen returning a non-null value for a
+/// successful call, which `()` can only reject - reporting a change that took effect as a failure.
+/// Any value is accepted, and ignored.
+type Void = serde_json::Value;
 
 /// Deletes a `client_credentials` OAuth client (client-credential pair): a soft delete that
 /// also removes its secrets, service account, and principal (spec FR28-30). The caller already

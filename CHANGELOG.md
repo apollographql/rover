@@ -260,6 +260,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🐛 Fixes
 
+- **A response Rover can't parse now says where it failed - @dotdat**
+
+  When a GraphOS response couldn't be parsed, Rover reported only `Deserialization error` (`E012`), leaving no way to tell a non-JSON reply (an outage or proxy page) from a response of the wrong shape. The message now names the HTTP status, whether the failure was a syntax error (not JSON at all) or a data error (JSON of the wrong shape), and the line and column. It still never quotes the response body, which may hold a secret.
+
 - **`rover lsp` honors `APOLLO_HOME` (`--rover-home`) - @SharkBaitDLS**
 
   `rover lsp` installed and looked for its `supergraph` plugin under `~/.rover` even when `APOLLO_HOME` (or `--rover-home`) moved Rover's home elsewhere, unlike every other plugin-using command. It now uses the same Rover home they do.
