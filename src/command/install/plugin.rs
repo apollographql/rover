@@ -345,14 +345,23 @@ impl PluginInstaller {
 
         let name = plugin.get_name();
         let version = version_from_installed_path(&install_location, &name)?;
-        // Always Global; no project-level install root exists yet.
         Ok(PluginProvenance::new(
             name,
             version,
             source,
-            PluginLevel::Global,
+            self.level(),
             install_location,
         ))
+    }
+
+    /// The level this installer installs at: a project when it was given
+    /// that project's install root, global otherwise.
+    const fn level(&self) -> PluginLevel {
+        if self.installer.install_root.is_some() {
+            PluginLevel::Project
+        } else {
+            PluginLevel::Global
+        }
     }
 
     /// The newest installed release `plugin`'s request allows, or the
@@ -375,7 +384,7 @@ impl PluginInstaller {
                 plugin.get_name(),
                 version,
                 PluginSource::Installed,
-                PluginLevel::Global,
+                self.level(),
                 path,
             )),
             None => Err(RoverError::new(PluginFailure::DownloadsDisabled {
