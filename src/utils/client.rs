@@ -259,6 +259,15 @@ impl StudioClientConfig {
         self
     }
 
+    /// The download-host notice this config will print on its first
+    /// download, if one was decided.
+    #[cfg(test)]
+    pub(crate) fn download_host_notice_message(&self) -> Option<&str> {
+        self.download_host_notice
+            .as_deref()
+            .map(|notice| notice.message.as_str())
+    }
+
     /// Prints the download-host override notice the first time this is
     /// called for a given resolved value (FR61: exactly one notice no
     /// matter how many artifacts one process downloads) - a no-op if

@@ -239,7 +239,7 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
 ### 3.9 Configuration notices (A1.5, B1.4)
 
 - **FR59**: Rover must print a one-line notice to stderr when, for a setting the current invocation **uses**, either of these holds:
-  - **(a)** an environment variable overrode a value that an *explicitly selected* profile also supplied; or
+  - **(a)** an environment variable overrode a value that an *explicitly selected* profile, or the project file, also supplied; or
   - **(b)** a profile or the project file supplied a non-default value for a network-destination setting.
 - **FR60**: "Uses" is not "resolves." A notice fires only when the invocation acts on the value — for a network-destination setting, when it issues at least one request to that destination during the run. A command that resolves a setting and never acts on it emits nothing.
 - **FR61**: At most one notice per setting per process, printed on first use. When both (a) and (b) apply to the same setting, one notice states both.
@@ -260,6 +260,16 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
 - **FR67**: Required text, both cases for one setting:
 
   > Note: `APOLLO_REGISTRY_URL` from the environment is set to `https://registry.staging.example.com`, overriding the value set in profile `prod`.
+
+- **FR105**: Required text, case (a), project-file source. This mirrors FR66, with the file named in the profile's place:
+
+  > Note: `APOLLO_REGISTRY_URL` from the environment overrides the value set in `rover.yaml`.
+
+  When the project file's value is a non-default network destination, one notice states both cases, mirroring FR67:
+
+  > Note: `APOLLO_REGISTRY_URL` from the environment is set to `https://env.example.com`, overriding the value set in `rover.yaml`.
+
+  An environment variable overriding the default profile stays silent, whether or not a project file exists.
 
 ### 3.10 The project file (B1.1, B1.3)
 
@@ -415,6 +425,9 @@ Given a project file setting `APOLLO_REGISTRY_URL` and profile `staging` setting
 **The environment overriding an explicit profile is surfaced**
 Given `APOLLO_REGISTRY_URL=https://env.example.com` and profile `prod` setting it to something else, when `rover graph check --profile prod` runs, then the FR67 notice is printed once on stderr and the run proceeds against the environment's registry with `prod`'s credential.
 
+**The environment overriding the project file is surfaced**
+Given a project file setting `APOLLO_REGISTRY_URL` to `https://repo.example.com` and `APOLLO_REGISTRY_URL=https://env.example.com`, when `rover graph check` runs in that project without `--profile`, then the FR105 notice is printed once on stderr and the run proceeds against the environment's registry.
+
 **The project file accepts either spelling, but not both**
 Given a project file whose `settings:` section uses `apollo_registry_url`, when a command runs in that project, then the value applies exactly as the canonical spelling would, and `rover config show` reports the setting as `APOLLO_REGISTRY_URL`. Given `Apollo_Registry_Url` instead, then the key is unrecognized, the FR72 warning is printed, and the value is not applied. Given a file carrying both `APOLLO_REGISTRY_URL` and `apollo_registry_url`, then the command fails with the FR70 text and neither value is applied.
 
@@ -499,7 +512,7 @@ Decisions taken while drafting, and their reasoning.
 
 - **The catalogue is the complete list, and corrects the PRD's inventory** (FR1, FR3). Drafting turned up `APOLLO_FIRE_FLOWER`, which the PRD's survey missed; `APOLLO_NODE_MODULES_BIN`, which Rover advertises and never reads (FR4); and `APOLLO_NODE_MODULES_BIN_DIR`, whose only observable effect is which suggestion an error prints, not install paths as the PRD describes. Recording these is the point of writing the catalogue as a single normative table rather than prose: it is the artifact that makes "every setting is documented" checkable.
 
-- **Messages name the project file `rover.yaml`, not by a directory layout or the path discovery found** (FR42, FR65, FR70, FR72, FR84, FR85), matching the plugin system's own messages about the same file. The bare file name stays accurate however the manifest was found: from a nested directory, through a symlinked worktree, or through an explicitly named manifest path. A literal directory layout would be wrong in each of those cases. The one message about the user-level manifest already qualifies it as "the user-level `rover.yaml`" (FR76), so the unqualified name is unambiguous.
+- **Messages name the project file `rover.yaml`, not by a directory layout or the path discovery found** (FR42, FR65, FR70, FR72, FR84, FR85, FR105), matching the plugin system's own messages about the same file. The bare file name stays accurate however the manifest was found: from a nested directory, through a symlinked worktree, or through an explicitly named manifest path. A literal directory layout would be wrong in each of those cases. The one message about the user-level manifest already qualifies it as "the user-level `rover.yaml`" (FR76), so the unqualified name is unambiguous.
 
 ---
 
