@@ -16,8 +16,10 @@ use tower::ServiceBuilder;
 use self::output::{AuthWhoAmILegacyOutput, AuthWhoAmIOutput, GrantTypeReport};
 use super::OauthConfig;
 use crate::{
-    RoverError, RoverOutput, RoverResult, command::config::whoami::LegacyWhoami,
-    options::ProfileOpt, utils::client::StudioClientConfig,
+    RoverError, RoverOutput, RoverResult,
+    command::config::whoami::LegacyWhoami,
+    options::{ProfileOpt, SettingName},
+    utils::client::StudioClientConfig,
 };
 
 /// Bounds a single whoami HTTP attempt. Kept short and independent of
@@ -44,6 +46,11 @@ pub struct WhoAmI {
 }
 
 impl WhoAmI {
+    /// The OAuth settings this invocation actually sends a request to.
+    pub(super) fn oauth_settings_used(&self) -> Vec<SettingName> {
+        vec![SettingName::OauthWhoamiUrl]
+    }
+
     pub async fn run(
         &self,
         client_config: StudioClientConfig,

@@ -32,60 +32,58 @@ pub(crate) const DEFAULT_CLIENT_ID: &str = "52SYxOlIEM8U5BjKeIv88ClPBSBMq4K06LWB
 /// Flattened into `Rover` as global flags rather than ones scoped to
 /// `auth login`, so they can also apply to any future command that needs to
 /// refresh an OAuth token.
+///
+/// No `default_value`s: an absent flag/env var has to stay `None` so the
+/// profile tier can apply beneath it (FR26) - the built-in defaults are
+/// applied after resolution, by `OauthConfig::new`.
 #[derive(Debug, Clone, Serialize, Parser)]
 pub struct OauthOpts {
     /// Override the OAuth authorization endpoint `rover auth login` uses.
     #[arg(
         long = "oauth-authorization-url",
         global = true,
-        env = "APOLLO_OAUTH_AUTHORIZATION_URL",
-        default_value = DEFAULT_AUTHORIZATION_URL.as_str()
+        env = "APOLLO_OAUTH_AUTHORIZATION_URL"
     )]
-    pub(crate) authorization_url: Url,
+    pub(crate) authorization_url: Option<Url>,
 
     /// Override the OAuth token endpoint `rover auth login` uses.
     #[arg(
         long = "oauth-token-url",
         global = true,
-        env = "APOLLO_OAUTH_TOKEN_URL",
-        default_value = DEFAULT_TOKEN_URL.as_str()
+        env = "APOLLO_OAUTH_TOKEN_URL"
     )]
-    pub(crate) token_url: Url,
+    pub(crate) token_url: Option<Url>,
 
     /// Override the OAuth whoami/userinfo endpoint `rover auth whoami` uses.
     #[arg(
         long = "oauth-whoami-url",
         global = true,
-        env = "APOLLO_OAUTH_WHOAMI_URL",
-        default_value = DEFAULT_WHOAMI_URL.as_str()
+        env = "APOLLO_OAUTH_WHOAMI_URL"
     )]
-    pub(crate) whoami_url: Url,
+    pub(crate) whoami_url: Option<Url>,
 
     /// Override the OAuth client ID `rover auth login` uses.
     #[arg(
         long = "oauth-client-id",
         global = true,
-        env = "APOLLO_OAUTH_CLIENT_ID",
-        default_value = DEFAULT_CLIENT_ID
+        env = "APOLLO_OAUTH_CLIENT_ID"
     )]
-    pub(crate) client_id: String,
+    pub(crate) client_id: Option<String>,
 
     /// Override the OAuth revocation endpoint `rover auth logout` uses.
     #[arg(
         long = "oauth-revocation-url",
         global = true,
-        env = "APOLLO_OAUTH_REVOCATION_URL",
-        default_value = DEFAULT_REVOCATION_URL.as_str()
+        env = "APOLLO_OAUTH_REVOCATION_URL"
     )]
-    pub(crate) revocation_url: Url,
+    pub(crate) revocation_url: Option<Url>,
 
     /// Override the OAuth device authorization endpoint `rover auth login
     /// --no-browser` uses.
     #[arg(
         long = "oauth-device-authorization-url",
         global = true,
-        env = "APOLLO_OAUTH_DEVICE_AUTHORIZATION_URL",
-        default_value = DEFAULT_DEVICE_AUTHORIZATION_URL.as_str()
+        env = "APOLLO_OAUTH_DEVICE_AUTHORIZATION_URL"
     )]
-    pub(crate) device_authorization_url: Url,
+    pub(crate) device_authorization_url: Option<Url>,
 }

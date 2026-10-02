@@ -20,7 +20,8 @@ impl Show {
     pub(crate) fn run(&self, rover: &Rover, profile: &ProfileOpt) -> RoverResult<ConfigShowOutput> {
         let houston_config = rover.get_rover_config_read_only()?;
 
-        let settings = vec![
+        #[cfg_attr(not(feature = "oauth"), allow(unused_mut))]
+        let mut settings = vec![
             resolve_string_setting(
                 rover,
                 profile,
@@ -86,6 +87,24 @@ impl Show {
                 RoverEnvKey::GraphRef,
             )?,
         ];
+        #[cfg(feature = "oauth")]
+        for name in [
+            SettingName::OauthAuthorizationUrl,
+            SettingName::OauthTokenUrl,
+            SettingName::OauthDeviceAuthorizationUrl,
+            SettingName::OauthRevocationUrl,
+            SettingName::OauthWhoamiUrl,
+            SettingName::OauthClientId,
+        ] {
+            settings.push(resolve_string_setting(
+                rover,
+                profile,
+                &houston_config,
+                name,
+                rover.oauth_flag_or_env(name),
+                Rover::oauth_env_key(name),
+            )?);
+        }
 
         Ok(ConfigShowOutput {
             profile: profile.profile_name.clone(),

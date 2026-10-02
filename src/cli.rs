@@ -312,7 +312,7 @@ impl Rover {
                 command
                     .run(
                         self.get_client_config().await?,
-                        self.get_oauth_config(),
+                        self.get_oauth_config(&command.oauth_settings_used())?,
                         &profile_opt,
                     )
                     .await
@@ -908,16 +908,98 @@ impl Rover {
             .collect()
     }
 
+    /// The raw, clap-merged flag/env value of one OAuth setting, before the
+    /// profile tier applies. See `registry_url_flag_or_env`.
     #[cfg(feature = "oauth")]
-    pub(crate) fn get_oauth_config(&self) -> command::auth::OauthConfig {
-        command::auth::OauthConfig::builder()
-            .authorization_url(self.oauth_opts.authorization_url.clone())
-            .token_url(self.oauth_opts.token_url.clone())
-            .revocation_url(self.oauth_opts.revocation_url.clone())
-            .whoami_url(self.oauth_opts.whoami_url.clone())
-            .device_authorization_url(self.oauth_opts.device_authorization_url.clone())
-            .client_id(self.oauth_opts.client_id.clone())
-            .build()
+    pub(crate) fn oauth_flag_or_env(&self, name: SettingName) -> Option<String> {
+        let opts = &self.oauth_opts;
+        match name {
+            SettingName::OauthAuthorizationUrl => {
+                opts.authorization_url.as_ref().map(url::Url::to_string)
+            }
+            SettingName::OauthTokenUrl => opts.token_url.as_ref().map(url::Url::to_string),
+            SettingName::OauthDeviceAuthorizationUrl => opts
+                .device_authorization_url
+                .as_ref()
+                .map(url::Url::to_string),
+            SettingName::OauthRevocationUrl => {
+                opts.revocation_url.as_ref().map(url::Url::to_string)
+            }
+            SettingName::OauthWhoamiUrl => opts.whoami_url.as_ref().map(url::Url::to_string),
+            SettingName::OauthClientId => opts.client_id.clone(),
+            _ => None,
+        }
+    }
+
+    /// The env var backing each OAuth setting, for the override notice's
+    /// "from the environment" case and for `config show`.
+    #[cfg(feature = "oauth")]
+    pub(crate) const fn oauth_env_key(name: SettingName) -> RoverEnvKey {
+        match name {
+            SettingName::OauthAuthorizationUrl => RoverEnvKey::OauthAuthorizationUrl,
+            SettingName::OauthTokenUrl => RoverEnvKey::OauthTokenUrl,
+            SettingName::OauthDeviceAuthorizationUrl => RoverEnvKey::OauthDeviceAuthorizationUrl,
+            SettingName::OauthRevocationUrl => RoverEnvKey::OauthRevocationUrl,
+            SettingName::OauthWhoamiUrl => RoverEnvKey::OauthWhoamiUrl,
+            SettingName::OauthClientId => RoverEnvKey::OauthClientId,
+            _ => panic!("not an OAuth setting"),
+        }
+    }
+
+    /// Resolves one OAuth setting through the profile tier, printing its
+    /// override notice only when `notice` is set - i.e. only when the calling
+    /// command actually sends a request to that endpoint (FR60). `Ok(None)`
+    /// means nothing overrode it; `OauthConfig::new` applies the built-in
+    /// default.
+    #[cfg(feature = "oauth")]
+    fn resolve_oauth_setting(
+        &self,
+        name: SettingName,
+        notice: bool,
+    ) -> RoverResult<Option<String>> {
+        let flag_or_env = self.oauth_flag_or_env(name);
+        let resolved = self.resolve_setting(flag_or_env.clone(), name)?;
+        if notice
+            && let Some(message) = self.config_override_notice(
+                name,
+                flag_or_env.as_deref(),
+                self.get_env_var(Self::oauth_env_key(name))?.as_deref(),
+                resolved.as_deref(),
+            )?
+        {
+            self.print_config_notice(message);
+        }
+        Ok(resolved)
+    }
+
+    /// Builds the OAuth endpoints and client ID through the profile tier.
+    /// Every value is resolved (and so validated) eagerly, but only the
+    /// settings in `used` - the ones the running `auth` subcommand actually
+    /// contacts - can print an override notice. Eager validation is
+    /// deliberate: an invalid stored value for any of the six fails every
+    /// `auth` subcommand, even one that never contacts that endpoint, the
+    /// same tradeoff an invalid `APOLLO_ROVER_DOWNLOAD_HOST` makes for every
+    /// command that builds a client config.
+    #[cfg(feature = "oauth")]
+    pub(crate) fn get_oauth_config(
+        &self,
+        used: &[SettingName],
+    ) -> RoverResult<command::auth::OauthConfig> {
+        let resolve = |name| self.resolve_oauth_setting(name, used.contains(&name));
+        let url = |value: Option<String>| {
+            value.map(|value| {
+                url::Url::parse(&value)
+                    .expect("a resolved OAuth URL was already validated as a URL")
+            })
+        };
+        Ok(command::auth::OauthConfig::builder()
+            .maybe_authorization_url(url(resolve(SettingName::OauthAuthorizationUrl)?))
+            .maybe_token_url(url(resolve(SettingName::OauthTokenUrl)?))
+            .maybe_revocation_url(url(resolve(SettingName::OauthRevocationUrl)?))
+            .maybe_whoami_url(url(resolve(SettingName::OauthWhoamiUrl)?))
+            .maybe_device_authorization_url(url(resolve(SettingName::OauthDeviceAuthorizationUrl)?))
+            .maybe_client_id(resolve(SettingName::OauthClientId)?)
+            .build())
     }
 
     pub(crate) async fn get_client_config(&self) -> RoverResult<StudioClientConfig> {
@@ -1049,10 +1131,18 @@ impl Rover {
         // credentials grant authenticates the application itself (already
         // identified by `client_id`, sent via HTTP Basic auth on every request),
         // not a human user.
+        // A real request goes to the token endpoint here, so its notice may fire.
+        let token_url = self
+            .resolve_oauth_setting(SettingName::OauthTokenUrl, true)?
+            .map(|value| {
+                url::Url::parse(&value)
+                    .expect("a resolved OAuth URL was already validated as a URL")
+            })
+            .unwrap_or_else(|| crate::options::DEFAULT_TOKEN_URL.clone());
         let request = ClientCredentialsRequest::builder()
             .client_id(client_id)
             .client_secret(client_secret)
-            .token_url(self.oauth_opts.token_url.clone())
+            .token_url(token_url)
             .scopes(vec![Scope::new("rover:cli".to_string())])
             .build()
             .map_err(|e| anyhow::anyhow!("invalid client credentials: {e}"))?;
@@ -2737,6 +2827,176 @@ mod tests {
             `https://registry.staging.example.com`."
                 .to_string(),
         );
+    }
+
+    #[cfg(feature = "oauth")]
+    const OAUTH_ENV: [&str; 6] = [
+        "APOLLO_OAUTH_AUTHORIZATION_URL",
+        "APOLLO_OAUTH_TOKEN_URL",
+        "APOLLO_OAUTH_DEVICE_AUTHORIZATION_URL",
+        "APOLLO_OAUTH_REVOCATION_URL",
+        "APOLLO_OAUTH_WHOAMI_URL",
+        "APOLLO_OAUTH_CLIENT_ID",
+    ];
+
+    #[cfg(feature = "oauth")]
+    fn oauth_rover(home: &tempfile::TempDir, extra_args: &[&str]) -> Rover {
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        temp_env::with_vars_unset(OAUTH_ENV, || {
+            let mut args = vec![
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "--profile",
+                "staging",
+            ];
+            args.extend_from_slice(extra_args);
+            args.extend(["config", "list"]);
+            Rover::parse_from(args)
+        })
+    }
+
+    #[cfg(feature = "oauth")]
+    #[test]
+    fn oauth_profile_setting_applies_when_no_flag_or_env_is_set() {
+        let home = config_home_with_setting(
+            "staging",
+            "APOLLO_OAUTH_TOKEN_URL",
+            "https://auth.staging.example.com/token",
+        );
+        let rover = oauth_rover(&home, &[]);
+
+        let config = rover.get_oauth_config(&[]).unwrap();
+
+        assert_that!(config.token_url.as_str())
+            .is_equal_to("https://auth.staging.example.com/token");
+    }
+
+    #[cfg(feature = "oauth")]
+    #[test]
+    fn oauth_flag_wins_over_profile_setting() {
+        let home = config_home_with_setting(
+            "staging",
+            "APOLLO_OAUTH_TOKEN_URL",
+            "https://auth.staging.example.com/token",
+        );
+        let rover = oauth_rover(
+            &home,
+            &["--oauth-token-url", "https://auth.flag.example.com/token"],
+        );
+
+        let config = rover.get_oauth_config(&[]).unwrap();
+
+        assert_that!(config.token_url.as_str()).is_equal_to("https://auth.flag.example.com/token");
+    }
+
+    #[cfg(feature = "oauth")]
+    #[test]
+    fn oauth_env_var_wins_over_profile_setting() {
+        let home = config_home_with_setting(
+            "staging",
+            "APOLLO_OAUTH_TOKEN_URL",
+            "https://auth.staging.example.com/token",
+        );
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let rover = temp_env::with_vars_unset(OAUTH_ENV, || {
+            temp_env::with_var(
+                "APOLLO_OAUTH_TOKEN_URL",
+                Some("https://auth.env.example.com/token"),
+                || {
+                    Rover::parse_from([
+                        PKG_NAME,
+                        "--config-home",
+                        home_path.as_str(),
+                        "--profile",
+                        "staging",
+                        "config",
+                        "list",
+                    ])
+                },
+            )
+        });
+
+        let config = rover.get_oauth_config(&[]).unwrap();
+
+        assert_that!(config.token_url.as_str()).is_equal_to("https://auth.env.example.com/token");
+    }
+
+    #[cfg(feature = "oauth")]
+    #[test]
+    fn oauth_falls_back_to_the_builtin_defaults_with_nothing_configured() {
+        let home = tempfile::tempdir().unwrap();
+        let rover = oauth_rover(&home, &[]);
+
+        let config = rover.get_oauth_config(&[]).unwrap();
+
+        assert_that!(config.token_url.as_str())
+            .is_equal_to(crate::options::DEFAULT_TOKEN_URL.as_str());
+        assert_that!(config.client_id.as_str()).is_equal_to(crate::options::DEFAULT_CLIENT_ID);
+    }
+
+    #[cfg(feature = "oauth")]
+    #[test]
+    fn an_invalid_profile_oauth_url_fails_the_command() {
+        let home =
+            config_home_with_setting("staging", "APOLLO_OAUTH_TOKEN_URL", "auth.example.com");
+        let rover = oauth_rover(&home, &[]);
+
+        let error = rover
+            .get_oauth_config(&[])
+            .expect_err("expected an invalid stored OAuth URL to fail the command");
+
+        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
+    }
+
+    // FR60: only the endpoints the running subcommand contacts may notice.
+    // The unused setting's gate must still be open afterward - its own
+    // notice is still decided fresh - while the used one's is consumed.
+    #[cfg(feature = "oauth")]
+    #[test]
+    fn oauth_notices_fire_only_for_the_settings_the_command_uses() {
+        let home = config_home_with_setting(
+            "staging",
+            "APOLLO_OAUTH_TOKEN_URL",
+            "https://auth.staging.example.com/token",
+        );
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        houston::Profile::new(
+            "staging",
+            &houston::Config::new(Some(&home_path), None).unwrap(),
+        )
+        .set_setting(
+            "APOLLO_OAUTH_REVOCATION_URL",
+            "https://auth.staging.example.com/revoke",
+        )
+        .unwrap();
+
+        let (used, unused) = with_notice_env_locked(&OAUTH_ENV, || {
+            let rover = oauth_rover(&home, &[]);
+            rover
+                .get_oauth_config(&[SettingName::OauthTokenUrl])
+                .unwrap();
+            let used = rover.config_override_notice(
+                SettingName::OauthTokenUrl,
+                None,
+                None,
+                Some("https://auth.staging.example.com/token"),
+            );
+            let unused = rover.config_override_notice(
+                SettingName::OauthRevocationUrl,
+                None,
+                None,
+                Some("https://auth.staging.example.com/revoke"),
+            );
+            (used, unused)
+        });
+
+        assert_that!(used.unwrap()).is_none();
+        assert_that!(unused.unwrap()).is_equal_to(Some(
+            "profile `staging` sets `APOLLO_OAUTH_REVOCATION_URL` to \
+            `https://auth.staging.example.com/revoke`."
+                .to_string(),
+        ));
     }
 
     #[test]
