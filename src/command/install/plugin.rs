@@ -1273,6 +1273,7 @@ mod tests {
                 force_install: false,
                 executable_location: home.join("rover"),
                 override_install_path: Some(home),
+                install_root: None,
             };
 
             let outcome = PluginInstaller::new(client_config, installer, false)
@@ -1408,6 +1409,7 @@ mod tests {
                 force_install: false,
                 executable_location: home.join("rover"),
                 override_install_path: Some(home),
+                install_root: None,
             };
             let plugin = Plugin::Supergraph(FederationVersion::ExactFedTwo(
                 Version::parse(version).unwrap(),
