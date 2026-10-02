@@ -358,9 +358,11 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 RoverClientError::OrganizationIDNotFound { .. } => {
                     (Some(RoverErrorSuggestion::CheckGraphNameAndAuth), None)
                 }
-                // The message already names the exact requirement (organization admin role,
-                // enrollment) - no generic suggestion adds anything here.
-                RoverClientError::PairPermissionDenied { .. } => {
+                // FR73: one permission-denied code across the spec, whichever action was refused.
+                // Each message already names the exact requirement - no generic suggestion adds
+                // anything here.
+                RoverClientError::PairPermissionDenied { .. }
+                | RoverClientError::GrantPermissionDenied { .. } => {
                     (None, Some(RoverErrorCode::E053))
                 }
                 // The message already names the organization; `data.keys` (rendered by
