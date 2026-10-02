@@ -1043,7 +1043,7 @@ mod tests {
             .is_equal_to(SettingName::TelemetryDisabled.builtin_default());
     }
 
-    /// A temp project whose `.rover/rover.yaml` is `contents`, as discovery
+    /// A temp project whose `rover.yaml` is `contents`, as discovery
     /// would find it.
     fn project(contents: &str) -> (tempfile::TempDir, crate::plugin::discovery::ManifestDirs) {
         let tree = tempfile::tempdir().unwrap();
