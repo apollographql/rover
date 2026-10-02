@@ -1,0 +1,9 @@
+---
+source: tests/e2e/api_key/pairs.rs
+expression: "redacted delete payload"
+---
+{
+  "id": "[id]",
+  "key_type": "ClientCredentials",
+  "success": true
+}
