@@ -43,6 +43,7 @@ fn rover(levels: &TwoLevels, args: &[&str], env: &[(&str, &str)]) -> (Option<i32
         .env_remove("APOLLO_NODE_MODULES_BIN_DIR")
         .env_remove("APOLLO_ROVER_NO_DOWNLOAD")
         .env_remove("APOLLO_ROVER_GLOBAL")
+        .env_remove("APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD")
         .envs(env.iter().copied())
         .output()
         .unwrap();
@@ -422,7 +423,8 @@ fn a_project_root_is_restored_without_the_global_level(two_levels: TwoLevels) {
 }
 
 /// FR22: only `rover plugin install --manifest-path` makes a project, and a
-/// command that uses a plugin adds nothing to one, even when it downloads.
+/// command that uses a plugin adds nothing to one, even when it downloads,
+/// which takes the opt-in.
 #[rstest]
 fn a_command_that_uses_a_plugin_creates_nothing(
     mut two_levels: TwoLevels,
@@ -452,7 +454,14 @@ fn a_command_that_uses_a_plugin_creates_nothing(
 
     // The stub plugin composes nothing, so the run fails either way; what
     // matters is what it leaves behind.
-    rover(&two_levels, &args, &[("APOLLO_ROVER_SKIP_UPDATE", "false")]);
+    rover(
+        &two_levels,
+        &args,
+        &[
+            ("APOLLO_ROVER_SKIP_UPDATE", "false"),
+            ("APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD", "true"),
+        ],
+    );
 
     let project = in_a_project.then(|| two_levels.project.rover_dir());
     assert_that!((
@@ -472,7 +481,9 @@ fn a_command_that_uses_a_plugin_creates_nothing(
 }
 
 /// FR26 for the commands that use a plugin, through `rover supergraph
-/// compose` and a stub plugin, which is a shell script.
+/// compose` and a stub plugin, which is a shell script. Every run here is
+/// opted in to automatic downloads, so the lookup is the one a run that may
+/// download makes, unless `--skip-update` says otherwise.
 #[cfg(unix)]
 mod lookup {
     use super::*;
@@ -498,7 +509,14 @@ mod lookup {
             .chain(flags)
             .copied()
             .collect();
-        rover(levels, &args, &[("APOLLO_ROVER_SKIP_UPDATE", "false")])
+        rover(
+            levels,
+            &args,
+            &[
+                ("APOLLO_ROVER_SKIP_UPDATE", "false"),
+                ("APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD", "true"),
+            ],
+        )
     }
 
     #[rstest]

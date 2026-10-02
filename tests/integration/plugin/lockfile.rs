@@ -306,6 +306,7 @@ fn a_plugin_downloaded_on_the_fly_is_never_recorded(#[case] with_lockfiles: bool
             .args(["--download-host", host, "--client-timeout", "1"])
             .args(["--skip-update-check", "--telemetry-disabled"])
             .env_remove("APOLLO_NODE_MODULES_BIN_DIR")
+            .env("APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD", "true")
             .output()
             .unwrap();
         status = Some((
