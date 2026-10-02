@@ -2,6 +2,7 @@
 //! `specs/rover-431-identity-grant-management`).
 
 mod keys;
+mod pairs;
 mod secret_leak;
 
 use std::process::Output;
@@ -28,6 +29,10 @@ fn run_api_key(server: &MockServer, args: &[&str]) -> Output {
         .env_remove("APOLLO_CLIENT_ID")
         .env_remove("APOLLO_CLIENT_SECRET")
         .env("APOLLO_REGISTRY_URL", server.base_url())
+        // Stderr is snapshotted, so it mustn't depend on whether the runner (CI does) asks for
+        // backtraces - `anyhow` would append one to every error.
+        .env("RUST_BACKTRACE", "0")
+        .env("RUST_LIB_BACKTRACE", "0")
         .arg("--skip-update-check")
         .arg("api-key")
         .args(args)

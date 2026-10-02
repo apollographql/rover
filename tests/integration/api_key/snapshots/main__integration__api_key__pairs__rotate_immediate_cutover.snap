@@ -1,0 +1,18 @@
+---
+source: tests/integration/api_key/pairs.rs
+expression: envelope
+---
+{
+  "json_version": "1",
+  "data": {
+    "key_type": "ClientCredentials",
+    "id": "c_8f2a",
+    "client_id": "c_8f2a",
+    "client_secret": "s_fixture-rotated",
+    "secret_expires_at": "2028-09-25T16:00:00Z",
+    "grace_period_days": 0,
+    "previous_secrets_expire_at": "[rotation time + grace period]",
+    "success": true
+  },
+  "error": null
+}
