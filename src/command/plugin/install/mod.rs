@@ -236,19 +236,21 @@ impl PluginInstall {
                 )));
                 Err(err)
             }
-            (Some(manifest), false) => {
-                let absolute = std::path::absolute(manifest)
-                    .map_err(|err| anyhow!(err).context(format!("Couldn't find `{manifest}`.")))?;
-                Ok(Some(
-                    Utf8PathBuf::try_from(absolute).map_err(|err| anyhow!(err))?,
-                ))
-            }
+            (Some(manifest), false) => absolute_manifest(manifest).map(Some),
             (None, true) => Ok(None),
             (None, false) => Ok(
                 project_in_scope(ManifestDirs::for_this_process(apollo_home))
                     .map(|project| project.join(MANIFEST_FILE)),
             ),
         }
+    }
+
+    /// The manifest `--manifest-path` names, made absolute against the working
+    /// directory, or `None` without the flag. The one place that happens, so
+    /// the install and settings resolution (FR78 of the profile-configuration
+    /// spec) always mean the same file.
+    pub(crate) fn named_manifest(&self) -> Option<RoverResult<Utf8PathBuf>> {
+        self.manifest_path.as_deref().map(absolute_manifest)
     }
 
     /// Whether this install goes to the global level whatever project is in
@@ -300,6 +302,13 @@ fn belongs_in_lockfile(installed: &PluginProvenance, level: &Utf8Path) -> bool {
         && installed.path.parent() == Some(&level.join("bin"))
 }
 
+/// `manifest`, made absolute against the working directory.
+fn absolute_manifest(manifest: &Utf8Path) -> RoverResult<Utf8PathBuf> {
+    let absolute = std::path::absolute(manifest)
+        .map_err(|err| anyhow!(err).context(format!("Couldn't find `{manifest}`.")))?;
+    Ok(Utf8PathBuf::try_from(absolute).map_err(|err| anyhow!(err))?)
+}
+
 #[cfg(test)]
 mod tests {
     use camino::Utf8Path;
@@ -311,6 +320,25 @@ mod tests {
     use crate::command::install::PluginLevel;
 
     const IN_BIN: &str = "/home/me/.rover/bin/supergraph-v2.9.3";
+
+    /// A relative `--manifest-path` is resolved against the working directory,
+    /// and an absolute one is kept as it is - the one resolution the install
+    /// and settings resolution share.
+    #[rstest]
+    #[case::relative("ci/.rover/rover-ci.yaml")]
+    #[case::absolute("/srv/app/.rover/rover.yaml")]
+    fn a_named_manifest_is_made_absolute(#[case] named: &str) {
+        let resolved = absolute_manifest(Utf8Path::new(named)).unwrap();
+
+        let expected = if Utf8Path::new(named).is_absolute() {
+            Utf8PathBuf::from(named)
+        } else {
+            Utf8PathBuf::try_from(std::env::current_dir().unwrap())
+                .unwrap()
+                .join(named)
+        };
+        assert_that!(resolved).is_equal_to(expected);
+    }
 
     #[rstest]
     #[case::downloaded_into_the_levels_bin_directory(IN_BIN, PluginSource::Downloaded, true)]

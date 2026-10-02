@@ -17,23 +17,34 @@ use crate::{
     plugin::manifest::{MANIFEST_FILE, RoverManifest},
 };
 
-/// How every message about the project file names it: by the manifest's
-/// file name alone, as the plugin system's own messages do, rather than by a
-/// directory layout or the path discovery found. That stays accurate however
-/// the manifest was found, and reads the same from any directory inside the
-/// project.
+/// How messages name a discovered project file: by the manifest's file name
+/// alone, as the plugin system's own messages do, rather than by a directory
+/// layout or the full path discovery found, so a message reads the same from
+/// any directory inside the project. A manifest a command names with
+/// `--manifest-path` is named by its own file name instead (see
+/// [`project_file_label`]), which needn't be `rover.yaml`.
 pub(crate) const PROJECT_FILE: &str = MANIFEST_FILE;
+
+/// How messages name the project manifest at `manifest`: its file name, or
+/// [`PROJECT_FILE`] if it somehow has none.
+pub(crate) fn project_file_label(manifest: &Utf8Path) -> &str {
+    manifest.file_name().unwrap_or(PROJECT_FILE)
+}
 
 /// FR76's warning for a `settings:` section in the user-level manifest.
 const USER_LEVEL_SETTINGS_WARNING: &str = "Warning: the user-level `rover.yaml` has a \
     `settings:` section, which Rover ignores. Use `rover config set` to store user-level settings \
     in a profile.";
 
-/// The warning for a top-level YAML merge key, which serde_yaml doesn't
-/// expand - any `settings:` merged in through it would otherwise vanish
-/// without a word.
-const MERGE_KEY_WARNING: &str = "Warning: `rover.yaml` uses a YAML merge key (`<<`) at its \
-    top level, which Rover doesn't expand. Any settings merged in through it are ignored.";
+/// The warning for a top-level YAML merge key in `file`, which serde_yaml
+/// doesn't expand - any `settings:` merged in through it would otherwise
+/// vanish without a word.
+fn merge_key_warning(file: &str) -> String {
+    format!(
+        "Warning: `{file}` uses a YAML merge key (`<<`) at its top level, which Rover doesn't \
+        expand. Any settings merged in through it are ignored."
+    )
+}
 
 /// The credential names a project file must never carry (FR73/FR85). A
 /// credential is not a setting, so none of these is in `SettingName` - each is
@@ -114,21 +125,24 @@ type SettingNameKey = &'static str;
 pub(crate) enum ProjectSettingsError {
     /// FR85. `key` is as written; the remediation always names the canonical
     /// environment variable, since that's the only spelling that works there.
+    /// `file` is how the manifest is named (see [`project_file_label`]).
     #[error(
-        "`{PROJECT_FILE}` sets `{key}` under `settings:`. Credentials can't be stored in a \
-        project file. Run `rover auth login`, or set `{canonical}` in the environment."
+        "`{file}` sets `{key}` under `settings:`. Credentials can't be stored in a project \
+        file. Run `rover auth login`, or set `{canonical}` in the environment."
     )]
     Credential {
+        file: String,
         key: String,
         canonical: &'static str,
     },
     /// FR70. The canonical spelling is always named first, whichever order
     /// the file lists them in.
     #[error(
-        "`{PROJECT_FILE}` sets `{name}` twice, once as `{name}` and once as `{lowercase}`. These \
-        are the same setting. Remove one."
+        "`{file}` sets `{name}` twice, once as `{name}` and once as `{lowercase}`. These are the \
+        same setting. Remove one."
     )]
     SpelledBothWays {
+        file: String,
         name: SettingName,
         lowercase: String,
     },
@@ -141,7 +155,16 @@ impl ProjectSettings {
     /// as a key Rover doesn't recognize: one warning, and nothing applied
     /// (FR89 - only a credential or a doubly-spelled setting is ever an
     /// error).
+    #[cfg(test)]
     pub(crate) fn classify(section: Option<&Value>) -> Result<Self, ProjectSettingsError> {
+        Self::classify_in(section, PROJECT_FILE)
+    }
+
+    /// [`Self::classify`] for a section of the manifest messages name `file`.
+    pub(crate) fn classify_in(
+        section: Option<&Value>,
+        file: &str,
+    ) -> Result<Self, ProjectSettingsError> {
         let mapping = match section {
             None | Some(Value::Null) => return Ok(Self::default()),
             Some(Value::Mapping(mapping)) => mapping,
@@ -149,8 +172,8 @@ impl ProjectSettings {
                 return Ok(Self {
                     settings: BTreeMap::new(),
                     warnings: vec![format!(
-                        "Warning: `{PROJECT_FILE}` has a `settings:` section that isn't a \
-                        mapping of setting names to values. It will be ignored."
+                        "Warning: `{file}` has a `settings:` section that isn't a mapping of \
+                        setting names to values. It will be ignored."
                     )],
                 });
             }
@@ -159,29 +182,30 @@ impl ProjectSettings {
         let mut classified = Self::default();
         for (key, value) in mapping {
             let Some(key) = key.as_str() else {
-                classified.warnings.push(unrecognized(&render(key)));
+                classified.warnings.push(unrecognized(file, &render(key)));
                 continue;
             };
             if let Some(canonical) = either_spelling(&CREDENTIAL_NAMES, key) {
                 return Err(ProjectSettingsError::Credential {
+                    file: file.to_string(),
                     key: key.to_string(),
                     canonical,
                 });
             }
             if either_spelling(&VCS_NAMES, key).is_some() {
-                classified.warnings.push(not_project_eligible(key));
+                classified.warnings.push(not_project_eligible(file, key));
                 continue;
             }
             let name = match key.parse::<SettingName>() {
                 Ok(name) => name,
                 Err(SettingNameError::LowercaseSpelling { canonical, .. }) => canonical,
                 Err(SettingNameError::Unrecognized { .. }) => {
-                    classified.warnings.push(unrecognized(key));
+                    classified.warnings.push(unrecognized(file, key));
                     continue;
                 }
             };
             if !name.is_project_eligible() {
-                classified.warnings.push(not_project_eligible(key));
+                classified.warnings.push(not_project_eligible(file, key));
                 continue;
             }
             if let Some(earlier) = classified.settings.get(name.as_str()) {
@@ -190,7 +214,11 @@ impl ProjectSettings {
                 } else {
                     earlier.key.clone()
                 };
-                return Err(ProjectSettingsError::SpelledBothWays { name, lowercase });
+                return Err(ProjectSettingsError::SpelledBothWays {
+                    file: file.to_string(),
+                    name,
+                    lowercase,
+                });
             }
             classified.settings.insert(
                 name.as_str(),
@@ -240,9 +268,10 @@ impl ProjectSettings {
         let mut settings = match project_manifest {
             Some(manifest) => match RoverManifest::load_settings(manifest) {
                 Ok(found) => {
-                    let mut settings = Self::classify(found.section.as_ref())?;
+                    let file = project_file_label(manifest);
+                    let mut settings = Self::classify_in(found.section.as_ref(), file)?;
                     if found.merge_key {
-                        settings.warnings.push(MERGE_KEY_WARNING.to_string());
+                        settings.warnings.push(merge_key_warning(file));
                     }
                     settings
                 }
@@ -252,8 +281,9 @@ impl ProjectSettings {
                     Self {
                         settings: BTreeMap::new(),
                         warnings: vec![format!(
-                            "Warning: Rover can't read `{PROJECT_FILE}`, so none of its settings \
-                            apply: {reason}"
+                            "Warning: Rover can't read `{file}`, so none of its settings \
+                            apply: {reason}",
+                            file = project_file_label(manifest),
                         )],
                     }
                 }
@@ -307,19 +337,19 @@ fn either_spelling(names: &[&'static str], key: &str) -> Option<&'static str> {
 
 /// FR72's warning for a setting Rover knows but won't read from a project
 /// file (FR31).
-fn not_project_eligible(key: &str) -> String {
+fn not_project_eligible(file: &str, key: &str) -> String {
     format!(
-        "Warning: `{PROJECT_FILE}` sets `{key}`, which can't be set in a project file. It will \
-        be ignored."
+        "Warning: `{file}` sets `{key}`, which can't be set in a project file. It will be \
+        ignored."
     )
 }
 
 /// FR72's warning for a key that isn't a Rover setting, worded after FR38's
 /// profile-side warning.
-fn unrecognized(key: &str) -> String {
+fn unrecognized(file: &str, key: &str) -> String {
     format!(
-        "Warning: `{PROJECT_FILE}` sets `{key}`, which this version of Rover doesn't recognize. \
-        It will be ignored."
+        "Warning: `{file}` sets `{key}`, which this version of Rover doesn't recognize. It will \
+        be ignored."
     )
 }
 
@@ -550,6 +580,7 @@ mod tests {
         let error = classify(yaml).unwrap_err();
 
         assert_that!(error).is_equal_to(ProjectSettingsError::SpelledBothWays {
+            file: "rover.yaml".to_string(),
             name: SettingName::RegistryUrl,
             lowercase: "apollo_registry_url".to_string(),
         });
@@ -572,6 +603,7 @@ mod tests {
         .unwrap_err();
 
         assert_that!(error).is_equal_to(ProjectSettingsError::Credential {
+            file: "rover.yaml".to_string(),
             key: key.to_string(),
             canonical,
         });
@@ -581,11 +613,16 @@ mod tests {
     #[rstest]
     #[case::credential_first(
         "APOLLO_KEY: x\nAPOLLO_REGISTRY_URL: https://a.example.com\napollo_registry_url: https://b.example.com",
-        ProjectSettingsError::Credential { key: "APOLLO_KEY".to_string(), canonical: "APOLLO_KEY" }
+        ProjectSettingsError::Credential {
+            file: "rover.yaml".to_string(),
+            key: "APOLLO_KEY".to_string(),
+            canonical: "APOLLO_KEY",
+        }
     )]
     #[case::spelled_both_ways_first(
         "APOLLO_REGISTRY_URL: https://a.example.com\napollo_registry_url: https://b.example.com\nAPOLLO_KEY: x",
         ProjectSettingsError::SpelledBothWays {
+            file: "rover.yaml".to_string(),
             name: SettingName::RegistryUrl,
             lowercase: "apollo_registry_url".to_string(),
         }

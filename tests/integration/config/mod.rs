@@ -11,6 +11,7 @@ use camino::Utf8PathBuf;
 use indoc::indoc;
 use insta::assert_json_snapshot;
 use serde_json::Value;
+use speculoos::prelude::*;
 
 /// Every setting variable a developer's own environment might carry into the
 /// run and change what it reports.
@@ -125,17 +126,9 @@ fn settings_follow_the_manifest_path_a_plugin_install_names() {
         .output()
         .unwrap();
 
-    assert!(!output.status.success(), "{output:?}");
+    assert_that!(output.status.success()).is_false();
     let json: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(json["error"]["code"], "E060", "{json}");
-    assert_eq!(
-        json["error"]["message"],
-        "`rover.yaml` sets `APOLLO_KEY` under `settings:`. Credentials can't be stored in a \
-         project file. Run `rover auth login`, or set `APOLLO_KEY` in the environment.",
-        "{json}"
-    );
-    assert!(
-        !root.join("elsewhere").join(".rover").join("bin").exists(),
-        "nothing should have been installed"
-    );
+    assert_json_snapshot!(json["error"]);
+    // Nothing was installed.
+    assert_that!(named.join("bin").exists()).is_false();
 }

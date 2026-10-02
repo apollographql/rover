@@ -804,7 +804,9 @@ impl Rover {
         };
         let value = match winner.value {
             StoredValue::Profile(raw) => self.validate_profile_value(name, raw)?,
-            StoredValue::ProjectFile(setting) => validate_project_value(name, &setting)?,
+            StoredValue::ProjectFile(setting) => {
+                validate_project_value(name, &setting, &self.project_file_label())?
+            }
         };
         Ok(Some((winner.tier, value)))
     }
@@ -983,7 +985,7 @@ impl Rover {
                 "profile `{profile_name}`",
                 profile_name = self.get_profile_opt().profile_name
             ),
-            StoredTier::ProjectFile => format!("`{PROJECT_FILE}`"),
+            StoredTier::ProjectFile => format!("`{}`", self.project_file_label()),
         }
     }
 
@@ -1068,13 +1070,14 @@ impl Rover {
             return Ok(settings);
         }
         let dirs = self.manifest_dirs();
-        let project_manifest = match self.manifest_path_override() {
-            Some(named) => Some(
-                std::path::absolute(named)
-                    .ok()
-                    .and_then(|absolute| Utf8PathBuf::try_from(absolute).ok())
-                    .unwrap_or_else(|| named.to_path_buf()),
-            ),
+        // A named manifest is read even when `APOLLO_ROVER_GLOBAL` also asks for
+        // a global install: the install refuses that combination only once it
+        // runs, and a credential in the named file is the more serious problem,
+        // so it fails first, before anything has happened. A path that can't be
+        // resolved at all is the install's to report; here it just means no
+        // project settings - the discovered project is never read in its place.
+        let project_manifest = match self.named_manifest() {
+            Some(named) => named.ok(),
             None => dirs
                 .project
                 .as_ref()
@@ -1086,12 +1089,21 @@ impl Rover {
     }
 
     /// The project manifest this invocation's command names with
-    /// `--manifest-path`, if it has that flag and was given it. Only `rover
-    /// plugin install` has it today.
-    fn manifest_path_override(&self) -> Option<&camino::Utf8Path> {
+    /// `--manifest-path`, made absolute, if it has that flag and was given it.
+    /// Only `rover plugin install` has it today.
+    fn named_manifest(&self) -> Option<RoverResult<Utf8PathBuf>> {
         match &self.command {
-            Command::Plugin(command) => command.manifest_path(),
+            Command::Plugin(command) => command.named_manifest(),
             _ => None,
+        }
+    }
+
+    /// How messages name the project manifest: the file `--manifest-path`
+    /// names, by its own file name, or `rover.yaml` for a discovered one.
+    fn project_file_label(&self) -> String {
+        match self.named_manifest() {
+            Some(Ok(named)) => crate::options::project_file_label(&named).to_string(),
+            _ => PROJECT_FILE.to_string(),
         }
     }
 
@@ -1794,6 +1806,7 @@ const fn describe_invalid_value(error: &SettingValueError) -> &'static str {
 fn validate_project_value(
     name: SettingName,
     setting: &crate::options::ProjectSetting,
+    file: &str,
 ) -> RoverResult<String> {
     let validated = match &setting.value {
         ProjectSettingValue::Scalar(raw) => name.setting_type().validate(raw.clone()),
@@ -1805,11 +1818,11 @@ fn validate_project_value(
     validated.map_err(|error| {
         let message = match &error {
             SettingValueError::NoValue => format!(
-                "`{PROJECT_FILE}` sets `{key}` with no value. Give it a value, or remove the key.",
+                "`{file}` sets `{key}` with no value. Give it a value, or remove the key.",
                 key = setting.key,
             ),
             _ => format!(
-                "`{PROJECT_FILE}` sets `{key}` to `{raw}`, which {reason}{correction}",
+                "`{file}` sets `{key}` to `{raw}`, which {reason}{correction}",
                 key = setting.key,
                 raw = error.input(),
                 reason = describe_invalid_value(&error),
@@ -1872,15 +1885,17 @@ fn global_only_on_failure(
     rover_home: Option<&camino::Utf8Path>,
     home: Option<&camino::Utf8Path>,
 ) -> crate::plugin::discovery::ManifestDirs {
-    use crate::plugin::discovery::{ManifestDirs, global_dir};
+    use crate::plugin::discovery::{ManifestDirs, global_dir, project_in_scope};
 
-    found.unwrap_or_else(|error| {
-        tracing::debug!("couldn't look for a project, so reading no project settings: {error}");
-        ManifestDirs {
+    match found {
+        Ok(dirs) => dirs,
+        // `project_in_scope` is the plugin system's own rule for a lookup that
+        // failed: no project, with only a debug log saying why.
+        failed @ Err(_) => ManifestDirs {
             global: global_dir(rover_home, home),
-            project: None,
-        }
-    })
+            project: project_in_scope(failed),
+        },
+    }
 }
 
 #[cfg(test)]
@@ -4320,6 +4335,62 @@ mod tests {
                     "https://named.example.com".to_string(),
                 ),
             });
+    }
+
+    /// A manifest `--manifest-path` names is named in messages by its own file
+    /// name, which needn't be `rover.yaml`.
+    #[rstest::rstest]
+    #[case::credential(
+        "settings:\n  APOLLO_KEY: x\n",
+        "`rover-ci.yaml` sets `APOLLO_KEY` under `settings:`. Credentials can't be stored in a \
+        project file. Run `rover auth login`, or set `APOLLO_KEY` in the environment."
+    )]
+    #[case::invalid_value(
+        "settings:\n  APOLLO_CHECKS_TIMEOUT_SECONDS: soon\n",
+        "`rover-ci.yaml` sets `APOLLO_CHECKS_TIMEOUT_SECONDS` to `soon`, which isn't a whole \
+        number of seconds. Use a whole number of seconds, for example `300`."
+    )]
+    fn a_named_manifest_is_named_by_its_own_file_name(#[case] contents: &str, #[case] text: &str) {
+        let tree = tempfile::tempdir().unwrap();
+        let root = Utf8PathBuf::try_from(dunce::canonicalize(tree.path()).unwrap()).unwrap();
+        let manifest = root.join("ci").join("rover-ci.yaml");
+        fs::create_dir_all(manifest.parent().unwrap()).unwrap();
+        fs::write(&manifest, contents).unwrap();
+        let rover = plugin_install_with(
+            &["--manifest-path", manifest.as_str()],
+            ManifestDirs {
+                global: None,
+                project: None,
+            },
+        );
+
+        let error = rover
+            .project_settings()
+            .and_then(|_| rover.get_checks_timeout_seconds().map(|_| ()))
+            .unwrap_err();
+
+        assert_that!(error.message()).is_equal_to(text.to_string());
+    }
+
+    #[test]
+    fn a_named_manifests_warnings_use_its_file_name() {
+        let tree = tempfile::tempdir().unwrap();
+        let root = Utf8PathBuf::try_from(dunce::canonicalize(tree.path()).unwrap()).unwrap();
+        let manifest = root.join("rover-ci.yaml");
+        fs::write(&manifest, "settings:\n  APOLLO_FUTURE_SETTING: x\n").unwrap();
+        let rover = plugin_install_with(
+            &["--manifest-path", manifest.as_str()],
+            ManifestDirs {
+                global: None,
+                project: None,
+            },
+        );
+
+        assert_that!(rover.project_settings().unwrap().warnings().to_vec()).is_equal_to(vec![
+            "Warning: `rover-ci.yaml` sets `APOLLO_FUTURE_SETTING`, which this version of Rover \
+            doesn't recognize. It will be ignored."
+                .to_string(),
+        ]);
     }
 
     /// A manifest `--manifest-path` names that doesn't exist yet has no

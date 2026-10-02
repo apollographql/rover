@@ -50,12 +50,13 @@ impl Plugins {
 }
 
 impl Plugins {
-    /// The project manifest this invocation names with `--manifest-path`, if
-    /// any - the one manifest every section of it is read from (FR78 of the
-    /// profile-configuration spec), not only the plugin declarations.
-    pub(crate) fn manifest_path(&self) -> Option<&camino::Utf8Path> {
+    /// The project manifest this invocation names with `--manifest-path`, made
+    /// absolute, if any - the one manifest every section of it is read from
+    /// (FR78 of the profile-configuration spec), not only the plugin
+    /// declarations.
+    pub(crate) fn named_manifest(&self) -> Option<RoverResult<Utf8PathBuf>> {
         match &self.command {
-            Command::Install(command) => command.manifest_path.as_deref(),
+            Command::Install(command) => command.named_manifest(),
         }
     }
 }
