@@ -1,0 +1,13 @@
+---
+source: src/command/api_key/delete/output.rs
+expression: "JsonOutput::from(&output)"
+---
+{
+  "json_version": "1",
+  "data": {
+    "id": "c_8f2a",
+    "key_type": "ClientCredentials",
+    "success": true
+  },
+  "error": null
+}
