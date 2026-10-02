@@ -11,7 +11,7 @@ expression: envelope
     "client_secret": "s_fixture-rotated",
     "secret_expires_at": "2028-09-25T16:00:00Z",
     "grace_period_days": 0,
-    "previous_secrets_expire_at": "[now + grace period]",
+    "previous_secrets_expire_at": "[rotation time + grace period]",
     "success": true
   },
   "error": null

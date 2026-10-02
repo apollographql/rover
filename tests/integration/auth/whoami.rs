@@ -7,17 +7,7 @@ use insta::assert_json_snapshot;
 use serde_json::{Value, json};
 use speculoos::prelude::*;
 
-fn whoami_response() -> Value {
-    json!({
-        "data": {
-            "me": {
-                "__typename": "User",
-                "id": "a-user-id",
-                "asActor": { "type": "USER" }
-            }
-        }
-    })
-}
+use super::whoami_response;
 
 /// Runs `rover auth whoami --format json` against `server` and returns its JSON envelope.
 fn run_whoami(server: &MockServer, command: Command) -> Value {

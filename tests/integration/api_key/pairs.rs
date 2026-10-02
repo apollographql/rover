@@ -3,6 +3,7 @@
 
 use std::process::Output;
 
+use chrono::{DateTime, Duration, FixedOffset, SubsecRound, Utc};
 use insta::{assert_json_snapshot, assert_snapshot};
 use rstest::rstest;
 use serde_json::{Value, json};
@@ -45,6 +46,20 @@ fn pair_node() -> Value {
             { "resourceId": "checkout", "resourceType": "GRAPH" }
         ],
         "scopes": ["rover:cli"]
+    })
+}
+
+/// A one-page pairs listing holding just [`pair_node`].
+fn list_pairs_response() -> Value {
+    json!({
+        "data": {
+            "organization": {
+                "oauthClients": {
+                    "pageInfo": { "endCursor": null, "hasNextPage": false },
+                    "edges": [{ "node": pair_node() }]
+                }
+            }
+        }
     })
 }
 
@@ -113,31 +128,20 @@ fn create_reports_the_new_pair() {
 fn list_reports_pairs_alongside_keys() {
     let server = httpmock::MockServer::start();
     mock_operation(&server, "ListKeysQuery", list_keys_response());
-    mock_operation(
-        &server,
-        "ListPairsQuery",
-        json!({
-            "data": {
-                "organization": {
-                    "oauthClients": {
-                        "pageInfo": { "endCursor": null, "hasNextPage": false },
-                        "edges": [{ "node": pair_node() }]
-                    }
-                }
-            }
-        }),
-    );
+    mock_operation(&server, "ListPairsQuery", list_pairs_response());
 
     let output = run_api_key(&server, &["list", ORG, "--format", "json"]);
 
     assert_json_snapshot!(parsed(successful_stdout(&output).as_bytes()));
 }
 
-// FR26: with and without a grace period.
+// FR26: `previous_secrets_expire_at` is the rotation time plus the grace period - the rotation
+// time itself for an immediate cutover. It's computed from the current time, so it's bounded by
+// timestamps taken around the run, then replaced so the rest of the payload can be snapshotted.
 #[rstest]
-#[case::immediate_cutover(&[])]
-#[case::with_a_grace_period(&["--grace-period-days", "7"])]
-fn rotate_reports_the_new_secret(#[case] extra: &[&str]) {
+#[case::immediate_cutover("rotate_immediate_cutover", None)]
+#[case::with_a_grace_period("rotate_with_a_grace_period", Some(7))]
+fn rotate_reports_the_new_secret(#[case] snapshot: &str, #[case] grace_period_days: Option<i64>) {
     let server = httpmock::MockServer::start();
     let rotate = mock_operation(
         &server,
@@ -155,29 +159,34 @@ fn rotate_reports_the_new_secret(#[case] extra: &[&str]) {
             }
         }),
     );
+    let days = grace_period_days.map(|days| days.to_string());
+    let mut args = vec!["rotate", ORG, "c_8f2a", "--format", "json"];
+    if let Some(days) = &days {
+        args.extend(["--grace-period-days", days]);
+    }
 
-    let output = run_api_key(
-        &server,
-        &[&["rotate", ORG, "c_8f2a", "--format", "json"], extra].concat(),
-    );
+    // The output is truncated to whole seconds, so the lower bound is too.
+    let before = Utc::now().trunc_subsecs(0);
+    let output = run_api_key(&server, &args);
+    let after = Utc::now();
 
     rotate.assert_calls(1);
     let mut envelope = parsed(successful_stdout(&output).as_bytes());
-    // `previous_secrets_expire_at` is computed from the current time - pin that it's an RFC 3339
-    // timestamp here, and replace it so everything else can be pinned by snapshot.
-    let previous = envelope["data"]["previous_secrets_expire_at"].take();
-    assert_that!(previous.as_str().map(chrono::DateTime::parse_from_rfc3339))
-        .is_some()
-        .is_ok();
-    envelope["data"]["previous_secrets_expire_at"] = json!("[now + grace period]");
-    assert_json_snapshot!(
-        if extra.is_empty() {
-            "rotate_immediate_cutover"
-        } else {
-            "rotate_with_a_grace_period"
-        },
-        envelope
-    );
+    let grace = Duration::days(grace_period_days.unwrap_or(0));
+    let expires = envelope["data"]["previous_secrets_expire_at"]
+        .take()
+        .as_str()
+        .map(DateTime::parse_from_rfc3339)
+        .expect("previous_secrets_expire_at is a string")
+        .expect("previous_secrets_expire_at is RFC 3339");
+    assert_that!(expires)
+        .named("previous_secrets_expire_at")
+        .is_greater_than_or_equal_to(DateTime::<FixedOffset>::from(before + grace));
+    assert_that!(expires)
+        .named("previous_secrets_expire_at")
+        .is_less_than_or_equal_to(DateTime::<FixedOffset>::from(after + grace));
+    envelope["data"]["previous_secrets_expire_at"] = json!("[rotation time + grace period]");
+    assert_json_snapshot!(snapshot, envelope);
 }
 
 // FR30: deleting a pair reports `key_type: "ClientCredentials"`.
@@ -237,7 +246,12 @@ fn a_failed_pairs_query_still_prints_the_key_table() {
 
     let output = run_api_key(&server, &["list", ORG]);
 
-    assert_that!(output.status.success()).is_false();
+    assert_that!(output.status.success())
+        .named(&format!(
+            "exit status (stderr: {})",
+            String::from_utf8_lossy(&output.stderr)
+        ))
+        .is_false();
     assert_snapshot!(format!(
         "--- stdout ---\n{}\n--- stderr ---\n{}",
         String::from_utf8_lossy(&output.stdout),
@@ -245,7 +259,8 @@ fn a_failed_pairs_query_still_prints_the_key_table() {
     ));
 }
 
-// FR10: when the keys query itself fails, nothing is reported - not even pairs.
+// FR10: when the keys query itself fails, nothing is reported - not even pairs that would have
+// listed successfully. Whether the pairs query is sent at all is left open, as FR10 leaves it.
 #[test]
 fn a_failed_keys_query_reports_nothing() {
     let server = httpmock::MockServer::start();
@@ -254,23 +269,9 @@ fn a_failed_keys_query_reports_nothing() {
         "ListKeysQuery",
         graphql_error("keys are unavailable"),
     );
-    let pairs = mock_operation(
-        &server,
-        "ListPairsQuery",
-        json!({
-            "data": {
-                "organization": {
-                    "oauthClients": {
-                        "pageInfo": { "endCursor": null, "hasNextPage": false },
-                        "edges": [{ "node": pair_node() }]
-                    }
-                }
-            }
-        }),
-    );
+    mock_operation(&server, "ListPairsQuery", list_pairs_response());
 
     let output = run_api_key(&server, &["list", ORG, "--format", "json"]);
 
-    pairs.assert_calls(0);
     assert_json_snapshot!(failed_envelope(&output));
 }

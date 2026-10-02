@@ -4,17 +4,7 @@ use insta::assert_json_snapshot;
 use serde_json::{Value, json};
 use speculoos::prelude::*;
 
-fn whoami_response() -> Value {
-    json!({
-        "data": {
-            "me": {
-                "__typename": "User",
-                "id": "a-user-id",
-                "asActor": { "type": "USER" }
-            }
-        }
-    })
-}
+use super::whoami_response;
 
 /// End-to-end check that `APOLLO_CLIENT_ID`/`APOLLO_CLIENT_SECRET` are exchanged
 /// for an access token via the OAuth token endpoint, and that the resulting token
