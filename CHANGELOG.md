@@ -46,10 +46,6 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   `rover api-key delete <ORGANIZATION_ID> <ID>` now accepts a pair's client ID as well as an API key's ID - no flag picks the type; Rover looks the ID up as a pair first. Deleting a pair confirms on stderr that it can no longer obtain tokens and that access tokens it already holds keep working until they expire, and `--format json` reports `key_type: "ClientCredentials"` alongside the existing `id`. Deleting an API key is unchanged, including for callers who can't see the organization's pairs.
 
-- **`rover api-key rename` refuses to rename a client-credential pair - @dotdat**
-
-  Given a pair's client ID, `rover api-key rename` now fails with a new, stable error code (`E059`) and changes nothing, rather than reporting a confusing "key not found" - the Platform API can't rename a pair yet. Renaming an API key is unchanged.
-
 - **`rover api-key create` supports `client-credentials`, a new API key type for CI setup - @dotdat**
 
   `rover api-key create <ORGANIZATION_ID> client-credentials <NAME> --graph-id <GRAPH_ID>... [--secret-lifetime-days <DAYS>]` registers an OAuth 2.0 client-credentials pair scoped to the named graphs, requesting exactly the `rover:cli` scope. On success it prints the client ID and secret to stdout (so CI setup can capture them) and a one-time reminder to stderr that the secret can't be shown again; `--format json` reports `client_id`, `client_secret`, `secret_expires_at`, `name`, `graphs`, and `scopes` under `key_type: "ClientCredentials"`. The pair is usable immediately by setting `APOLLO_CLIENT_ID`/`APOLLO_CLIENT_SECRET` to the reported values. Existing `operator`/`subgraph` behavior is unchanged.
@@ -185,6 +181,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Profile-stored OAuth endpoint settings now take effect - @dotdat**
 
   `rover config set` already accepted `APOLLO_OAUTH_AUTHORIZATION_URL`, `APOLLO_OAUTH_TOKEN_URL`, `APOLLO_OAUTH_DEVICE_AUTHORIZATION_URL`, `APOLLO_OAUTH_REVOCATION_URL`, `APOLLO_OAUTH_WHOAMI_URL`, and `APOLLO_OAUTH_CLIENT_ID`, but nothing read the stored value - the `--oauth-*` flags always resolved to their built-in default first. They now go through the same profile tier as every other setting (flag > environment variable > profile > built-in default), appear in `rover config show`, and print the one-line override notice when a profile redirects an endpoint - only for the endpoints the running `rover auth` subcommand uses. An invalid stored value fails the command with `error.code` `E054`.
+
+- **Groundwork for project-file settings: the `settings:` section of `rover.yaml` - @dotdat**
+
+  Adds the rules for reading a `settings:` section from a project's `rover.yaml`, which later changes in this release wire up. A key may be a setting's canonical name (`APOLLO_REGISTRY_URL`) or its all-lowercase form (`apollo_registry_url`). An unrecognized key gets a warning and is ignored. A credential (`APOLLO_KEY`, `APOLLO_CLIENT_ID`, `APOLLO_CLIENT_SECRET`) fails the command with `error.code` `E060`. A setting spelled both ways fails it with `E061`.
 
 - **Profiles can now store `APOLLO_CLIENT_TIMEOUT` - @dotdat**
 

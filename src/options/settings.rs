@@ -195,6 +195,15 @@ impl SettingName {
         }
     }
 
+    /// Whether the project file's `settings:` section may set this setting
+    /// (spec.md §2, FR31). Every setting in this catalogue is, today - the
+    /// ones that aren't (VCS context, FR5) aren't variants at all - but the
+    /// spec keeps profile- and project-eligibility as separate lists, so a
+    /// setting added later can be one without the other.
+    pub(crate) const fn is_project_eligible(self) -> bool {
+        true
+    }
+
     /// The setting's built-in default, spelled the way its environment
     /// variable would spell it (FR54) - this is what `rover config show`
     /// reports as `value` when nothing overrides it. `None` means the
@@ -257,7 +266,7 @@ pub(crate) enum SettingNameError {
     #[error(
         "`{input}` isn't a Rover setting name. Settings are named as their environment \
         variables are, so use `{canonical}`. The lowercase spelling is accepted in \
-        `.rover/rover.yaml` only."
+        `rover.yaml` only."
     )]
     LowercaseSpelling {
         input: String,
@@ -394,7 +403,7 @@ mod tests {
         assert_that!(error.to_string()).is_equal_to(
             "`apollo_registry_url` isn't a Rover setting name. Settings are named as their \
             environment variables are, so use `APOLLO_REGISTRY_URL`. The lowercase spelling is \
-            accepted in `.rover/rover.yaml` only."
+            accepted in `rover.yaml` only."
                 .to_string(),
         );
     }

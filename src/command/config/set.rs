@@ -220,7 +220,7 @@ mod tests {
             "error: invalid value 'apollo_registry_url' for '<SETTING>': \
             `apollo_registry_url` isn't a Rover setting name. Settings are named as their \
             environment variables are, so use `APOLLO_REGISTRY_URL`. The lowercase spelling is \
-            accepted in `.rover/rover.yaml` only.\n\nFor more information, try '--help'.\n"
+            accepted in `rover.yaml` only.\n\nFor more information, try '--help'.\n"
                 .to_string(),
         );
     }
