@@ -22,9 +22,11 @@ pub const REVOKE_USER_GRANTS_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(10)
 /// the studio GraphQL service.
 ///
 /// Unlike the pair mutations, this one is idempotent - revoking where the user holds no grant
-/// succeeds (spec FR64) - so it's safe to compose under `rover-http`'s `RetryLayer`, with
-/// [`REVOKE_USER_GRANTS_ATTEMPT_TIMEOUT`] as the per-attempt timeout nested inside it. A retry
-/// after a revoke that had already committed just revokes nothing the second time.
+/// succeeds (spec FR64) - so it's safe to retry. A retry after a revoke that had already
+/// committed just revokes nothing the second time. Build the inner service with
+/// `StudioClient::studio_graphql_service_with_attempt_timeout(REVOKE_USER_GRANTS_ATTEMPT_TIMEOUT)`,
+/// which already nests [`REVOKE_USER_GRANTS_ATTEMPT_TIMEOUT`] inside its one `RetryLayer` - don't
+/// add another retry on top, or the retries multiply.
 #[derive(Clone)]
 pub struct RevokeUserGrants<S: Clone> {
     inner: S,
