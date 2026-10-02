@@ -253,6 +253,10 @@ pub struct PluginInstaller {
     origin: Option<RequestOrigin>,
     /// What forbids downloading, if anything does. `None` until a caller says.
     downloads_disabled_by: Option<DownloadControl>,
+    /// The other level's `bin` directory, searched for an installed plugin
+    /// alongside the installer's own, and before it when it is the
+    /// project's (FR26). Nothing is ever installed there.
+    other_level: Option<(PluginLevel, Utf8PathBuf)>,
 }
 
 fn could_not_install_plugin(plugin_name: &str, version: &str) -> RoverError {
@@ -271,6 +275,7 @@ impl PluginInstaller {
             force,
             origin: None,
             downloads_disabled_by: None,
+            other_level: None,
         }
     }
 
@@ -286,6 +291,35 @@ impl PluginInstaller {
         Self {
             downloads_disabled_by: control,
             ..self
+        }
+    }
+
+    /// Also uses a plugin already installed in `bin_dir`, at `level`, rather
+    /// than only those at the installer's own level. Only the commands that
+    /// install on the fly ask, and they need composition.
+    #[cfg(feature = "composition-js")]
+    pub fn also_looking_in(self, level: PluginLevel, bin_dir: Utf8PathBuf) -> Self {
+        Self {
+            other_level: Some((level, bin_dir)),
+            ..self
+        }
+    }
+
+    /// `own`, the installer's `bin` directory, and the other level's if
+    /// there is one, in the order they are searched: the project first.
+    fn search_order(&self, own: Utf8PathBuf) -> Vec<Utf8PathBuf> {
+        match &self.other_level {
+            Some((PluginLevel::Project, project)) => vec![project.clone(), own],
+            Some((PluginLevel::Global, global)) => vec![own, global.clone()],
+            None => vec![own],
+        }
+    }
+
+    /// The level a plugin found at `path` is installed at.
+    fn level_of(&self, path: &Utf8PathBuf) -> PluginLevel {
+        match &self.other_level {
+            Some((level, dir)) if path.parent() == Some(dir) => *level,
+            _ => self.level(),
         }
     }
 
@@ -345,14 +379,23 @@ impl PluginInstaller {
 
         let name = plugin.get_name();
         let version = version_from_installed_path(&install_location, &name)?;
-        // Always Global; no project-level install root exists yet.
         Ok(PluginProvenance::new(
             name,
             version,
             source,
-            PluginLevel::Global,
+            self.level_of(&install_location),
             install_location,
         ))
+    }
+
+    /// The level this installer installs at: a project when it was given
+    /// that project's install root, global otherwise.
+    const fn level(&self) -> PluginLevel {
+        if self.installer.install_root.is_some() {
+            PluginLevel::Project
+        } else {
+            PluginLevel::Global
+        }
     }
 
     /// The newest installed release `plugin`'s request allows, or the
@@ -363,28 +406,30 @@ impl PluginInstaller {
         plugin: &Plugin,
         control: DownloadControl,
     ) -> RoverResult<PluginProvenance> {
-        let bin_dir = self.installer.bin_dir_location()?;
+        let searched = self.search_order(self.installer.bin_dir_location()?);
         let requested = plugin.request();
-        let newest = installed_releases(&bin_dir, plugin.name())?
-            .into_iter()
-            .filter(|(version, _)| allows(&requested, version))
-            .max_by(|(a, _), (b, _)| a.cmp(b));
-
-        match newest {
-            Some((version, path)) => Ok(PluginProvenance::new(
-                plugin.get_name(),
-                version,
-                PluginSource::Installed,
-                PluginLevel::Global,
-                path,
-            )),
-            None => Err(RoverError::new(PluginFailure::DownloadsDisabled {
-                plugin: plugin.name(),
-                requested,
-                searched: vec![bin_dir],
-                control,
-            })),
+        // The newest the request allows at the first level that has one.
+        for bin_dir in &searched {
+            let newest = installed_releases(bin_dir, plugin.name())?
+                .into_iter()
+                .filter(|(version, _)| allows(&requested, version))
+                .max_by(|(a, _), (b, _)| a.cmp(b));
+            if let Some((version, path)) = newest {
+                return Ok(PluginProvenance::new(
+                    plugin.get_name(),
+                    version,
+                    PluginSource::Installed,
+                    self.level_of(&path),
+                    path,
+                ));
+            }
         }
+        Err(RoverError::new(PluginFailure::DownloadsDisabled {
+            plugin: plugin.name(),
+            requested,
+            searched,
+            control,
+        }))
     }
 
     async fn find_or_install_exact(
@@ -440,8 +485,13 @@ impl PluginInstaller {
     ) -> RoverResult<Option<Utf8PathBuf>> {
         let plugin_dir = self.installer.get_bin_dir_path()?;
         let plugin_name = plugin.get_name();
-        let mut installed_plugins =
-            find_installed_plugins(&plugin_dir, &plugin_name, major_version)?;
+        let mut installed_plugins = Vec::new();
+        for dir in self.search_order(plugin_dir.clone()) {
+            // Only the installer's own directory is created by looking.
+            if installed_plugins.is_empty() && dir.exists() {
+                installed_plugins = find_installed_plugins(&dir, &plugin_name, major_version)?;
+            }
+        }
         if installed_plugins.is_empty() {
             let mut err = RoverError::new(anyhow!(
                 "You do not have any '{}' plugins installed in '{}'.",
@@ -515,7 +565,10 @@ impl PluginInstaller {
     ) -> RoverResult<Option<Utf8PathBuf>> {
         let plugin_dir = self.installer.get_bin_dir_path()?;
         let plugin_name = plugin.get_name();
-        Ok(find_installed_plugin(&plugin_dir, &plugin_name, version).ok())
+        Ok(self
+            .search_order(plugin_dir)
+            .iter()
+            .find_map(|dir| find_installed_plugin(dir, &plugin_name, version).ok()))
     }
 
     async fn install_exact(
@@ -1273,6 +1326,7 @@ mod tests {
                 force_install: false,
                 executable_location: home.join("rover"),
                 override_install_path: Some(home),
+                install_root: None,
             };
 
             let outcome = PluginInstaller::new(client_config, installer, false)
@@ -1408,6 +1462,7 @@ mod tests {
                 force_install: false,
                 executable_location: home.join("rover"),
                 override_install_path: Some(home),
+                install_root: None,
             };
             let plugin = Plugin::Supergraph(FederationVersion::ExactFedTwo(
                 Version::parse(version).unwrap(),

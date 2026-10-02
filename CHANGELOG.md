@@ -78,6 +78,26 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   Each successful `rover plugin install` (or `rover install --plugin`) now records the plugin, the version it asked for, and the exact release it installed in `plugin-versions.lock`, beside the `bin` directory in `~/.rover` (or `$APOLLO_HOME/.rover`). Installing one plugin leaves every other entry as it was, so a floating version such as `2` recorded earlier keeps the release it was locked at. Other commands never write the file. A lockfile Rover can't read, including one written by a newer version of Rover, stops the install with error E052 naming the file, rather than being ignored or overwritten. Plugins installed into `APOLLO_NODE_MODULES_BIN_DIR` aren't recorded, and neither is a fallback to an already-installed release when the plugin registry can't be reached.
 
+- **`rover plugin install` installs into the project you're in - @SharkBaitDLS**
+
+  Run inside a project, meaning a directory that has a `.rover/` directory in it or in one of its parents, `rover plugin install` now puts the plugin in that project's `.rover/bin/` and records it in the project's `.rover/plugin-versions.lock`, leaving `~/.rover` untouched. `--format json` reports the install with `"level": "project"`. Outside a project nothing changes: Rover never creates a `.rover/` directory on its own, so the plugin installs into `~/.rover/bin/` (or `$APOLLO_HOME/.rover/bin/`) exactly as before. A `rover.yaml` that sets `install_root` at the level being installed into stops the install with error E052, since Rover doesn't support redirecting an install root yet.
+
+- **`rover plugin install --global` installs for the whole machine, even inside a project - @SharkBaitDLS**
+
+  `--global` (or `-g`) installs into `~/.rover/bin/` (or `$APOLLO_HOME/.rover/bin/`) and records the install in the global lockfile, leaving the project's `.rover/` untouched. For CI images that can't pass flags, `APOLLO_ROVER_GLOBAL=true` (or `1`) does the same.
+
+- **Commands that use a plugin look in the project first, then globally - @SharkBaitDLS**
+
+  Inside a project, `rover supergraph compose`, `rover dev`, `rover lsp`, and `rover connector` use a plugin installed in the project's `.rover/bin/` when it has the version needed, and otherwise one installed globally, so a plugin installed for the whole machine keeps working in a project that hasn't installed its own. `--format json` reports which level the plugin came from. A plugin these commands download still goes to `~/.rover/bin/`. Under `--skip-update`, a plugin installed at neither level fails with E058 naming both directories searched. A working directory Rover can't read, such as one that has since been deleted, counts as being outside any project.
+
+- **`rover plugin install --manifest-path` names the project to install into - @SharkBaitDLS**
+
+  `--manifest-path <FILE>` (or `-m`) installs into the project whose manifest `<FILE>` is, rather than the one found by searching up from the working directory: the plugin goes in a `bin/` directory beside the manifest, and the install is recorded in the `plugin-versions.lock` there. It can't be combined with `--global`, and is refused before anything is installed when `APOLLO_ROVER_GLOBAL` is set.
+
+- **`rover plugin install --manifest-path` creates the project it names - @SharkBaitDLS**
+
+  When the manifest `--manifest-path` names doesn't exist yet, a successful install creates it, along with any missing parent directories, the `bin/` the plugin goes in, the lockfile, and a `.gitignore` ignoring `bin/` so the binaries aren't committed while `rover.yaml` and `plugin-versions.lock` are. An existing `.gitignore` is left as it is. If the install fails, the directories it was creating are removed again. This is the only way Rover ever creates a project: no other command does.
+
 - **`rover dev` gains `--router-version`/`--composition-version`; `rover template` gains `--templates-api` - @dotdat**
 
   `--router-version`/`APOLLO_ROVER_DEV_ROUTER_VERSION` and `--composition-version`/`APOLLO_ROVER_DEV_COMPOSITION_VERSION` are scoped to `rover dev`, matching the existing `--mcp-version` pairing; `--federation-version` still takes precedence over `--composition-version`, as it did over the env var before. `--templates-api`/`APOLLO_TEMPLATES_API` is scoped to `rover template` (`rover init` doesn't use the templates API - it fetches templates from GitHub - so it doesn't get this flag). All three were previously env-var-only.

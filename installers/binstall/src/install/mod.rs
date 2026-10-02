@@ -30,6 +30,12 @@ pub struct Installer {
     pub executable_location: Utf8PathBuf,
     /// Install the binary into a non-default location
     pub override_install_path: Option<Utf8PathBuf>,
+    /// Install into this directory instead of Rover's own: binaries go under
+    /// its `bin/`, laid out exactly as they are under `~/.rover/bin/`. When
+    /// set, neither `override_install_path` nor `APOLLO_NODE_MODULES_BIN_DIR`
+    /// has any effect, since both say where Rover's own directory is, and
+    /// this is some other one.
+    pub install_root: Option<Utf8PathBuf>,
 }
 
 impl Installer {
@@ -183,6 +189,9 @@ impl Installer {
 
     /// The bin directory, and whether it's npm's `node_modules/.bin`, which Rover never creates.
     fn locate_bin_dir(&self) -> Result<(Utf8PathBuf, bool), InstallerError> {
+        if let Some(root) = &self.install_root {
+            return Ok((root.join("bin"), false));
+        }
         // TODO: loop this up better with rover's environment variable management
         // Empty counts as unset, as it does for the base directory.
         if let Some(node_modules_bin) = std::env::var("APOLLO_NODE_MODULES_BIN_DIR")
@@ -196,8 +205,12 @@ impl Installer {
     }
 
     /// Rover's own directory, `~/.rover` or `$APOLLO_HOME/.rover`, which
-    /// holds the `bin` directory plugins install into.
+    /// holds the `bin` directory plugins install into, or the
+    /// [`Self::install_root`] in its place when there is one.
     pub fn get_base_dir_path(&self) -> Result<Utf8PathBuf, InstallerError> {
+        if let Some(root) = &self.install_root {
+            return Ok(root.clone());
+        }
         let override_home = self.override_install_path.as_deref();
         // A usable override needs no home directory, so an override still
         // works on a machine without one.
@@ -412,6 +425,7 @@ mod test {
             force_install: true,
             executable_location,
             override_install_path: None,
+            install_root: None,
         }
     }
 
@@ -712,6 +726,43 @@ mod test {
         assert_that!(installer.get_plugin_bin_path(plugin_name, plugin_version))
             .is_ok()
             .is_equal_to(expected_bin_path);
+    }
+
+    /// An install root takes the place of Rover's own directory, whichever
+    /// of the overrides would otherwise have placed that, and keeps its
+    /// layout: binaries under `bin/`, named as they are everywhere else.
+    #[rstest]
+    #[sealed_test]
+    fn an_install_root_replaces_rovers_own_directory(
+        installer: Installer,
+        override_path: Utf8PathBuf,
+        #[values(false, true)] node_modules: bool,
+    ) {
+        if node_modules {
+            std::env::set_var(
+                "APOLLO_NODE_MODULES_BIN_DIR",
+                override_path.join("node_modules"),
+            );
+        }
+        let root = override_path.join("project").join(".rover");
+        let installer = Installer {
+            override_install_path: Some(override_path.join("home")),
+            install_root: Some(root.clone()),
+            ..installer
+        };
+
+        assert_that!(installer.get_base_dir_path())
+            .is_ok()
+            .is_equal_to(root.clone());
+        assert_that!(installer.bin_dir_location())
+            .is_ok()
+            .is_equal_to(root.join("bin"));
+        assert_that!(installer.get_plugin_bin_path("supergraph", "v2.9.3"))
+            .is_ok()
+            .is_equal_to(
+                root.join("bin")
+                    .join(format!("supergraph-v2.9.3{}", env::consts::EXE_SUFFIX)),
+            );
     }
 
     #[rstest]

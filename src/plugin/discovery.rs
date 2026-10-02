@@ -40,6 +40,31 @@ impl ManifestDirs {
 
         Self { global, project }
     }
+
+    /// Find both levels for a command run from the process's working
+    /// directory, on this machine. `apollo_home` is as for [`Self::discover`].
+    pub fn for_this_process(apollo_home: Option<&Utf8Path>) -> io::Result<Self> {
+        let cwd = Utf8PathBuf::try_from(std::env::current_dir()?).map_err(io::Error::other)?;
+        // No home directory just means no home to stop the search at.
+        let home = binstall::get_home_dir_path().ok();
+        Ok(Self::discover(&cwd, apollo_home, home.as_deref()))
+    }
+}
+
+/// The project in scope according to `found`, a search that may have failed.
+///
+/// A working directory Rover can't read, because it was deleted or its path
+/// isn't UTF-8, has no project to find, so failing to look means there is
+/// none: the global level still applies, as it does when no `.rover/` is
+/// found (FR22). Only the debug log says why.
+pub fn project_in_scope(found: io::Result<ManifestDirs>) -> Option<Utf8PathBuf> {
+    match found {
+        Ok(dirs) => dirs.project,
+        Err(err) => {
+            tracing::debug!("couldn't look for a project, so using only the global level: {err}");
+            None
+        }
+    }
 }
 
 /// The global level's `.rover/` directory: `$APOLLO_HOME/.rover` when
@@ -369,6 +394,66 @@ mod tests {
             global: Some(apollo_home.join(ROVER_DIR)),
             project: None,
         });
+    }
+
+    #[rstest]
+    #[case::found(Ok(ManifestDirs { global: None, project: Some("/work/app/.rover".into()) }), Some("/work/app/.rover"))]
+    #[case::none_found(Ok(ManifestDirs { global: None, project: None }), None)]
+    #[case::a_working_directory_that_cannot_be_read(
+        Err(io::Error::from(io::ErrorKind::NotFound)),
+        None
+    )]
+    fn a_search_that_fails_finds_no_project(
+        #[case] found: io::Result<ManifestDirs>,
+        #[case] expected: Option<&str>,
+    ) {
+        assert_that!(project_in_scope(found)).is_equal_to(expected.map(Utf8PathBuf::from));
+    }
+
+    // A deleted working directory is only possible to arrange on Unix.
+    #[cfg(unix)]
+    #[rstest]
+    fn a_deleted_working_directory_is_no_project() {
+        // Run in a child, since the working directory is the whole process's.
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "plugin::discovery::tests::deleted_working_directory_child",
+                "--include-ignored",
+                "--nocapture",
+            ])
+            .env("ROVER_TEST_DELETED_CWD_CHILD", "1")
+            .output()
+            .unwrap();
+
+        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        let reported: Vec<&str> = stdout
+            .lines()
+            .filter(|line| line.starts_with("error: ") || line.starts_with("project: "))
+            .collect();
+        assert_that!(reported)
+            .named(&stdout)
+            .is_equal_to(vec!["error: true", "project: None"]);
+    }
+
+    /// Run only by [`a_deleted_working_directory_is_no_project`], in its own
+    /// process: deletes its working directory and looks for a project.
+    #[cfg(unix)]
+    #[test]
+    #[ignore = "run by a_deleted_working_directory_is_no_project in a child process"]
+    fn deleted_working_directory_child() {
+        if std::env::var_os("ROVER_TEST_DELETED_CWD_CHILD").is_none() {
+            return;
+        }
+        let temp = TempDir::new().unwrap();
+        let cwd = temp.path().join("gone");
+        fs::create_dir(&cwd).unwrap();
+        std::env::set_current_dir(&cwd).unwrap();
+        fs::remove_dir(&cwd).unwrap();
+
+        let found = ManifestDirs::for_this_process(None);
+        println!("error: {}", found.is_err());
+        println!("project: {:?}", project_in_scope(found));
     }
 
     #[rstest]

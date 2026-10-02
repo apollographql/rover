@@ -1,21 +1,25 @@
 mod output;
+mod project_root;
 
+use anyhow::anyhow;
 use binstall::Installer;
 use camino::{Utf8Path, Utf8PathBuf};
 use clap::Parser;
 use serde::Serialize;
 
-use self::output::PluginInstallOutput;
+use self::{output::PluginInstallOutput, project_root::NewProjectRoot};
 use super::LockfileWrite;
 use crate::{
-    PKG_NAME, RoverOutput, RoverResult,
+    PKG_NAME, RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
     command::install::{Plugin, PluginInstaller, PluginProvenance, PluginSource, installer},
     options::LicenseAccepter,
     plugin::{
+        discovery::{ManifestDirs, project_in_scope},
         error::{DownloadControl, RequestOrigin},
         lockfile::{LOCKFILE, LockedPlugin, PluginLockfile},
+        manifest::{MANIFEST_FILE, RoverManifest},
     },
-    utils::client::StudioClientConfig,
+    utils::{GLOBAL_ENV, client::StudioClientConfig},
 };
 
 #[derive(Debug, Serialize, Parser)]
@@ -36,6 +40,29 @@ pub struct PluginInstall {
     #[arg(long = "no-download")]
     pub(crate) no_download: bool,
 
+    /// Install into the global install root, shared by every project, even
+    /// inside a project that has its own.
+    ///
+    /// Set the `APOLLO_ROVER_GLOBAL` environment variable (to `1` or `true`)
+    /// to do the same.
+    #[arg(long = "global", short = 'g')]
+    pub(crate) global: bool,
+
+    /// Install into the project whose manifest this is, rather than the one
+    /// found by searching up from the working directory.
+    ///
+    /// The project's plugins go in a `bin/` directory beside the manifest, and
+    /// its lockfile is `plugin-versions.lock` there too. A manifest that doesn't
+    /// exist yet is created, along with the rest of the project and a
+    /// `.gitignore` that keeps `bin/` out of version control.
+    #[arg(
+        long = "manifest-path",
+        short = 'm',
+        value_name = "FILE",
+        conflicts_with = "global"
+    )]
+    pub(crate) manifest_path: Option<Utf8PathBuf>,
+
     #[clap(flatten)]
     pub(crate) elv2_license_accepter: LicenseAccepter,
 }
@@ -46,23 +73,53 @@ impl PluginInstall {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
     ) -> RoverResult<RoverOutput> {
+        let project_manifest = self.project_manifest(override_install_path.as_deref())?;
         if self.plugin.requires_elv2_license() {
             self.elv2_license_accepter
                 .require_elv2_license(&client_config)?;
         }
-        let rover_installer = installer(PKG_NAME, self.force, override_install_path)?;
+        let mut rover_installer = installer(PKG_NAME, self.force, override_install_path.clone())?;
+        rover_installer.install_root = project_manifest
+            .as_deref()
+            .and_then(Utf8Path::parent)
+            .map(Utf8Path::to_path_buf);
+        // Only a named manifest makes a project root where there was none.
+        let new_root = project_manifest
+            .as_deref()
+            .filter(|_| self.manifest_path.is_some())
+            .and_then(NewProjectRoot::for_manifest);
         let level = recording_level(&rover_installer)?;
         // Read before installing, so that a lockfile this can't update
-        // stops the install rather than leaving a plugin it doesn't record.
+        // stops the install rather than leaving a plugin it doesn't record,
+        // and a manifest asking for a redirected install root stops it
+        // rather than see the plugin put somewhere it didn't ask for.
         if let Some(level) = &level {
             PluginLockfile::load(&level.join(LOCKFILE))?;
+            let manifest = project_manifest
+                .clone()
+                .unwrap_or_else(|| level.join(MANIFEST_FILE));
+            RoverManifest::load(&manifest)?;
         }
 
         let installed = PluginInstaller::new(client_config, rover_installer, self.force)
             .requested_by(Some(RequestOrigin::PluginArgument))
             .without_downloads(self.download_control())
             .install(&self.plugin)
-            .await?;
+            .await;
+        // A failed install leaves no half-made project root behind.
+        let installed = match (installed, new_root) {
+            (Ok(installed), Some(new_root)) => {
+                new_root.create()?;
+                installed
+            }
+            (Ok(installed), None) => installed,
+            (Err(err), new_root) => {
+                if let Some(new_root) = new_root {
+                    new_root.abandon();
+                }
+                return Err(err);
+            }
+        };
 
         // With downloads disabled, a floating request was resolved against
         // nothing: the newest release on disk is not what it resolves to, and
@@ -90,6 +147,48 @@ impl PluginInstall {
         })))
     }
 
+    /// The manifest of the project this installs into, or `None` to install
+    /// globally. The project's install root is the directory holding it.
+    ///
+    /// That is the `--manifest-path` manifest when one is named (FR25), none
+    /// when a global install is asked for (FR24), and otherwise the manifest
+    /// of the project in scope, if there is one (FR23).
+    fn project_manifest(&self, apollo_home: Option<&Utf8Path>) -> RoverResult<Option<Utf8PathBuf>> {
+        match (&self.manifest_path, self.global()) {
+            // Clap refuses the two flags together, so only the variable
+            // gets here.
+            (Some(_), true) => {
+                let mut err = RoverError::new(anyhow!(
+                    "`--manifest-path` names a project to install into, but `{GLOBAL_ENV}` \
+                     asks for a global install."
+                ));
+                err.set_suggestion(RoverErrorSuggestion::Adhoc(format!(
+                    "Unset `{GLOBAL_ENV}` to install into the project, or drop \
+                     `--manifest-path` to install globally."
+                )));
+                Err(err)
+            }
+            (Some(manifest), false) => {
+                let absolute = std::path::absolute(manifest)
+                    .map_err(|err| anyhow!(err).context(format!("Couldn't find `{manifest}`.")))?;
+                Ok(Some(
+                    Utf8PathBuf::try_from(absolute).map_err(|err| anyhow!(err))?,
+                ))
+            }
+            (None, true) => Ok(None),
+            (None, false) => Ok(
+                project_in_scope(ManifestDirs::for_this_process(apollo_home))
+                    .map(|project| project.join(MANIFEST_FILE)),
+            ),
+        }
+    }
+
+    /// Whether this install goes to the global level whatever project is in
+    /// scope: by the flag, or its environment variable.
+    fn global(&self) -> bool {
+        self.global || crate::utils::global_install()
+    }
+
     /// What forbids this install from downloading, if anything does: the
     /// flag, or failing that, its environment variable.
     fn download_control(&self) -> Option<DownloadControl> {
@@ -106,9 +205,11 @@ impl PluginInstall {
 /// The level whose lockfile an install through `installer` records, or `None`
 /// when plugins are going somewhere that is no level's.
 ///
-/// That is the global level, unless `APOLLO_NODE_MODULES_BIN_DIR` sends
-/// plugins into an npm package's `node_modules/.bin`. An install there needs no
-/// home directory, so none is looked for, and no lockfile is read.
+/// That is the installer's install root when it has one, which is the project
+/// in scope, and otherwise the global level, unless
+/// `APOLLO_NODE_MODULES_BIN_DIR` sends plugins into an npm package's
+/// `node_modules/.bin`. An install there needs no home directory, so none is
+/// looked for, and no lockfile is read.
 fn recording_level(installer: &Installer) -> RoverResult<Option<Utf8PathBuf>> {
     let bin_dir = installer.bin_dir_location()?;
     if bin_dir.file_name() != Some("bin") {
