@@ -48,7 +48,7 @@ const STYLES: Styles = Styles::styled()
 pub(crate) enum StoredTier {
     /// A profile named by `--profile`, including `--profile default`.
     ExplicitProfile,
-    /// The `settings:` section of `.rover/rover.yaml`.
+    /// The `settings:` section of `rover.yaml`.
     ProjectFile,
     /// The `default` profile, active because `--profile` wasn't passed.
     DefaultProfile,
@@ -4176,7 +4176,7 @@ mod tests {
         assert_that!(rover.project_settings().unwrap()).is_equal_to(&first);
     }
 
-    /// A run in a temp project whose `.rover/rover.yaml` is `project`
+    /// A run in a temp project whose `rover.yaml` is `project`
     /// (or no project at all), with each `(profile, setting, value)` of
     /// `stored` written to the config home first, and `args` before the
     /// `config list` subcommand. The environment variables in `unset` are
