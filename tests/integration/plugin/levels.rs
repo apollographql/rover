@@ -39,6 +39,7 @@ fn rover(levels: &TwoLevels, args: &[&str], env: &[(&str, &str)]) -> (Option<i32
         // binstall reads this directly, and it would move the global root.
         .env_remove("APOLLO_NODE_MODULES_BIN_DIR")
         .env_remove("APOLLO_ROVER_NO_DOWNLOAD")
+        .env_remove("APOLLO_ROVER_GLOBAL")
         .envs(env.iter().copied())
         .output()
         .unwrap();
@@ -131,4 +132,49 @@ fn a_project_manifest_redirecting_its_install_root_stops_the_install(two_levels:
         two_levels.global.bin_dir().exists(),
     ))
     .is_equal_to((false, false));
+}
+
+#[rstest]
+#[case::the_flag(&["--global"], &[])]
+#[case::its_short_form(&["-g"], &[])]
+#[case::the_variable(&[], &[("APOLLO_ROVER_GLOBAL", "true")])]
+#[case::the_variable_as_one(&[], &[("APOLLO_ROVER_GLOBAL", "1")])]
+fn global_installs_globally_inside_a_project(
+    two_levels: TwoLevels,
+    #[case] flags: &[&str],
+    #[case] env: &[(&str, &str)],
+) {
+    let args: Vec<&str> = ["plugin", "install", "supergraph@=2.9.3"]
+        .iter()
+        .chain(flags)
+        .copied()
+        .collect();
+
+    let (code, json) = rover(&two_levels, &args, env);
+
+    assert_that!((code, &json["data"]["plugins"]))
+        .named(&json.to_string())
+        .is_equal_to((Some(0), &downloaded(&two_levels, Level::Global)));
+    assert_that!(lockfile(&two_levels.global.rover_dir()))
+        .is_equal_to(Some(format!("{HEADER}{LOCKED}")));
+    // Nothing in the project changes.
+    assert_that!(
+        fs::read_dir(two_levels.project.rover_dir())
+            .unwrap()
+            .count()
+    )
+    .is_equal_to(0);
+}
+
+#[rstest]
+fn a_variable_that_is_not_switched_on_leaves_the_project_default(two_levels: TwoLevels) {
+    let (code, json) = rover(
+        &two_levels,
+        &["plugin", "install", "supergraph@=2.9.3"],
+        &[("APOLLO_ROVER_GLOBAL", "false")],
+    );
+
+    assert_that!((code, &json["data"]["plugins"]))
+        .named(&json.to_string())
+        .is_equal_to((Some(0), &downloaded(&two_levels, Level::Project)));
 }

@@ -38,6 +38,14 @@ pub struct PluginInstall {
     #[arg(long = "no-download")]
     pub(crate) no_download: bool,
 
+    /// Install into the global install root, shared by every project, even
+    /// inside a project that has its own.
+    ///
+    /// Set the `APOLLO_ROVER_GLOBAL` environment variable (to `1` or `true`)
+    /// to do the same.
+    #[arg(long = "global", short = 'g')]
+    pub(crate) global: bool,
+
     #[clap(flatten)]
     pub(crate) elv2_license_accepter: LicenseAccepter,
 }
@@ -52,12 +60,14 @@ impl PluginInstall {
             self.elv2_license_accepter
                 .require_elv2_license(&client_config)?;
         }
-        let project = project_in_scope(ManifestDirs::for_this_process(
-            override_install_path.as_deref(),
-        ));
-        let mut rover_installer = installer(PKG_NAME, self.force, override_install_path)?;
-        // A project in scope gets the plugin; with none, it installs globally (FR23).
-        rover_installer.install_root = project;
+        let mut rover_installer = installer(PKG_NAME, self.force, override_install_path.clone())?;
+        // A project in scope gets the plugin, unless it was asked to install
+        // globally; with none, it installs globally (FR23, FR24).
+        if !self.global() {
+            rover_installer.install_root = project_in_scope(ManifestDirs::for_this_process(
+                override_install_path.as_deref(),
+            ));
+        }
         let level = recording_level(&rover_installer)?;
         // Read before installing, so that a lockfile this can't update
         // stops the install rather than leaving a plugin it doesn't record,
@@ -98,6 +108,12 @@ impl PluginInstall {
         Ok(RoverOutput::CliOutput(Box::new(PluginInstallOutput {
             plugins: vec![installed],
         })))
+    }
+
+    /// Whether this install goes to the global level whatever project is in
+    /// scope: by the flag, or its environment variable.
+    fn global(&self) -> bool {
+        self.global || crate::utils::global_install()
     }
 
     /// What forbids this install from downloading, if anything does: the

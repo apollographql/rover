@@ -118,6 +118,7 @@ impl Install {
             // The alias is deprecated, so it gains no new flags; the
             // environment variable still applies to it, through the verb.
             no_download: false,
+            global: false,
             elv2_license_accepter: self.elv2_license_accepter,
         })
     }

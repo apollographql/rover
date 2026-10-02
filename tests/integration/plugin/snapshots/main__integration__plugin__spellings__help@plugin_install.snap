@@ -15,5 +15,7 @@ Options:
           Overwrite any existing binary without prompting for confirmation
       --no-download
           Never download: use the plugin if it's already installed, and fail, naming it, if it isn't
+  -g, --global
+          Install into the global install root, shared by every project, even inside a project that has its own
       --elv2-license <ELV2_LICENSE_ACCEPTED>
           Accept the terms and conditions of the ELv2 License without prompting for confirmation. Expected value: `accept` [env: APOLLO_ELV2_LICENSE=]
