@@ -42,6 +42,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
+- **`APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` is a setting - @dotdat**
+
+  The opt-in that lets a plugin-using command download a plugin it needs and doesn't have can now be stored in a profile (`rover config set APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD true --profile ci`) or in the project's `rover.yaml` under `settings:`. It follows the usual order: environment variable, a profile named with `--profile`, the project file, the `default` profile, then off. The environment variable only opts in: `1` or `true` turns it on, and any other value leaves the decision to the stored settings, so opting out takes a stored `false`. It appears in `rover config show`. Nothing reads it yet; the plugin system's automatic-download gate starts consulting it in a later change.
+
 - **`rover auth grants revoke` revokes every grant a user holds in an organization - @dotdat**
 
   `rover auth grants revoke --org <ORGANIZATION_ID> --user <USER_ID> --all [--confirm]` revokes the user's grants under Rover's own OAuth client and under every client-credential pair in the organization. Before revoking anything, it lists every pair and asks for confirmation, naming each OAuth client. Pass `--confirm` to skip the prompt; without a terminal to ask on (or with `--format json`), it fails with a new error code (`E062`) instead of waiting. Every client is attempted even when one fails, and the outcome under each is reported individually; if any failed, the command exits non-zero with a new error code (`E063`) and names the clients to retry, which is safe to do because revoking where the user holds no grant succeeds. Access tokens the user already holds keep working until they expire, and the sweep doesn't stop them logging in again. `--format json` reports `organization_id`, `user_id`, `user_is_member`, `cancelled`, and a `clients` array of `client_id`, `name`, `kind`, `outcome`, and `error`.
