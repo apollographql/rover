@@ -81,6 +81,31 @@ APOLLO_CLIENT_SECRET=<CLIENT_SECRET>
 
 Rover exchanges them for an access token on each run. If `APOLLO_KEY` is also set, it takes precedence.
 
+#### Example: setting up CI with a pair
+
+1. As an organization admin, create a pair for the graph your pipeline publishes to, and capture its credentials from the JSON output:
+
+   ```bash
+   rover api-key create <ORGANIZATION_ID> client-credentials ci-deploy \
+     --graph-id <GRAPH_ID> --format json > pair.json
+   jq -r .data.client_id pair.json
+   jq -r .data.client_secret pair.json
+   ```
+
+2. Store the two values as secrets in your CI provider, for example as `APOLLO_CLIENT_ID` and `APOLLO_CLIENT_SECRET`, then delete `pair.json`.
+
+3. Expose them to Rover as environment variables in your pipeline. In GitHub Actions:
+
+   ```yaml
+   - name: Publish subgraph
+     env:
+       APOLLO_CLIENT_ID: ${{ secrets.APOLLO_CLIENT_ID }}
+       APOLLO_CLIENT_SECRET: ${{ secrets.APOLLO_CLIENT_SECRET }}
+     run: rover subgraph publish <GRAPH_REF> --name products --schema ./products.graphql
+   ```
+
+When it's time to replace the secret, [rotate the pair](#api-key-rotate) with a grace period, update the CI secret, and the previous secret keeps working until the grace period ends.
+
 ## Listing API keys and client-credential pairs
 
 ### `api-key list`
