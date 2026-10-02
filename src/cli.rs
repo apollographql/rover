@@ -662,10 +662,18 @@ impl Rover {
         if self.config_notices_suppressed() || self.telemetry_disabled {
             return Ok(None);
         }
-        let name = SettingName::TelemetryDisabled;
         if self.get_env_var(RoverEnvKey::TelemetryDisabled)?.is_none() {
             return Ok(None);
         }
+        self.switched_on_override_notice(SettingName::TelemetryDisabled)
+    }
+
+    /// The FR59(a) notice for a boolean setting whose environment variable
+    /// the caller has found switched on, and which can only switch it on:
+    /// `APOLLO_TELEMETRY_DISABLED` and `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`.
+    /// It names the explicit profile or project file whose stored value the
+    /// variable overrode, if any did and stored anything but `true`.
+    fn switched_on_override_notice(&self, name: SettingName) -> RoverResult<Option<String>> {
         if !self.mark_noticed(name) {
             return Ok(None);
         }
@@ -679,10 +687,9 @@ impl Rover {
         else {
             return Ok(None);
         };
-        // The env var disables telemetry on any value it's set to, so it
-        // only overrides anything when the stored value wasn't already
-        // disabling it - one that already stores `true` sees no change to
-        // notice about.
+        // The env var only ever switches the setting on, so it overrides
+        // anything only when the stored value wasn't already on - one that
+        // already stores `true` sees no change to notice about.
         Ok((!stored_raw.eq_ignore_ascii_case("true")).then(|| {
             format!(
                 "`{name}` from the environment overrides the value set in {source}.",
@@ -1266,8 +1273,26 @@ impl Rover {
         };
         // Like the download host, resolved for every command that builds a
         // client config, so an invalid stored value fails each of them, not
-        // only the ones that go on to need a plugin.
-        Ok(client_config.with_allow_automatic_download(self.resolve_allow_automatic_download()?))
+        // only the ones that go on to need a plugin. Its notice is decided
+        // here too, and printed only if the opt-in lets a download happen
+        // (FR60), by `StudioClientConfig::print_automatic_download_notice_once`.
+        let client_config =
+            client_config.with_allow_automatic_download(self.resolve_allow_automatic_download()?);
+        Ok(match self.automatic_download_override_notice()? {
+            Some(message) => client_config.with_automatic_download_notice(message),
+            None => client_config,
+        })
+    }
+
+    /// The FR59(a) notice for `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`, when
+    /// the environment variable opts in over a value an explicit profile or
+    /// the project file stored. It isn't a network destination, so FR59(b)
+    /// never applies (FR109).
+    fn automatic_download_override_notice(&self) -> RoverResult<Option<String>> {
+        if self.config_notices_suppressed() || self.allow_automatic_download_env()?.is_none() {
+            return Ok(None);
+        }
+        self.switched_on_override_notice(SettingName::AllowAutomaticDownload)
     }
 
     /// Exchanges `APOLLO_CLIENT_ID`/`APOLLO_CLIENT_SECRET` for an access token via the
@@ -4896,5 +4921,60 @@ mod tests {
         let client_config = scenario.rover.get_client_config().await.unwrap();
 
         assert_that!(client_config.allow_automatic_download()).is_equal_to(expected);
+    }
+
+    /// FR59(a): the environment variable opting in over a `false` that an
+    /// explicit profile or the project file stored is noticed, naming where
+    /// it was stored. The default profile isn't named, and a stored `true` was
+    /// already on, so neither has anything to notice.
+    #[rstest::rstest]
+    #[case::over_an_explicit_profile(
+        None,
+        &[("ci", "APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD", "false")],
+        &["--profile", "ci"],
+        Some("true"),
+        Some("`APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` from the environment overrides the value set in profile `ci`.")
+    )]
+    #[case::over_the_project_file(
+        Some(OPTED_OUT),
+        &[],
+        &[],
+        Some("1"),
+        Some("`APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` from the environment overrides the value set in `rover.yaml`.")
+    )]
+    #[case::over_the_default_profile(
+        None,
+        &[("default", "APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD", "false")],
+        &[],
+        Some("true"),
+        None
+    )]
+    #[case::over_a_project_file_that_already_opts_in(Some(OPTED_IN), &[], &[], Some("true"), None)]
+    #[case::a_variable_that_is_off(Some(OPTED_OUT), &[], &[], Some("false"), None)]
+    #[case::no_variable(Some(OPTED_OUT), &[], &[], None, None)]
+    #[tokio::test]
+    async fn the_variable_opting_in_over_a_stored_value_is_noticed(
+        #[case] project: Option<&str>,
+        #[case] stored: &[(&str, &str, &str)],
+        #[case] args: &[&str],
+        #[case] variable: Option<&str>,
+        #[case] expected: Option<&str>,
+    ) {
+        let mut scenario = scenario(project, stored, args, &[]);
+        if let Some(variable) = variable {
+            scenario
+                .rover
+                .insert_env_var(RoverEnvKey::RoverAllowAutomaticDownload, variable)
+                .unwrap();
+        }
+
+        let client_config = temp_env::async_with_vars(
+            [("APOLLO_ROVER_NO_CONFIG_NOTICES", None::<&str>)],
+            scenario.rover.get_client_config(),
+        )
+        .await
+        .unwrap();
+
+        assert_that!(client_config.automatic_download_notice_message()).is_equal_to(expected);
     }
 }

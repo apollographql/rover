@@ -555,6 +555,101 @@ mod tests {
 
     use super::*;
 
+    /// `rover dev`'s router and MCP server installs download only when the
+    /// client config says the run is opted in. The registry fails every request, so an install
+    /// that may download fails resolving (E048) after asking it, and one
+    /// that may not fails as a missing plugin (E058) without asking.
+    #[cfg(not(target_env = "musl"))]
+    #[tokio::test]
+    #[rstest]
+    #[case::the_router_not_opted_in(PluginName::Router, false)]
+    #[case::the_router_opted_in(PluginName::Router, true)]
+    #[case::the_mcp_server_not_opted_in(PluginName::ApolloMcpServer, false)]
+    #[case::the_mcp_server_opted_in(PluginName::ApolloMcpServer, true)]
+    async fn the_router_and_mcp_server_follow_the_runs_opt_in(
+        #[case] plugin: PluginName,
+        #[case] allow_automatic_download: bool,
+    ) {
+        use crate::{
+            RoverErrorCode,
+            command::{
+                dev::{mcp::run::RunMcpServer, router::run::RunRouter},
+                install::McpServerVersion,
+            },
+            options::LicenseAccepter,
+            utils::client::{ClientBuilder, ClientTimeout},
+        };
+
+        let server = httpmock::MockServer::start();
+        let registry = server.mock(|_, then| {
+            then.status(500);
+        });
+        let host = format!("http://{}", server.address());
+        let home = tempfile::tempdir().unwrap();
+        let install_path = Utf8PathBuf::try_from(home.path().to_path_buf()).unwrap();
+        let client_config = StudioClientConfig::new(
+            Some(host.clone()),
+            houston::Config {
+                home: install_path.join("config"),
+                override_api_key: Some("api-key".to_string()),
+                override_client_credentials_token: None,
+            },
+            false,
+            ClientBuilder::default(),
+            ClientTimeout::new(1),
+        )
+        .with_download_host(host)
+        .with_allow_automatic_download(allow_automatic_download);
+        let license = LicenseAccepter {
+            elv2_license_accepted: Some(true),
+        };
+
+        let code = temp_env::async_with_vars(
+            [
+                ("APOLLO_ROVER_SKIP_UPDATE", None::<&str>),
+                ("APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD", None),
+                ("APOLLO_NODE_MODULES_BIN_DIR", None),
+            ],
+            async {
+                let path = Some(install_path.clone());
+                match plugin {
+                    PluginName::Router => RunRouter::default()
+                        .install(
+                            apollo_federation_types::config::RouterVersion::LatestTwo,
+                            None,
+                            client_config,
+                            path,
+                            license,
+                            false,
+                        )
+                        .await
+                        .err()
+                        .map(|err| RoverError::new(err).code()),
+                    _ => RunMcpServer::default()
+                        .install(
+                            McpServerVersion::Latest,
+                            None,
+                            client_config,
+                            path,
+                            license,
+                            false,
+                        )
+                        .await
+                        .err()
+                        .map(|err| RoverError::new(err).code()),
+                }
+            },
+        )
+        .await;
+
+        let expected = if allow_automatic_download {
+            (Some(Some(RoverErrorCode::E048)), true)
+        } else {
+            (Some(Some(RoverErrorCode::E058)), false)
+        };
+        assert_that!((code, registry.calls() > 0)).is_equal_to(expected);
+    }
+
     const MANIFEST: &str = "plugins:\n  router: \"=2.1.0\"\n  apollo-mcp-server: latest\n";
     const LOCK: &str = "version = 1\n\n[[plugins]]\nname = \"router\"\nrequested = \"=2.1.0\"\nresolved = \"2.1.0\"\n\n[[plugins]]\nname = \"apollo-mcp-server\"\nrequested = \"latest\"\nresolved = \"1.0.3\"\n";
 
