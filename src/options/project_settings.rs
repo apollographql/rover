@@ -32,7 +32,7 @@ const USER_LEVEL_SETTINGS_WARNING: &str = "Warning: the user-level `rover.yaml` 
 /// The warning for a top-level YAML merge key, which serde_yaml doesn't
 /// expand - any `settings:` merged in through it would otherwise vanish
 /// without a word.
-const MERGE_KEY_WARNING: &str = "Warning: `.rover/rover.yaml` uses a YAML merge key (`<<`) at its \
+const MERGE_KEY_WARNING: &str = "Warning: `rover.yaml` uses a YAML merge key (`<<`) at its \
     top level, which Rover doesn't expand. Any settings merged in through it are ignored.";
 
 /// The credential names a project file must never carry (FR73/FR85). A
@@ -688,7 +688,7 @@ mod tests {
         assert_that!(ProjectSettings::load(&levels.dirs).unwrap()).is_equal_to(ProjectSettings {
             settings: BTreeMap::new(),
             warnings: vec![
-                "Warning: Rover can't read `.rover/rover.yaml`, so none of its settings apply: \
+                "Warning: Rover can't read `rover.yaml`, so none of its settings apply: \
                 found unexpected end of stream at line 2 column 1, while scanning a quoted scalar at line 1 column 11"
                     .to_string(),
             ],
@@ -705,7 +705,7 @@ mod tests {
         assert_that!(ProjectSettings::load(&levels.dirs).unwrap()).is_equal_to(ProjectSettings {
             settings: BTreeMap::new(),
             warnings: vec![
-                "Warning: `.rover/rover.yaml` uses a YAML merge key (`<<`) at its top level, \
+                "Warning: `rover.yaml` uses a YAML merge key (`<<`) at its top level, \
                 which Rover doesn't expand. Any settings merged in through it are ignored."
                     .to_string(),
             ],
