@@ -363,6 +363,10 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 RoverClientError::PairPermissionDenied { .. } => {
                     (None, Some(RoverErrorCode::E053))
                 }
+                // FR73: one permission-denied code across the spec, whichever action was refused.
+                RoverClientError::GrantPermissionDenied { .. } => {
+                    (None, Some(RoverErrorCode::E053))
+                }
                 // The message already names the organization; `data.keys` (rendered by
                 // `RoverError::print()`/`get_internal_data_json()`, not this metadata) carries
                 // the best-effort recovery.

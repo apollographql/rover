@@ -30,3 +30,6 @@ pub mod init;
 
 /// all rover-client functionality for the "graph-artifact" commands in rover
 pub mod graph_artifact;
+
+/// all rover-client functionality for the "auth" commands in rover
+pub mod auth;

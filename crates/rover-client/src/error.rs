@@ -94,6 +94,17 @@ pub enum RoverClientError {
     )]
     PairPermissionDenied { organization_id: String },
 
+    /// The Platform API refused an organization-scoped grant operation (revoking a user's
+    /// grants) for lack of permission (spec FR73, `specs/rover-431-identity-grant-management`).
+    /// FR73 requires one stable permission-denied code across the spec, so this shares
+    /// [`RoverClientError::PairPermissionDenied`]'s code - it differs only in naming the action
+    /// and the permission it needs.
+    #[error(
+        "You don't have permission to manage grants across organization `{organization_id}`. \
+        This requires the organization's grant-management permission."
+    )]
+    GrantPermissionDenied { organization_id: String },
+
     /// `rover api-key rotate <ORGANIZATION_ID> <CLIENT_ID>` was given an ID that doesn't resolve
     /// to a client-credentials pair owned by that organization - genuinely nonexistent, belongs
     /// to a different organization, or isn't a `client_credentials` client at all (spec FR27,
@@ -645,14 +656,35 @@ pub(crate) fn permission_denied_in<T>(
 where
     T: Debug + Send + Sync,
 {
+    is_permission_denied(err).then(|| RoverClientError::PairPermissionDenied {
+        organization_id: organization_id.into(),
+    })
+}
+
+/// [`permission_denied_in`]'s counterpart for organization-scoped grant operations: the same
+/// raw-403 recovery, reported with FR73's grants wording instead of the pairs one.
+pub(crate) fn grant_permission_denied_in<T>(
+    err: &GraphQLServiceError<T>,
+    organization_id: impl Into<String>,
+) -> Option<RoverClientError>
+where
+    T: Debug + Send + Sync,
+{
+    is_permission_denied(err).then(|| RoverClientError::GrantPermissionDenied {
+        organization_id: organization_id.into(),
+    })
+}
+
+fn is_permission_denied<T>(err: &GraphQLServiceError<T>) -> bool
+where
+    T: Debug + Send + Sync,
+{
     match err {
         GraphQLServiceError::UpstreamService(source) => source
             .downcast_ref::<HttpServiceError>()
             .and_then(permission_denied)
-            .map(|_| RoverClientError::PairPermissionDenied {
-                organization_id: organization_id.into(),
-            }),
-        _ => None,
+            .is_some(),
+        _ => false,
     }
 }
 
