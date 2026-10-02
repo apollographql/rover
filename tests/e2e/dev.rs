@@ -116,6 +116,8 @@ fn run_rover_dev(run_subgraphs_retail_supergraph: &RunningRetailSupergraph) -> S
         "accept",
     ]);
     cmd.current_dir(working_dir);
+    // The router and composition plugins are downloaded as the session starts.
+    cmd.env("APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD", "true");
     if let Ok(version) = env::var("APOLLO_ROVER_DEV_COMPOSITION_VERSION") {
         cmd.env("APOLLO_ROVER_DEV_COMPOSITION_VERSION", version);
     };
@@ -396,6 +398,8 @@ telemetry:
         "accept",
     ]);
     cmd.current_dir(temp_path);
+    // The router and composition plugins are downloaded as the session starts.
+    cmd.env("APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD", "true");
     cmd.stdin(Stdio::null());
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
@@ -510,6 +514,8 @@ subgraphs:
         "accept",
     ]);
     cmd.current_dir(temp_path);
+    // The router and composition plugins are downloaded as the session starts.
+    cmd.env("APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD", "true");
     cmd.stdin(Stdio::null());
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
@@ -625,6 +631,8 @@ subgraphs:
         bogus_license_path.to_str().expect("valid utf8 path"),
     ]);
     cmd.current_dir(temp_path);
+    // The router and composition plugins are downloaded as the session starts.
+    cmd.env("APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD", "true");
     cmd.stdin(Stdio::null());
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
@@ -737,6 +745,8 @@ subgraphs:
         "e2e-test-nonexistent-profile",
     ]);
     cmd.current_dir(temp_path);
+    // The router and composition plugins are downloaded as the session starts.
+    cmd.env("APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD", "true");
     cmd.stdin(Stdio::null());
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());

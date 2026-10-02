@@ -40,6 +40,8 @@ async fn e2e_test_run_rover_supergraph_compose(retail_supergraph: &RetailSupergr
     };
     cmd.args(args);
     cmd.current_dir(&retail_supergraph.working_dir);
+    // The composition plugin is downloaded as the command runs.
+    cmd.env("APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD", "true");
     let match_set: Vec<String> = retail_supergraph
         .get_subgraph_names()
         .into_iter()
