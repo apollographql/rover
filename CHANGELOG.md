@@ -194,6 +194,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   - a project manifest Rover can't read or parse at all
   - a top-level YAML merge key (`<<`)
 
+- **Every command checks the project's `rover.yaml` `settings:` section before it runs - @dotdat**
+
+  Run inside a project, every command first reads the `settings:` section of the `rover.yaml` that plugin discovery finds. A credential in that section fails the command before it sends any request, including the update check (`E060`), as does one setting spelled both ways (`E061`). In these cases Rover prints one warning and the command carries on:
+
+  - an unrecognized key
+  - a `settings:` section in the user-level `rover.yaml`
+  - a project manifest Rover can't read or parse No setting's value is applied from the file yet. Outside a project, nothing changes.
+
 - **Profiles can now store `APOLLO_CLIENT_TIMEOUT` - @dotdat**
 
   The same profile tier, `rover config show`/`set`/`unset` support, and override notice that `APOLLO_CHECKS_TIMEOUT_SECONDS` already has now also cover `APOLLO_CLIENT_TIMEOUT`, which bounds how long Rover waits on an individual HTTP request before giving up - distinct from `--checks-timeout`'s polling budget. A profile-resolved value also extends to plugin downloads' longer timeout, the same way an explicit `--client-timeout` already did. A stored value that isn't a whole number of seconds fails the command at write time (`rover config set`) or read time, carrying the same stable `error.code` (`E054`) the other settings' invalid values do.
