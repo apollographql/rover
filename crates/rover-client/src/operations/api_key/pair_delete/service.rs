@@ -204,4 +204,33 @@ mod tests {
                 .to_string(),
         );
     }
+
+    // The schema says `deleteOAuthClient` is always null, but production has returned a non-null value
+    // for a call that succeeded. Whatever comes back, a successful call is a success.
+    #[rstest]
+    #[case::null(json!(null))]
+    #[case::a_boolean(json!(true))]
+    #[case::a_string(json!("c_8f2a"))]
+    #[case::an_object(json!({}))]
+    #[tokio::test]
+    async fn call_succeeds_whatever_value_a_successful_call_returns(
+        input: DeletePairInput,
+        #[case] value: serde_json::Value,
+    ) {
+        let data: delete_pair_mutation::ResponseData = serde_json::from_value(json!({
+            "organization": { "deleteOAuthClient": value }
+        }))
+        .unwrap();
+        let mut mock = MockDeletePairInnerService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call()
+            .times(1)
+            .return_once(move |_| future::ready(Ok(data)));
+
+        let response = DeletePair::new(MockCloneService::new(mock))
+            .oneshot(input)
+            .await;
+
+        assert_that!(response).is_ok().is_equal_to(());
+    }
 }
