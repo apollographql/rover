@@ -1,4 +1,5 @@
 mod output;
+mod project_root;
 
 use anyhow::anyhow;
 use binstall::Installer;
@@ -6,7 +7,7 @@ use camino::{Utf8Path, Utf8PathBuf};
 use clap::Parser;
 use serde::Serialize;
 
-use self::output::PluginInstallOutput;
+use self::{output::PluginInstallOutput, project_root::NewProjectRoot};
 use super::LockfileWrite;
 use crate::{
     PKG_NAME, RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
@@ -51,7 +52,9 @@ pub struct PluginInstall {
     /// found by searching up from the working directory.
     ///
     /// The project's plugins go in a `bin/` directory beside the manifest, and
-    /// its lockfile is `plugin-versions.lock` there too.
+    /// its lockfile is `plugin-versions.lock` there too. A manifest that doesn't
+    /// exist yet is created, along with the rest of the project and a
+    /// `.gitignore` that keeps `bin/` out of version control.
     #[arg(
         long = "manifest-path",
         short = 'm',
@@ -80,6 +83,11 @@ impl PluginInstall {
             .as_deref()
             .and_then(Utf8Path::parent)
             .map(Utf8Path::to_path_buf);
+        // Only a named manifest makes a project root where there was none.
+        let new_root = project_manifest
+            .as_deref()
+            .filter(|_| self.manifest_path.is_some())
+            .and_then(NewProjectRoot::for_manifest);
         let level = recording_level(&rover_installer)?;
         // Read before installing, so that a lockfile this can't update
         // stops the install rather than leaving a plugin it doesn't record,
@@ -87,7 +95,9 @@ impl PluginInstall {
         // rather than see the plugin put somewhere it didn't ask for.
         if let Some(level) = &level {
             PluginLockfile::load(&level.join(LOCKFILE))?;
-            let manifest = project_manifest.unwrap_or_else(|| level.join(MANIFEST_FILE));
+            let manifest = project_manifest
+                .clone()
+                .unwrap_or_else(|| level.join(MANIFEST_FILE));
             RoverManifest::load(&manifest)?;
         }
 
@@ -95,7 +105,21 @@ impl PluginInstall {
             .requested_by(Some(RequestOrigin::PluginArgument))
             .without_downloads(self.download_control())
             .install(&self.plugin)
-            .await?;
+            .await;
+        // A failed install leaves no half-made project root behind.
+        let installed = match (installed, new_root) {
+            (Ok(installed), Some(new_root)) => {
+                new_root.create()?;
+                installed
+            }
+            (Ok(installed), None) => installed,
+            (Err(err), new_root) => {
+                if let Some(new_root) = new_root {
+                    new_root.abandon();
+                }
+                return Err(err);
+            }
+        };
 
         // With downloads disabled, a floating request was resolved against
         // nothing: the newest release on disk is not what it resolves to, and
