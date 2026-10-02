@@ -193,7 +193,7 @@ The command composes with Federation 2, implemented by the [`@apollo/composition
 
 #### Automatic updates
 
-If you don't specify an exact `federation_version` in `supergraph.yaml`, Rover asks the Apollo plugin registry at `https://rover.apollo.dev` for the latest Federation 2 composition version each time it runs, so a new release is picked up as soon as it ships.
+If you don't specify an exact `federation_version` in `supergraph.yaml`, Rover asks the Apollo plugin registry at `https://rover.apollo.dev` (or the host set by [`APOLLO_ROVER_DOWNLOAD_HOST`](/rover/configuring#supported-environment-variables)) for the latest Federation 2 composition version each time it runs, so a new release is picked up as soon as it ships.
 
 This auto-update flow will cause issues if you don't update your router version prior to updating your composition pipeline.
 Apollo strongly recommends always specifying an exact `federation_version`.

@@ -1,0 +1,137 @@
+---
+title: Rover Auth Commands
+subtitle: Log in to GraphOS and manage OAuth grants
+description: Log in to GraphOS with your browser or a device code, check which identity Rover is using, log out, and revoke a user's grants across an organization with the rover auth commands.
+---
+
+The `rover auth` commands authenticate Rover as you, using OAuth, instead of with an API key. Each successful login creates a _grant_: a credential that lets Rover act on your behalf until it's revoked.
+
+## Logging in
+
+### `auth login`
+
+The `auth login` command opens your default browser so you can authorize Rover with GraphOS:
+
+```
+rover auth login
+```
+
+Once you authorize the request, Rover saves the resulting credential to your `default` profile, or to the profile you name with `--profile`.
+
+Rover always prints the authorization URL. Pass `--no-open` if you'd rather open it yourself.
+
+#### Logging in without a browser
+
+On a machine with no browser, such as a remote server, pass `--no-browser`:
+
+```
+rover auth login --no-browser
+```
+
+Rover prints a verification URL and a code. Open the URL on any device, enter the code, and approve the request. Rover waits until you do.
+
+## Checking who you're logged in as
+
+### `auth whoami`
+
+The `auth whoami` command shows which identity the current profile authenticates as:
+
+```
+rover auth whoami
+```
+
+For an OAuth login, the output includes a `Grant Type` row:
+
+- `Browser login`: you logged in with `rover auth login`.
+- `Device code (--no-browser)`: you logged in with `rover auth login --no-browser`.
+- `Client credentials`: Rover authenticated with `APOLLO_CLIENT_ID` and `APOLLO_CLIENT_SECRET`.
+- `Unknown — log in again to record it`: you logged in with a version of Rover that didn't record how. Run `rover auth login` again to fix it.
+
+When you authenticate with an API key, there's no grant, so the row is omitted. With `--format json`, the same value is reported as `grant_type`: one of `"authorization_code"`, `"device_code"`, `"client_credentials"`, or `"unknown"`, or `null` for an API key.
+
+The credential itself is masked. `--insecure-unmask-key` shows it in full, so use it with care, especially when sharing your screen.
+
+## Logging out
+
+### `auth logout`
+
+The `auth logout` command revokes the current profile's OAuth tokens with GraphOS, then removes them from your machine:
+
+```
+rover auth logout
+```
+
+## Revoking a user's grants
+
+### `auth grants revoke`
+
+When someone leaves your organization, or a credential may be compromised, an organization admin can revoke every grant a user holds with one command:
+
+```
+rover auth grants revoke --org <ORGANIZATION_ID> --user <USER_ID> --all
+```
+
+This revokes the user's grants under:
+
+- Rover's own OAuth client. That covers every `rover auth login` the user has done, with or without `--no-browser`, **in every organization**, not just this one.
+- Every [client-credential pair](/rover/commands/api-key#client-credential-pairs) registered in the organization.
+
+`--org`, `--user`, and `--all` are all required. There's no way to revoke every grant in an organization at once.
+
+<Caution>
+
+Revoking doesn't end everything:
+
+- Access tokens the user already holds keep working until they expire.
+- The user can log in again. To stop that, remove them from the organization.
+- Studio web sessions aren't affected.
+- Pairs registered in other organizations aren't affected.
+
+</Caution>
+
+Before revoking anything, Rover lists every pair in the organization. If it can't list them all, it revokes nothing and fails. It then shows each OAuth client it will revoke under and asks you to confirm. Pass `--confirm` to skip the prompt.
+
+<Note>
+
+If Rover has no terminal to ask on, for example in CI or with `--format json`, it won't wait for an answer. Without `--confirm`, it revokes nothing and fails with error `E062`.
+
+</Note>
+
+If the user isn't a current member of the organization, Rover warns you and revokes their grants anyway. A departing user is often removed from the organization before their grants are revoked.
+
+#### When revocation fails under some clients
+
+Rover tries every client, even after one fails, and reports the outcome under each. If any failed, the command exits with error `E063` and names each client to retry, with the error GraphOS returned. Run the same command again to retry. Revoking under a client where the user no longer holds a grant succeeds, so a retry only changes the clients that failed.
+
+With `--format json`, every client is reported in `data.clients`, so a script can see which ones failed without parsing the error message:
+
+```json
+{
+  "json_version": "1",
+  "data": {
+    "organization_id": "acme",
+    "user_id": "user-123",
+    "user_is_member": true,
+    "clients": [
+      { "client_id": "rover", "name": "Rover", "kind": "rover", "outcome": "revoked", "error": null },
+      { "client_id": "c_8f2a", "name": "ci-deploy", "kind": "client_credentials", "outcome": "failed", "error": "<the error GraphOS returned>" }
+    ],
+    "cancelled": false,
+    "success": false
+  },
+  "error": {
+    "message": "Revocation failed under 1 of 2 OAuth clients.",
+    "code": "E063"
+  }
+}
+```
+
+`user_is_member` is `null` when Rover couldn't determine whether the user is a member.
+
+<Note>
+
+Revoking grants across an organization requires the organization's grant-management permission. Without it, Rover fails with error `E053`. Run `rover explain <CODE>` for details on any error code.
+
+</Note>
+
+`rover auth grants revoke` acts on an organization's grants. Listing grants, and revoking a single grant, aren't supported yet.

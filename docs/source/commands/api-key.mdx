@@ -1,25 +1,37 @@
 ---
 title: Rover API Key Commands
-subtitle: Create and manage API keys for your organization
-description: Create, list, delete, and rename API keys for your GraphOS organization with the rover api-key commands.
+subtitle: Create and manage API keys and client-credential pairs for your organization
+description: Create, list, rotate, delete, and rename API keys and client-credential pairs for your GraphOS organization with the rover api-key commands.
 redirectFrom: /rover/commands/api-keys
 ---
 
-Rover enables you to manage `operator` and `subgraph` API keys for your GraphOS organization. These API key types are used to authenticate with GraphOS and determine permissions for accessing graphs, subgraphs, and other resources for your organization. You can manage your organization's API keys with the `rover api-key` set of commands.
+Rover enables you to manage credentials for your GraphOS organization with the `rover api-key` set of commands. It supports three types:
 
-## Creating API keys
+- `operator` and `subgraph` API keys, which authenticate with GraphOS and determine permissions for accessing graphs, subgraphs, and other resources for your organization.
+- `client-credentials` pairs: an OAuth 2.0 client ID and secret, scoped to specific graphs. A pair is meant for CI and other automation, where Rover exchanges it for a short-lived access token instead of using a long-lived API key.
+
+<Note>
+
+Managing client-credential pairs requires the organization admin role. During the initial rollout, your organization must also be enrolled in client-credential support. If you aren't permitted, Rover fails with error `E053`. Run `rover explain E053` for details.
+
+</Note>
+
+## Creating API keys and client-credential pairs
 
 ### `api-key create`
 
-The `api-key create` command creates a new API key for your organization:
+The `api-key create` command creates a new API key or client-credential pair for your organization:
 
 ```
-rover api-key create <ORGANIZATION_ID> <TYPE> <KEY_NAME>
+rover api-key create <ORGANIZATION_ID> <TYPE> <NAME>
 ```
 
-The available key types are:
+The available types are:
 - `operator`: Full access to the organization
 - `subgraph`: Limited access to specific subgraphs
+- `client-credentials`: An OAuth 2.0 client-credential pair, limited to specific graphs
+
+#### Subgraph keys
 
 For subgraph keys, you can specify which subgraphs the key should have access to using a configuration file:
 
@@ -42,30 +54,128 @@ You can also pipe the subgraph configuration from stdin:
 cat subgraph-config.yaml | rover api-key create <ORGANIZATION_ID> subgraph <KEY_NAME>
 ```
 
-## Listing API keys
+#### Client-credential pairs
+
+A client-credential pair needs at least one `--graph-id`, naming a graph it may act on. Repeat the flag to give it access to more than one graph:
+
+```
+rover api-key create <ORGANIZATION_ID> client-credentials <NAME> --graph-id <GRAPH_ID> [--graph-id <GRAPH_ID>...] [--secret-lifetime-days <DAYS>]
+```
+
+`--secret-lifetime-days` sets how long the secret stays valid. If you omit it, GraphOS uses its own default.
+
+Rover prints the new pair's client ID and secret to stdout, so CI setup can capture them, along with its name, graphs, and when the secret expires. With `--format json`, the same values are reported as `client_id`, `client_secret`, `secret_expires_at`, `name`, `graphs`, and `scopes`.
+
+<Caution>
+
+Rover shows the secret only once, when it's created. Save it somewhere secure right away. If you lose it, [rotate the pair](#api-key-rotate) to get a new one.
+
+</Caution>
+
+To authenticate Rover with a pair, set these two environment variables instead of `APOLLO_KEY`:
+
+```
+APOLLO_CLIENT_ID=<CLIENT_ID>
+APOLLO_CLIENT_SECRET=<CLIENT_SECRET>
+```
+
+Rover exchanges them for an access token on each run. If `APOLLO_KEY` is also set, it takes precedence.
+
+#### Example: setting up CI with a pair
+
+1. As an organization admin, create a pair for the graph your pipeline publishes to, and capture its credentials from the JSON output:
+
+   ```bash
+   rover api-key create <ORGANIZATION_ID> client-credentials ci-deploy \
+     --graph-id <GRAPH_ID> --format json > pair.json
+   jq -r .data.client_id pair.json
+   jq -r .data.client_secret pair.json
+   ```
+
+2. Store the two values as secrets in your CI provider, for example as `APOLLO_CLIENT_ID` and `APOLLO_CLIENT_SECRET`, then delete `pair.json`.
+
+3. Expose them to Rover as environment variables in your pipeline. In GitHub Actions:
+
+   ```yaml
+   - name: Publish subgraph
+     env:
+       APOLLO_CLIENT_ID: ${{ secrets.APOLLO_CLIENT_ID }}
+       APOLLO_CLIENT_SECRET: ${{ secrets.APOLLO_CLIENT_SECRET }}
+     run: rover subgraph publish <GRAPH_REF> --name products --schema ./products.graphql
+   ```
+
+When it's time to replace the secret, [rotate the pair](#api-key-rotate) with a grace period, update the CI secret, and the previous secret keeps working until the grace period ends.
+
+## Listing API keys and client-credential pairs
 
 ### `api-key list`
 
-The `api-key list` command lists all API keys for your organization:
+The `api-key list` command lists your organization's API keys and client-credential pairs:
 
 ```
-rover api-key list <ORGANIZATION_ID>
+rover api-key list <ORGANIZATION_ID> [--type <TYPE>...] [--limit <N>] [--after <CURSOR>]
 ```
 
-This command displays all API keys with their details, including creation date, expiration date (if any), ID, and name.
+API keys are shown with their ID, name, creation date, and expiration date (if any). Client-credential pairs follow, in a separate `Client-credential pairs` table, with their name, client ID, graphs, creation date, and who created them. Secrets are never shown.
 
-## Deleting API keys
+Use `--type` to list only certain types. It accepts `operator`, `subgraph`, or `client-credentials`, and can be repeated:
+
+```
+rover api-key list <ORGANIZATION_ID> --type client-credentials
+```
+
+With `--format json`, API keys are reported in a `keys` array and pairs in a `client_credentials` array. A type that `--type` excludes is omitted from the output entirely, rather than reported as an empty array.
+
+<Note>
+
+If you don't have permission to see your organization's client-credential pairs, or it isn't enrolled in client-credential support, `api-key list` shows its API keys and no pairs, the same as for an organization with no pairs at all.
+
+</Note>
+
+#### Paging through client-credential pairs
+
+`api-key list` collects at most 100 pairs per run by default. Use `--limit` to change that. If the organization has more pairs than the limit, the command still succeeds and prints a note naming a cursor. Pass that cursor to `--after` to continue where the last run stopped:
+
+```
+rover api-key list <ORGANIZATION_ID> --type client-credentials --limit 50 --after <CURSOR>
+```
+
+With `--format json`, the cursor is reported as `client_credentials_next_after`. It's `null` once every pair has been listed. `--limit` and `--after` apply only to client-credential pairs; API keys are always listed in full.
+
+## Rotating client-credential pairs
+
+### `api-key rotate`
+
+The `api-key rotate` command creates a new secret for a client-credential pair:
+
+```
+rover api-key rotate <ORGANIZATION_ID> <CLIENT_ID> [--grace-period-days <DAYS>]
+```
+
+By default, every previous secret for the pair stops working immediately. To roll out the new secret without downtime, pass `--grace-period-days` to keep the previous secrets working for that many days.
+
+Rover prints the new secret to stdout, along with its expiry, and says on stderr when the previous secrets stop working. As with creating a pair, Rover shows the new secret only once. With `--format json`, the output includes `client_secret`, `secret_expires_at`, `grace_period_days`, and `previous_secrets_expire_at`.
+
+`api-key rotate` works on client-credential pairs only. If the ID isn't a pair in the organization, the command fails with error `E057` and changes nothing.
+
+## Deleting API keys and client-credential pairs
 
 ### `api-key delete`
 
-The `api-key delete` command deletes an existing API key:
+The `api-key delete` command deletes an API key or a client-credential pair:
 
 ```
-rover api-key delete <ORGANIZATION_ID> <KEY_ID>
+rover api-key delete <ORGANIZATION_ID> <ID>
 ```
+
+`<ID>` can be an API key's ID or a pair's client ID. Rover works out which it is.
+
+When you delete a pair, it can no longer obtain new access tokens. Access tokens it already holds keep working until they expire, for up to 15 minutes.
 
 <Caution>
-This action can't be undone. Make sure you have the correct key ID before deleting.
+
+This action can't be undone. Make sure you have the correct ID before deleting.
+
 </Caution>
 
 ## Renaming API keys
@@ -79,3 +189,5 @@ rover api-key rename <ORGANIZATION_ID> <KEY_ID> <NEW_KEY_NAME>
 ```
 
 Use this command to organize and identify your API keys more easily.
+
+Client-credential pairs can't be renamed. Given a pair's client ID, the command fails with error `E059` and changes nothing. To give a pair a different name, create a new pair and delete the old one.
