@@ -17,5 +17,7 @@ Options:
           Never download: use the plugin if it's already installed, and fail, naming it, if it isn't
   -g, --global
           Install into the global install root, shared by every project, even inside a project that has its own
+  -m, --manifest-path <FILE>
+          Install into the project whose manifest this is, rather than the one found by searching up from the working directory
       --elv2-license <ELV2_LICENSE_ACCEPTED>
           Accept the terms and conditions of the ELv2 License without prompting for confirmation. Expected value: `accept` [env: APOLLO_ELV2_LICENSE=]

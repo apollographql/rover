@@ -122,6 +122,7 @@ impl Install {
             // environment variable still applies to it, through the verb.
             no_download: false,
             global: false,
+            manifest_path: None,
             elv2_license_accepter: self.elv2_license_accepter,
         })
     }

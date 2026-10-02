@@ -178,3 +178,87 @@ fn a_variable_that_is_not_switched_on_leaves_the_project_default(two_levels: Two
         .named(&json.to_string())
         .is_equal_to((Some(0), &downloaded(&two_levels, Level::Project)));
 }
+
+#[rstest]
+fn manifest_path_overrides_discovery(mut two_levels: TwoLevels) {
+    let nested = two_levels.project.subdirectory("packages/b/.rover");
+    two_levels.run_from("packages/b");
+    let manifest = two_levels.project.rover_dir().join("rover.yaml");
+    fs::write(&manifest, "plugins: {}\n").unwrap();
+
+    let (code, json) = rover(
+        &two_levels,
+        &[
+            "plugin",
+            "install",
+            "supergraph@=2.9.3",
+            "-m",
+            manifest.as_str(),
+        ],
+        &[],
+    );
+
+    assert_that!((code, &json["data"]["plugins"]))
+        .named(&json.to_string())
+        .is_equal_to((Some(0), &downloaded(&two_levels, Level::Project)));
+    assert_that!(lockfile(&two_levels.project.rover_dir()))
+        .is_equal_to(Some(format!("{HEADER}{LOCKED}")));
+    // The project the working directory is in is ignored entirely.
+    assert_that!(fs::read_dir(&nested).unwrap().count()).is_equal_to(0);
+}
+
+#[rstest]
+fn manifest_path_with_global_is_refused_before_anything_happens(two_levels: TwoLevels) {
+    let mut command = Command::new(cargo_bin("rover"));
+    two_levels.apply(&mut command);
+    let output = command
+        .args(["plugin", "install", "supergraph@=2.9.3"])
+        .args(["--manifest-path", ".rover/rover.yaml", "--global"])
+        .env("NO_COLOR", "1")
+        .output()
+        .unwrap();
+
+    // The usage line that follows lists whichever environment variables the
+    // fixture set, so only the error itself is pinned.
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    assert_that!((output.status.code(), stderr.lines().next())).is_equal_to((
+        Some(2),
+        Some("error: the argument '--manifest-path <FILE>' cannot be used with '--global'"),
+    ));
+    assert_that!(
+        fs::read_dir(two_levels.project.rover_dir())
+            .unwrap()
+            .count()
+    )
+    .is_equal_to(0);
+}
+
+#[rstest]
+fn manifest_path_with_the_global_variable_is_refused(two_levels: TwoLevels) {
+    let (code, json) = rover(
+        &two_levels,
+        &[
+            "plugin",
+            "install",
+            "supergraph@=2.9.3",
+            "-m",
+            ".rover/rover.yaml",
+        ],
+        &[("APOLLO_ROVER_GLOBAL", "true")],
+    );
+
+    assert_that!((code, &json["error"]["message"])).is_equal_to((
+        Some(1),
+        &Value::from(
+            "`--manifest-path` names a project to install into, but `APOLLO_ROVER_GLOBAL` asks \
+             for a global install.",
+        ),
+    ));
+    assert_that!(
+        fs::read_dir(two_levels.project.rover_dir())
+            .unwrap()
+            .count()
+    )
+    .is_equal_to(0);
+    assert_that!(two_levels.global.bin_dir().exists()).is_false();
+}
