@@ -390,9 +390,20 @@ rover subgraph check my-graph --validation-period 1m --client-timeout=60
 
 ## Supported environment variables
 
-You can configure Rover's behavior by setting the environment variables listed below. Most have a corresponding flag, shown in the table; a flag's `--help` text also names its environment variable.
+Most of Rover's behavior can be configured with an environment variable, and most environment variables have a matching flag, shown in the table below. A flag's `--help` text also names its environment variable.
 
-For a setting that has both a flag and an environment variable, the flag takes precedence when both are supplied. For a setting that's environment-variable-only, its value is used whenever it's set, overriding Rover's built-in default.
+### How Rover chooses a setting's value
+
+For each setting, Rover uses the first of these sources that supplies a value:
+
+1. A flag passed on the command line.
+2. The setting's environment variable. A variable that's set to an empty value still counts as set.
+3. A profile named with `--profile`, including `--profile default` typed out.
+4. The project file: the `settings:` section of the `rover.yaml` in your project's `.rover/` directory.
+5. The `default` profile, when `--profile` isn't passed.
+6. Rover's built-in default.
+
+Only the settings marked in the **Profile** and **Project** columns below can come from a profile or the project file. For every other setting, the chain is just the flag, then the environment variable, then the built-in default. To see each setting's effective value and the source that supplied it, run `rover config show`.
 
 <Note>
 
@@ -400,32 +411,38 @@ This is separate from [API key resolution](#2-provide-the-api-key-to-rover), whi
 
 </Note>
 
-| Name                        | Flag | Value          |
-|-----------------------------|------|----------------|
-| `APOLLO_HOME` | `--rover-home` | The path to the parent directory of Rover's binary. The default value is your operating system's default home directory. Rover will install itself in a folder called `.rover` inside the directory specified. |
-| `APOLLO_CONFIG_HOME` | `--config-home` | The path where Rover's configuration is stored. The default value is your operating system's default configuration directory. |
-| `APOLLO_GRAPH_REF` | | A graph ref passed to `rover dev` command. [Learn more](./commands/dev#understanding---graph-ref-vs-apollo_graph_ref) |
-| `APOLLO_KEY` | | The API key that Rover should use to authenticate with GraphOS Studio. |
-| `APOLLO_TELEMETRY_DISABLED` | `--telemetry-disabled` | Set to `true` if you don't want Rover to collect anonymous usage data. Unlike most boolean settings, any value (including `false`) disables telemetry — only its absence leaves it enabled. |
-| `APOLLO_TELEMETRY_URL` | `--telemetry-url` | Overrides the endpoint anonymous usage telemetry is reported to. |
-| `APOLLO_REGISTRY_URL` | `--registry-url` | Overrides the GraphOS registry endpoint Rover sends requests to. |
-| `APOLLO_CHECKS_TIMEOUT_SECONDS` | `--checks-timeout` | Overrides how long, in whole seconds, `check`/`publish` polling waits before giving up. Defaults to `300`. |
-| `APOLLO_CLIENT_TIMEOUT` | `--client-timeout` | Overrides the timeout (in seconds) for HTTP(S) requests. See [Increasing request timeouts](#increasing-request-timeouts). |
-| `APOLLO_ROVER_DOWNLOAD_HOST` | `--download-host` | Overrides the host plugin binaries (the `router` and `supergraph` composition plugins) are downloaded from. |
-| `APOLLO_TEMPLATES_API` | `--templates-api` (`rover template` only) | Overrides where `rover template` fetches project templates from. `rover init` fetches templates from GitHub and doesn't use this. |
-| `APOLLO_ROVER_DEV_ROUTER_VERSION` | `--router-version` (`rover dev` only) | Overrides the version of the GraphOS Router `rover dev` runs. |
-| `APOLLO_ROVER_DEV_COMPOSITION_VERSION` | `--composition-version` (`rover dev` only) | Overrides the version of Apollo Federation `rover dev` uses for composition. `--federation-version` takes precedence over both. |
-| `APOLLO_VCS_REMOTE_URL` | `--vcs-remote-url` | The URL of your project's remote repository. See [Git context](#git-context). |
-| `APOLLO_VCS_BRANCH` | `--vcs-branch` | The name of the version-controlled branch. See [Git context](#git-context). |
-| `APOLLO_VCS_COMMIT` | `--vcs-commit` | The long identifier (SHA in Git) of the commit. See [Git context](#git-context). |
-| `APOLLO_VCS_AUTHOR` | `--vcs-author` | The name and email of a commit's author (e.g., `Jane Doe <jane@example.com>`). See [Git context](#git-context). |
-| `APOLLO_OAUTH_AUTHORIZATION_URL` | `--oauth-authorization-url` | Overrides the OAuth authorization endpoint `rover auth login` uses. |
-| `APOLLO_OAUTH_TOKEN_URL` | `--oauth-token-url` | Overrides the OAuth token endpoint `rover auth login` uses. |
-| `APOLLO_OAUTH_WHOAMI_URL` | `--oauth-whoami-url` | Overrides the OAuth whoami/userinfo endpoint `rover auth whoami` uses. |
-| `APOLLO_OAUTH_CLIENT_ID` | `--oauth-client-id` | Overrides the OAuth client ID `rover auth login` uses. |
-| `APOLLO_OAUTH_REVOCATION_URL` | `--oauth-revocation-url` | Overrides the OAuth revocation endpoint `rover auth logout` uses. |
-| `APOLLO_OAUTH_DEVICE_AUTHORIZATION_URL` | `--oauth-device-authorization-url` | Overrides the OAuth device authorization endpoint `rover auth login --no-browser` uses. |
-| `APOLLO_LOG_LEVEL` | `--log` | Sets Rover's [log level](#logging). |
-| `APOLLO_FORMAT` | `--format` | Sets Rover's [output format](#configuring-output) (`plain` or `json`). |
-| `NO_COLOR` | `--no-color` | Set to any value other than an empty string, `0`, or `false` (case-insensitive) if you don't want Rover to print color. |
-| `APOLLO_NO_COLOR` | `--no-color` | Same as `NO_COLOR`, with the same value rule. Checked in addition to, not instead of, `NO_COLOR`. |
+### Boolean values
+
+A boolean environment variable is set by `1` or `true` (case-insensitive) and unset by `0`, `false`, an empty value, or leaving it unset. There are two exceptions:
+
+- `APOLLO_TELEMETRY_DISABLED` disables telemetry when it's set to any value, including `false` or an empty value. Only leaving it unset keeps telemetry enabled.
+- `NO_COLOR` and `APOLLO_NO_COLOR` follow the cross-tool `NO_COLOR` convention: an empty value, `0`, and `false` count as unset, and anything else turns color off.
+
+A boolean stored in a profile or the project file is always a real `true` or `false`, whatever its environment variable's rule. So `APOLLO_TELEMETRY_DISABLED: false` in a profile or project file keeps telemetry **enabled**, even though `APOLLO_TELEMETRY_DISABLED=false` in the environment disables it.
+
+### Variables
+
+| Name | Flag | Profile | Project | Value |
+|------|------|:-------:|:-------:|-------|
+| `APOLLO_HOME` | `--rover-home` | | | The path to the parent directory of Rover's binary. The default value is your operating system's default home directory. Rover will install itself in a folder called `.rover` inside the directory specified. |
+| `APOLLO_CONFIG_HOME` | `--config-home` | | | The path where Rover's configuration is stored. The default value is your operating system's default configuration directory. |
+| `APOLLO_KEY` | | | | The API key that Rover should use to authenticate with GraphOS Studio. |
+| `APOLLO_REGISTRY_URL` | `--registry-url` | ✓ | ✓ | Overrides the GraphOS registry endpoint Rover sends requests to. |
+| `APOLLO_TELEMETRY_URL` | `--telemetry-url` | ✓ | ✓ | Overrides the endpoint anonymous usage telemetry is reported to. |
+| `APOLLO_TELEMETRY_DISABLED` | `--telemetry-disabled` | ✓ | ✓ | Set if you don't want Rover to collect anonymous usage data. See [Boolean values](#boolean-values) for how its value is read. |
+| `APOLLO_CHECKS_TIMEOUT_SECONDS` | `--checks-timeout` | ✓ | ✓ | Overrides how long, in whole seconds, `check`/`publish` polling waits before giving up. Defaults to `300`. |
+| `APOLLO_CLIENT_TIMEOUT` | `--client-timeout` | ✓ | ✓ | Overrides the timeout (in seconds) for HTTP(S) requests. See [Increasing request timeouts](#increasing-request-timeouts). |
+| `APOLLO_ROVER_DOWNLOAD_HOST` | `--download-host` | ✓ | ✓ | Overrides the host plugin binaries (the `router` and `supergraph` composition plugins) are downloaded from. |
+| `APOLLO_TEMPLATES_API` | `--templates-api` (`rover template` only) | ✓ | ✓ | Overrides where `rover template` fetches project templates from. `rover init` fetches templates from GitHub and doesn't use this. |
+| `APOLLO_GRAPH_REF` | | ✓ | ✓ | A graph ref passed to `rover dev` command. [Learn more](./commands/dev#understanding---graph-ref-vs-apollo_graph_ref) |
+| `APOLLO_ROVER_DEV_ROUTER_VERSION` | `--router-version` (`rover dev` only) | | | Overrides the version of the GraphOS Router `rover dev` runs. |
+| `APOLLO_ROVER_DEV_COMPOSITION_VERSION` | `--composition-version` (`rover dev` only) | | | Overrides the version of Apollo Federation `rover dev` uses for composition. `--federation-version` takes precedence over both. |
+| `APOLLO_ROVER_DEV_MCP_VERSION` | `--mcp-version` (`rover dev` only) | | | Overrides the version of the Apollo MCP Server `rover dev --mcp` runs. |
+| `APOLLO_VCS_REMOTE_URL` | `--vcs-remote-url` | | | The URL of your project's remote repository. See [Git context](#git-context). |
+| `APOLLO_VCS_BRANCH` | `--vcs-branch` | | | The name of the version-controlled branch. See [Git context](#git-context). |
+| `APOLLO_VCS_COMMIT` | `--vcs-commit` | | | The long identifier (SHA in Git) of the commit. See [Git context](#git-context). |
+| `APOLLO_VCS_AUTHOR` | `--vcs-author` | | | The name and email of a commit's author (e.g., `Jane Doe <jane@example.com>`). See [Git context](#git-context). |
+| `APOLLO_LOG_LEVEL` | `--log` | | | Sets Rover's [log level](#logging). |
+| `APOLLO_FORMAT` | `--format` | | | Sets Rover's [output format](#configuring-output) (`plain` or `json`). |
+| `NO_COLOR` | `--no-color` | | | Set if you don't want Rover to print color. See [Boolean values](#boolean-values) for how its value is read. |
+| `APOLLO_NO_COLOR` | `--no-color` | | | Same as `NO_COLOR`, with the same value rule. Checked in addition to, not instead of, `NO_COLOR`. |
