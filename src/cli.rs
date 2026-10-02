@@ -18,13 +18,11 @@ use serde::Serialize;
 use sputnik::Session;
 use timber::Level;
 
-#[cfg(feature = "oauth")]
-use crate::options::OauthOpts;
 use crate::{
     RoverError, RoverResult,
     command::{self, RoverOutput},
     options::{
-        DEFAULT_PROFILE, OutputOpts, PROJECT_FILE, ProfileOpt, ProfileSelection,
+        DEFAULT_PROFILE, OauthOpts, OutputOpts, PROJECT_FILE, ProfileOpt, ProfileSelection,
         ProjectSettingValue, ProjectSettings, SettingName, SettingType, SettingValueError,
     },
     utils::{
@@ -239,7 +237,6 @@ pub struct Rover {
     #[arg(long = "no-config-notices", global = true)]
     no_config_notices: bool,
 
-    #[cfg(feature = "oauth")]
     #[clap(flatten)]
     oauth_opts: OauthOpts,
 
@@ -371,7 +368,6 @@ impl Rover {
             }
             Command::Completion(command) => command.run(),
             Command::Config(command) => command.run(&profile_opt, self).await,
-            #[cfg(feature = "oauth")]
             Command::Auth(command) => {
                 command
                     .run(
@@ -1033,12 +1029,6 @@ impl Rover {
     /// this runs before *every* command, including read-only ones like
     /// `rover config show` (FR18/FR57) - creating the config home here would
     /// undo that verb's own no-creation guarantee.
-    ///
-    /// `#[cfg(feature = "oauth")]` `SettingName` variants don't exist in a
-    /// non-oauth build, so a config directory written by an oauth-enabled
-    /// build and read by a non-oauth build of the same version warns about
-    /// settings that build simply can't compile in - not the "future
-    /// version" case FR38 is meant to catch. Low impact, not corrected here.
     fn unrecognized_setting_warnings(&self, profile: &ProfileOpt) -> Vec<String> {
         let Ok(houston_config) = self.get_rover_config_read_only() else {
             return Vec::new();
@@ -1147,7 +1137,6 @@ impl Rover {
 
     /// The raw, clap-merged flag/env value of one OAuth setting, before the
     /// stored tiers apply. See `registry_url_flag_or_env`.
-    #[cfg(feature = "oauth")]
     pub(crate) fn oauth_flag_or_env(&self, name: SettingName) -> Option<String> {
         let opts = &self.oauth_opts;
         match name {
@@ -1170,7 +1159,6 @@ impl Rover {
 
     /// The env var backing each OAuth setting, for the override notice's
     /// "from the environment" case and for `config show`.
-    #[cfg(feature = "oauth")]
     pub(crate) const fn oauth_env_key(name: SettingName) -> RoverEnvKey {
         match name {
             SettingName::OauthAuthorizationUrl => RoverEnvKey::OauthAuthorizationUrl,
@@ -1188,7 +1176,6 @@ impl Rover {
     /// command actually sends a request to that endpoint (FR60). `Ok(None)`
     /// means nothing overrode it; `OauthConfig::new` applies the built-in
     /// default.
-    #[cfg(feature = "oauth")]
     fn resolve_oauth_setting(
         &self,
         name: SettingName,
@@ -1217,7 +1204,6 @@ impl Rover {
     /// `auth` subcommand, even one that never contacts that endpoint, the
     /// same tradeoff an invalid `APOLLO_ROVER_DOWNLOAD_HOST` makes for every
     /// command that builds a client config.
-    #[cfg(feature = "oauth")]
     pub(crate) fn get_oauth_config(
         &self,
         used: &[SettingName],
@@ -1339,7 +1325,6 @@ impl Rover {
     /// OAuth 2.0 client credentials grant, for CI/machine-to-machine use where the
     /// interactive `rover auth login` flow isn't an option. Returns `Ok(None)` when
     /// neither env var is set, so callers can fall back to a stored profile credential.
-    #[cfg(feature = "oauth")]
     async fn resolve_client_credentials_token(
         &self,
         client_timeout: Option<ClientTimeout>,
@@ -1433,14 +1418,6 @@ impl Rover {
         })?;
 
         Ok(Some(response.access_token.secret().to_string()))
-    }
-
-    #[cfg(not(feature = "oauth"))]
-    async fn resolve_client_credentials_token(
-        &self,
-        _client_timeout: Option<ClientTimeout>,
-    ) -> RoverResult<Option<String>> {
-        Ok(None)
     }
 
     pub(crate) fn get_install_override_path(&self) -> RoverResult<Option<Utf8PathBuf>> {
@@ -1671,7 +1648,6 @@ pub enum Command {
     ApiKeys(command::ApiKeys),
 
     /// Authentication commands
-    #[cfg(feature = "oauth")]
     Auth(command::Auth),
 
     #[cfg(feature = "composition-js")]
@@ -3205,7 +3181,6 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "oauth")]
     const OAUTH_ENV: [&str; 6] = [
         "APOLLO_OAUTH_AUTHORIZATION_URL",
         "APOLLO_OAUTH_TOKEN_URL",
@@ -3215,7 +3190,6 @@ mod tests {
         "APOLLO_OAUTH_CLIENT_ID",
     ];
 
-    #[cfg(feature = "oauth")]
     fn oauth_rover(home: &tempfile::TempDir, extra_args: &[&str]) -> Rover {
         let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
         temp_env::with_vars_unset(OAUTH_ENV, || {
@@ -3232,7 +3206,6 @@ mod tests {
         })
     }
 
-    #[cfg(feature = "oauth")]
     #[test]
     fn oauth_profile_setting_applies_when_no_flag_or_env_is_set() {
         let home = config_home_with_setting(
@@ -3248,7 +3221,6 @@ mod tests {
             .is_equal_to("https://auth.staging.example.com/token");
     }
 
-    #[cfg(feature = "oauth")]
     #[test]
     fn oauth_flag_wins_over_profile_setting() {
         let home = config_home_with_setting(
@@ -3266,7 +3238,6 @@ mod tests {
         assert_that!(config.token_url.as_str()).is_equal_to("https://auth.flag.example.com/token");
     }
 
-    #[cfg(feature = "oauth")]
     #[test]
     fn oauth_env_var_wins_over_profile_setting() {
         let home = config_home_with_setting(
@@ -3298,7 +3269,6 @@ mod tests {
         assert_that!(config.token_url.as_str()).is_equal_to("https://auth.env.example.com/token");
     }
 
-    #[cfg(feature = "oauth")]
     #[test]
     fn oauth_falls_back_to_the_builtin_defaults_with_nothing_configured() {
         let home = tempfile::tempdir().unwrap();
@@ -3311,7 +3281,6 @@ mod tests {
         assert_that!(config.client_id.as_str()).is_equal_to(crate::options::DEFAULT_CLIENT_ID);
     }
 
-    #[cfg(feature = "oauth")]
     #[test]
     fn an_invalid_profile_oauth_url_fails_the_command() {
         let home =
@@ -3328,7 +3297,6 @@ mod tests {
     // FR60: only the endpoints the running subcommand contacts may notice.
     // The unused setting's gate must still be open afterward - its own
     // notice is still decided fresh - while the used one's is consumed.
-    #[cfg(feature = "oauth")]
     #[test]
     fn oauth_notices_fire_only_for_the_settings_the_command_uses() {
         let home = config_home_with_setting(

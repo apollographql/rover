@@ -72,6 +72,42 @@ expression: "serde_json::json!({\n    \"explicit_profile\": explicit, \"default_
       "value": "false",
       "source": "builtin",
       "overridden": []
+    },
+    {
+      "name": "APOLLO_OAUTH_AUTHORIZATION_URL",
+      "value": "https://auth.apollographql.com/oauth2/authorize",
+      "source": "builtin",
+      "overridden": []
+    },
+    {
+      "name": "APOLLO_OAUTH_TOKEN_URL",
+      "value": "https://auth.apollographql.com/oauth2/token",
+      "source": "builtin",
+      "overridden": []
+    },
+    {
+      "name": "APOLLO_OAUTH_DEVICE_AUTHORIZATION_URL",
+      "value": "https://auth.apollographql.com/oauth2/device/authorize",
+      "source": "builtin",
+      "overridden": []
+    },
+    {
+      "name": "APOLLO_OAUTH_REVOCATION_URL",
+      "value": "https://auth.apollographql.com/oauth2/revoke",
+      "source": "builtin",
+      "overridden": []
+    },
+    {
+      "name": "APOLLO_OAUTH_WHOAMI_URL",
+      "value": "https://auth.apollographql.com/oauth2/userinfo",
+      "source": "builtin",
+      "overridden": []
+    },
+    {
+      "name": "APOLLO_OAUTH_CLIENT_ID",
+      "value": "52SYxOlIEM8U5BjKeIv88ClPBSBMq4K06LWB9HtM5EY",
+      "source": "builtin",
+      "overridden": []
     }
   ],
   "default_profile": [
@@ -136,6 +172,42 @@ expression: "serde_json::json!({\n    \"explicit_profile\": explicit, \"default_
     {
       "name": "APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD",
       "value": "false",
+      "source": "builtin",
+      "overridden": []
+    },
+    {
+      "name": "APOLLO_OAUTH_AUTHORIZATION_URL",
+      "value": "https://auth.apollographql.com/oauth2/authorize",
+      "source": "builtin",
+      "overridden": []
+    },
+    {
+      "name": "APOLLO_OAUTH_TOKEN_URL",
+      "value": "https://auth.apollographql.com/oauth2/token",
+      "source": "builtin",
+      "overridden": []
+    },
+    {
+      "name": "APOLLO_OAUTH_DEVICE_AUTHORIZATION_URL",
+      "value": "https://auth.apollographql.com/oauth2/device/authorize",
+      "source": "builtin",
+      "overridden": []
+    },
+    {
+      "name": "APOLLO_OAUTH_REVOCATION_URL",
+      "value": "https://auth.apollographql.com/oauth2/revoke",
+      "source": "builtin",
+      "overridden": []
+    },
+    {
+      "name": "APOLLO_OAUTH_WHOAMI_URL",
+      "value": "https://auth.apollographql.com/oauth2/userinfo",
+      "source": "builtin",
+      "overridden": []
+    },
+    {
+      "name": "APOLLO_OAUTH_CLIENT_ID",
+      "value": "52SYxOlIEM8U5BjKeIv88ClPBSBMq4K06LWB9HtM5EY",
       "source": "builtin",
       "overridden": []
     }

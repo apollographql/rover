@@ -4,7 +4,6 @@ use rover_studio::types::GraphRef;
 use serde::{Serialize, Serializer};
 use url::Url;
 
-#[cfg(feature = "oauth")]
 use super::oauth::{
     DEFAULT_AUTHORIZATION_URL, DEFAULT_CLIENT_ID, DEFAULT_DEVICE_AUTHORIZATION_URL,
     DEFAULT_REVOCATION_URL, DEFAULT_TOKEN_URL, DEFAULT_WHOAMI_URL,
@@ -28,10 +27,7 @@ const DEFAULT_TEMPLATES_API: &str = "https://rover.apollo.dev/templates";
 /// the registry/telemetry/OAuth-endpoint group ROVER-451 Part A's first
 /// slice covers, plus the checks-timeout/download-host/templates-api/graph-ref
 /// group its second slice adds, plus the plugin system's opt-in to automatic
-/// downloads (§3.16). Every setting here is profile-eligible. The
-/// OAuth endpoints only exist when the `oauth` feature is compiled in - the
-/// whole `rover auth login` machinery they configure is gated the same way,
-/// so a stored value for one would otherwise have nothing to affect.
+/// downloads (§3.16). Every setting here is profile-eligible.
 ///
 /// A setting from the full catalogue that isn't a variant here (VCS context)
 /// isn't unsupported forever - it's simply out of scope for this slice, per
@@ -52,17 +48,11 @@ pub(crate) enum SettingName {
     TemplatesApi,
     GraphRef,
     AllowAutomaticDownload,
-    #[cfg(feature = "oauth")]
     OauthAuthorizationUrl,
-    #[cfg(feature = "oauth")]
     OauthTokenUrl,
-    #[cfg(feature = "oauth")]
     OauthDeviceAuthorizationUrl,
-    #[cfg(feature = "oauth")]
     OauthRevocationUrl,
-    #[cfg(feature = "oauth")]
     OauthWhoamiUrl,
-    #[cfg(feature = "oauth")]
     OauthClientId,
 }
 
@@ -81,9 +71,7 @@ pub(crate) enum SettingType {
     /// (FR24).
     Bool,
     /// An opaque string with no further syntactic constraint. Only ever
-    /// produced for `APOLLO_OAUTH_CLIENT_ID`, so it's otherwise dead code
-    /// when the `oauth` feature isn't compiled in.
-    #[cfg_attr(not(feature = "oauth"), allow(dead_code))]
+    /// produced for `APOLLO_OAUTH_CLIENT_ID`.
     String,
     /// A non-negative whole number of seconds.
     WholeSeconds,
@@ -111,7 +99,6 @@ impl SettingName {
             SettingName::GraphRef,
             SettingName::AllowAutomaticDownload,
         ];
-        #[cfg(feature = "oauth")]
         all.extend([
             SettingName::OauthAuthorizationUrl,
             SettingName::OauthTokenUrl,
@@ -137,17 +124,11 @@ impl SettingName {
             SettingName::TemplatesApi => "APOLLO_TEMPLATES_API",
             SettingName::GraphRef => "APOLLO_GRAPH_REF",
             SettingName::AllowAutomaticDownload => "APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD",
-            #[cfg(feature = "oauth")]
             SettingName::OauthAuthorizationUrl => "APOLLO_OAUTH_AUTHORIZATION_URL",
-            #[cfg(feature = "oauth")]
             SettingName::OauthTokenUrl => "APOLLO_OAUTH_TOKEN_URL",
-            #[cfg(feature = "oauth")]
             SettingName::OauthDeviceAuthorizationUrl => "APOLLO_OAUTH_DEVICE_AUTHORIZATION_URL",
-            #[cfg(feature = "oauth")]
             SettingName::OauthRevocationUrl => "APOLLO_OAUTH_REVOCATION_URL",
-            #[cfg(feature = "oauth")]
             SettingName::OauthWhoamiUrl => "APOLLO_OAUTH_WHOAMI_URL",
-            #[cfg(feature = "oauth")]
             SettingName::OauthClientId => "APOLLO_OAUTH_CLIENT_ID",
         }
     }
@@ -166,13 +147,11 @@ impl SettingName {
                 SettingType::WholeSeconds
             }
             SettingName::GraphRef => SettingType::GraphRef,
-            #[cfg(feature = "oauth")]
             SettingName::OauthAuthorizationUrl
             | SettingName::OauthTokenUrl
             | SettingName::OauthDeviceAuthorizationUrl
             | SettingName::OauthRevocationUrl
             | SettingName::OauthWhoamiUrl => SettingType::Url,
-            #[cfg(feature = "oauth")]
             SettingName::OauthClientId => SettingType::String,
         }
     }
@@ -191,13 +170,11 @@ impl SettingName {
             | SettingName::ClientTimeout
             | SettingName::GraphRef
             | SettingName::AllowAutomaticDownload => false,
-            #[cfg(feature = "oauth")]
             SettingName::OauthAuthorizationUrl
             | SettingName::OauthTokenUrl
             | SettingName::OauthDeviceAuthorizationUrl
             | SettingName::OauthRevocationUrl
             | SettingName::OauthWhoamiUrl => true,
-            #[cfg(feature = "oauth")]
             SettingName::OauthClientId => false,
         }
     }
@@ -232,19 +209,13 @@ impl SettingName {
             SettingName::TemplatesApi => Some(DEFAULT_TEMPLATES_API.to_string()),
             SettingName::GraphRef => None,
             SettingName::AllowAutomaticDownload => Some("false".to_string()),
-            #[cfg(feature = "oauth")]
             SettingName::OauthAuthorizationUrl => Some(DEFAULT_AUTHORIZATION_URL.to_string()),
-            #[cfg(feature = "oauth")]
             SettingName::OauthTokenUrl => Some(DEFAULT_TOKEN_URL.to_string()),
-            #[cfg(feature = "oauth")]
             SettingName::OauthDeviceAuthorizationUrl => {
                 Some(DEFAULT_DEVICE_AUTHORIZATION_URL.to_string())
             }
-            #[cfg(feature = "oauth")]
             SettingName::OauthRevocationUrl => Some(DEFAULT_REVOCATION_URL.to_string()),
-            #[cfg(feature = "oauth")]
             SettingName::OauthWhoamiUrl => Some(DEFAULT_WHOAMI_URL.to_string()),
-            #[cfg(feature = "oauth")]
             SettingName::OauthClientId => Some(DEFAULT_CLIENT_ID.to_string()),
         }
     }
@@ -573,14 +544,12 @@ mod tests {
         assert_that!(SettingName::AllowAutomaticDownload.is_network_destination()).is_false();
     }
 
-    #[cfg(feature = "oauth")]
     #[test]
     fn oauth_client_id_is_a_string_and_not_a_network_destination() {
         assert_that!(SettingName::OauthClientId.setting_type()).is_equal_to(SettingType::String);
         assert_that!(SettingName::OauthClientId.is_network_destination()).is_false();
     }
 
-    #[cfg(feature = "oauth")]
     #[test]
     fn oauth_endpoints_are_network_destination_urls() {
         for name in [

@@ -90,7 +90,6 @@ composition-js = []
 
 # gates `rover auth login` and its supporting OAuth machinery, which is still
 # under active development (ROVER-391) and not yet ready for general release.
-oauth = ["dep:rover-auth", "dep:rover-open"]
 
 ### cross-workspace dependencies
 # these dependencies can be used by any other workspace crate by specifying the dependency like so:
@@ -290,11 +289,11 @@ rand = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 robot-panic = { workspace = true }
-rover-auth = { workspace = true, optional = true }
+rover-auth = { workspace = true }
 rover-client = { workspace = true }
 rover-graphql = { workspace = true }
 rover-http = { workspace = true }
-rover-open = { workspace = true, optional = true }
+rover-open = { workspace = true }
 rover-print = { workspace = true }
 rover-schema = { workspace = true }
 rover-std = { workspace = true }
