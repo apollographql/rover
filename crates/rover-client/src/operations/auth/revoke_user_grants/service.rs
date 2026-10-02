@@ -75,6 +75,7 @@ where
                 Ok(data) => data,
                 Err(err) => {
                     return Err(grant_permission_denied_in(&err, organization_id)
+                        .or_else(|| platform_api_message(&err))
                         .unwrap_or_else(|| err.into()))
                 }
             };
@@ -83,6 +84,29 @@ where
             Ok(())
         })
     }
+}
+
+/// The sweep reports each client's failure as "the Platform API's error message" (spec FR63).
+/// The blanket conversion renders GraphQL errors through `graphql_client::Error`'s `Display`,
+/// which prefixes a `<query>:0:0:` location the Platform API never sent - so a GraphQL error
+/// response is reported here by its messages alone, the way `pair_list` does.
+fn platform_api_message<T>(err: &GraphQLServiceError<T>) -> Option<RoverClientError>
+where
+    T: std::fmt::Debug + Send + Sync,
+{
+    let errors = match err {
+        GraphQLServiceError::NoData(errors) | GraphQLServiceError::PartialError { errors, .. } => {
+            errors
+        }
+        _ => return None,
+    };
+    (!errors.is_empty()).then(|| RoverClientError::GraphQl {
+        msg: errors
+            .iter()
+            .map(|error| error.message.as_str())
+            .collect::<Vec<_>>()
+            .join("\n"),
+    })
 }
 
 #[cfg(any(test, feature = "testing"))]
@@ -225,6 +249,32 @@ mod tests {
 
         assert_that!(err).matches(|err| {
             matches!(err, RoverClientError::GraphQl { msg } if msg == "No data field provided")
+        });
+    }
+
+    // FR63: a GraphQL error is reported by the Platform API's own message, with no location
+    // prefix of Rover's making.
+    #[rstest]
+    #[tokio::test]
+    async fn call_reports_graphql_errors_by_their_messages(input: RevokeUserGrantsInput) {
+        let errors: Vec<graphql_client::Error> = serde_json::from_value(json!([
+            { "message": "revocation is unavailable" },
+            { "message": "try again later" }
+        ]))
+        .unwrap();
+        let mut mock = MockRevokeUserGrantsInnerService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call()
+            .times(1)
+            .return_once(|_| future::ready(Err(GraphQLServiceError::NoData(errors))));
+
+        let err = RevokeUserGrants::new(MockCloneService::new(mock))
+            .oneshot(input)
+            .await
+            .unwrap_err();
+
+        assert_that!(err).matches(|err| {
+            matches!(err, RoverClientError::GraphQl { msg } if msg == "revocation is unavailable\ntry again later")
         });
     }
 }
