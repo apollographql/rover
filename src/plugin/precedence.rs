@@ -9,6 +9,10 @@
 
 use camino::Utf8PathBuf;
 
+mod overridden;
+
+pub use overridden::ManifestOverridden;
+
 use super::{
     discovery::ManifestDirs,
     error::{PluginFailure, RequestOrigin},
