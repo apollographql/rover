@@ -4317,7 +4317,7 @@ mod tests {
         let error = scenario.rover.get_client_config().await.unwrap_err();
 
         assert_that!(error.message()).is_equal_to(
-            "`.rover/rover.yaml` sets `APOLLO_REGISTRY_URL` to `registry.example.com`, which \
+            "`rover.yaml` sets `APOLLO_REGISTRY_URL` to `registry.example.com`, which \
             isn't a valid URL. URLs must include a scheme, for example \
             `https://registry.example.com`."
                 .to_string(),
@@ -4330,17 +4330,17 @@ mod tests {
     #[rstest::rstest]
     #[case::lowercase_alias_quoted_as_written(
         "settings:\n  apollo_checks_timeout_seconds: soon\n",
-        "`.rover/rover.yaml` sets `apollo_checks_timeout_seconds` to `soon`, which isn't a \
+        "`rover.yaml` sets `apollo_checks_timeout_seconds` to `soon`, which isn't a \
         whole number of seconds. Use a whole number of seconds, for example `300`."
     )]
     #[case::not_a_single_value(
         "settings:\n  APOLLO_CHECKS_TIMEOUT_SECONDS: [300, 600]\n",
-        "`.rover/rover.yaml` sets `APOLLO_CHECKS_TIMEOUT_SECONDS` to `- 300 - 600`, which \
+        "`rover.yaml` sets `APOLLO_CHECKS_TIMEOUT_SECONDS` to `- 300 - 600`, which \
         isn't a single value. Use a whole number of seconds, for example `300`."
     )]
     #[case::null(
         "settings:\n  APOLLO_CHECKS_TIMEOUT_SECONDS:\n",
-        "`.rover/rover.yaml` sets `APOLLO_CHECKS_TIMEOUT_SECONDS` with no value. Give it a \
+        "`rover.yaml` sets `APOLLO_CHECKS_TIMEOUT_SECONDS` with no value. Give it a \
         value, or remove the key."
     )]
     fn other_invalid_project_values_name_the_key_as_written(
@@ -4371,7 +4371,7 @@ mod tests {
         let error = scenario.rover.get_client_config().await.unwrap_err();
 
         assert_that!(error.message()).is_equal_to(
-            "`.rover/rover.yaml` sets `APOLLO_REGISTRY_URL` to `- a - b`, which isn't a single \
+            "`rover.yaml` sets `APOLLO_REGISTRY_URL` to `- a - b`, which isn't a single \
             value. Use a single URL, for example `https://registry.example.com`."
                 .to_string(),
         );
@@ -4391,7 +4391,7 @@ mod tests {
         let error = scenario.rover.get_checks_timeout_seconds().unwrap_err();
 
         assert_that!(error.message()).is_equal_to(
-            "`.rover/rover.yaml` sets `APOLLO_CHECKS_TIMEOUT_SECONDS` to `soon`, which isn't a \
+            "`rover.yaml` sets `APOLLO_CHECKS_TIMEOUT_SECONDS` to `soon`, which isn't a \
             whole number of seconds. Use a whole number of seconds, for example `300`."
                 .to_string(),
         );
