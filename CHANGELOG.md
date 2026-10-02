@@ -42,6 +42,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   Pairs are paged and capped independently of API keys: by default, up to 100 are collected before returning, and a new `--limit <N>` flag overrides that cap. When more pairs exist beyond the cap, the command still succeeds, printing a resume note (and a JSON `client_credentials_next_after` cursor) that a new `--after <CURSOR>` flag accepts to continue from.
 
+- **`rover api-key rotate` mints a new secret for a client-credential pair - @dotdat**
+
+  `rover api-key rotate <ORGANIZATION_ID> <CLIENT_ID> [--grace-period-days <DAYS>]` rotates a pair's secret, printing the new client ID/secret/expiry to stdout (so CI setup can capture them) and a one-time reminder to stderr that the secret can't be shown again, alongside a warning naming when every previous secret stops working - immediately by default, or at the end of `--grace-period-days` when given. `--format json` reports `client_id`, `client_secret`, `secret_expires_at`, `grace_period_days`, and `previous_secrets_expire_at` under `key_type: "ClientCredentials"`. Rotating an ID that isn't a client-credential pair in that organization fails with a new, stable error code (`E057`) rather than silently doing nothing.
+
 - **`rover api-key delete` deletes client-credential pairs - @dotdat**
 
   `rover api-key delete <ORGANIZATION_ID> <ID>` now accepts a pair's client ID as well as an API key's ID - no flag picks the type; Rover looks the ID up as a pair first. Deleting a pair confirms on stderr that it can no longer obtain tokens and that access tokens it already holds keep working until they expire, and `--format json` reports `key_type: "ClientCredentials"` alongside the existing `id`. Deleting an API key is unchanged, including for callers who can't see the organization's pairs.
