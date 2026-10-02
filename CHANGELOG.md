@@ -42,6 +42,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
+- **`rover auth grants revoke` revokes every grant a user holds in an organization - @dotdat**
+
+  `rover auth grants revoke --org <ORGANIZATION_ID> --user <USER_ID> --all [--confirm]` revokes the user's grants under Rover's own OAuth client and under every client-credential pair in the organization. Before revoking anything, it lists every pair and asks for confirmation, naming each OAuth client. Pass `--confirm` to skip the prompt; without a terminal to ask on (or with `--format json`), it fails with a new error code (`E062`) instead of waiting. Every client is attempted even when one fails, and the outcome under each is reported individually; if any failed, the command exits non-zero with a new error code (`E063`) and names the clients to retry, which is safe to do because revoking where the user holds no grant succeeds. Access tokens the user already holds keep working until they expire, and the sweep doesn't stop them logging in again. `--format json` reports `organization_id`, `user_id`, `user_is_member`, `cancelled`, and a `clients` array of `client_id`, `name`, `kind`, `outcome`, and `error`.
+
 - **`rover api-key list` reports client-credential pairs alongside API keys - @dotdat**
 
   `rover api-key list <ORGANIZATION_ID>` now also lists the organization's client-credential pairs, in a `Client-credential pairs` table after the existing API key table. `--format json` adds a `client_credentials` array (`key_type: "ClientCredentials"`, `client_id`, `name`, `graphs`, `scopes`, `created_at`, `created_by`) and a `key_type` field on every existing `keys` entry. A new `--type <operator|subgraph|client-credentials>` flag (repeatable) narrows which types are reported; a type excluded entirely is omitted from the JSON payload rather than reported as `[]`. Existing `keys`-only output is unchanged when an organization has no pairs, or when `--type` excludes them.

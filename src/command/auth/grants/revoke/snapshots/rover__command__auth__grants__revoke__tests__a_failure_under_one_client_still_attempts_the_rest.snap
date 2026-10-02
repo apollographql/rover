@@ -1,0 +1,41 @@
+---
+source: src/command/auth/grants/revoke/mod.rs
+expression: "JsonOutput::from(&err)"
+---
+{
+  "json_version": "1",
+  "data": {
+    "organization_id": "acme",
+    "user_id": "user-123",
+    "user_is_member": true,
+    "clients": [
+      {
+        "client_id": "rover",
+        "name": "Rover",
+        "kind": "rover",
+        "outcome": "revoked",
+        "error": null
+      },
+      {
+        "client_id": "c_8f2a",
+        "name": "ci-deploy",
+        "kind": "client_credentials",
+        "outcome": "failed",
+        "error": "Unable to get a response from an endpoint. Client returned an error.\n\nupstream timed out"
+      },
+      {
+        "client_id": "c_91be",
+        "name": "nightly-checks",
+        "kind": "client_credentials",
+        "outcome": "revoked",
+        "error": null
+      }
+    ],
+    "cancelled": false,
+    "success": false
+  },
+  "error": {
+    "message": "Revocation failed under 1 of 3 OAuth clients.",
+    "code": "E063"
+  }
+}
