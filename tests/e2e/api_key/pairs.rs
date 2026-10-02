@@ -1,0 +1,205 @@
+//! A client-credential pair's full lifecycle against live Studio - create, list, rotate,
+//! delete - pinning each step's JSON payload (spec §8 of
+//! `specs/rover-431-identity-grant-management`: FR8, FR15, FR26, FR30).
+//!
+//! Managing pairs needs an organization admin's key on an organization enrolled in
+//! client-credential support, which the shared e2e key isn't. The test reads its own:
+//! - `APOLLO_KEY_ROVER_E2E_ORG_ADMIN`: the admin's key;
+//! - `ROVER_E2E_ORG_ID`: the enrolled organization;
+//! - `ROVER_E2E_GRAPH_ID` (optional, default `rover-e2e-tests`): a graph in it to scope the pair to.
+//!
+//! Without the first two, it skips rather than fails, so the smoke suite stays green until
+//! they're provisioned.
+
+use std::{
+    env,
+    time::{SystemTime, UNIX_EPOCH},
+};
+
+use assert_cmd::cargo::cargo_bin_cmd;
+use insta::assert_json_snapshot;
+use rstest::rstest;
+use serde_json::{Value, json};
+use speculoos::prelude::*;
+
+struct Org {
+    admin_key: String,
+    organization_id: String,
+    graph_id: String,
+}
+
+impl Org {
+    fn from_env() -> Option<Self> {
+        Some(Self {
+            admin_key: non_empty_var("APOLLO_KEY_ROVER_E2E_ORG_ADMIN")?,
+            organization_id: non_empty_var("ROVER_E2E_ORG_ID")?,
+            graph_id: non_empty_var("ROVER_E2E_GRAPH_ID")
+                .unwrap_or_else(|| "rover-e2e-tests".to_string()),
+        })
+    }
+
+    /// Runs `rover api-key <args> --format json` as the admin and returns its JSON envelope.
+    fn api_key(&self, args: &[&str]) -> Value {
+        let output = cargo_bin_cmd!("rover")
+            .env("APOLLO_KEY", &self.admin_key)
+            .env_remove("APOLLO_CLIENT_ID")
+            .env_remove("APOLLO_CLIENT_SECRET")
+            .args(["--skip-update-check", "api-key"])
+            .args(args)
+            .args(["--format", "json"])
+            .output()
+            .unwrap();
+        assert_that!(output.status.success())
+            .named(&format!(
+                "`rover api-key {}` (stderr: {})",
+                args.join(" "),
+                String::from_utf8_lossy(&output.stderr)
+            ))
+            .is_true();
+        serde_json::from_slice(&output.stdout).unwrap()
+    }
+}
+
+/// GitHub Actions passes an unprovisioned secret or variable as an empty string, not as unset.
+fn non_empty_var(name: &str) -> Option<String> {
+    env::var(name).ok().filter(|value| !value.is_empty())
+}
+
+/// Deletes the pair if the test ends before its own `delete` step does, so a failed run
+/// doesn't leave pairs behind in the shared organization.
+struct Cleanup<'a> {
+    org: &'a Org,
+    client_id: Option<String>,
+}
+
+impl Drop for Cleanup<'_> {
+    fn drop(&mut self) {
+        if let Some(client_id) = self.client_id.take() {
+            let _ = cargo_bin_cmd!("rover")
+                .env("APOLLO_KEY", &self.org.admin_key)
+                .args(["--skip-update-check", "api-key", "delete"])
+                .args([&self.org.organization_id, &client_id])
+                .output();
+        }
+    }
+}
+
+/// Replaces every value that differs between runs, so the rest of the payload can be pinned.
+fn redact(mut value: Value, fields: &[&str]) -> Value {
+    for field in fields {
+        if let Some(slot) = value.get_mut(*field)
+            && !slot.is_null()
+        {
+            *slot = json!(format!("[{field}]"));
+        }
+    }
+    value
+}
+
+#[rstest]
+#[ignore]
+fn e2e_test_rover_api_key_client_credentials_lifecycle() {
+    let Some(org) = Org::from_env() else {
+        eprintln!(
+            "skipping: set APOLLO_KEY_ROVER_E2E_ORG_ADMIN and ROVER_E2E_ORG_ID to run the \
+            client-credential pair lifecycle"
+        );
+        return;
+    };
+    let org_id = org.organization_id.as_str();
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let name = format!("rover-e2e-{unique}");
+
+    // FR8: create.
+    let created = org.api_key(&[
+        "create",
+        org_id,
+        "client-credentials",
+        &name,
+        "--graph-id",
+        &org.graph_id,
+        "--secret-lifetime-days",
+        "1",
+    ]);
+    let client_id = created["data"]["client_id"].as_str().unwrap().to_string();
+    let mut cleanup = Cleanup {
+        org: &org,
+        client_id: Some(client_id.clone()),
+    };
+    assert_that!(created["data"]["client_secret"].as_str())
+        .is_some()
+        .matches(|secret| !secret.is_empty());
+    assert_json_snapshot!(
+        "create",
+        redact(
+            created["data"].clone(),
+            &[
+                "id",
+                "client_id",
+                "client_secret",
+                "secret_expires_at",
+                "name",
+                "graphs"
+            ],
+        )
+    );
+
+    // FR15: the new pair is listed, without its secret.
+    let listed = org.api_key(&["list", org_id, "--type", "client-credentials"]);
+    let entry = listed["data"]["client_credentials"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|pair| pair["client_id"] == json!(client_id))
+        .cloned()
+        .expect("the new pair is listed");
+    assert_json_snapshot!(
+        "list_entry",
+        redact(
+            entry,
+            &[
+                "id",
+                "client_id",
+                "name",
+                "graphs",
+                "created_at",
+                "created_by"
+            ],
+        )
+    );
+
+    // FR26: rotate, with a grace period so the old secret's cutoff is reported.
+    let rotated = org.api_key(&["rotate", org_id, &client_id, "--grace-period-days", "1"]);
+    assert_that!(rotated["data"]["client_secret"])
+        .is_not_equal_to(created["data"]["client_secret"].clone());
+    assert_json_snapshot!(
+        "rotate",
+        redact(
+            rotated["data"].clone(),
+            &[
+                "id",
+                "client_id",
+                "client_secret",
+                "secret_expires_at",
+                "previous_secrets_expire_at",
+            ],
+        )
+    );
+
+    // FR30: delete, then confirm it's gone.
+    let deleted = org.api_key(&["delete", org_id, &client_id]);
+    cleanup.client_id = None;
+    assert_json_snapshot!("delete", redact(deleted["data"].clone(), &["id"]));
+    let after = org.api_key(&["list", org_id, "--type", "client-credentials"]);
+    assert_that!(
+        after["data"]["client_credentials"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|pair| pair["client_id"] == json!(client_id))
+    )
+    .is_false();
+}

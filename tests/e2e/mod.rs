@@ -28,6 +28,7 @@ use tokio::{
 };
 use tracing::{info, warn};
 
+mod api_key;
 #[cfg(feature = "oauth")]
 mod auth;
 mod config;

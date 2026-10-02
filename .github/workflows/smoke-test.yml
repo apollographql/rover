@@ -150,6 +150,11 @@ jobs:
           CARGO_MANIFEST_DIR: ${{ github.workspace }}
           APOLLO_KEY: ${{ secrets.APOLLO_KEY_ROVER_E2E_TESTS }}
           APOLLO_KEY_ROVER_E2E_MONOGRAPH: ${{ secrets.APOLLO_KEY_ROVER_E2E_MONOGRAPH }}
+          # The client-credential pair lifecycle test (tests/e2e/api_key) needs an org admin's
+          # key on an organization enrolled in client-credential support; it skips when unset.
+          APOLLO_KEY_ROVER_E2E_ORG_ADMIN: ${{ secrets.APOLLO_KEY_ROVER_E2E_ORG_ADMIN }}
+          ROVER_E2E_ORG_ID: ${{ vars.ROVER_E2E_ORG_ID }}
+          ROVER_E2E_GRAPH_ID: ${{ vars.ROVER_E2E_GRAPH_ID }}
         with:
           max_attempts: 2
           timeout_minutes: 10
@@ -170,6 +175,11 @@ jobs:
           CARGO_MANIFEST_DIR: ${{ github.workspace }}
           APOLLO_KEY: ${{ secrets.APOLLO_KEY_ROVER_E2E_TESTS }}
           APOLLO_KEY_ROVER_E2E_MONOGRAPH: ${{ secrets.APOLLO_KEY_ROVER_E2E_MONOGRAPH }}
+          # The client-credential pair lifecycle test (tests/e2e/api_key) needs an org admin's
+          # key on an organization enrolled in client-credential support; it skips when unset.
+          APOLLO_KEY_ROVER_E2E_ORG_ADMIN: ${{ secrets.APOLLO_KEY_ROVER_E2E_ORG_ADMIN }}
+          ROVER_E2E_ORG_ID: ${{ vars.ROVER_E2E_ORG_ID }}
+          ROVER_E2E_GRAPH_ID: ${{ vars.ROVER_E2E_GRAPH_ID }}
         with:
           max_attempts: 2
           timeout_minutes: 10
