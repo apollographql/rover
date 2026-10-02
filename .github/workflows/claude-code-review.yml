@@ -23,6 +23,12 @@ jobs:
       - name: Run Claude Code Review
         id: claude-review
         uses: anthropics/claude-code-action@v1
+        env:
+          # The review command runs its reviewers as subagents. Run in the
+          # background, they're abandoned when the main turn ends, and the
+          # run finishes without posting a review. In the foreground, the
+          # command waits for every reviewer before it posts.
+          CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1"
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'

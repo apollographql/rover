@@ -1,0 +1,5 @@
+mutation RevokeUserGrantsMutation($organizationId: ID!, $clientId: String!, $userId: ID!) {
+    organization(id: $organizationId) {
+        revokeUserOAuthTokens(clientId: $clientId, userId: $userId)
+    }
+}
