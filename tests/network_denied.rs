@@ -165,6 +165,62 @@ mod never_download {
         assert_that!(activity).is_equal_to(OutboundActivity::default());
     }
 
+    /// The Rover 1.0 default, with nothing opted in to automatic downloads
+    /// and no `--skip-update`: an installed plugin runs with no socket opened
+    /// (FR77, FR53).
+    #[test]
+    #[ignore = "runs in the network-denied job"]
+    fn composing_with_nothing_opted_in_touches_no_socket() {
+        require_network_denied();
+        let two_levels = TwoLevels::new();
+        two_levels.seed_runnable_plugin(
+            Level::Global,
+            "supergraph",
+            "2.9.3",
+            r#"{"Ok":{"supergraphSdl":"type Query { hello: String }","hints":[]}}"#,
+        );
+        write_config(&two_levels);
+
+        let mut command = Command::new(cargo_bin("rover"));
+        two_levels.apply(&mut command);
+        command.args(["supergraph", "compose", "--config", "supergraph.yaml"]);
+        offline(&mut command);
+
+        let (output, activity) = record_outbound(&mut command);
+
+        assert_that!(output.status.success())
+            .named(&String::from_utf8_lossy(&output.stderr))
+            .is_true();
+        assert_that!(activity).is_equal_to(OutboundActivity::default());
+    }
+
+    /// Absent, the 1.0 default fails as a missing plugin before any network
+    /// call, rather than downloading it (FR77).
+    #[test]
+    #[ignore = "runs in the network-denied job"]
+    fn composing_without_the_plugin_with_nothing_opted_in_fails_without_a_socket() {
+        require_network_denied();
+        let two_levels = TwoLevels::new();
+        write_config(&two_levels);
+
+        let mut command = Command::new(cargo_bin("rover"));
+        two_levels.apply(&mut command);
+        command.args([
+            "supergraph",
+            "compose",
+            "--config",
+            "supergraph.yaml",
+            "--format",
+            "json",
+        ]);
+        offline(&mut command);
+
+        let (output, activity) = record_outbound(&mut command);
+
+        assert_that!(error_code(&output)).is_equal_to(Some("E058".to_string()));
+        assert_that!(activity).is_equal_to(OutboundActivity::default());
+    }
+
     /// Silence Rover's own reasons to reach out, so any socket is the plugin's.
     fn offline(command: &mut Command) {
         command
@@ -172,7 +228,8 @@ mod never_download {
             .env("RUST_BACKTRACE", "0")
             .env_remove("APOLLO_NODE_MODULES_BIN_DIR")
             .env_remove("APOLLO_ROVER_NO_DOWNLOAD")
-            .env_remove("APOLLO_ROVER_SKIP_UPDATE");
+            .env_remove("APOLLO_ROVER_SKIP_UPDATE")
+            .env_remove("APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD");
     }
 
     fn seed(bin_dir: &Utf8Path, version: &str) {
