@@ -1,0 +1,18 @@
+---
+source: tests/integration/auth/whoami.rs
+expression: "run_whoami(&server, command)"
+---
+{
+  "json_version": "1",
+  "data": {
+    "key_type": "User",
+    "graph_id": null,
+    "graph_title": null,
+    "user_id": "a-user-id",
+    "origin": "$APOLLO_KEY",
+    "grant_type": null,
+    "api_key": "an-a*****-key",
+    "success": true
+  },
+  "error": null
+}
