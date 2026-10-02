@@ -10,10 +10,14 @@
 //!
 //! Without the first two, it skips rather than fails, so the smoke suite stays green until
 //! they're provisioned.
+//!
+//! Pair mutations are rate limited per organization, so the lifecycle runs on one platform only
+//! (Linux x86_64) - pairs behave the same whichever OS Rover runs on - and a step the Platform API
+//! rate limits is retried with backoff.
 
 use std::{
-    env,
-    time::{SystemTime, UNIX_EPOCH},
+    env, thread,
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use assert_cmd::cargo::cargo_bin_cmd;
@@ -21,6 +25,25 @@ use insta::assert_json_snapshot;
 use rstest::rstest;
 use serde_json::{Value, json};
 use speculoos::prelude::*;
+
+/// How long to wait before each retry of a rate-limited step. A rate-limited mutation never
+/// reached its resolver, so retrying it can't create, rotate, or delete twice.
+const BACKOFF: [Duration; 5] = [
+    Duration::from_secs(5),
+    Duration::from_secs(10),
+    Duration::from_secs(20),
+    Duration::from_secs(40),
+    Duration::from_secs(60),
+];
+
+/// How the Platform API's rate limiter phrases its GraphQL error.
+const RATE_LIMITED: &str = "Rate limit exceeded";
+
+/// Every pair this test creates is named this, then the creation time in Unix nanoseconds.
+const NAME_PREFIX: &str = "rover-e2e-";
+
+/// A test pair older than this was left behind by an earlier run, not made by one still going.
+const STALE_AFTER: Duration = Duration::from_secs(60 * 60);
 
 struct Org {
     admin_key: String,
@@ -38,28 +61,81 @@ impl Org {
         })
     }
 
-    /// Runs `rover api-key <args> --format json` as the admin and returns its JSON envelope.
+    /// Runs `rover api-key <args> --format json` as the admin and returns its JSON envelope,
+    /// retrying with [`BACKOFF`] while the Platform API rate limits it. Any other failure, or one
+    /// that's still rate limited after every retry, is returned as a description.
+    fn try_api_key(&self, args: &[&str]) -> Result<Value, String> {
+        let mut waits = BACKOFF.iter();
+        loop {
+            let output = cargo_bin_cmd!("rover")
+                .env("APOLLO_KEY", &self.admin_key)
+                .env_remove("APOLLO_CLIENT_ID")
+                .env_remove("APOLLO_CLIENT_SECRET")
+                .args(["--skip-update-check", "api-key"])
+                .args(args)
+                .args(["--format", "json"])
+                .output()
+                .unwrap();
+            let envelope: Option<Value> = serde_json::from_slice(&output.stdout).ok();
+            if output.status.success() {
+                return envelope.ok_or_else(|| "a successful run printed no JSON".to_string());
+            }
+            let rate_limited = envelope
+                .as_ref()
+                .and_then(|envelope| envelope["error"]["message"].as_str())
+                .is_some_and(|message| message.contains(RATE_LIMITED));
+            match waits.next() {
+                Some(wait) if rate_limited => {
+                    eprintln!(
+                        "`rover api-key {}` was rate limited; retrying in {}s",
+                        args[0],
+                        wait.as_secs()
+                    );
+                    thread::sleep(*wait);
+                }
+                // With `--format json` the error is reported on stdout, in the envelope. A failed
+                // create or rotate never prints its secret (FR71), so stdout is safe to show here.
+                _ => {
+                    return Err(format!(
+                        "`rover api-key {}` failed (stdout: {}, stderr: {})",
+                        args.join(" "),
+                        String::from_utf8_lossy(&output.stdout),
+                        String::from_utf8_lossy(&output.stderr)
+                    ));
+                }
+            }
+        }
+    }
+
+    /// [`Self::try_api_key`], failing the test if the step fails.
     fn api_key(&self, args: &[&str]) -> Value {
-        let output = cargo_bin_cmd!("rover")
-            .env("APOLLO_KEY", &self.admin_key)
-            .env_remove("APOLLO_CLIENT_ID")
-            .env_remove("APOLLO_CLIENT_SECRET")
-            .args(["--skip-update-check", "api-key"])
-            .args(args)
-            .args(["--format", "json"])
-            .output()
-            .unwrap();
-        assert_that!(output.status.success())
-            // With `--format json` the error is reported on stdout, in the envelope. A failed
-            // create or rotate never prints its secret (FR71), so stdout is safe to show here.
-            .named(&format!(
-                "`rover api-key {}` (stdout: {}, stderr: {})",
-                args.join(" "),
-                String::from_utf8_lossy(&output.stdout),
-                String::from_utf8_lossy(&output.stderr)
-            ))
-            .is_true();
-        serde_json::from_slice(&output.stdout).unwrap()
+        self.try_api_key(args)
+            .unwrap_or_else(|failure| panic!("{failure}"))
+    }
+
+    /// Deletes test pairs an earlier run left behind - one whose cleanup was itself rate limited,
+    /// say. Only pairs older than [`STALE_AFTER`] are touched, so a run still in progress
+    /// elsewhere keeps its pair. Best-effort: a failure here doesn't fail the test.
+    fn delete_stale_pairs(&self, now: u128) {
+        let organization_id = self.organization_id.as_str();
+        let Ok(listed) =
+            self.try_api_key(&["list", organization_id, "--type", "client-credentials"])
+        else {
+            return;
+        };
+        let pairs = listed["data"]["client_credentials"].as_array().cloned();
+        for pair in pairs.unwrap_or_default() {
+            let created = pair["name"]
+                .as_str()
+                .and_then(|name| name.strip_prefix(NAME_PREFIX))
+                .and_then(|nanos| nanos.parse::<u128>().ok());
+            let (Some(created), Some(client_id)) = (created, pair["client_id"].as_str()) else {
+                continue;
+            };
+            if now.saturating_sub(created) > STALE_AFTER.as_nanos() {
+                let _ = self.try_api_key(&["delete", organization_id, client_id]);
+            }
+        }
     }
 }
 
@@ -78,11 +154,9 @@ struct Cleanup<'a> {
 impl Drop for Cleanup<'_> {
     fn drop(&mut self) {
         if let Some(client_id) = self.client_id.take() {
-            let _ = cargo_bin_cmd!("rover")
-                .env("APOLLO_KEY", &self.org.admin_key)
-                .args(["--skip-update-check", "api-key", "delete"])
-                .args([&self.org.organization_id, &client_id])
-                .output();
+            let _ = self
+                .org
+                .try_api_key(&["delete", &self.org.organization_id, &client_id]);
         }
     }
 }
@@ -102,6 +176,13 @@ fn redact(mut value: Value, fields: &[&str]) -> Value {
 #[rstest]
 #[ignore]
 fn e2e_test_rover_api_key_client_credentials_lifecycle() {
+    if !cfg!(all(target_os = "linux", target_arch = "x86_64")) {
+        eprintln!(
+            "skipping: the client-credential pair lifecycle runs on Linux x86_64 only, to stay \
+            within the Platform API's rate limit"
+        );
+        return;
+    }
     let Some(org) = Org::from_env() else {
         eprintln!(
             "skipping: set APOLLO_KEY_ROVER_E2E_ORG_ADMIN and ROVER_E2E_ORG_ID to run the \
@@ -114,7 +195,8 @@ fn e2e_test_rover_api_key_client_credentials_lifecycle() {
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_nanos();
-    let name = format!("rover-e2e-{unique}");
+    let name = format!("{NAME_PREFIX}{unique}");
+    org.delete_stale_pairs(unique);
 
     // FR8: create.
     let created = org.api_key(&[
