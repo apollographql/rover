@@ -140,7 +140,7 @@ settings:
   APOLLO_CHECKS_TIMEOUT_SECONDS: 600
 ```
 
-Rover finds the file by looking for a `.rover/` directory in the current directory and then in each parent directory, stopping at your home directory, so it applies to commands run anywhere in the project. A setting in the file applies to everyone who runs Rover there, unless a flag, an environment variable, or a profile they name with `--profile` overrides it. See [How Rover chooses a setting's value](#how-rover-chooses-a-settings-value).
+Rover finds the file by looking for a `.rover/` directory in the current directory and then in each parent directory, stopping at your home directory, so it applies to commands run anywhere in the project. `rover plugin install --manifest-path <FILE>` uses the settings in the file it names instead. A setting in the file applies to everyone who runs Rover there, unless a flag, an environment variable, or a profile they name with `--profile` overrides it. See [How Rover chooses a setting's value](#how-rover-chooses-a-settings-value).
 
 - **Names.** A key is a setting's environment variable name, such as `APOLLO_REGISTRY_URL`, or that name in all lowercase, such as `apollo_registry_url`. The lowercase spelling is accepted in `rover.yaml` only. Using both spellings of the same setting in one file is an error (`E061`).
 - **Values.** A value has the setting's type: a URL, a whole number of seconds, a graph ref, or `true`/`false`. A stored boolean is a real `true` or `false`; see [Boolean values](#boolean-values). Rover checks a value when a command uses the setting, and fails with an error naming the file and the key if it's invalid.
@@ -492,6 +492,7 @@ A boolean stored in a profile or the project file is always a real `true` or `fa
 | `APOLLO_VCS_COMMIT` | `--vcs-commit` | | | The long identifier (SHA in Git) of the commit. See [Git context](#git-context). |
 | `APOLLO_VCS_AUTHOR` | `--vcs-author` | | | The name and email of a commit's author (e.g., `Jane Doe <jane@example.com>`). See [Git context](#git-context). |
 | `APOLLO_ROVER_NO_CONFIG_NOTICES` | `--no-config-notices` | | | Set to `true` to turn off [configuration notices](#configuration-notices). |
+| `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` | | ✓ | ✓ | Set to `true` to let a command that needs a plugin it doesn't have, such as `rover supergraph compose` or `rover dev`, download it. An explicit `rover plugin install` always downloads, whatever this is set to, and `--skip-update` still prevents a download. The environment variable can only turn this on. To turn it off, store `false` in a profile or the project file that [outranks](#how-rover-chooses-a-settings-value) the one that turned it on. |
 | `APOLLO_LOG_LEVEL` | `--log` | | | Sets Rover's [log level](#logging). |
 | `APOLLO_FORMAT` | `--format` | | | Sets Rover's [output format](#configuring-output) (`plain` or `json`). |
 | `NO_COLOR` | `--no-color` | | | Set if you don't want Rover to print color. See [Boolean values](#boolean-values) for how its value is read. |
