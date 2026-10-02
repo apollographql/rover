@@ -1,0 +1,14 @@
+---
+source: tests/integration/auth/grants.rs
+expression: envelope(&output)
+---
+{
+  "json_version": "1",
+  "data": {
+    "success": false
+  },
+  "error": {
+    "message": "Couldn't list organization `acme`'s client-credential pairs, so nothing was revoked: pairs are unavailable",
+    "code": null
+  }
+}
