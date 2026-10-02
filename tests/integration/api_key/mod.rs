@@ -2,6 +2,7 @@
 //! `specs/rover-431-identity-grant-management`).
 
 mod keys;
+mod secret_leak;
 
 use std::process::Output;
 
