@@ -1,0 +1,12 @@
+---
+source: tests/integration/api_key/keys.rs
+expression: parsed
+---
+{
+  "json_version": "1",
+  "data": {
+    "id": "key-operator-1",
+    "success": true
+  },
+  "error": null
+}
