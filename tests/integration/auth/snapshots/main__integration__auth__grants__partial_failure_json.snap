@@ -21,7 +21,7 @@ expression: envelope(&output)
         "name": "ci-deploy",
         "kind": "client_credentials",
         "outcome": "failed",
-        "error": "<query>:0:0: revocation is unavailable"
+        "error": "revocation is unavailable"
       },
       {
         "client_id": "c_91be",

@@ -15,6 +15,6 @@ expression: "format!(\"--- stdout ---\\n{}\\n--- stderr ---\\n{}\",\nString::fro
 
 --- stderr ---
 Revoked grants for `user-123` under 2 of 3 OAuth clients in organization `acme`. Revocation failed under:
-  - `ci-deploy` (`c_8f2a`): <query>:0:0: revocation is unavailable
+  - `ci-deploy` (`c_8f2a`): revocation is unavailable
 Run the same command again to retry. Clients already revoked are unaffected by a retry.
 error[E063]: Revocation failed under 1 of 3 OAuth clients.
