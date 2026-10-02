@@ -271,6 +271,7 @@ comfy-table = { workspace = true }
 console = { workspace = true }
 derive-getters = { workspace = true }
 dialoguer = { workspace = true }
+directories-next = { workspace = true }
 dotenvy = { workspace = true }
 dunce = { workspace = true }
 flate2 = { workspace = true }

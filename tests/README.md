@@ -74,6 +74,10 @@ These would be input individually, which will make sense when you see the input 
 
 Integration tests live in `tests/integration/` and run against the compiled `rover` binary via `assert_cmd`. They are not `#[ignore]`d, so they run as part of `cargo test` and `mise run test`.
 
+### Project files above a test's working directory
+
+The binary these tests (and the end-to-end tests) run isn't built with `cfg(test)`, so it looks for a project's `rover.yaml` (in a `.rover/` directory) from its real working directory, walking up until it reaches your home directory. A project `rover.yaml` above a test's working directory therefore applies its `settings:` to that test. A credential in it fails every command the test runs. A test that depends on project-file behavior should create its own project in a temporary directory and set `current_dir` to it.
+
 ### Snapshot tests
 
 Some integration tests (e.g. `tests/integration/client/extract.rs`) use [`insta`](https://insta.rs) to assert against the full JSON output of a command. The expected output for each test is checked in under `tests/integration/<area>/snapshots/`.

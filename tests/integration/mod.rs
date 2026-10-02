@@ -2,6 +2,7 @@
 mod auth;
 mod client;
 mod completion;
+mod config;
 #[cfg(feature = "composition-js")]
 mod connector;
 mod dev;

@@ -21,7 +21,7 @@ use super::version::{ACCEPTED_FORMS, PluginName, VersionRequest};
 
 mod load;
 
-pub use load::MANIFEST_FILE;
+pub use load::{MANIFEST_FILE, ManifestSettings};
 
 /// The contents of one `rover.yaml`, at either the global or the project level.
 ///
@@ -31,10 +31,6 @@ pub use load::MANIFEST_FILE;
 #[serde(expecting = "a mapping of manifest keys such as `plugins`")]
 #[schemars(
     description = "The contents of one `rover.yaml`, at either the global or the project level. Unknown top-level keys are ignored."
-)]
-#[expect(
-    clippy::manual_non_exhaustive,
-    reason = "the private field refuses YAML merge keys; it is not a marker"
 )]
 pub struct RoverManifest {
     /// The plugins this level declares, each with the version it asks for.
@@ -55,6 +51,17 @@ pub struct RoverManifest {
     )]
     pub install_root: Option<Utf8PathBuf>,
 
+    // Settings for every command run in this project, read by settings
+    // resolution through `RoverManifest::load_settings`, never by the plugin
+    // system: the two sections' rules stay independent, so the plugin side
+    // neither validates nor refuses anything under `settings:`. Declared at
+    // all only so the JSON schema documents the section.
+    #[serde(default)]
+    #[schemars(
+        description = "Settings for every command run in this project. Not read by the plugin system."
+    )]
+    settings: SettingsSection,
+
     // serde_yaml does not expand YAML merge keys; it hands `<<` over as an
     // ordinary key, which the ignore-unknown-keys rule would then drop along
     // with every declaration merged through it. Refuse it instead.
@@ -67,6 +74,31 @@ fn no_merge_keys<'de, D: Deserializer<'de>>(_deserializer: D) -> Result<(), D::E
     Err(de::Error::custom(
         "YAML merge keys (`<<`) aren't supported in a manifest",
     ))
+}
+
+/// The `settings:` section, as the plugin side sees it: anything at all,
+/// ignored.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+struct SettingsSection;
+
+impl<'de> Deserialize<'de> for SettingsSection {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        de::IgnoredAny::deserialize(deserializer).map(|_| Self)
+    }
+}
+
+impl JsonSchema for SettingsSection {
+    fn schema_name() -> Cow<'static, str> {
+        "SettingsSection".into()
+    }
+
+    fn json_schema(_generator: &mut SchemaGenerator) -> Schema {
+        json_schema!({
+            "type": ["object", "null"],
+            "description": "Settings for every command run in this project, keyed by the setting's environment variable name (`APOLLO_REGISTRY_URL`) or its all-lowercase form (`apollo_registry_url`). A flag, an environment variable, or an explicitly selected profile overrides a value set here. Credentials can't be set here.",
+            "additionalProperties": { "type": ["string", "integer", "boolean"] }
+        })
+    }
 }
 
 /// One plugin's entry under `plugins:`.
@@ -389,6 +421,21 @@ mod tests {
         assert_that!(error.to_string().as_str()).is_equal_to(expected);
     }
 
+    /// Whatever `settings:` holds - even a credential, or something that
+    /// isn't a mapping at all - is settings resolution's to judge, not the
+    /// plugin system's.
+    #[rstest]
+    #[case::settings_rover_refuses("settings:\n  APOLLO_KEY: x\nplugins:\n  router: latest\n")]
+    #[case::settings_that_arent_a_mapping("settings: [a, b]\nplugins:\n  router: latest\n")]
+    fn the_plugin_side_ignores_the_settings_section(#[case] input: &str) {
+        let manifest: RoverManifest = serde_yaml::from_str(input).unwrap();
+
+        assert_that!(manifest).is_equal_to(RoverManifest {
+            plugins: declarations(&[(PluginName::Router, VersionRequest::Latest, "latest")]),
+            ..RoverManifest::default()
+        });
+    }
+
     #[rstest]
     fn declarations_iterate_in_plugin_order() {
         let manifest: RoverManifest = serde_yaml::from_str(indoc! {r#"
@@ -410,7 +457,7 @@ mod tests {
     }
 
     #[rstest]
-    fn the_json_schema_names_exactly_the_three_plugins() {
+    fn the_json_schema_names_the_three_plugins_and_documents_settings() {
         assert_json_snapshot!(schema_for!(RoverManifest));
     }
 }

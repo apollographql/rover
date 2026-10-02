@@ -46,10 +46,6 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   `rover api-key delete <ORGANIZATION_ID> <ID>` now accepts a pair's client ID as well as an API key's ID - no flag picks the type; Rover looks the ID up as a pair first. Deleting a pair confirms on stderr that it can no longer obtain tokens and that access tokens it already holds keep working until they expire, and `--format json` reports `key_type: "ClientCredentials"` alongside the existing `id`. Deleting an API key is unchanged, including for callers who can't see the organization's pairs.
 
-- **`rover api-key rename` refuses to rename a client-credential pair - @dotdat**
-
-  Given a pair's client ID, `rover api-key rename` now fails with a new, stable error code (`E059`) and changes nothing, rather than reporting a confusing "key not found" - the Platform API can't rename a pair yet. Renaming an API key is unchanged.
-
 - **`rover api-key create` supports `client-credentials`, a new API key type for CI setup - @dotdat**
 
   `rover api-key create <ORGANIZATION_ID> client-credentials <NAME> --graph-id <GRAPH_ID>... [--secret-lifetime-days <DAYS>]` registers an OAuth 2.0 client-credentials pair scoped to the named graphs, requesting exactly the `rover:cli` scope. On success it prints the client ID and secret to stdout (so CI setup can capture them) and a one-time reminder to stderr that the secret can't be shown again; `--format json` reports `client_id`, `client_secret`, `secret_expires_at`, `name`, `graphs`, and `scopes` under `key_type: "ClientCredentials"`. The pair is usable immediately by setting `APOLLO_CLIENT_ID`/`APOLLO_CLIENT_SECRET` to the reported values. Existing `operator`/`subgraph` behavior is unchanged.
@@ -185,6 +181,38 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Profile-stored OAuth endpoint settings now take effect - @dotdat**
 
   `rover config set` already accepted `APOLLO_OAUTH_AUTHORIZATION_URL`, `APOLLO_OAUTH_TOKEN_URL`, `APOLLO_OAUTH_DEVICE_AUTHORIZATION_URL`, `APOLLO_OAUTH_REVOCATION_URL`, `APOLLO_OAUTH_WHOAMI_URL`, and `APOLLO_OAUTH_CLIENT_ID`, but nothing read the stored value - the `--oauth-*` flags always resolved to their built-in default first. They now go through the same profile tier as every other setting (flag > environment variable > profile > built-in default), appear in `rover config show`, and print the one-line override notice when a profile redirects an endpoint - only for the endpoints the running `rover auth` subcommand uses. An invalid stored value fails the command with `error.code` `E054`.
+
+- **Groundwork for project-file settings: the `settings:` section of `rover.yaml` - @dotdat**
+
+  Adds the rules for reading a `settings:` section from a project's `rover.yaml`, which later changes in this release wire up. A key may be a setting's canonical name (`APOLLO_REGISTRY_URL`) or its all-lowercase form (`apollo_registry_url`). An unrecognized key gets a warning and is ignored. A credential (`APOLLO_KEY`, `APOLLO_CLIENT_ID`, `APOLLO_CLIENT_SECRET`) fails the command with `error.code` `E060`. A setting spelled both ways fails it with `E061`.
+
+- **`rover.yaml`'s JSON schema documents the `settings:` section - @dotdat**
+
+  The project manifest's `settings:` section is read separately from `plugins:`, so a problem in one section never refuses the other. That holds even for a repeated key under `plugins:`. Once project settings are wired up, these cases print a warning and apply nothing, instead of failing the command:
+
+  - a `settings:` section in the user-level `rover.yaml`, whose warning points at `rover config set`
+  - a project manifest Rover can't read or parse at all
+  - a top-level YAML merge key (`<<`)
+
+- **Every command checks the project's `rover.yaml` `settings:` section before it runs - @dotdat**
+
+  Run inside a project, every command first reads the `settings:` section of the `rover.yaml` that plugin discovery finds. A credential in that section fails the command before it sends any request, including the update check (`E060`), as does one setting spelled both ways (`E061`). In these cases Rover prints one warning and the command carries on:
+
+  - an unrecognized key
+  - a `settings:` section in the user-level `rover.yaml`
+  - a project manifest Rover can't read or parse No setting's value is applied from the file yet. Outside a project, nothing changes.
+
+- **Project-file settings take effect, between an explicit profile and the default profile - @dotdat**
+
+  A value under `settings:` in the project's `rover.yaml` now applies to every command run in that project, for every setting `rover config set` accepts. The full order is: flag, environment variable, a profile named with `--profile` (including `--profile default` typed literally), the project file, the `default` profile, then Rover's built-in default. This covers `APOLLO_TELEMETRY_URL` and `APOLLO_TELEMETRY_DISABLED` too. A stored `false` in the file is a typed boolean and leaves telemetry enabled. A value that fails validation fails the command with `error.code` `E054`, naming the file and the key as written. Rover never falls back to a lower tier. Without a project file, every value resolves exactly as before.
+
+- **Notices for project-file settings - @dotdat**
+
+  A project file that redirects a network destination (for example, `APOLLO_ROVER_DOWNLOAD_HOST`) prints ``Note: `rover.yaml` sets `APOLLO_ROVER_DOWNLOAD_HOST` to `https://mirror.example.com`.`` once, the first time Rover sends a request there. An environment variable overriding a project-file value prints a notice too, worded like the one for overriding an explicitly selected profile. A profile named with `--profile` outranking the project file prints nothing about the file. As with every configuration notice, only `--no-config-notices` or `APOLLO_ROVER_NO_CONFIG_NOTICES` can suppress these, not a key in the project file itself.
+
+- **`rover config show` reports project-file settings - @dotdat**
+
+  A setting supplied by the project's `rover.yaml` now reports `source: "project_file"`, under its canonical name even when the file uses the lowercase spelling. Every lower-precedence value it beat, or that beat it, is listed under `overridden`, highest first. A losing value is reported as stored, even if it wouldn't pass validation; a winning value that fails validation fails the command with `E054`, as it does everywhere else. When an invalid stored `APOLLO_TELEMETRY_URL` or `APOLLO_TELEMETRY_DISABLED` is ignored in favor of the built-in default, every stored value for it is still listed under `overridden`. Like every other command, `config show` fails inside a project whose `rover.yaml` names a credential (`E060`) or spells one setting both ways (`E061`).
 
 - **Profiles can now store `APOLLO_CLIENT_TIMEOUT` - @dotdat**
 

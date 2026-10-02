@@ -7,7 +7,7 @@ use serde::Serialize;
 pub use suggestion::RoverErrorSuggestion;
 
 use crate::{
-    options::{JsonVersion, SettingValueError},
+    options::{JsonVersion, ProjectSettingsError, SettingValueError},
     plugin,
     utils::env::RoverEnvKey,
 };
@@ -500,10 +500,10 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
         // FR86: a stored setting's value failing its type's syntactic check
         // gets its own stable code - the message itself (from
         // `SettingValueError`'s `Display`, or the fuller wrapping in
-        // `Rover::resolve_profile_setting_with`) already names a concrete way
-        // to correct it, so no separate suggestion is added here.
-        // `skip_printing_cause: true` because `resolve_profile_setting_with`
-        // preserves `SettingValueError` via `anyhow::Error::context`, whose
+        // `Rover::validate_profile_value` or `validate_project_value`) already
+        // names a concrete way to correct it, so no separate suggestion is
+        // added here. `skip_printing_cause: true` because both preserve
+        // `SettingValueError` via `anyhow::Error::context`, whose
         // own `Display` is already folded into that context message - without
         // this, the read path would print the same reason twice (once in the
         // context message, once again as `anyhow`'s "Caused by:" tail).
@@ -513,6 +513,22 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 suggestions: vec![],
                 code: Some(RoverErrorCode::E054),
                 skip_printing_cause: true,
+            };
+        }
+
+        // FR86: a credential in the project file and a setting spelled both
+        // ways there each get their own stable code. Both messages already say
+        // exactly what to remove, so no suggestion is added.
+        if let Some(project_settings_error) = error.downcast_ref::<ProjectSettingsError>() {
+            let code = match project_settings_error {
+                ProjectSettingsError::Credential { .. } => RoverErrorCode::E060,
+                ProjectSettingsError::SpelledBothWays { .. } => RoverErrorCode::E061,
+            };
+            return RoverErrorMetadata {
+                json_version: JsonVersion::default(),
+                suggestions: vec![],
+                code: Some(code),
+                skip_printing_cause,
             };
         }
 

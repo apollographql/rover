@@ -195,6 +195,15 @@ impl SettingName {
         }
     }
 
+    /// Whether the project file's `settings:` section may set this setting
+    /// (spec.md §2, FR31). Every setting in this catalogue is, today - the
+    /// ones that aren't (VCS context, FR5) aren't variants at all - but the
+    /// spec keeps profile- and project-eligibility as separate lists, so a
+    /// setting added later can be one without the other.
+    pub(crate) const fn is_project_eligible(self) -> bool {
+        true
+    }
+
     /// The setting's built-in default, spelled the way its environment
     /// variable would spell it (FR54) - this is what `rover config show`
     /// reports as `value` when nothing overrides it. `None` means the
@@ -257,7 +266,7 @@ pub(crate) enum SettingNameError {
     #[error(
         "`{input}` isn't a Rover setting name. Settings are named as their environment \
         variables are, so use `{canonical}`. The lowercase spelling is accepted in \
-        `.rover/rover.yaml` only."
+        `rover.yaml` only."
     )]
     LowercaseSpelling {
         input: String,
@@ -321,6 +330,33 @@ pub(crate) enum SettingValueError {
         less; `<VARIANT>` must be 63 characters or less."
     )]
     InvalidGraphRef { input: String },
+    /// A project-file value that's a YAML null, list, or mapping rather than
+    /// one string, number, or boolean. Never produced by
+    /// [`SettingType::validate`], since a profile, an environment variable,
+    /// and a flag can only ever hold a single value; `input` is the value
+    /// rendered back to YAML.
+    #[error("`{input}` isn't a single value.")]
+    NotAScalar { input: String },
+    /// A project-file key with nothing after it. Like `NotAScalar`, never
+    /// produced by [`SettingType::validate`].
+    #[error("no value is set.")]
+    NoValue,
+}
+
+impl SettingValueError {
+    /// The value that failed, as written - empty for `NoValue`.
+    pub(crate) fn input(&self) -> &str {
+        let (SettingValueError::InvalidUrl { input }
+        | SettingValueError::UnsupportedUrlScheme { input }
+        | SettingValueError::InvalidBool { input }
+        | SettingValueError::InvalidWholeSeconds { input }
+        | SettingValueError::InvalidGraphRef { input }
+        | SettingValueError::NotAScalar { input }) = self
+        else {
+            return "";
+        };
+        input
+    }
 }
 
 impl SettingType {
@@ -394,7 +430,7 @@ mod tests {
         assert_that!(error.to_string()).is_equal_to(
             "`apollo_registry_url` isn't a Rover setting name. Settings are named as their \
             environment variables are, so use `APOLLO_REGISTRY_URL`. The lowercase spelling is \
-            accepted in `.rover/rover.yaml` only."
+            accepted in `rover.yaml` only."
                 .to_string(),
         );
     }

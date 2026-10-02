@@ -23,7 +23,7 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
 - **Explicitly selected profile**: a profile named by `--profile <name>` on the command line, including `--profile default` typed literally.
 - **Default profile**: the profile named `default`, selected because `--profile` was not passed.
 - **Active profile**: whichever of the two the invocation resolved to.
-- **Project file**: the `settings:` section of Rover's project manifest, `.rover/rover.yaml`. The manifest's other sections are not settings and no rule in this spec applies to them.
+- **Project file**: the `settings:` section of Rover's project manifest, `rover.yaml`, in the project's `.rover/` directory. The manifest's other sections are not settings and no rule in this spec applies to them.
 - **Network-destination setting**: a setting whose value is a host or URL Rover sends requests to or downloads code from. Marked in §3.1.
 - **Bootstrap setting**: a setting that determines where Rover's own configuration or installation lives, and therefore cannot be read from a profile or a project file without circularity.
 - **Profile-eligible** / **project-eligible**: a setting this spec permits to be stored in a profile / in the project file. §3.1 is the authority; §6 records why the two lists are not identical.
@@ -174,7 +174,7 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
 
   > `APOLLO_NOT_A_SETTING` isn't a Rover setting. Run `rover config show` to list the settings Rover recognizes.
 
-  > `apollo_registry_url` isn't a Rover setting name. Settings are named as their environment variables are, so use `APOLLO_REGISTRY_URL`. The lowercase spelling is accepted in `.rover/rover.yaml` only.
+  > `apollo_registry_url` isn't a Rover setting name. Settings are named as their environment variables are, so use `APOLLO_REGISTRY_URL`. The lowercase spelling is accepted in `rover.yaml` only.
 
 - **FR43**: `rover config set` must validate `<VALUE>` syntactically against the setting's type at write time and must refuse to store a value that fails. A malformed URL, a non-numeric timeout, and an unparseable boolean are each rejected when entered rather than when next used.
 - **FR44**: Validation is syntactic only. Rover must never contact a host to decide whether a value is acceptable.
@@ -239,7 +239,7 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
 ### 3.9 Configuration notices (A1.5, B1.4)
 
 - **FR59**: Rover must print a one-line notice to stderr when, for a setting the current invocation **uses**, either of these holds:
-  - **(a)** an environment variable overrode a value that an *explicitly selected* profile also supplied; or
+  - **(a)** an environment variable overrode a value that an *explicitly selected* profile, or the project file, also supplied; or
   - **(b)** a profile or the project file supplied a non-default value for a network-destination setting.
 - **FR60**: "Uses" is not "resolves." A notice fires only when the invocation acts on the value — for a network-destination setting, when it issues at least one request to that destination during the run. A command that resolves a setting and never acts on it emits nothing.
 - **FR61**: At most one notice per setting per process, printed on first use. When both (a) and (b) apply to the same setting, one notice states both.
@@ -251,7 +251,7 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
 
 - **FR65**: Required text, case (b), project-file source:
 
-  > Note: `.rover/rover.yaml` sets `APOLLO_ROVER_DOWNLOAD_HOST` to `https://mirror.example.com`.
+  > Note: `rover.yaml` sets `APOLLO_ROVER_DOWNLOAD_HOST` to `https://mirror.example.com`.
 
 - **FR66**: Required text, case (a):
 
@@ -260,6 +260,16 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
 - **FR67**: Required text, both cases for one setting:
 
   > Note: `APOLLO_REGISTRY_URL` from the environment is set to `https://registry.staging.example.com`, overriding the value set in profile `prod`.
+
+- **FR105**: Required text, case (a), project-file source. This mirrors FR66, with the file named in the profile's place:
+
+  > Note: `APOLLO_REGISTRY_URL` from the environment overrides the value set in `rover.yaml`.
+
+  When the project file's value is a non-default network destination, one notice states both cases, mirroring FR67:
+
+  > Note: `APOLLO_REGISTRY_URL` from the environment is set to `https://env.example.com`, overriding the value set in `rover.yaml`.
+
+  An environment variable overriding the default profile stays silent, whether or not a project file exists.
 
 ### 3.10 The project file (B1.1, B1.3)
 
@@ -284,7 +294,7 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
 - **FR70**: A `settings:` section that spells the same setting both ways must fail the command, naming the setting and both spellings. Rover must not pick one and must not merge them.
 
   Required text:
-  > `.rover/rover.yaml` sets `APOLLO_REGISTRY_URL` twice, once as `APOLLO_REGISTRY_URL` and once as `apollo_registry_url`. These are the same setting. Remove one.
+  > `rover.yaml` sets `APOLLO_REGISTRY_URL` twice, once as `APOLLO_REGISTRY_URL` and once as `apollo_registry_url`. These are the same setting. Remove one.
 
 - **FR71**: The `settings:` section is hand-authored. No Rover command writes it, and none is added that does.
 - **FR72**: A key inside `settings:` that is not a setting name from FR1, or that is not project-eligible, must produce one warning on stderr and otherwise be ignored — the same rule as FR38. This is distinct from an unrecognized *top-level* manifest key, which the plugin system's rule ignores without warning.
@@ -315,12 +325,12 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
   > `APOLLO_CHECKS_TIMEOUT_SECONDS` in profile `staging` is set to `soon`, which isn't a whole number of seconds. Run `rover config set APOLLO_CHECKS_TIMEOUT_SECONDS <seconds> --profile staging` to correct it.
 
   Required text, project-file source:
-  > `.rover/rover.yaml` sets `APOLLO_REGISTRY_URL` to `registry.example.com`, which isn't a valid URL. URLs must include a scheme, for example `https://registry.example.com`.
+  > `rover.yaml` sets `APOLLO_REGISTRY_URL` to `registry.example.com`, which isn't a valid URL. URLs must include a scheme, for example `https://registry.example.com`.
 
 - **FR85**: A credential name under `settings:` must fail with its own message.
 
   Required text:
-  > `.rover/rover.yaml` sets `APOLLO_KEY` under `settings:`. Credentials can't be stored in a project file. Run `rover auth login`, or set `APOLLO_KEY` in the environment.
+  > `rover.yaml` sets `APOLLO_KEY` under `settings:`. Credentials can't be stored in a project file. Run `rover auth login`, or set `APOLLO_KEY` in the environment.
 
 - **FR86**: Three failure classes must have their own stable error codes, surfaced as `error.code` in JSON output and in the printed error:
   1. A stored setting's value failed validation (FR84).
@@ -415,6 +425,9 @@ Given a project file setting `APOLLO_REGISTRY_URL` and profile `staging` setting
 **The environment overriding an explicit profile is surfaced**
 Given `APOLLO_REGISTRY_URL=https://env.example.com` and profile `prod` setting it to something else, when `rover graph check --profile prod` runs, then the FR67 notice is printed once on stderr and the run proceeds against the environment's registry with `prod`'s credential.
 
+**The environment overriding the project file is surfaced**
+Given a project file setting `APOLLO_REGISTRY_URL` to `https://repo.example.com` and `APOLLO_REGISTRY_URL=https://env.example.com`, when `rover graph check` runs in that project without `--profile`, then the FR105 notice is printed once on stderr and the run proceeds against the environment's registry.
+
 **The project file accepts either spelling, but not both**
 Given a project file whose `settings:` section uses `apollo_registry_url`, when a command runs in that project, then the value applies exactly as the canonical spelling would, and `rover config show` reports the setting as `APOLLO_REGISTRY_URL`. Given `Apollo_Registry_Url` instead, then the key is unrecognized, the FR72 warning is printed, and the value is not applied. Given a file carrying both `APOLLO_REGISTRY_URL` and `apollo_registry_url`, then the command fails with the FR70 text and neither value is applied.
 
@@ -498,6 +511,8 @@ Decisions taken while drafting, and their reasoning.
 - **Slicing is constrained by one requirement, not by a fixed setting order** (FR29), resolving the PRD's A4 delivery-slicing question. Which settings a given slice enables is a scheduling choice and this spec deliberately does not fix it; what a slice may not do is change a resolved value for a user who has no project file. FR29 makes that checkable — the four-tier chain and the six-tier chain must agree on every such input — so slices can be reordered freely without anyone having to re-derive whether the reordering is safe.
 
 - **The catalogue is the complete list, and corrects the PRD's inventory** (FR1, FR3). Drafting turned up `APOLLO_FIRE_FLOWER`, which the PRD's survey missed; `APOLLO_NODE_MODULES_BIN`, which Rover advertises and never reads (FR4); and `APOLLO_NODE_MODULES_BIN_DIR`, whose only observable effect is which suggestion an error prints, not install paths as the PRD describes. Recording these is the point of writing the catalogue as a single normative table rather than prose: it is the artifact that makes "every setting is documented" checkable.
+
+- **Messages name the project file `rover.yaml`, not by a directory layout or the path discovery found** (FR42, FR65, FR70, FR72, FR84, FR85, FR105), matching the plugin system's own messages about the same file. The bare file name stays accurate however the manifest was found: from a nested directory, through a symlinked worktree, or through an explicitly named manifest path. A literal directory layout would be wrong in each of those cases. The one message about the user-level manifest already qualifies it as "the user-level `rover.yaml`" (FR76), so the unqualified name is unambiguous.
 
 ---
 
