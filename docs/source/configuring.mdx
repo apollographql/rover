@@ -435,6 +435,12 @@ A boolean stored in a profile or the project file is always a real `true` or `fa
 | `APOLLO_ROVER_DOWNLOAD_HOST` | `--download-host` | ✓ | ✓ | Overrides the host plugin binaries (the `router` and `supergraph` composition plugins) are downloaded from. |
 | `APOLLO_TEMPLATES_API` | `--templates-api` (`rover template` only) | ✓ | ✓ | Overrides where `rover template` fetches project templates from. `rover init` fetches templates from GitHub and doesn't use this. |
 | `APOLLO_GRAPH_REF` | | ✓ | ✓ | A graph ref passed to `rover dev` command. [Learn more](./commands/dev#understanding---graph-ref-vs-apollo_graph_ref) |
+| `APOLLO_OAUTH_AUTHORIZATION_URL` | `--oauth-authorization-url` | ✓ | ✓ | Overrides the OAuth authorization endpoint `rover auth login` uses. |
+| `APOLLO_OAUTH_TOKEN_URL` | `--oauth-token-url` | ✓ | ✓ | Overrides the OAuth token endpoint `rover auth login` and client-credentials authentication (`APOLLO_CLIENT_ID`/`APOLLO_CLIENT_SECRET`) use. |
+| `APOLLO_OAUTH_DEVICE_AUTHORIZATION_URL` | `--oauth-device-authorization-url` | ✓ | ✓ | Overrides the OAuth device authorization endpoint `rover auth login --no-browser` uses. |
+| `APOLLO_OAUTH_REVOCATION_URL` | `--oauth-revocation-url` | ✓ | ✓ | Overrides the OAuth revocation endpoint `rover auth logout` uses. |
+| `APOLLO_OAUTH_WHOAMI_URL` | `--oauth-whoami-url` | ✓ | ✓ | Overrides the OAuth userinfo endpoint `rover auth whoami` uses. |
+| `APOLLO_OAUTH_CLIENT_ID` | `--oauth-client-id` | ✓ | ✓ | Overrides the OAuth client ID `rover auth login` and `rover auth logout` use. |
 | `APOLLO_ROVER_DEV_ROUTER_VERSION` | `--router-version` (`rover dev` only) | | | Overrides the version of the GraphOS Router `rover dev` runs. |
 | `APOLLO_ROVER_DEV_COMPOSITION_VERSION` | `--composition-version` (`rover dev` only) | | | Overrides the version of Apollo Federation `rover dev` uses for composition. `--federation-version` takes precedence over both. |
 | `APOLLO_ROVER_DEV_MCP_VERSION` | `--mcp-version` (`rover dev` only) | | | Overrides the version of the Apollo MCP Server `rover dev --mcp` runs. |
