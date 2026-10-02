@@ -820,23 +820,6 @@ impl Rover {
         Ok(resolved)
     }
 
-    /// The active profile's stored value for `name`, validated against its
-    /// type, whichever stored tier that profile occupies. Most callers want
-    /// [`Rover::resolve_stored_setting_with`], which puts the project file in
-    /// its place relative to the profile.
-    pub(crate) fn resolve_profile_setting_with(
-        &self,
-        houston_config: &Config,
-        name: SettingName,
-    ) -> RoverResult<Option<String>> {
-        let profile = self.get_profile_opt();
-        let profile_handle = Profile::new(&profile.profile_name, houston_config);
-        let Some(raw) = profile_handle.get_setting(name.as_str())? else {
-            return Ok(None);
-        };
-        self.validate_profile_value(name, raw).map(Some)
-    }
-
     /// `raw`, read from the active profile, validated against `name`'s type,
     /// with FR84's profile text when it fails.
     fn validate_profile_value(&self, name: SettingName, raw: String) -> RoverResult<String> {

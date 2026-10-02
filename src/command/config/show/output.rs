@@ -1,22 +1,14 @@
 use serde::Serialize;
 
-use crate::{command::CliOutput, options::ProfileSelection, utils::table};
+use crate::{cli::StoredTier, command::CliOutput, options::ProfileSelection, utils::table};
 
-/// One of the tiers spec.md FR25 defines. Only five are ever produced by
-/// this slice - `ProjectFile` doesn't exist until Part B ships, and this
-/// slice's setting group doesn't yet cover every setting FR51 anticipates,
-/// but the five literals it does produce are exactly FR51's spelling so nothing
-/// here needs to change shape when Part B and later Part A slices add the rest.
+/// One of the six tiers spec.md FR25 defines, spelled exactly as FR51 does.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub(super) enum Source {
     Flag,
     Environment,
     ExplicitProfile,
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "not produced until Part B adds the project file")
-    )]
     ProjectFile,
     DefaultProfile,
     Builtin,
@@ -43,6 +35,16 @@ impl From<ProfileSelection> for Source {
             Source::ExplicitProfile
         } else {
             Source::DefaultProfile
+        }
+    }
+}
+
+impl From<StoredTier> for Source {
+    fn from(tier: StoredTier) -> Self {
+        match tier {
+            StoredTier::ExplicitProfile => Source::ExplicitProfile,
+            StoredTier::ProjectFile => Source::ProjectFile,
+            StoredTier::DefaultProfile => Source::DefaultProfile,
         }
     }
 }

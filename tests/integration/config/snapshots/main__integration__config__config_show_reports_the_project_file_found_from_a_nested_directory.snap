@@ -1,0 +1,54 @@
+---
+source: tests/integration/config/mod.rs
+expression: settings
+---
+[
+  {
+    "name": "APOLLO_REGISTRY_URL",
+    "value": "https://repo.example.com",
+    "source": "project_file",
+    "overridden": []
+  },
+  {
+    "name": "APOLLO_TELEMETRY_URL",
+    "value": "https://rover.apollo.dev/telemetry",
+    "source": "builtin",
+    "overridden": []
+  },
+  {
+    "name": "APOLLO_TELEMETRY_DISABLED",
+    "value": "true",
+    "source": "environment",
+    "overridden": []
+  },
+  {
+    "name": "APOLLO_CHECKS_TIMEOUT_SECONDS",
+    "value": "600",
+    "source": "project_file",
+    "overridden": []
+  },
+  {
+    "name": "APOLLO_CLIENT_TIMEOUT",
+    "value": "30",
+    "source": "builtin",
+    "overridden": []
+  },
+  {
+    "name": "APOLLO_ROVER_DOWNLOAD_HOST",
+    "value": "https://rover.apollo.dev",
+    "source": "builtin",
+    "overridden": []
+  },
+  {
+    "name": "APOLLO_TEMPLATES_API",
+    "value": "https://rover.apollo.dev/templates",
+    "source": "builtin",
+    "overridden": []
+  },
+  {
+    "name": "APOLLO_GRAPH_REF",
+    "value": null,
+    "source": "builtin",
+    "overridden": []
+  }
+]
