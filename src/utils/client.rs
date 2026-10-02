@@ -205,6 +205,8 @@ pub struct StudioClientConfig {
     download_host: Option<String>,
     #[getter(skip)]
     download_host_notice: Option<Arc<DownloadHostNotice>>,
+    #[getter(skip)]
+    allow_automatic_download: bool,
 }
 
 impl StudioClientConfig {
@@ -232,6 +234,7 @@ impl StudioClientConfig {
             download_timeout: DOWNLOAD_REQUEST_TIMEOUT,
             download_host: None,
             download_host_notice: None,
+            allow_automatic_download: false,
         }
     }
 
@@ -246,6 +249,19 @@ impl StudioClientConfig {
     pub fn with_download_host(mut self, download_host: String) -> Self {
         self.download_host = Some(download_host);
         self
+    }
+
+    /// Lets a command that needs a plugin installed nowhere download it on its
+    /// own, as `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` resolved. Until this is
+    /// called, it may not.
+    pub const fn with_allow_automatic_download(mut self, allow: bool) -> Self {
+        self.allow_automatic_download = allow;
+        self
+    }
+
+    /// Whether a command may download a plugin it needs and doesn't have.
+    pub const fn allow_automatic_download(&self) -> bool {
+        self.allow_automatic_download
     }
 
     /// Carries the FR64 override notice text to print the first time a

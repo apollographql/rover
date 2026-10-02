@@ -111,6 +111,7 @@ pub enum RoverEnvKey {
     RoverDownloadHost,
     TemplatesApi,
     GraphRef,
+    RoverAllowAutomaticDownload,
     OauthAuthorizationUrl,
     OauthTokenUrl,
     OauthDeviceAuthorizationUrl,

@@ -50,5 +50,11 @@ expression: settings
     "value": null,
     "source": "builtin",
     "overridden": []
+  },
+  {
+    "name": "APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD",
+    "value": "false",
+    "source": "builtin",
+    "overridden": []
   }
 ]

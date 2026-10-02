@@ -27,7 +27,8 @@ const DEFAULT_TEMPLATES_API: &str = "https://rover.apollo.dev/templates";
 /// This slice's subset of the full settings catalogue (spec.md §3.1/FR1):
 /// the registry/telemetry/OAuth-endpoint group ROVER-451 Part A's first
 /// slice covers, plus the checks-timeout/download-host/templates-api/graph-ref
-/// group its second slice adds. Every setting here is profile-eligible. The
+/// group its second slice adds, plus the plugin system's opt-in to automatic
+/// downloads (§3.16). Every setting here is profile-eligible. The
 /// OAuth endpoints only exist when the `oauth` feature is compiled in - the
 /// whole `rover auth login` machinery they configure is gated the same way,
 /// so a stored value for one would otherwise have nothing to affect.
@@ -50,6 +51,7 @@ pub(crate) enum SettingName {
     DownloadHost,
     TemplatesApi,
     GraphRef,
+    AllowAutomaticDownload,
     #[cfg(feature = "oauth")]
     OauthAuthorizationUrl,
     #[cfg(feature = "oauth")]
@@ -107,6 +109,7 @@ impl SettingName {
             SettingName::DownloadHost,
             SettingName::TemplatesApi,
             SettingName::GraphRef,
+            SettingName::AllowAutomaticDownload,
         ];
         #[cfg(feature = "oauth")]
         all.extend([
@@ -133,6 +136,7 @@ impl SettingName {
             SettingName::DownloadHost => "APOLLO_ROVER_DOWNLOAD_HOST",
             SettingName::TemplatesApi => "APOLLO_TEMPLATES_API",
             SettingName::GraphRef => "APOLLO_GRAPH_REF",
+            SettingName::AllowAutomaticDownload => "APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD",
             #[cfg(feature = "oauth")]
             SettingName::OauthAuthorizationUrl => "APOLLO_OAUTH_AUTHORIZATION_URL",
             #[cfg(feature = "oauth")]
@@ -155,7 +159,9 @@ impl SettingName {
             | SettingName::TelemetryUrl
             | SettingName::DownloadHost
             | SettingName::TemplatesApi => SettingType::Url,
-            SettingName::TelemetryDisabled => SettingType::Bool,
+            SettingName::TelemetryDisabled | SettingName::AllowAutomaticDownload => {
+                SettingType::Bool
+            }
             SettingName::ChecksTimeoutSeconds | SettingName::ClientTimeout => {
                 SettingType::WholeSeconds
             }
@@ -183,7 +189,8 @@ impl SettingName {
             SettingName::TelemetryDisabled
             | SettingName::ChecksTimeoutSeconds
             | SettingName::ClientTimeout
-            | SettingName::GraphRef => false,
+            | SettingName::GraphRef
+            | SettingName::AllowAutomaticDownload => false,
             #[cfg(feature = "oauth")]
             SettingName::OauthAuthorizationUrl
             | SettingName::OauthTokenUrl
@@ -224,6 +231,7 @@ impl SettingName {
             SettingName::DownloadHost => Some(DEFAULT_DOWNLOAD_HOST.to_string()),
             SettingName::TemplatesApi => Some(DEFAULT_TEMPLATES_API.to_string()),
             SettingName::GraphRef => None,
+            SettingName::AllowAutomaticDownload => Some("false".to_string()),
             #[cfg(feature = "oauth")]
             SettingName::OauthAuthorizationUrl => Some(DEFAULT_AUTHORIZATION_URL.to_string()),
             #[cfg(feature = "oauth")]
@@ -562,6 +570,7 @@ mod tests {
         assert_that!(SettingName::TemplatesApi.is_network_destination()).is_true();
         assert_that!(SettingName::ChecksTimeoutSeconds.is_network_destination()).is_false();
         assert_that!(SettingName::GraphRef.is_network_destination()).is_false();
+        assert_that!(SettingName::AllowAutomaticDownload.is_network_destination()).is_false();
     }
 
     #[cfg(feature = "oauth")]
