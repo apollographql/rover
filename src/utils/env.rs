@@ -105,7 +105,6 @@ pub enum RoverEnvKey {
     VcsBranch,
     VcsCommit,
     VcsAuthor,
-    NodeModulesBin,
     ChecksTimeoutSeconds,
     ClientTimeout,
     RoverDownloadHost,
