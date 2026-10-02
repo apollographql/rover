@@ -102,6 +102,22 @@ impl GlobalLevel {
         }
         self
     }
+
+    /// Store `setting` as `value` on `profile` in this level's configuration
+    /// home, the way a user would, with `rover config set`.
+    pub fn store_setting(&self, profile: &str, setting: &str, value: &str) {
+        let mut command = Command::new(assert_cmd::cargo::cargo_bin("rover"));
+        self.apply(&mut command);
+        let output = command
+            .args(["config", "set", "--profile", profile, setting, value])
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "rover config set failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
 }
 
 impl Default for GlobalLevel {

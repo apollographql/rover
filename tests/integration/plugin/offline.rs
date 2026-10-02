@@ -297,6 +297,109 @@ fn skip_update_fails_by_name_for_a_plugin_that_is_not_installed(
     }));
 }
 
+/// How a test opts in to automatic downloads: by one of the tiers the
+/// `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` setting resolves through.
+#[derive(Debug, Clone, Copy)]
+enum OptIn {
+    /// `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true` under `settings:` in the
+    /// project's `rover.yaml`.
+    ProjectFile,
+    /// The setting stored on the default profile.
+    Profile,
+    /// `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD=true`.
+    Variable,
+}
+
+impl OptIn {
+    /// Store this opt-in under `levels`, and return the environment it needs.
+    fn apply(self, levels: &TwoLevels) -> Vec<(&'static str, &'static str)> {
+        match self {
+            Self::ProjectFile => {
+                fs::write(
+                    levels.project.rover_dir().join("rover.yaml"),
+                    "settings:\n  APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true\n",
+                )
+                .unwrap();
+                Vec::new()
+            }
+            Self::Profile => {
+                levels.global.store_setting(
+                    "default",
+                    "APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD",
+                    "true",
+                );
+                Vec::new()
+            }
+            Self::Variable => vec![("APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD", "true")],
+        }
+    }
+}
+
+/// FR79: a standing opt-in may permit a download, but never one a run was
+/// told not to make. With it set by any route, `--skip-update` still
+/// fails by name for a plugin installed nowhere, and nothing is downloaded.
+#[rstest]
+fn a_standing_opt_in_never_overrides_skip_update(
+    two_levels: TwoLevels,
+    #[values(OptIn::ProjectFile, OptIn::Profile, OptIn::Variable)] opt_in: OptIn,
+    #[values(
+        (&["--skip-update"][..], None, "--skip-update"),
+        (&[][..], Some(("APOLLO_ROVER_SKIP_UPDATE", "true")), "APOLLO_ROVER_SKIP_UPDATE")
+    )]
+    control: (&[&str], Option<(&str, &str)>, &str),
+) {
+    let (flags, variable, named) = control;
+    write_config(&two_levels, "=2.9.3");
+    let mut env = opt_in.apply(&two_levels);
+    env.extend(variable);
+
+    let run = compose(&two_levels, flags, &env);
+
+    assert_that!((run.code, run.requests)).is_equal_to((Some(1), 0));
+    assert_that!(&run.json["error"]).is_equal_to(serde_json::json!({
+        "message": "Error when updating Federation Version",
+        "causes": [
+            "Couldn't obtain the `supergraph` plugin",
+            missing_from_either(&two_levels, named),
+        ],
+        "code": "E058",
+    }));
+}
+
+/// FR79 for the explicit install step: an opt-in to automatic downloads
+/// doesn't lift `--no-download` either.
+#[rstest]
+fn a_standing_opt_in_never_overrides_no_download(
+    two_levels: TwoLevels,
+    #[values(OptIn::Profile, OptIn::Variable)] opt_in: OptIn,
+    #[values(
+        (&["--no-download"][..], None, "--no-download"),
+        (&[][..], Some(("APOLLO_ROVER_NO_DOWNLOAD", "true")), "APOLLO_ROVER_NO_DOWNLOAD")
+    )]
+    control: (&[&str], Option<(&str, &str)>, &str),
+) {
+    let (flags, variable, named) = control;
+    let mut env = opt_in.apply(&two_levels);
+    env.extend(variable);
+    let args: Vec<&str> = ["supergraph@=2.9.3", "--global"]
+        .iter()
+        .chain(flags)
+        .copied()
+        .collect();
+
+    let (run, _registry) = install(&two_levels.global, &args, &env);
+
+    assert_that!((run.code, run.requests, &run.json["error"]["code"])).is_equal_to((
+        Some(1),
+        0,
+        &Value::from("E058"),
+    ));
+    assert_that!(&run.json["error"]["message"]).is_equal_to(Value::from(missing(
+        &two_levels.bin_dir(Level::Global),
+        named,
+    )));
+}
+
 /// The stub plugins are shell scripts, so these are Unix-only.
 #[cfg(unix)]
 mod with_a_runnable_plugin {
