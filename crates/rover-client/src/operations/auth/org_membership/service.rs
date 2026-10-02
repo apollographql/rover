@@ -5,6 +5,7 @@ use rover_tower::service::replace_ready_service;
 use tower::Service;
 
 use crate::{
+    error::grant_permission_denied_in,
     operations::auth::org_membership::{
         org_membership_query::{self, Variables},
         OrgMembershipInput, OrgMembershipQuery,
@@ -68,13 +69,19 @@ where
             let vars = Variables {
                 organization_id: organization_id.clone(),
             };
-            let data = inner.call(GraphQLRequest::new(vars)).await?;
+            let data = match inner.call(GraphQLRequest::new(vars)).await {
+                Ok(data) => data,
+                Err(err) => {
+                    return Err(grant_permission_denied_in(&err, organization_id)
+                        .unwrap_or_else(|| err.into()))
+                }
+            };
             let organization = data
                 .organization
                 .ok_or(RoverClientError::OrganizationIDNotFound { organization_id })?;
             Ok(organization.memberships.map(|memberships| {
                 memberships
-                    .iter()
+                    .into_iter()
                     .any(|membership| membership.user.id == input.user_id)
             }))
         })
@@ -102,13 +109,18 @@ pub mod mock {
 #[cfg(test)]
 mod tests {
     use futures::future;
+    use rover_http::HttpServiceError;
+    use rover_studio::service::permission_denied::PermissionDenied;
     use rover_tower::test::{expect_poll_ready, MockCloneService};
     use rstest::{fixture, rstest};
     use serde_json::{json, Value};
     use speculoos::prelude::*;
     use tower::ServiceExt;
 
-    use super::{mock::MockOrgMembershipInnerService, *};
+    use super::{
+        mock::{MockOrgMembershipInnerService, OrgMembershipErr},
+        *,
+    };
 
     #[fixture]
     fn input() -> OrgMembershipInput {
@@ -166,6 +178,50 @@ mod tests {
 
         assert_that!(err).matches(|err| {
             matches!(err, RoverClientError::OrganizationIDNotFound { organization_id } if organization_id == "acme")
+        });
+    }
+
+    fn fail_with(err: OrgMembershipErr) -> MockOrgMembershipInnerService {
+        let mut mock = MockOrgMembershipInnerService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call()
+            .times(1)
+            .return_once(move |_| future::ready(Err(err)));
+        mock
+    }
+
+    // FR73: a refused member list is the grants permission error, naming the organization.
+    #[rstest]
+    #[tokio::test]
+    async fn call_reports_a_grant_permission_denial_naming_the_organization(
+        input: OrgMembershipInput,
+    ) {
+        let mock = fail_with(GraphQLServiceError::UpstreamService(Box::new(
+            HttpServiceError::Unexpected(Box::new(PermissionDenied)),
+        )));
+
+        let err = OrgMembership::new(MockCloneService::new(mock))
+            .oneshot(input)
+            .await
+            .unwrap_err();
+
+        assert_that!(err).matches(|err| {
+            matches!(err, RoverClientError::GrantPermissionDenied { organization_id } if organization_id == "acme")
+        });
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn call_passes_other_failures_through(input: OrgMembershipInput) {
+        let mock = fail_with(GraphQLServiceError::NoData(vec![]));
+
+        let err = OrgMembership::new(MockCloneService::new(mock))
+            .oneshot(input)
+            .await
+            .unwrap_err();
+
+        assert_that!(err).matches(|err| {
+            matches!(err, RoverClientError::GraphQl { msg } if msg == "No data field provided")
         });
     }
 }
