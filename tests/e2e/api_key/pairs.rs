@@ -50,9 +50,12 @@ impl Org {
             .output()
             .unwrap();
         assert_that!(output.status.success())
+            // With `--format json` the error is reported on stdout, in the envelope. A failed
+            // create or rotate never prints its secret (FR71), so stdout is safe to show here.
             .named(&format!(
-                "`rover api-key {}` (stderr: {})",
+                "`rover api-key {}` (stdout: {}, stderr: {})",
                 args.join(" "),
+                String::from_utf8_lossy(&output.stdout),
                 String::from_utf8_lossy(&output.stderr)
             ))
             .is_true();
