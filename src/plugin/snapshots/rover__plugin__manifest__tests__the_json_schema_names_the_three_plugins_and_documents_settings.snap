@@ -19,6 +19,10 @@ expression: schema_for!(RoverManifest)
         "null"
       ],
       "default": null
+    },
+    "settings": {
+      "description": "Settings for every command run in this project. Not read by the plugin system.",
+      "$ref": "#/$defs/SettingsSection"
     }
   },
   "$defs": {
@@ -51,6 +55,20 @@ expression: schema_for!(RoverManifest)
         }
       },
       "additionalProperties": false
+    },
+    "SettingsSection": {
+      "description": "Settings for every command run in this project, keyed by the setting's environment variable name (`APOLLO_REGISTRY_URL`) or its all-lowercase form (`apollo_registry_url`). A flag, an environment variable, or an explicitly selected profile overrides a value set here. Credentials can't be set here.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": [
+          "string",
+          "integer",
+          "boolean"
+        ]
+      }
     }
   }
 }
