@@ -23,7 +23,7 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
 - **Explicitly selected profile**: a profile named by `--profile <name>` on the command line, including `--profile default` typed literally.
 - **Default profile**: the profile named `default`, selected because `--profile` was not passed.
 - **Active profile**: whichever of the two the invocation resolved to.
-- **Project file**: the `settings:` section of Rover's project manifest, `.rover/rover.yaml`. The manifest's other sections are not settings and no rule in this spec applies to them.
+- **Project file**: the `settings:` section of Rover's project manifest, `rover.yaml`, in the project's `.rover/` directory. The manifest's other sections are not settings and no rule in this spec applies to them.
 - **Network-destination setting**: a setting whose value is a host or URL Rover sends requests to or downloads code from. Marked in §3.1.
 - **Bootstrap setting**: a setting that determines where Rover's own configuration or installation lives, and therefore cannot be read from a profile or a project file without circularity.
 - **Profile-eligible** / **project-eligible**: a setting this spec permits to be stored in a profile / in the project file. §3.1 is the authority; §6 records why the two lists are not identical.

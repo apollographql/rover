@@ -1,5 +1,5 @@
 //! Classifying the `settings:` section of the project manifest,
-//! `.rover/rover.yaml` (spec.md §3.10). Pure: this module never touches the
+//! `rover.yaml` (spec.md §3.10). Pure: this module never touches the
 //! filesystem and never decides which manifest is the project file - it is
 //! handed an already-parsed `settings:` value and decides what each key in
 //! it means.
