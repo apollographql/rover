@@ -1,0 +1,14 @@
+---
+source: src/command/auth/grants/revoke/mod.rs
+expression: "JsonOutput::from(&err)"
+---
+{
+  "json_version": "1",
+  "data": {
+    "success": false
+  },
+  "error": {
+    "message": "Revoking every grant for `user-123` needs confirmation, and there's no terminal to ask on. Pass `--confirm` to proceed without a prompt.",
+    "code": "E062"
+  }
+}

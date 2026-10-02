@@ -50,6 +50,18 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
             };
         }
 
+        #[cfg(feature = "oauth")]
+        if let Some(revoke_error) =
+            error.downcast_ref::<crate::command::auth::grants::revoke::error::GrantsRevokeError>()
+        {
+            return RoverErrorMetadata {
+                json_version: JsonVersion::default(),
+                suggestions: vec![],
+                code: revoke_error.code(),
+                skip_printing_cause: false,
+            };
+        }
+
         let mut skip_printing_cause = false;
         if let Some(rover_client_error) = error.downcast_ref::<RoverClientError>() {
             let (suggestion, code) = match rover_client_error {

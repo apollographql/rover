@@ -1,4 +1,5 @@
 mod config;
+pub(crate) mod grants;
 mod login;
 mod logout;
 mod whoami;
@@ -9,7 +10,8 @@ use serde::Serialize;
 pub use self::config::OauthConfig;
 use crate::{
     RoverResult,
-    options::{ProfileOpt, SettingName},
+    cli::RoverOutputFormatKind,
+    options::{OutputOpts, ProfileOpt, SettingName},
     utils::client::StudioClientConfig,
 };
 
@@ -27,6 +29,8 @@ pub enum AuthCommand {
     Logout(logout::Logout),
     /// Display the identity of the currently authenticated profile
     Whoami(whoami::WhoAmI),
+    /// Manage OAuth grants
+    Grants(grants::Grants),
 }
 
 impl Auth {
@@ -43,6 +47,7 @@ impl Auth {
             AuthCommand::Login(command) => command.oauth_settings_used(),
             AuthCommand::Logout(command) => command.oauth_settings_used(),
             AuthCommand::Whoami(command) => command.oauth_settings_used(),
+            AuthCommand::Grants(command) => command.oauth_settings_used(),
         }
     }
 
@@ -51,6 +56,7 @@ impl Auth {
         client_config: StudioClientConfig,
         oauth_config: OauthConfig,
         profile: &ProfileOpt,
+        output_opts: &OutputOpts,
     ) -> RoverResult<crate::RoverOutput> {
         match &self.command {
             AuthCommand::Login(command) => {
@@ -64,6 +70,16 @@ impl Auth {
                     .await
             }
             AuthCommand::Whoami(command) => command.run(client_config, oauth_config, profile).await,
+            AuthCommand::Grants(command) => {
+                command
+                    .run(
+                        client_config,
+                        &oauth_config,
+                        profile,
+                        output_opts.format_kind == RoverOutputFormatKind::Json,
+                    )
+                    .await
+            }
         }
     }
 }
