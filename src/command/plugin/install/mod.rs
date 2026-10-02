@@ -16,8 +16,10 @@ use crate::{
     plugin::{
         discovery::{ManifestDirs, project_in_scope},
         error::{DownloadControl, RequestOrigin},
+        layering::LayeredDeclarations,
         lockfile::{LOCKFILE, LockedPlugin, PluginLockfile},
         manifest::{MANIFEST_FILE, RoverManifest},
+        precedence::{self, RequestInputs},
     },
     utils::{GLOBAL_ENV, client::StudioClientConfig},
 };
@@ -101,10 +103,21 @@ impl PluginInstall {
             RoverManifest::load(&manifest)?;
         }
 
+        // The positional is required, so it is always the most specific
+        // source on the ladder every plugin-using command shares, and nothing
+        // below it is consulted. It is never pinned by a lockfile either: a
+        // plugin named on the command line is resolved afresh.
+        let request = precedence::resolve(
+            self.plugin.name(),
+            RequestInputs::new(self.plugin.request())
+                .with_override(Some((self.plugin.request(), RequestOrigin::PluginArgument))),
+            &LayeredDeclarations::default(),
+        );
+        let plugin = Plugin::from_request(request.plugin, &request.request)?;
         let installed = PluginInstaller::new(client_config, rover_installer, self.force)
-            .requested_by(Some(RequestOrigin::PluginArgument))
+            .requested_by(request.origin())
             .without_downloads(self.download_control())
-            .install(&self.plugin)
+            .install(&plugin)
             .await;
         // A failed install leaves no half-made project root behind.
         let installed = match (installed, new_root) {

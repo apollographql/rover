@@ -1,7 +1,7 @@
 use std::{io::stdin, str::FromStr};
 
 use anyhow::anyhow;
-use apollo_federation_types::config::{FederationVersion, RouterVersion};
+use apollo_federation_types::config::FederationVersion;
 use camino::Utf8PathBuf;
 use futures::StreamExt;
 use rover_client::RoverClientError;
@@ -23,7 +23,7 @@ use crate::{
                 run::RunRouter,
             },
         },
-        install::McpServerVersion,
+        install::Plugin,
     },
     composition::{
         CompositionError, FederationUpdaterConfig,
@@ -39,7 +39,12 @@ use crate::{
         },
     },
     options::ProfileOpt,
-    plugin::{discovery::ManifestDirs, error::RequestOrigin},
+    plugin::{
+        discovery::ManifestDirs,
+        error::RequestOrigin,
+        precedence::{self, RequestInputs, declarations_in_scope},
+        version::{PluginName, VersionRequest},
+    },
     utils::{
         client::StudioClientConfig,
         effect::{
@@ -95,42 +100,8 @@ impl Dev {
         let resolve_introspect_subgraph_factory =
             MakeResolveIntrospectSubgraph::new(client_config.service()?).boxed_clone();
 
-        // We resolve supergraph binary overrides (ie, composition version) in this order:
-        //
-        // 1) --federation-version
-        // 2) --composition-version, or its env var
-        // 3) what's in the supergraph config (represented here as None)
-        let federation_version = self
-            .opts
-            .supergraph_opts
-            .federation_version
-            .clone()
-            .map(|version| (version, RequestOrigin::Flag("--federation-version")))
-            .or_else(|| {
-                let version = &self
-                    .opts
-                    .supergraph_opts
-                    .composition_version
-                    .clone()
-                    .and_then(|version| {
-                        match FederationVersion::from_str(&format!("={version}")) {
-                            Ok(version) => Some((
-                                version,
-                                RequestOrigin::flag_or_env(
-                                    "--composition-version",
-                                    "APOLLO_ROVER_DEV_COMPOSITION_VERSION",
-                                ),
-                            )),
-                            Err(err) => {
-                                errln!("{err}");
-                                tracing::error!("{:?}", err);
-                                None
-                            }
-                        }
-                    });
-
-                version.clone()
-            });
+        let plugin_levels = ManifestDirs::in_scope(override_install_path.as_deref());
+        let federation_version = self.federation_version_override();
 
         let subgraph_definition = self
             .opts
@@ -163,8 +134,8 @@ impl Dev {
             .resolve_federation_version(
                 resolve_introspect_subgraph_factory.clone(),
                 fetch_remote_subgraph_factory.clone(),
-                federation_version,
-                &ManifestDirs::in_scope(override_install_path.as_deref()),
+                federation_version.clone(),
+                &plugin_levels,
                 false,
             )
             .await?
@@ -182,24 +153,23 @@ impl Dev {
             stderr.print(&StyledText::plain(binary.provenance().to_string()));
         }
 
-        let (router_version, router_version_origin) =
-            match &self.opts.supergraph_opts.router_version {
-                Some(version) => (
-                    RouterVersion::Exact(Version::parse(version)?),
-                    Some(RequestOrigin::flag_or_env(
-                        "--router-version",
-                        "APOLLO_ROVER_DEV_ROUTER_VERSION",
-                    )),
-                ),
-                None => (RouterVersion::LatestTwo, None),
-            };
+        let (router_version, router_version_origin) = match dev_plugin_request(
+            PluginName::Router,
+            self.router_version_override()?,
+            VersionRequest::Major(2),
+            &plugin_levels,
+        )? {
+            (Plugin::Router(version), origin) => (version, origin),
+            _ => unreachable!("a `router` request converts to a router version"),
+        };
 
         let api_key_override = std::env::var(RoverEnvKey::Key.to_string()).ok();
         let home_override = std::env::var(RoverEnvKey::Home.to_string()).ok();
 
-        // Set up an updater config, but only if we're not overriding the version ourselves. If
-        // we are then we don't need one, so it becomes None.
-        let federation_updater_config = match self.opts.supergraph_opts.federation_version {
+        // Set up an updater config, but only if we're not overriding the version ourselves: a
+        // flag or its environment variable outranks `supergraph.yaml`, so a mid-session change
+        // there must not replace it.
+        let federation_updater_config = match federation_version {
             Some(_) => None,
             None => Some(FederationUpdaterConfig {
                 studio_client_config: client_config.clone(),
@@ -337,13 +307,15 @@ impl Dev {
             .await;
 
         if let Some(ref config) = self.opts.mcp.config {
-            let mcp_version = self
-                .opts
-                .mcp
-                .version
-                .clone()
-                .unwrap_or(McpServerVersion::Latest);
-            let mcp_version_origin = self.opts.mcp.version_origin();
+            let (mcp_version, mcp_version_origin) = match dev_plugin_request(
+                PluginName::ApolloMcpServer,
+                self.mcp_version_override(),
+                VersionRequest::Latest,
+                &plugin_levels,
+            )? {
+                (Plugin::McpServer(version), origin) => (version, origin),
+                _ => unreachable!("an `apollo-mcp-server` request converts to its version"),
+            };
 
             let run_mcp_server = RunMcpServer::default()
                 .install(
@@ -498,5 +470,156 @@ impl Dev {
             }
         };
         Ok(RoverOutput::EmptySuccess)
+    }
+}
+
+impl Dev {
+    /// The `supergraph` version `rover dev` was given, and where:
+    /// `--federation-version`, then `--composition-version` or its
+    /// environment variable. Where that ranks against `supergraph.yaml` and
+    /// the manifests is shared with every other plugin-using command.
+    fn federation_version_override(&self) -> Option<(FederationVersion, RequestOrigin)> {
+        self.opts
+            .supergraph_opts
+            .federation_version
+            .clone()
+            .map(|version| (version, RequestOrigin::Flag("--federation-version")))
+            .or_else(|| {
+                let version = &self
+                    .opts
+                    .supergraph_opts
+                    .composition_version
+                    .clone()
+                    .and_then(|version| {
+                        match FederationVersion::from_str(&format!("={version}")) {
+                            Ok(version) => Some((
+                                version,
+                                RequestOrigin::flag_or_env(
+                                    "--composition-version",
+                                    "APOLLO_ROVER_DEV_COMPOSITION_VERSION",
+                                ),
+                            )),
+                            Err(err) => {
+                                errln!("{err}");
+                                tracing::error!("{:?}", err);
+                                None
+                            }
+                        }
+                    });
+
+                version.clone()
+            })
+    }
+
+    /// The `router` version `rover dev` was given, and where.
+    fn router_version_override(&self) -> RoverResult<Option<(VersionRequest, RequestOrigin)>> {
+        let Some(version) = &self.opts.supergraph_opts.router_version else {
+            return Ok(None);
+        };
+        Ok(Some((
+            VersionRequest::Exact(Version::parse(version)?),
+            RequestOrigin::flag_or_env("--router-version", "APOLLO_ROVER_DEV_ROUTER_VERSION"),
+        )))
+    }
+
+    /// The `apollo-mcp-server` version `rover dev` was given, and where.
+    fn mcp_version_override(&self) -> Option<(VersionRequest, RequestOrigin)> {
+        let version = self.opts.mcp.version.clone()?;
+        let origin = self.opts.mcp.version_origin()?;
+        Some((Plugin::McpServer(version).request(), origin))
+    }
+}
+
+/// The plugin `rover dev` runs for `plugin`, and where its version came from:
+/// what it was `given`, ranked against the manifests at `levels` exactly as
+/// every other plugin-using command ranks them, or `default`.
+fn dev_plugin_request(
+    plugin: PluginName,
+    given: Option<(VersionRequest, RequestOrigin)>,
+    default: VersionRequest,
+    levels: &ManifestDirs,
+) -> RoverResult<(Plugin, Option<RequestOrigin>)> {
+    let declarations = declarations_in_scope(levels)?;
+    let inputs = RequestInputs::new(default).with_override(given);
+    let request = precedence::request(plugin, inputs, levels, &declarations)?;
+    Ok((
+        Plugin::from_request(plugin, &request.request)?,
+        request.origin(),
+    ))
+}
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+    use speculoos::prelude::*;
+
+    use super::*;
+
+    const MANIFEST: &str = "plugins:\n  router: \"=2.1.0\"\n  apollo-mcp-server: latest\n";
+    const LOCK: &str = "version = 1\n\n[[plugins]]\nname = \"router\"\nrequested = \"=2.1.0\"\nresolved = \"2.1.0\"\n\n[[plugins]]\nname = \"apollo-mcp-server\"\nrequested = \"latest\"\nresolved = \"1.0.3\"\n";
+
+    /// The router and the MCP server take their versions by the same ladder
+    /// as the `supergraph` plugin: what `rover dev` was given, then the
+    /// manifests (pinned by their lockfile), then the default.
+    #[rstest]
+    #[case::the_router_flag(
+        PluginName::Router,
+        Some(("=2.3.0", RequestOrigin::Flag("--router-version"))),
+        "2",
+        ("=2.3.0", Some(RequestOrigin::Flag("--router-version")))
+    )]
+    #[case::the_router_variable(
+        PluginName::Router,
+        Some(("=2.3.0", RequestOrigin::EnvVar("APOLLO_ROVER_DEV_ROUTER_VERSION"))),
+        "2",
+        ("=2.3.0", Some(RequestOrigin::EnvVar("APOLLO_ROVER_DEV_ROUTER_VERSION")))
+    )]
+    #[case::the_router_declaration(
+        PluginName::Router,
+        None,
+        "2",
+        ("=2.1.0", Some(RequestOrigin::Manifest))
+    )]
+    #[case::the_locked_mcp_server(
+        PluginName::ApolloMcpServer,
+        None,
+        "latest",
+        ("=1.0.3", Some(RequestOrigin::Lockfile))
+    )]
+    fn each_plugin_takes_its_version_by_the_shared_ladder(
+        #[case] plugin: PluginName,
+        #[case] given: Option<(&str, RequestOrigin)>,
+        #[case] default: &str,
+        #[case] expected: (&str, Option<RequestOrigin>),
+    ) {
+        let temp = tempfile::tempdir().unwrap();
+        let project = Utf8PathBuf::try_from(temp.path().to_path_buf()).unwrap();
+        std::fs::write(project.join("rover.yaml"), MANIFEST).unwrap();
+        std::fs::write(project.join("plugin-versions.lock"), LOCK).unwrap();
+        let levels = ManifestDirs {
+            global: None,
+            project: Some(project),
+        };
+        let given = given.map(|(request, origin)| (request.parse().unwrap(), origin));
+
+        let (converted, origin) =
+            dev_plugin_request(plugin, given, default.parse().unwrap(), &levels).unwrap();
+
+        assert_that!((converted.request().to_string(), origin))
+            .is_equal_to((expected.0.to_string(), expected.1));
+    }
+
+    #[rstest]
+    fn nothing_declared_takes_the_default() {
+        let levels = ManifestDirs {
+            global: None,
+            project: None,
+        };
+
+        let (converted, origin) =
+            dev_plugin_request(PluginName::Router, None, VersionRequest::Major(2), &levels)
+                .unwrap();
+
+        assert_that!((converted.request(), origin)).is_equal_to((VersionRequest::Major(2), None));
     }
 }

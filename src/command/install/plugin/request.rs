@@ -8,12 +8,42 @@
 
 use std::sync::Arc;
 
-use apollo_federation_types::config::FederationVersion;
+use apollo_federation_types::config::{FederationVersion, RouterVersion};
 
+use super::{Plugin, mcp};
 use crate::plugin::{
     error::PluginFailure,
     version::{PluginName, VersionRequest},
 };
+
+impl Plugin {
+    /// `plugin` at `request`, or the resolution failure that says this
+    /// version of Rover can't install a release `request` allows.
+    pub fn from_request(
+        plugin: PluginName,
+        request: &VersionRequest,
+    ) -> Result<Self, Box<PluginFailure>> {
+        let converted = match plugin {
+            PluginName::Supergraph => return federation_version(request).map(Self::Supergraph),
+            PluginName::Router => match request {
+                VersionRequest::Exact(version) => Some(RouterVersion::Exact(version.clone())),
+                VersionRequest::Major(1) => Some(RouterVersion::LatestOne),
+                VersionRequest::Latest | VersionRequest::Major(2) => Some(RouterVersion::LatestTwo),
+                VersionRequest::Major(_) => None,
+            }
+            .map(Self::Router),
+            // Its installer has no notion of a major: only `latest`, which
+            // could cross out of the one asked for.
+            PluginName::ApolloMcpServer => match request {
+                VersionRequest::Exact(version) => Some(mcp::Version::Exact(version.clone())),
+                VersionRequest::Latest => Some(mcp::Version::Latest),
+                VersionRequest::Major(_) => None,
+            }
+            .map(Self::McpServer),
+        };
+        converted.ok_or_else(|| uninstallable(plugin, request))
+    }
+}
 
 /// Why a request the grammar accepts can't be installed.
 #[derive(Debug, thiserror::Error)]
@@ -58,7 +88,6 @@ mod tests {
     use speculoos::prelude::*;
 
     use super::*;
-    use crate::command::install::Plugin;
 
     #[rstest]
     #[case::exact("=2.9.3", FederationVersion::ExactFedTwo(Version::new(2, 9, 3)))]
@@ -84,6 +113,39 @@ mod tests {
         let converted = Plugin::Supergraph(federation_version(&request).unwrap());
 
         assert_that!(converted.request()).is_equal_to(request);
+    }
+
+    /// Every request the grammar has for each plugin converts to one that
+    /// asks for the same thing, or is refused by name.
+    #[rstest]
+    #[case::router_exact(PluginName::Router, "=2.1.0", Some("=2.1.0"))]
+    #[case::router_latest(PluginName::Router, "latest", Some("2"))]
+    #[case::router_two(PluginName::Router, "2", Some("2"))]
+    #[case::router_one(PluginName::Router, "1", Some("1"))]
+    #[case::router_three(PluginName::Router, "3", None)]
+    #[case::mcp_exact(PluginName::ApolloMcpServer, "=1.0.0", Some("=1.0.0"))]
+    #[case::mcp_latest(PluginName::ApolloMcpServer, "latest", Some("latest"))]
+    #[case::mcp_major(PluginName::ApolloMcpServer, "1", None)]
+    #[case::supergraph_two(PluginName::Supergraph, "2", Some("2"))]
+    #[case::supergraph_three(PluginName::Supergraph, "3", None)]
+    fn each_plugin_converts_what_it_can_install(
+        #[case] plugin: PluginName,
+        #[case] request: &str,
+        #[case] expected: Option<&str>,
+    ) {
+        let request: VersionRequest = request.parse().unwrap();
+
+        let converted = Plugin::from_request(plugin, &request)
+            .map(|converted| (converted.name(), converted.request().to_string()))
+            .map_err(|failure| failure.to_string());
+
+        assert_that!(converted).is_equal_to(match expected {
+            Some(expected) => Ok((plugin, expected.to_string())),
+            None => Err(format!(
+                "Couldn't resolve a release of the `{plugin}` plugin matching `{request}` from \
+                 the plugin registry."
+            )),
+        });
     }
 
     #[rstest]
