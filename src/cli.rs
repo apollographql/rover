@@ -4164,7 +4164,7 @@ mod tests {
 
         assert_that!(error.message()).is_equal_to(
             "`rover.yaml` sets `APOLLO_KEY` under `settings:`. Credentials can't be \
-            stored in a project file. Run `rover auth login`, or set `APOLLO_KEY` in the \
+            stored in a project file. Run `rover config auth`, or set `APOLLO_KEY` in the \
             environment."
                 .to_string(),
         );
@@ -4344,7 +4344,7 @@ mod tests {
     #[case::credential(
         "settings:\n  APOLLO_KEY: x\n",
         "`rover-ci.yaml` sets `APOLLO_KEY` under `settings:`. Credentials can't be stored in a \
-        project file. Run `rover auth login`, or set `APOLLO_KEY` in the environment."
+        project file. Run `rover config auth`, or set `APOLLO_KEY` in the environment."
     )]
     #[case::invalid_value(
         "settings:\n  APOLLO_CHECKS_TIMEOUT_SECONDS: soon\n",
@@ -4807,8 +4807,8 @@ mod tests {
                 .to_vec()
         )
         .is_equal_to(vec![
-            "Warning: `rover.yaml` sets `APOLLO_ROVER_NO_CONFIG_NOTICES`, which \
-                this version of Rover doesn't recognize. It will be ignored."
+            "Warning: `rover.yaml` sets `APOLLO_ROVER_NO_CONFIG_NOTICES`, which can't be set \
+                in a project file. It will be ignored."
                 .to_string(),
         ]);
     }
