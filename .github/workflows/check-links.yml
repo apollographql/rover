@@ -34,6 +34,12 @@ jobs:
       - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5.0.1
       - name: Check links
         uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        # lychee reads GITHUB_TOKEN to check github.com links authenticated. Unauthenticated,
+        # GitHub answers this job's burst of `github.com/.../blob/...` requests from shared
+        # runner IPs with 503s, failing the check on links nobody changed. `contents: read`
+        # above is all the token needs.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           max_attempts: 3
           timeout_minutes: 5
