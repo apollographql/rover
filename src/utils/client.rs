@@ -177,18 +177,39 @@ impl From<Duration> for ClientTimeout {
     }
 }
 
-/// The FR64 override notice for a profile-resolved `APOLLO_ROVER_DOWNLOAD_HOST`,
-/// deferred from resolution time (`Rover::get_client_config`, where the value
-/// and the decision of whether to notice are both already settled) to the
-/// point a plugin download actually happens (spec.md:403/FR60: a command
-/// that downloads nothing must print nothing). `printed` is shared through
+/// An override notice for a setting that only plugin downloads use - the
+/// FR64 notice for a profile-resolved `APOLLO_ROVER_DOWNLOAD_HOST`, or the
+/// FR59(a) notice for `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` - deferred from
+/// resolution time (`Rover::get_client_config`, where the value and the
+/// decision of whether to notice are both already settled) to the point a
+/// plugin download actually happens (spec.md:403/FR60: a command that
+/// downloads nothing must print nothing). `printed` is shared through
 /// `StudioClientConfig`'s `Clone` via the surrounding `Arc`, so cloned
 /// configs used across multiple plugin downloads in one process still only
 /// print once (FR61).
 #[derive(Debug)]
-struct DownloadHostNotice {
+struct DeferredNotice {
     message: String,
     printed: OnceLock<()>,
+}
+
+impl DeferredNotice {
+    fn new(message: String) -> Arc<Self> {
+        Arc::new(Self {
+            message,
+            printed: OnceLock::new(),
+        })
+    }
+
+    /// Prints the notice, unless it already printed.
+    fn print_once(&self) {
+        use rover_print::{print::Print, style::StyledText};
+
+        self.printed.get_or_init(|| {
+            rover_print::print::stderr::default()
+                .print(&StyledText::plain(format!("Note: {}", self.message)));
+        });
+    }
 }
 
 #[derive(Debug, Clone, Getters)]
@@ -204,9 +225,11 @@ pub struct StudioClientConfig {
     download_timeout: Duration,
     download_host: Option<String>,
     #[getter(skip)]
-    download_host_notice: Option<Arc<DownloadHostNotice>>,
+    download_host_notice: Option<Arc<DeferredNotice>>,
     #[getter(skip)]
     allow_automatic_download: bool,
+    #[getter(skip)]
+    automatic_download_notice: Option<Arc<DeferredNotice>>,
 }
 
 impl StudioClientConfig {
@@ -235,6 +258,7 @@ impl StudioClientConfig {
             download_host: None,
             download_host_notice: None,
             allow_automatic_download: false,
+            automatic_download_notice: None,
         }
     }
 
@@ -268,10 +292,7 @@ impl StudioClientConfig {
     /// plugin download actually happens (see `DownloadHostNotice`), rather
     /// than unconditionally at resolution time.
     pub(crate) fn with_download_host_notice(mut self, message: String) -> Self {
-        self.download_host_notice = Some(Arc::new(DownloadHostNotice {
-            message,
-            printed: OnceLock::new(),
-        }));
+        self.download_host_notice = Some(DeferredNotice::new(message));
         self
     }
 
@@ -289,13 +310,33 @@ impl StudioClientConfig {
     /// matter how many artifacts one process downloads) - a no-op if
     /// there's no notice to print, or if it already printed.
     pub(crate) fn print_download_host_notice_once(&self) {
-        use rover_print::{print::Print, style::StyledText};
-
         if let Some(notice) = &self.download_host_notice {
-            notice.printed.get_or_init(|| {
-                rover_print::print::stderr::default()
-                    .print(&StyledText::plain(format!("Note: {}", notice.message)));
-            });
+            notice.print_once();
+        }
+    }
+
+    /// Carries the FR59(a) notice for `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`,
+    /// to print the first time the opt-in lets a plugin download happen.
+    pub(crate) fn with_automatic_download_notice(mut self, message: String) -> Self {
+        self.automatic_download_notice = Some(DeferredNotice::new(message));
+        self
+    }
+
+    /// The automatic-download notice this config will print when the opt-in
+    /// first lets a download happen, if one was decided.
+    #[cfg(test)]
+    pub(crate) fn automatic_download_notice_message(&self) -> Option<&str> {
+        self.automatic_download_notice
+            .as_deref()
+            .map(|notice| notice.message.as_str())
+    }
+
+    /// Prints the automatic-download notice, at most once per process (FR61).
+    /// The commands that install plugins on the fly call this once the opt-in
+    /// has let one download.
+    pub(crate) fn print_automatic_download_notice_once(&self) {
+        if let Some(notice) = &self.automatic_download_notice {
+            notice.print_once();
         }
     }
 

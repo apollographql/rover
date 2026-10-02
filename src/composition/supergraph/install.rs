@@ -163,8 +163,10 @@ mod tests {
             elv2_license_accepted: Some(true),
         };
         let override_install_path = NamedTempFile::new("override_path")?;
-        let install_supergraph =
-            InstallSupergraph::new(FederationVersion::LatestFedTwo, studio_client_config);
+        let install_supergraph = InstallSupergraph::new(
+            FederationVersion::LatestFedTwo,
+            studio_client_config.with_allow_automatic_download(true),
+        );
         http_server.mock(|when, then| {
             when.is_true(|request| {
                 request.method() == Method::HEAD
@@ -273,8 +275,10 @@ mod tests {
         let license_accepter = LicenseAccepter {
             elv2_license_accepted: Some(true),
         };
-        let install_supergraph =
-            InstallSupergraph::new(FederationVersion::LatestFedTwo, studio_client_config);
+        let install_supergraph = InstallSupergraph::new(
+            FederationVersion::LatestFedTwo,
+            studio_client_config.with_allow_automatic_download(true),
+        );
 
         // The registry is unreachable: resolving the latest version (a HEAD to the
         // tarball URL) fails, so the download can't proceed.
@@ -330,8 +334,10 @@ mod tests {
         let license_accepter = LicenseAccepter {
             elv2_license_accepted: Some(true),
         };
-        let install_supergraph =
-            InstallSupergraph::new(FederationVersion::LatestFedTwo, studio_client_config);
+        let install_supergraph = InstallSupergraph::new(
+            FederationVersion::LatestFedTwo,
+            studio_client_config.with_allow_automatic_download(true),
+        );
 
         // The registry is unreachable: resolving the latest version (a HEAD to the
         // tarball URL) fails, so the download can't proceed.
@@ -396,8 +402,10 @@ mod tests {
         let license_accepter = LicenseAccepter {
             elv2_license_accepted: Some(true),
         };
-        let install_supergraph =
-            InstallSupergraph::new(FederationVersion::LatestFedTwo, studio_client_config);
+        let install_supergraph = InstallSupergraph::new(
+            FederationVersion::LatestFedTwo,
+            studio_client_config.with_allow_automatic_download(true),
+        );
 
         let binary = temp_env::async_with_vars(
             [("APOLLO_ROVER_SKIP_UPDATE", Some("true".to_string()))],
@@ -415,6 +423,73 @@ mod tests {
             .is_equal_to(&SupergraphVersion::new(Version::from_str("2.9.0")?));
         // The decisive check: opting out meant the registry was never contacted.
         assert_that!(registry.calls()).is_equal_to(0);
+        Ok(())
+    }
+
+    /// Without an opt-in, an on-the-fly install of a plugin installed
+    /// nowhere stops, saying how to install it, and never asks the registry.
+    #[tokio::test]
+    #[rstest]
+    #[timeout(Duration::from_secs(15))]
+    #[serial]
+    async fn without_an_opt_in_a_missing_plugin_is_not_downloaded() -> Result<()> {
+        let http_server = MockServer::start();
+        let mock_server_endpoint = format!("http://{}", http_server.address());
+        let registry = http_server.mock(|when, then| {
+            when.path_prefix("/tar/supergraph");
+            then.status(302).header("X-Version", "v2.9.3");
+        });
+        let install_home = TempDir::new().unwrap();
+        let override_install_path = Utf8PathBuf::from_path_buf(install_home.to_path_buf()).unwrap();
+        let studio_client_config = StudioClientConfig::new(
+            Some(mock_server_endpoint.to_string()),
+            Config {
+                home: Utf8PathBuf::from_path_buf(TempDir::new().unwrap().to_path_buf()).unwrap(),
+                override_api_key: Some("api-key".to_string()),
+                override_client_credentials_token: None,
+            },
+            false,
+            ClientBuilder::default(),
+            ClientTimeout::new(1),
+        )
+        .with_download_host(mock_server_endpoint);
+        let install_supergraph = InstallSupergraph::new(
+            FederationVersion::ExactFedTwo(Version::new(2, 9, 3)),
+            studio_client_config,
+        );
+        let license_accepter = LicenseAccepter {
+            elv2_license_accepted: Some(true),
+        };
+
+        let result = temp_env::async_with_vars(
+            [
+                ("APOLLO_ROVER_SKIP_UPDATE", None::<&str>),
+                // The opt-in is read from the client config, but an exported
+                // one must not be able to mask a regression that reads the
+                // environment instead.
+                ("APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD", None),
+            ],
+            async {
+                install_supergraph
+                    .install(Some(override_install_path), license_accepter, false)
+                    .await
+            },
+        )
+        .await;
+
+        let error = RoverError::new(result.expect_err("nothing opted in to the download"));
+        assert_that!((
+            error.code(),
+            error.plugin_failure().map(ToString::to_string),
+            error.suggestions().iter().map(ToString::to_string).collect::<Vec<_>>(),
+            registry.calls(),
+        ))
+        .is_equal_to((
+            Some(RoverErrorCode::E058),
+            Some("Rover needs the `supergraph` plugin v2.9.3, which isn't installed.".to_string()),
+            vec!["Run `rover plugin install supergraph@=2.9.3`, or set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true` under `settings:` in `rover.yaml` to let Rover download plugins on demand.".to_string()],
+            0,
+        ));
         Ok(())
     }
 
@@ -471,8 +546,10 @@ mod tests {
             ClientTimeout::new(1),
         )
         .with_download_host(mock_server_endpoint);
-        let install_supergraph =
-            InstallSupergraph::new(FederationVersion::LatestFedTwo, studio_client_config);
+        let install_supergraph = InstallSupergraph::new(
+            FederationVersion::LatestFedTwo,
+            studio_client_config.with_allow_automatic_download(true),
+        );
         let license_accepter = LicenseAccepter {
             elv2_license_accepted: Some(true),
         };
@@ -577,7 +654,7 @@ mod tests {
         .with_download_host(mock_server_endpoint);
         let install_supergraph = InstallSupergraph::new(
             FederationVersion::ExactFedTwo(Version::new(2, 9, 3)),
-            studio_client_config,
+            studio_client_config.with_allow_automatic_download(true),
         )
         .requested_by(Some(RequestOrigin::SupergraphConfig(Some(
             Utf8PathBuf::from("supergraph.yaml"),

@@ -137,8 +137,10 @@ mod tests {
         )
         .with_download_host(mock_server_endpoint.clone());
         let override_install_path = NamedTempFile::new("override_path")?;
-        let install_mcp_server =
-            InstallMcpServer::new(McpServerVersion::Latest, studio_client_config);
+        let install_mcp_server = InstallMcpServer::new(
+            McpServerVersion::Latest,
+            studio_client_config.with_allow_automatic_download(true),
+        );
         http_server.mock(|when, then| {
             when.is_true(|request| {
                 request.method() == Method::HEAD
