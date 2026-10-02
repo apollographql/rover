@@ -1057,30 +1057,57 @@ impl Rover {
     }
 
     /// The project file's classified `settings:` section, read once per
-    /// process from the manifest the plugin system's discovery finds from
-    /// the working directory (FR78) - empty when there's no project. Fails
-    /// when the project manifest can't be read at all, or its `settings:`
-    /// section names a credential or spells one setting both ways.
+    /// process - empty when there's no project. The project manifest is the
+    /// one the command names with `--manifest-path`, if it does, and
+    /// otherwise the one the plugin system's discovery finds from the working
+    /// directory: a command that redirects the manifest redirects its
+    /// `settings:` section with it (FR78). Fails only when that section names
+    /// a credential or spells one setting both ways.
     pub(crate) fn project_settings(&self) -> RoverResult<&ProjectSettings> {
         if let Some(settings) = self.project_settings.get() {
             return Ok(settings);
         }
-        let settings = ProjectSettings::load(&self.manifest_dirs())?;
+        let dirs = self.manifest_dirs();
+        let project_manifest = match self.manifest_path_override() {
+            Some(named) => Some(
+                std::path::absolute(named)
+                    .ok()
+                    .and_then(|absolute| Utf8PathBuf::try_from(absolute).ok())
+                    .unwrap_or_else(|| named.to_path_buf()),
+            ),
+            None => dirs
+                .project
+                .as_ref()
+                .map(|project| project.join(crate::plugin::manifest::MANIFEST_FILE)),
+        };
+        let settings =
+            ProjectSettings::load_from(project_manifest.as_deref(), dirs.global.as_deref())?;
         Ok(self.project_settings.get_or_init(|| settings))
     }
 
-    /// Both manifest levels for this invocation: the project found from the
-    /// process's working directory, and the user level under `--rover-home`
-    /// (`APOLLO_HOME`) or the home directory, as plugins use. See
-    /// [`manifest_dirs_for`] for the rule itself.
+    /// The project manifest this invocation's command names with
+    /// `--manifest-path`, if it has that flag and was given it. Only `rover
+    /// plugin install` has it today.
+    fn manifest_path_override(&self) -> Option<&camino::Utf8Path> {
+        match &self.command {
+            Command::Plugin(command) => command.manifest_path(),
+            _ => None,
+        }
+    }
+
+    /// Both manifest levels for this invocation, by the plugin system's own
+    /// discovery for this process (FR78: one rule, shared by both of the
+    /// manifest's sections): the project found from the working directory,
+    /// and the user level under `--rover-home` (`APOLLO_HOME`) or the home
+    /// directory.
     #[cfg(not(test))]
     fn manifest_dirs(&self) -> crate::plugin::discovery::ManifestDirs {
-        let home = directories_next::BaseDirs::new()
-            .and_then(|dirs| Utf8PathBuf::from_path_buf(dirs.home_dir().to_path_buf()).ok());
-        let cwd = std::env::current_dir()
-            .ok()
-            .and_then(|cwd| Utf8PathBuf::from_path_buf(cwd).ok());
-        manifest_dirs_for(cwd.as_deref(), self.rover_home.as_deref(), home.as_deref())
+        let rover_home = self.rover_home.as_deref();
+        global_only_on_failure(
+            crate::plugin::discovery::ManifestDirs::for_this_process(rover_home),
+            rover_home,
+            binstall::get_home_dir_path().ok().as_deref(),
+        )
     }
 
     /// Unit tests never discover from the process's working directory: it's
@@ -1088,7 +1115,7 @@ impl Rover {
     /// it could sit under a real `rover.yaml` whose settings (or
     /// credential) would leak into every test. A test that wants a project
     /// points at a temp tree with `set_manifest_dirs`, usually through
-    /// [`manifest_dirs_for`], so the real rule is still what runs.
+    /// `ManifestDirs::discover`, so the real rule is still what runs.
     #[cfg(test)]
     fn manifest_dirs(&self) -> crate::plugin::discovery::ManifestDirs {
         self.test_manifest_dirs
@@ -1836,25 +1863,24 @@ const fn value_placeholder(error: &SettingValueError) -> &'static str {
     }
 }
 
-/// Both manifest levels for a command run from `cwd`: the plugin system's
-/// one discovery rule (FR78), with `rover_home` (`--rover-home`/`APOLLO_HOME`)
-/// and `home` placing the user level. A working directory that's gone or
-/// isn't UTF-8 (`None`) can't be inside a project Rover can name, so only the
-/// user level is found.
-fn manifest_dirs_for(
-    cwd: Option<&camino::Utf8Path>,
+/// `found`, the plugin system's discovery for this process, or - when it
+/// couldn't look, because the working directory is gone or isn't UTF-8 - only
+/// the user level, placed by `rover_home` (`--rover-home`/`APOLLO_HOME`) and
+/// `home`. A working directory Rover can't name can't be inside a project.
+fn global_only_on_failure(
+    found: std::io::Result<crate::plugin::discovery::ManifestDirs>,
     rover_home: Option<&camino::Utf8Path>,
     home: Option<&camino::Utf8Path>,
 ) -> crate::plugin::discovery::ManifestDirs {
     use crate::plugin::discovery::{ManifestDirs, global_dir};
 
-    match cwd {
-        Some(cwd) => ManifestDirs::discover(cwd, rover_home, home),
-        None => ManifestDirs {
+    found.unwrap_or_else(|error| {
+        tracing::debug!("couldn't look for a project, so reading no project settings: {error}");
+        ManifestDirs {
             global: global_dir(rover_home, home),
             project: None,
-        },
-    }
+        }
+    })
 }
 
 #[cfg(test)]
@@ -4196,36 +4222,126 @@ mod tests {
         let cwd = root.join("work").join("graph");
         fs::create_dir_all(&cwd).unwrap();
         let mut rover = Rover::parse_from([PKG_NAME, "config", "list"]);
-        rover.set_manifest_dirs(super::manifest_dirs_for(Some(&cwd), None, Some(&root)));
+        rover.set_manifest_dirs(ManifestDirs::discover(&cwd, None, Some(&root)));
 
         assert_that!(rover.project_settings().unwrap()).is_equal_to(&ProjectSettings::default());
     }
 
-    /// Discovery from a directory nested inside a project, from one outside
-    /// any project, and from a working directory Rover can't name. `home`
-    /// is the temp root, so no walk can climb out of the tree.
+    /// Discovery is the plugin system's own; settings only add what happens
+    /// when it couldn't look at all: no project, and the user level alone.
     #[rstest::rstest]
-    #[case::nested_in_a_project(Some("project/graphs/products"), Some("project/.rover"))]
-    #[case::outside_any_project(Some("elsewhere"), None)]
-    #[case::no_working_directory(None, None)]
-    fn manifest_dirs_for_finds_the_nearest_project(
-        #[case] cwd: Option<&str>,
-        #[case] project: Option<&str>,
-    ) {
+    #[case::found(true)]
+    #[case::couldnt_look(false)]
+    fn a_failed_discovery_falls_back_to_the_user_level_only(#[case] found: bool) {
         let tree = tempfile::tempdir().unwrap();
         let root = Utf8PathBuf::try_from(dunce::canonicalize(tree.path()).unwrap()).unwrap();
         fs::create_dir_all(root.join("project/.rover")).unwrap();
         fs::create_dir_all(root.join("project/graphs/products")).unwrap();
-        fs::create_dir_all(root.join("elsewhere")).unwrap();
         let rover_home = root.join("rover-home");
-        let cwd = cwd.map(|cwd| root.join(cwd));
+        let discovered = ManifestDirs::discover(
+            &root.join("project/graphs/products"),
+            Some(&rover_home),
+            Some(&root),
+        );
+        let result = if found {
+            Ok(discovered.clone())
+        } else {
+            Err(std::io::Error::other("working directory is gone"))
+        };
 
-        let dirs = super::manifest_dirs_for(cwd.as_deref(), Some(&rover_home), Some(&root));
+        let dirs = super::global_only_on_failure(result, Some(&rover_home), Some(&root));
 
-        assert_that!(dirs).is_equal_to(ManifestDirs {
-            global: Some(rover_home.join(".rover")),
-            project: project.map(|project| root.join(project)),
+        assert_that!(dirs).is_equal_to(if found {
+            discovered
+        } else {
+            ManifestDirs {
+                global: Some(rover_home.join(".rover")),
+                project: None,
+            }
         });
+    }
+
+    /// A `rover plugin install` run with `--manifest-path` and these `args`,
+    /// discovering `discovered` from the working directory.
+    fn plugin_install_with(args: &[&str], discovered: ManifestDirs) -> Rover {
+        let mut full = vec![
+            PKG_NAME,
+            "--skip-update-check",
+            "plugin",
+            "install",
+            "router@latest",
+        ];
+        full.extend_from_slice(args);
+        let mut rover = Rover::parse_from(full);
+        rover.set_manifest_dirs(discovered);
+        rover
+    }
+
+    /// FR78: a command that redirects the manifest redirects its `settings:`
+    /// section with it - the project found from the working directory is
+    /// never read.
+    #[test]
+    fn manifest_path_redirects_the_settings_too() {
+        let tree = tempfile::tempdir().unwrap();
+        let root = Utf8PathBuf::try_from(dunce::canonicalize(tree.path()).unwrap()).unwrap();
+        let here = root.join("here/.rover");
+        let named = root.join("elsewhere/.rover");
+        for (dir, host) in [
+            (&here, "https://here.example.com"),
+            (&named, "https://named.example.com"),
+        ] {
+            fs::create_dir_all(dir).unwrap();
+            fs::write(
+                dir.join(MANIFEST_FILE),
+                format!("settings:\n  APOLLO_ROVER_DOWNLOAD_HOST: {host}\n"),
+            )
+            .unwrap();
+        }
+        let manifest = named.join(MANIFEST_FILE);
+        let rover = plugin_install_with(
+            &["--manifest-path", manifest.as_str()],
+            ManifestDirs {
+                global: None,
+                project: Some(here),
+            },
+        );
+
+        let setting = rover
+            .project_settings()
+            .unwrap()
+            .get(SettingName::DownloadHost)
+            .cloned();
+
+        assert_that!(setting)
+            .is_some()
+            .is_equal_to(crate::options::ProjectSetting {
+                key: "APOLLO_ROVER_DOWNLOAD_HOST".to_string(),
+                value: crate::options::ProjectSettingValue::Scalar(
+                    "https://named.example.com".to_string(),
+                ),
+            });
+    }
+
+    /// A manifest `--manifest-path` names that doesn't exist yet has no
+    /// settings - the install creates it - and the discovered project still
+    /// isn't read in its place.
+    #[test]
+    fn a_manifest_path_that_doesnt_exist_yet_has_no_settings() {
+        let tree = tempfile::tempdir().unwrap();
+        let root = Utf8PathBuf::try_from(dunce::canonicalize(tree.path()).unwrap()).unwrap();
+        let here = root.join("here/.rover");
+        fs::create_dir_all(&here).unwrap();
+        fs::write(here.join(MANIFEST_FILE), "settings:\n  APOLLO_KEY: x\n").unwrap();
+        let missing = root.join("new/.rover").join(MANIFEST_FILE);
+        let rover = plugin_install_with(
+            &["--manifest-path", missing.as_str()],
+            ManifestDirs {
+                global: None,
+                project: Some(here),
+            },
+        );
+
+        assert_that!(rover.project_settings().unwrap()).is_equal_to(&ProjectSettings::default());
     }
 
     #[test]

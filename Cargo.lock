@@ -5778,7 +5778,6 @@ dependencies = [
  "derive-getters",
  "dialoguer",
  "dircpy",
- "directories-next",
  "dotenvy",
  "duct",
  "dunce",

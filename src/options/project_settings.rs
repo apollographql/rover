@@ -6,15 +6,15 @@
 
 use std::collections::BTreeMap;
 
+use camino::Utf8Path;
 use serde_yaml::Value;
 
 use super::{SettingName, SettingNameError};
+#[cfg(test)]
+use crate::plugin::discovery::ManifestDirs;
 use crate::{
     RoverResult,
-    plugin::{
-        discovery::ManifestDirs,
-        manifest::{MANIFEST_FILE, RoverManifest},
-    },
+    plugin::manifest::{MANIFEST_FILE, RoverManifest},
 };
 
 /// How every message about the project file names it: by the manifest's
@@ -203,8 +203,25 @@ impl ProjectSettings {
         Ok(classified)
     }
 
-    /// Reads and classifies the project file the plugin system's discovery
-    /// found, if any (FR78: there is no second discovery rule for settings).
+    /// [`Self::load_from`], for the project the plugin system's discovery
+    /// found in `dirs`, if any.
+    #[cfg(test)]
+    pub(crate) fn load(dirs: &ManifestDirs) -> RoverResult<Self> {
+        let project_manifest = dirs
+            .project
+            .as_ref()
+            .map(|project| project.join(MANIFEST_FILE));
+        Self::load_from(project_manifest.as_deref(), dirs.global.as_deref())
+    }
+
+    /// Reads and classifies the project manifest's `settings:` section.
+    /// `project_manifest` is the manifest file itself: the one a command's
+    /// `--manifest-path` names (which needn't be called `rover.yaml`), or else
+    /// the one inside the project the plugin system's discovery found - there
+    /// is no second discovery rule for settings, and a command that redirects
+    /// the manifest redirects its `settings:` section with it (FR78). `global`
+    /// is the user-level `.rover/` directory.
+    ///
     /// The manifests are never merged (FR79): only the project level's
     /// `settings:` section applies, and a `settings:` section in the
     /// user-level manifest only adds FR76's warning.
@@ -216,9 +233,12 @@ impl ProjectSettings {
     /// can't be read is skipped silently - none of its settings would apply
     /// anyway, and its own problems are likewise the plugin system's to
     /// report.
-    pub(crate) fn load(dirs: &ManifestDirs) -> RoverResult<Self> {
-        let mut settings = match &dirs.project {
-            Some(project) => match RoverManifest::load_settings(&project.join(MANIFEST_FILE)) {
+    pub(crate) fn load_from(
+        project_manifest: Option<&Utf8Path>,
+        global: Option<&Utf8Path>,
+    ) -> RoverResult<Self> {
+        let mut settings = match project_manifest {
+            Some(manifest) => match RoverManifest::load_settings(manifest) {
                 Ok(found) => {
                     let mut settings = Self::classify(found.section.as_ref())?;
                     if found.merge_key {
@@ -240,7 +260,7 @@ impl ProjectSettings {
             },
             None => Self::default(),
         };
-        let user_level_has_settings = dirs.global.as_ref().is_some_and(|global| {
+        let user_level_has_settings = global.is_some_and(|global| {
             RoverManifest::load_settings(&global.join(MANIFEST_FILE))
                 .is_ok_and(|found| found.section.is_some())
         });

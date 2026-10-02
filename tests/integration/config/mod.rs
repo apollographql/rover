@@ -84,3 +84,58 @@ fn config_show_reports_the_project_file_found_from_a_nested_directory() {
         .collect();
     assert_json_snapshot!(settings);
 }
+
+/// FR78: `rover plugin install --manifest-path` names the project, and its
+/// `settings:` section comes with it. A credential there fails the command
+/// with E060 before anything is downloaded, even though the working directory
+/// has no project of its own.
+#[test]
+fn settings_follow_the_manifest_path_a_plugin_install_names() {
+    let temp = TempDir::new().unwrap();
+    let root = Utf8PathBuf::try_from(dunce::canonicalize(temp.path()).unwrap()).unwrap();
+    let named = root.join("elsewhere").join(".rover");
+    fs::create_dir_all(&named).unwrap();
+    fs::write(
+        named.join("rover.yaml"),
+        "settings:\n  APOLLO_KEY: service:x:y\n",
+    )
+    .unwrap();
+    let working_dir = root.join("no-project-here");
+    fs::create_dir_all(&working_dir).unwrap();
+
+    let mut cmd = cargo_bin_cmd!("rover");
+    for key in SETTING_ENV {
+        cmd.env_remove(key);
+    }
+    let output = cmd
+        .current_dir(&working_dir)
+        .env("APOLLO_HOME", root.join("rover-home"))
+        .env("APOLLO_CONFIG_HOME", root.join("config"))
+        .env("APOLLO_TELEMETRY_DISABLED", "1")
+        .args([
+            "plugin",
+            "install",
+            "router@latest",
+            "--manifest-path",
+            named.join("rover.yaml").as_str(),
+            "--format",
+            "json",
+            "--skip-update-check",
+        ])
+        .output()
+        .unwrap();
+
+    assert!(!output.status.success(), "{output:?}");
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["error"]["code"], "E060", "{json}");
+    assert_eq!(
+        json["error"]["message"],
+        "`rover.yaml` sets `APOLLO_KEY` under `settings:`. Credentials can't be stored in a \
+         project file. Run `rover auth login`, or set `APOLLO_KEY` in the environment.",
+        "{json}"
+    );
+    assert!(
+        !root.join("elsewhere").join(".rover").join("bin").exists(),
+        "nothing should have been installed"
+    );
+}
