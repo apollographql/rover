@@ -111,6 +111,16 @@ rover graph check my-company@prod --profile work
 
 If you don't specify a configuration profile for a command, Rover uses the default profile (named `default`).
 
+### Settings in a profile
+
+A profile can also store non-secret settings alongside its API key, so a profile pointed at a different GraphOS environment can carry its own registry URL, timeouts, and so on. Every setting marked in the **Profile** column of the [environment variables table](#variables) can be stored this way, with [`rover config set`](./commands/config#config-set):
+
+```shell
+rover config set APOLLO_REGISTRY_URL https://registry.staging.example.com --profile staging
+```
+
+A profile you name with `--profile` outranks the [project file](#project-settings), which outranks the `default` profile. Flags and environment variables outrank all three. See [How Rover chooses a setting's value](#how-rover-chooses-a-settings-value) for the full order, and run `rover config show` to see which source supplied each setting.
+
 To view all commands for working with configuration profiles, run the following command:
 
 ```
@@ -118,6 +128,45 @@ rover config --help
 ```
 
 [Learn more about `rover config` commands](./commands/config/).
+
+## Project settings
+
+A project can carry its own settings, so everyone working in the same repository uses the same registry, timeouts, and plugin download host without configuring each machine. Add a `settings:` section to a `rover.yaml` file in a `.rover/` directory at your project's root:
+
+```yaml title=".rover/rover.yaml"
+settings:
+  APOLLO_REGISTRY_URL: https://registry.example.com
+  APOLLO_ROVER_DOWNLOAD_HOST: https://mirror.example.com
+  APOLLO_CHECKS_TIMEOUT_SECONDS: 600
+```
+
+Rover finds the file by looking for a `.rover/` directory in the current directory and then in each parent directory, stopping at your home directory, so it applies to commands run anywhere in the project. A setting in the file applies to everyone who runs Rover there, unless a flag, an environment variable, or a profile they name with `--profile` overrides it. See [How Rover chooses a setting's value](#how-rover-chooses-a-settings-value).
+
+- **Names.** A key is a setting's environment variable name, such as `APOLLO_REGISTRY_URL`, or that name in all lowercase, such as `apollo_registry_url`. The lowercase spelling is accepted in `rover.yaml` only. Using both spellings of the same setting in one file is an error (`E061`).
+- **Values.** A value has the setting's type: a URL, a whole number of seconds, a graph ref, or `true`/`false`. A stored boolean is a real `true` or `false`; see [Boolean values](#boolean-values). Rover checks a value when a command uses the setting, and fails with an error naming the file and the key if it's invalid.
+- **Which settings.** Only settings marked in the **Project** column of the [environment variables table](#variables) can be set here. Rover warns about any other key and ignores it, so a file written for a newer version of Rover doesn't break an older one.
+- **No credentials.** The file is meant to be committed, so Rover refuses to read a credential from it. `APOLLO_KEY`, `APOLLO_CLIENT_ID`, or `APOLLO_CLIENT_SECRET` under `settings:` fails every command in the project (`E060`). Set your API key in the environment or in a profile instead; see [Authenticating with GraphOS](#authenticating-with-graphos).
+- **Project only.** A `settings:` section in your user-level `rover.yaml` (`~/.rover/rover.yaml`, or `.rover/rover.yaml` under `APOLLO_HOME` if you've set it) is ignored with a warning. To store settings for yourself rather than for a project, use a [profile](#settings-in-a-profile).
+
+If Rover can't read or parse the project's `rover.yaml`, it prints a warning and applies none of its settings. The command still runs.
+
+## Configuration notices
+
+When a setting's value sends Rover somewhere you might not expect, Rover prints a one-line note to stderr the first time it uses that setting. This happens when:
+
+- a profile or the project file points a network destination, such as the registry URL or the plugin download host, at something other than its default:
+
+  ```
+  Note: `rover.yaml` sets `APOLLO_ROVER_DOWNLOAD_HOST` to `https://mirror.example.com`.
+  ```
+
+- an environment variable overrides a value set by a profile you named with `--profile`, or by the project file:
+
+  ```
+  Note: `APOLLO_REGISTRY_URL` from the environment overrides the value set in profile `staging`.
+  ```
+
+Notices go to stderr only. They never appear in `--format json` output and never change a command's exit code. To turn them off, pass `--no-config-notices` or set `APOLLO_ROVER_NO_CONFIG_NOTICES` to `true`. A profile or project file can't turn them off.
 
 ## Logging
 
@@ -442,6 +491,7 @@ A boolean stored in a profile or the project file is always a real `true` or `fa
 | `APOLLO_VCS_BRANCH` | `--vcs-branch` | | | The name of the version-controlled branch. See [Git context](#git-context). |
 | `APOLLO_VCS_COMMIT` | `--vcs-commit` | | | The long identifier (SHA in Git) of the commit. See [Git context](#git-context). |
 | `APOLLO_VCS_AUTHOR` | `--vcs-author` | | | The name and email of a commit's author (e.g., `Jane Doe <jane@example.com>`). See [Git context](#git-context). |
+| `APOLLO_ROVER_NO_CONFIG_NOTICES` | `--no-config-notices` | | | Set to `true` to turn off [configuration notices](#configuration-notices). |
 | `APOLLO_LOG_LEVEL` | `--log` | | | Sets Rover's [log level](#logging). |
 | `APOLLO_FORMAT` | `--format` | | | Sets Rover's [output format](#configuring-output) (`plain` or `json`). |
 | `NO_COLOR` | `--no-color` | | | Set if you don't want Rover to print color. See [Boolean values](#boolean-values) for how its value is read. |
