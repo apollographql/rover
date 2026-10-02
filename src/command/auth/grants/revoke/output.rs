@@ -277,7 +277,12 @@ pub(crate) mod tests {
             error: Some("boom".to_string()),
         }]);
 
-        assert_that!(output.summary()).contains("\n  - Rover (`rover`): boom\n");
+        assert_that!(output.summary()).is_equal_to(
+            "Revoked grants for `user-123` under 0 of 1 OAuth clients in organization `acme`. \
+            Revocation failed under:\n  - Rover (`rover`): boom\nRun the same command again to \
+            retry. Clients already revoked are unaffected by a retry."
+                .to_string(),
+        );
     }
 
     // FR58.
@@ -306,7 +311,9 @@ pub(crate) mod tests {
         insta::assert_json_snapshot!(JsonOutput::from(&output));
     }
 
-    // FR67: a declined prompt is `success: true`, no clients, `cancelled: true`.
+    // FR67: a declined prompt is `success: true`, no clients, `cancelled: true`. JSON mode can't
+    // produce this today - without `--confirm` it fails with E062 before prompting, and with it
+    // there's no prompt to decline - but FR67 defines the shape, so it's pinned here.
     #[test]
     fn json_envelope_for_a_declined_prompt_snapshot() {
         let output = RoverOutput::CliOutput(Box::new(RevokeSweepOutput {

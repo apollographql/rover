@@ -16,17 +16,6 @@ pub(crate) enum GrantsRevokeError {
         reason: String,
     },
 
-    /// FR56: more pairs than one sweep will enumerate. Revoking under only the ones collected
-    /// would be a partial sweep reported as a whole one, so nothing was revoked.
-    #[error(
-        "Organization `{organization_id}` has more than {limit} client-credential pairs, more \
-        than one `rover auth grants revoke` run will enumerate, so nothing was revoked."
-    )]
-    TooManyPairs {
-        organization_id: String,
-        limit: usize,
-    },
-
     /// FR59.
     #[error(
         "Revoking every grant for `{user_id}` needs confirmation, and there's no terminal to \
@@ -50,7 +39,7 @@ impl GrantsRevokeError {
         match self {
             Self::ConfirmationRequired { .. } => Some(RoverErrorCode::E062),
             Self::PartialFailure { .. } => Some(RoverErrorCode::E063),
-            Self::PairEnumeration { .. } | Self::TooManyPairs { .. } => None,
+            Self::PairEnumeration { .. } => None,
         }
     }
 }

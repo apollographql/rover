@@ -289,7 +289,7 @@ Single-grant revoke — PRD B2.3 (self-service) and B3.2 (any member's, by an ad
   Required text:
   > Revoking every grant for `user-123` needs confirmation, and there's no terminal to ask on. Pass `--confirm` to proceed without a prompt.
 
-- **FR60**: If `<USER_ID>` does not name a current member of the organization, Rover must print a warning to stderr and proceed, including in the prompt. A departing user is often removed from the organization before their grants are swept, and the sweep must still work for them.
+- **FR60**: If `<USER_ID>` does not name a current member of the organization, Rover must print a warning to stderr and proceed, including in the prompt. A departing user is often removed from the organization before their grants are swept, and the sweep must still work for them. If Rover can't determine whether the user is a member (the Platform API reports no member list, or the membership lookup fails), it must print no warning and proceed: membership decides only the warning, and the sweep must not depend on it.
 
   Required text:
   > Warning: `user-123` isn't a current member of organization `acme`. Rover will still revoke any grants they hold under the clients below.
@@ -334,7 +334,7 @@ Single-grant revoke — PRD B2.3 (self-service) and B3.2 (any member's, by an ad
   }
   ```
 
-  `outcome` is `"revoked"` or `"failed"`. `kind` is `"rover"` for Rover's OAuth client and `"client_credentials"` for a pair; `client_id` for Rover's OAuth client is the effective `APOLLO_OAUTH_CLIENT_ID`. `data` carries every client on both success and partial failure, so a runbook can read which clients to retry without parsing `error.message`. A declined prompt produces `"success": true`, `"clients": []`, and `"cancelled": true`. `cancelled` is present and `false` on every other outcome, so a consumer can tell "declined" apart from "swept, and the organization already had zero grants" without relying on an empty array.
+  `outcome` is `"revoked"` or `"failed"`. `kind` is `"rover"` for Rover's OAuth client and `"client_credentials"` for a pair; `client_id` for Rover's OAuth client is the effective `APOLLO_OAUTH_CLIENT_ID`. `data` carries every client on both success and partial failure, so a runbook can read which clients to retry without parsing `error.message`. A declined prompt produces `"success": true`, `"clients": []`, and `"cancelled": true`. `cancelled` is present and `false` on every other outcome, so a consumer can tell "declined" apart from "swept, and the organization already had zero grants" without relying on an empty array. `user_is_member` is `null` when Rover couldn't determine membership (FR60).
 ### 3.9 Secrets and logging (PRD §8.2)
 
 - **FR69**: A secret may be printed only in the output of the create or rotate call that minted it. It must never appear in debug or trace logging at any level, in telemetry, in an error message, or in the output of any other command.

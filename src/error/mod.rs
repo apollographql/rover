@@ -203,7 +203,9 @@ impl RoverError {
         if let Some(GrantsRevokeError::PartialFailure { output }) =
             self.error.downcast_ref::<GrantsRevokeError>()
         {
-            return output.json().unwrap_or(Value::Null);
+            return output
+                .json()
+                .expect("a sweep report is plain strings and booleans, so always serializes");
         }
 
         match self.error.downcast_ref::<RoverClientError>() {

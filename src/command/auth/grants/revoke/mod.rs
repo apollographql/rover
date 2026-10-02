@@ -33,12 +33,6 @@ use crate::{
     utils::client::StudioClientConfig,
 };
 
-/// The most pairs one sweep enumerates (FR56). Every pair must be enumerated before anything is
-/// revoked, so an organization with more than this fails outright rather than being swept
-/// partially - a cap that bounds how long Rover can spend paging, set well above any
-/// organization's realistic pair count.
-const MAX_SWEEP_PAIRS: usize = 1_000;
-
 /// FR47-FR49: the sweep is the only accepted form. `--org`, `--user`, and `--all` are each
 /// required, so every other combination - including a bare grant ID, which has no positional
 /// to land in - is a usage error, raised before any request.
@@ -184,33 +178,46 @@ where
         .await
         .map_err(enumeration_failed)?
         .call(
+            // No cap (FR56, spec §6): the sweep revokes based on what it enumerates, so it must
+            // see every pair. `pair_list`'s own `NoProgress`/`MissingCursor` guards are what stop
+            // a misbehaving server from paging forever.
             ListOAuthClientsInput::builder()
                 .organization_id(organization_id)
-                .limit(MAX_SWEEP_PAIRS)
+                .limit(usize::MAX)
                 .build(),
         )
         .await
         .map_err(enumeration_failed)?;
+    // Unreachable with no cap, but a list that says there's more must never be swept as if it
+    // were the whole organization.
     if pairs.next_after.is_some() {
-        return Err(GrantsRevokeError::TooManyPairs {
+        return Err(GrantsRevokeError::PairEnumeration {
             organization_id: organization_id.to_string(),
-            limit: MAX_SWEEP_PAIRS,
+            reason: "the listing stopped before its last page".to_string(),
         }
         .into());
     }
 
-    // FR60: a departed user is warned about, not refused.
-    let user_is_member = services
-        .membership
-        .ready()
-        .await?
-        .call(
-            OrgMembershipInput::builder()
-                .organization_id(organization_id)
-                .user_id(user_id)
-                .build(),
-        )
-        .await?;
+    // FR60: membership decides only the warning. A lookup that fails - including a caller who
+    // may revoke grants but not read the member list - means Rover can't tell, which mustn't
+    // stop the sweep it isn't needed for.
+    let user_is_member = match services.membership.ready().await {
+        Ok(membership) => {
+            membership
+                .call(
+                    OrgMembershipInput::builder()
+                        .organization_id(organization_id)
+                        .user_id(user_id)
+                        .build(),
+                )
+                .await
+        }
+        Err(err) => Err(err),
+    }
+    .unwrap_or_else(|err| {
+        tracing::debug!("couldn't check `{user_id}`'s membership of `{organization_id}`: {err}");
+        None
+    });
     if user_is_member == Some(false) {
         stderr.print_line(&[
             StyledText::new(Style::Warning, "Warning:"),
@@ -370,7 +377,7 @@ mod tests {
         Services {
             pairs: service_fn(move |input: ListOAuthClientsInput| {
                 assert_that!(input.organization_id.as_str()).is_equal_to("acme");
-                assert_that!(input.limit).is_equal_to(MAX_SWEEP_PAIRS);
+                assert_that!(input.limit).is_equal_to(usize::MAX);
                 future::ready(pairs.lock().unwrap().take().expect("pairs listed once"))
             }),
             membership: service_fn(move |input: OrgMembershipInput| {
@@ -544,38 +551,45 @@ mod tests {
             {}",
             ListOAuthClientsError::NoProgress(3)
         ));
+        // FR74 names no code for this failure.
+        assert_that!(err.code()).is_equal_to(None);
         assert_that!(attempted.lock().unwrap().len()).is_equal_to(0);
     }
 
-    // FR56: more pairs than one run enumerates is a failure, not a partial sweep.
+    // FR60: a membership lookup that fails means "can't tell" - the sweep still runs, with no
+    // warning and `user_is_member: null`.
     #[tokio::test]
-    async fn more_pairs_than_the_cap_revokes_nothing() {
+    async fn a_failed_membership_lookup_doesnt_stop_the_sweep() {
         let attempted = Attempted::default();
-        let services = services(
-            Ok(ListOAuthClientsResponse {
-                next_after: Some("cursor-1".to_string()),
-                ..two_pairs()
+        let Services { pairs, revoke, .. } =
+            services(Ok(two_pairs()), Some(true), all_succeed, &attempted);
+        let services = Services {
+            pairs,
+            membership: service_fn(|_: OrgMembershipInput| {
+                future::ready(Err(RoverClientError::GrantPermissionDenied {
+                    organization_id: "acme".to_string(),
+                }))
             }),
-            Some(true),
-            all_succeed,
-            &attempted,
-        );
+            revoke,
+        };
+        let stderr = TerminalCapture::new(false);
 
-        let err = sweep(
-            TARGET,
-            Confirmation::Given,
-            services,
-            &TerminalCapture::new(false),
-            never_asked,
-        )
-        .await
-        .unwrap_err();
+        let output = sweep(TARGET, Confirmation::Given, services, &stderr, never_asked)
+            .await
+            .unwrap();
 
-        assert_that!(err.message()).is_equal_to(format!(
-            "Organization `acme` has more than {MAX_SWEEP_PAIRS} client-credential pairs, more \
-            than one `rover auth grants revoke` run will enumerate, so nothing was revoked."
-        ));
-        assert_that!(attempted.lock().unwrap().len()).is_equal_to(0);
+        assert_that!(output).is_equal_to(RevokeSweepOutput {
+            organization_id: "acme".to_string(),
+            user_id: "user-123".to_string(),
+            user_is_member: None,
+            clients: vec![
+                revoked(rover()),
+                revoked(ci_deploy()),
+                revoked(nightly_checks()),
+            ],
+            cancelled: false,
+        });
+        assert_that!(stderr.lines()).is_equal_to(Vec::<String>::new());
     }
 
     // FR60: a departed user is warned about, and the sweep still runs.
@@ -669,6 +683,8 @@ mod tests {
             requires the organization's grant-management permission."
                 .to_string(),
         );
+        // No per-client outcomes in `data`: the permission error replaces the sweep's report.
+        insta::assert_json_snapshot!(JsonOutput::from(&err));
         assert_that!(attempted.lock().unwrap().len()).is_equal_to(3);
     }
 
