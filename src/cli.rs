@@ -3887,7 +3887,7 @@ mod tests {
         let error = rover.execute_command().await.unwrap_err();
 
         assert_that!(error.message()).is_equal_to(
-            "`.rover/rover.yaml` sets `APOLLO_KEY` under `settings:`. Credentials can't be \
+            "`rover.yaml` sets `APOLLO_KEY` under `settings:`. Credentials can't be \
             stored in a project file. Run `rover auth login`, or set `APOLLO_KEY` in the \
             environment."
                 .to_string(),
@@ -3908,7 +3908,7 @@ mod tests {
         let error = rover.execute_command().await.unwrap_err();
 
         assert_that!(error.message()).is_equal_to(
-            "`.rover/rover.yaml` sets `APOLLO_REGISTRY_URL` twice, once as \
+            "`rover.yaml` sets `APOLLO_REGISTRY_URL` twice, once as \
             `APOLLO_REGISTRY_URL` and once as `apollo_registry_url`. These are the same \
             setting. Remove one."
                 .to_string(),
@@ -3924,7 +3924,7 @@ mod tests {
     #[case::unrecognized_key(
         "settings:\n  APOLLO_FUTURE_SETTING: x\n",
         None,
-        "Warning: `.rover/rover.yaml` sets `APOLLO_FUTURE_SETTING`, which this version of Rover \
+        "Warning: `rover.yaml` sets `APOLLO_FUTURE_SETTING`, which this version of Rover \
         doesn't recognize. It will be ignored."
     )]
     #[case::user_level_settings(
@@ -3936,7 +3936,7 @@ mod tests {
     #[case::not_yaml(
         "settings: \"unterminated\n",
         None,
-        "Warning: Rover can't read `.rover/rover.yaml`, so none of its settings apply: found \
+        "Warning: Rover can't read `rover.yaml`, so none of its settings apply: found \
         unexpected end of stream at line 2 column 1, while scanning a quoted scalar at line 1 \
         column 11"
     )]
