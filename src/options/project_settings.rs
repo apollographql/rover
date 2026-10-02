@@ -9,12 +9,14 @@ use std::collections::BTreeMap;
 use serde_yaml::Value;
 
 use super::{SettingName, SettingNameError};
+use crate::plugin::manifest::MANIFEST_FILE;
 
-/// How every message about the project file names it. Deliberately the
-/// literal, relative spelling the spec's required texts use rather than the
-/// path discovery found, so a message reads the same from any directory
-/// inside the project.
-pub(crate) const PROJECT_FILE: &str = ".rover/rover.yaml";
+/// How every message about the project file names it: by the manifest's
+/// file name alone, as the plugin system's own messages do, rather than by a
+/// directory layout or the path discovery found. That stays accurate however
+/// the manifest was found, and reads the same from any directory inside the
+/// project.
+pub(crate) const PROJECT_FILE: &str = MANIFEST_FILE;
 
 /// The credential names a project file must never carry (FR73/FR85). A
 /// credential is not a setting, so none of these is in `SettingName` - each is
@@ -296,7 +298,7 @@ mod tests {
 
         assert_that!(settings.get(SettingName::RegistryUrl)).is_none();
         assert_that!(settings.warnings().to_vec()).is_equal_to(vec![format!(
-            "Warning: `.rover/rover.yaml` sets `{key}`, which this version of Rover doesn't \
+            "Warning: `rover.yaml` sets `{key}`, which this version of Rover doesn't \
             recognize. It will be ignored."
         )]);
     }
@@ -308,7 +310,7 @@ mod tests {
         assert_that!(settings).is_equal_to(ProjectSettings {
             settings: BTreeMap::new(),
             warnings: vec![
-                "Warning: `.rover/rover.yaml` sets `600`, which this version of Rover doesn't \
+                "Warning: `rover.yaml` sets `600`, which this version of Rover doesn't \
                 recognize. It will be ignored."
                     .to_string(),
             ],
@@ -326,7 +328,7 @@ mod tests {
         assert_that!(settings).is_equal_to(ProjectSettings {
             settings: BTreeMap::new(),
             warnings: vec![format!(
-                "Warning: `.rover/rover.yaml` sets `{key}`, which can't be set in a project file. \
+                "Warning: `rover.yaml` sets `{key}`, which can't be set in a project file. \
                 It will be ignored."
             )],
         });
@@ -338,7 +340,7 @@ mod tests {
 
         assert_that!(settings.get(SettingName::RegistryUrl)).is_none();
         assert_that!(settings.warnings().to_vec()).is_equal_to(vec![
-            "Warning: `.rover/rover.yaml` has a `settings:` section that isn't a mapping of \
+            "Warning: `rover.yaml` has a `settings:` section that isn't a mapping of \
             setting names to values. It will be ignored."
                 .to_string(),
         ]);
@@ -356,7 +358,7 @@ mod tests {
             .is_some()
             .is_equal_to(&scalar("APOLLO_CHECKS_TIMEOUT_SECONDS", "600"));
         assert_that!(settings.warnings().to_vec()).is_equal_to(vec![
-            "Warning: `.rover/rover.yaml` sets `APOLLO_FUTURE_SETTING`, which this version of \
+            "Warning: `rover.yaml` sets `APOLLO_FUTURE_SETTING`, which this version of \
             Rover doesn't recognize. It will be ignored."
                 .to_string(),
         ]);
@@ -440,7 +442,7 @@ mod tests {
             lowercase: "apollo_registry_url".to_string(),
         });
         assert_that!(error.to_string()).is_equal_to(
-            "`.rover/rover.yaml` sets `APOLLO_REGISTRY_URL` twice, once as `APOLLO_REGISTRY_URL` \
+            "`rover.yaml` sets `APOLLO_REGISTRY_URL` twice, once as `APOLLO_REGISTRY_URL` \
             and once as `apollo_registry_url`. These are the same setting. Remove one."
                 .to_string(),
         );
@@ -488,7 +490,7 @@ mod tests {
         let error = classify("APOLLO_KEY: service:x:y").unwrap_err();
 
         assert_that!(error.to_string()).is_equal_to(
-            "`.rover/rover.yaml` sets `APOLLO_KEY` under `settings:`. Credentials can't be stored \
+            "`rover.yaml` sets `APOLLO_KEY` under `settings:`. Credentials can't be stored \
             in a project file. Run `rover auth login`, or set `APOLLO_KEY` in the environment."
                 .to_string(),
         );
@@ -513,7 +515,7 @@ mod tests {
         let settings = classify("Apollo_Key: service:x:y").unwrap();
 
         assert_that!(settings.warnings().to_vec()).is_equal_to(vec![
-            "Warning: `.rover/rover.yaml` sets `Apollo_Key`, which this version of Rover doesn't \
+            "Warning: `rover.yaml` sets `Apollo_Key`, which this version of Rover doesn't \
             recognize. It will be ignored."
                 .to_string(),
         ]);

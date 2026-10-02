@@ -266,7 +266,7 @@ pub(crate) enum SettingNameError {
     #[error(
         "`{input}` isn't a Rover setting name. Settings are named as their environment \
         variables are, so use `{canonical}`. The lowercase spelling is accepted in \
-        `.rover/rover.yaml` only."
+        `rover.yaml` only."
     )]
     LowercaseSpelling {
         input: String,
@@ -403,7 +403,7 @@ mod tests {
         assert_that!(error.to_string()).is_equal_to(
             "`apollo_registry_url` isn't a Rover setting name. Settings are named as their \
             environment variables are, so use `APOLLO_REGISTRY_URL`. The lowercase spelling is \
-            accepted in `.rover/rover.yaml` only."
+            accepted in `rover.yaml` only."
                 .to_string(),
         );
     }

@@ -174,7 +174,7 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
 
   > `APOLLO_NOT_A_SETTING` isn't a Rover setting. Run `rover config show` to list the settings Rover recognizes.
 
-  > `apollo_registry_url` isn't a Rover setting name. Settings are named as their environment variables are, so use `APOLLO_REGISTRY_URL`. The lowercase spelling is accepted in `.rover/rover.yaml` only.
+  > `apollo_registry_url` isn't a Rover setting name. Settings are named as their environment variables are, so use `APOLLO_REGISTRY_URL`. The lowercase spelling is accepted in `rover.yaml` only.
 
 - **FR43**: `rover config set` must validate `<VALUE>` syntactically against the setting's type at write time and must refuse to store a value that fails. A malformed URL, a non-numeric timeout, and an unparseable boolean are each rejected when entered rather than when next used.
 - **FR44**: Validation is syntactic only. Rover must never contact a host to decide whether a value is acceptable.
@@ -251,7 +251,7 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
 
 - **FR65**: Required text, case (b), project-file source:
 
-  > Note: `.rover/rover.yaml` sets `APOLLO_ROVER_DOWNLOAD_HOST` to `https://mirror.example.com`.
+  > Note: `rover.yaml` sets `APOLLO_ROVER_DOWNLOAD_HOST` to `https://mirror.example.com`.
 
 - **FR66**: Required text, case (a):
 
@@ -284,7 +284,7 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
 - **FR70**: A `settings:` section that spells the same setting both ways must fail the command, naming the setting and both spellings. Rover must not pick one and must not merge them.
 
   Required text:
-  > `.rover/rover.yaml` sets `APOLLO_REGISTRY_URL` twice, once as `APOLLO_REGISTRY_URL` and once as `apollo_registry_url`. These are the same setting. Remove one.
+  > `rover.yaml` sets `APOLLO_REGISTRY_URL` twice, once as `APOLLO_REGISTRY_URL` and once as `apollo_registry_url`. These are the same setting. Remove one.
 
 - **FR71**: The `settings:` section is hand-authored. No Rover command writes it, and none is added that does.
 - **FR72**: A key inside `settings:` that is not a setting name from FR1, or that is not project-eligible, must produce one warning on stderr and otherwise be ignored — the same rule as FR38. This is distinct from an unrecognized *top-level* manifest key, which the plugin system's rule ignores without warning.
@@ -315,12 +315,12 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
   > `APOLLO_CHECKS_TIMEOUT_SECONDS` in profile `staging` is set to `soon`, which isn't a whole number of seconds. Run `rover config set APOLLO_CHECKS_TIMEOUT_SECONDS <seconds> --profile staging` to correct it.
 
   Required text, project-file source:
-  > `.rover/rover.yaml` sets `APOLLO_REGISTRY_URL` to `registry.example.com`, which isn't a valid URL. URLs must include a scheme, for example `https://registry.example.com`.
+  > `rover.yaml` sets `APOLLO_REGISTRY_URL` to `registry.example.com`, which isn't a valid URL. URLs must include a scheme, for example `https://registry.example.com`.
 
 - **FR85**: A credential name under `settings:` must fail with its own message.
 
   Required text:
-  > `.rover/rover.yaml` sets `APOLLO_KEY` under `settings:`. Credentials can't be stored in a project file. Run `rover auth login`, or set `APOLLO_KEY` in the environment.
+  > `rover.yaml` sets `APOLLO_KEY` under `settings:`. Credentials can't be stored in a project file. Run `rover auth login`, or set `APOLLO_KEY` in the environment.
 
 - **FR86**: Three failure classes must have their own stable error codes, surfaced as `error.code` in JSON output and in the printed error:
   1. A stored setting's value failed validation (FR84).
@@ -498,6 +498,8 @@ Decisions taken while drafting, and their reasoning.
 - **Slicing is constrained by one requirement, not by a fixed setting order** (FR29), resolving the PRD's A4 delivery-slicing question. Which settings a given slice enables is a scheduling choice and this spec deliberately does not fix it; what a slice may not do is change a resolved value for a user who has no project file. FR29 makes that checkable — the four-tier chain and the six-tier chain must agree on every such input — so slices can be reordered freely without anyone having to re-derive whether the reordering is safe.
 
 - **The catalogue is the complete list, and corrects the PRD's inventory** (FR1, FR3). Drafting turned up `APOLLO_FIRE_FLOWER`, which the PRD's survey missed; `APOLLO_NODE_MODULES_BIN`, which Rover advertises and never reads (FR4); and `APOLLO_NODE_MODULES_BIN_DIR`, whose only observable effect is which suggestion an error prints, not install paths as the PRD describes. Recording these is the point of writing the catalogue as a single normative table rather than prose: it is the artifact that makes "every setting is documented" checkable.
+
+- **Messages name the project file `rover.yaml`, not `.rover/rover.yaml` or the path discovery found** (FR42, FR65, FR70, FR72, FR84, FR85), matching the plugin system's own messages about the same file. The bare file name stays accurate however the manifest was found: from a nested directory, through a symlinked worktree, or through an explicitly named manifest path. A literal directory layout would be wrong in each of those cases. The one message about the user-level manifest already qualifies it as "the user-level `rover.yaml`" (FR76), so the unqualified name is unambiguous.
 
 ---
 
