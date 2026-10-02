@@ -982,7 +982,7 @@ impl Rover {
     }
 
     /// How a notice names a stored tier: "profile `staging`" (FR64, FR66)
-    /// or "`.rover/rover.yaml`" (FR65).
+    /// or "`rover.yaml`" (FR65).
     fn stored_tier_label(&self, tier: StoredTier) -> String {
         match tier {
             StoredTier::ExplicitProfile | StoredTier::DefaultProfile => format!(
