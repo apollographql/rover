@@ -51,12 +51,13 @@ pub(crate) fn global_install() -> bool {
 
 /// Whether the boolean environment variable `name` is `1` or `true`.
 fn switched_on(name: &str) -> bool {
-    std::env::var(name)
-        .map(|value| {
-            let value = value.trim().to_lowercase();
-            value == "1" || value == "true"
-        })
-        .unwrap_or(false)
+    std::env::var(name).is_ok_and(|value| is_switched_on(&value))
+}
+
+/// Whether a boolean environment variable's `value` is `1` or `true`.
+pub(crate) fn is_switched_on(value: &str) -> bool {
+    let value = value.trim().to_lowercase();
+    value == "1" || value == "true"
 }
 
 /// The environment variable that suppresses spec.md's configuration

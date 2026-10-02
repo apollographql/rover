@@ -79,6 +79,7 @@ impl Show {
                 rover.get_env_var(RoverEnvKey::GraphRef)?,
                 RoverEnvKey::GraphRef,
             )?,
+            resolve_allow_automatic_download(rover, &houston_config)?,
         ];
         #[cfg(feature = "oauth")]
         for name in [
@@ -282,6 +283,46 @@ fn resolve_telemetry_disabled(
         // ignored (`APOLLO_TELEMETRY_URL`/`APOLLO_TELEMETRY_DISABLED`), which
         // is exactly when a user needs to see what's stored.
         overridden: stored_layers(rover, houston_config, name)?,
+    })
+}
+
+/// `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` has no flag, and its environment
+/// variable only opts in (FR107): `1` or `true` reports as the typed boolean
+/// `true` from the environment, and any other value is as if it were unset.
+/// Unlike `APOLLO_TELEMETRY_DISABLED`, an invalid stored value fails the
+/// command, as it does everywhere else (FR109).
+fn resolve_allow_automatic_download(
+    rover: &Rover,
+    houston_config: &houston::Config,
+) -> RoverResult<SettingReport> {
+    let name = SettingName::AllowAutomaticDownload;
+    let opted_in_by_env = rover
+        .get_env_var(RoverEnvKey::RoverAllowAutomaticDownload)?
+        .is_some_and(|value| crate::utils::is_switched_on(&value));
+
+    if opted_in_by_env {
+        return Ok(SettingReport {
+            name: name.as_str(),
+            value: Some("true".to_string()),
+            source: Source::Environment,
+            overridden: stored_layers(rover, houston_config, name)?,
+        });
+    }
+
+    if let Some((tier, value)) = rover.resolve_stored_setting_with(houston_config, name)? {
+        return Ok(SettingReport {
+            name: name.as_str(),
+            value: Some(value.to_lowercase()),
+            source: Source::from(tier),
+            overridden: losing_layers(rover, houston_config, name)?,
+        });
+    }
+
+    Ok(SettingReport {
+        name: name.as_str(),
+        value: name.builtin_default(),
+        source: Source::Builtin,
+        overridden: Vec::new(),
     })
 }
 
@@ -1278,5 +1319,122 @@ mod tests {
                 "overridden": [],
             }),
         );
+    }
+
+    const OPTED_IN: &str = "settings:\n  APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true\n";
+    const OPTED_OUT: &str = "settings:\n  APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: false\n";
+
+    /// The ROVER-451 acceptance criteria for automatic plugin downloads: the
+    /// opt-in follows the settings chain, and its environment variable can
+    /// opt in but never out (FR106, FR107).
+    #[rstest::rstest]
+    #[case::the_project_file_opts_in(
+        Some(OPTED_IN),
+        &[],
+        &[],
+        None,
+        serde_json::json!({"value": "true", "source": "project_file", "overridden": []})
+    )]
+    #[case::an_explicit_profile_outranks_the_project_file(
+        Some(OPTED_IN),
+        &[("ci", "APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD", "false")],
+        &["--profile", "ci"],
+        None,
+        serde_json::json!({
+            "value": "false",
+            "source": "explicit_profile",
+            "overridden": [{"source": "project_file", "value": "true"}],
+        })
+    )]
+    #[case::the_default_profile_opts_in(
+        None,
+        &[("default", "APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD", "true")],
+        &[],
+        None,
+        serde_json::json!({"value": "true", "source": "default_profile", "overridden": []})
+    )]
+    #[case::nothing_opts_in(
+        None,
+        &[],
+        &[],
+        None,
+        serde_json::json!({"value": "false", "source": "builtin", "overridden": []})
+    )]
+    #[case::the_variable_cannot_opt_out(
+        Some(OPTED_IN),
+        &[],
+        &[],
+        Some("false"),
+        serde_json::json!({"value": "true", "source": "project_file", "overridden": []})
+    )]
+    #[case::the_variable_opts_in_over_the_project_file(
+        Some(OPTED_OUT),
+        &[],
+        &[],
+        Some("1"),
+        serde_json::json!({
+            "value": "true",
+            "source": "environment",
+            "overridden": [{"source": "project_file", "value": "false"}],
+        })
+    )]
+    fn the_automatic_download_opt_in_follows_the_settings_chain(
+        #[case] project_file: Option<&str>,
+        #[case] stored: &[(&str, &str, &str)],
+        #[case] args: &[&str],
+        #[case] variable: Option<&str>,
+        #[case] expected: serde_json::Value,
+    ) {
+        let home = config_home(stored);
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let (_tree, dirs) = project(project_file.unwrap_or(""));
+        let mut full_args = vec![PKG_NAME, "--config-home", home_path.as_str()];
+        full_args.extend_from_slice(args);
+        full_args.extend(["config", "show"]);
+        let mut rover = parse_with_env_locked(NO_REGISTRY_OR_TELEMETRY_ENV, &full_args);
+        if let Some(variable) = variable {
+            rover
+                .insert_env_var(RoverEnvKey::RoverAllowAutomaticDownload, variable)
+                .unwrap();
+        }
+        rover.set_manifest_dirs(dirs);
+
+        let output = Show {}.run(&rover, &rover.get_profile_opt()).unwrap();
+        let mut reported = output
+            .settings
+            .iter()
+            .find(|setting| setting.name == "APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD")
+            .map(|setting| serde_json::to_value(setting).unwrap())
+            .unwrap();
+        reported.as_object_mut().unwrap().remove("name");
+
+        assert_that!(reported).is_equal_to(expected);
+    }
+
+    /// FR109: a stored value that isn't a boolean fails the report, naming
+    /// the setting.
+    #[test]
+    fn an_automatic_download_opt_in_that_is_not_a_boolean_fails_the_report() {
+        let home = tempfile::tempdir().unwrap();
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let (_tree, dirs) =
+            project("settings:\n  APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: \"yes\"\n");
+        let mut rover = parse_with_env_locked(
+            NO_REGISTRY_OR_TELEMETRY_ENV,
+            &[
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "config",
+                "show",
+            ],
+        );
+        rover.set_manifest_dirs(dirs);
+
+        let error = Show {}.run(&rover, &rover.get_profile_opt()).unwrap_err();
+
+        assert_that!(error.code())
+            .is_some()
+            .is_equal_to(crate::RoverErrorCode::E054);
     }
 }
