@@ -1,0 +1,8 @@
+---
+source: tests/integration/api_key/keys.rs
+expression: "format!(\"--- stdout ---\\n{stdout}\\n--- stderr ---\\n{stderr}\")"
+---
+--- stdout ---
+
+--- stderr ---
+Renamed API Key key-operator-1 from 'router-prod' to 'router-production'

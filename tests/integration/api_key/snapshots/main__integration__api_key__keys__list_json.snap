@@ -1,0 +1,29 @@
+---
+source: tests/integration/api_key/keys.rs
+expression: parsed
+---
+{
+  "json_version": "1",
+  "data": {
+    "keys": [
+      {
+        "created_at": "2026-01-15T10:00:00Z",
+        "expires_at": null,
+        "id": "key-operator-1",
+        "name": "router-prod",
+        "key_type": "Operator"
+      },
+      {
+        "created_at": "2026-02-20T12:30:00Z",
+        "expires_at": "2027-02-20T12:30:00Z",
+        "id": "key-subgraph-1",
+        "name": "inventory-ci",
+        "key_type": "Subgraph"
+      }
+    ],
+    "client_credentials": [],
+    "client_credentials_next_after": null,
+    "success": true
+  },
+  "error": null
+}
