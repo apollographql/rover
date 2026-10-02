@@ -426,7 +426,7 @@ mod tests {
     #[rstest]
     fn rover_looks_for_plugins_in_the_level_this_fixture_builds(two_levels: TwoLevels) {
         // The fixture is only worth anything if Rover agrees with it about
-        // where plugins live. `--skip-update` makes Rover look and report,
+        // where plugins live, at both levels. `--skip-update` makes Rover look and report,
         // without reaching the network for the plugin itself; `--skip-update-check`
         // is needed too, since it's a separate flag that gates Rover's own
         // self-update check.
@@ -471,8 +471,9 @@ mod tests {
             .map(|start| &stderr[start..])
             .expect("rover printed no error");
         let expected_error = format!(
-            "error[E058]: Error when updating Federation Version\n\nCaused by:\n    0: Couldn't obtain the `supergraph` plugin\n    1: Rover needs a `supergraph` plugin v2.x, but none is installed in `{bin_dir}` and downloads are disabled by `--skip-update`.\n        Run `rover plugin install supergraph@2` to install it ahead of time, or re-run without `--skip-update` to let Rover download it.\n",
-            bin_dir = two_levels.global.bin_dir(),
+            "error[E058]: Error when updating Federation Version\n\nCaused by:\n    0: Couldn't obtain the `supergraph` plugin\n    1: Rover needs a `supergraph` plugin v2.x, but none is installed in `{project}` or `{global}` and downloads are disabled by `--skip-update`.\n        Run `rover plugin install supergraph@2` to install it ahead of time, or re-run without `--skip-update` to let Rover download it.\n",
+            project = two_levels.project.bin_dir(),
+            global = two_levels.global.bin_dir(),
         );
 
         assert_that!(error).is_equal_to(expected_error.as_str());

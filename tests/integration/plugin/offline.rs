@@ -129,6 +129,16 @@ fn missing(bin_dir: &Utf8Path, control: &str) -> String {
     )
 }
 
+/// [`missing`], from the project's `bin_dir` and then the global one.
+fn missing_from_either(levels: &TwoLevels, control: &str) -> String {
+    format!(
+        "Rover needs the `supergraph` plugin v2.9.3, but it isn't installed in `{}` or `{}` and \
+         downloads are disabled by `{control}`.",
+        levels.bin_dir(Level::Project),
+        levels.bin_dir(Level::Global),
+    )
+}
+
 #[rstest]
 #[case::the_flag(&["--no-download"], &[])]
 #[case::the_variable(&[], &[("APOLLO_ROVER_NO_DOWNLOAD", "true")])]
@@ -280,7 +290,7 @@ fn skip_update_fails_by_name_for_a_plugin_that_is_not_installed(
         "message": "Error when updating Federation Version",
         "causes": [
             "Couldn't obtain the `supergraph` plugin",
-            missing(&two_levels.bin_dir(Level::Global), control),
+            missing_from_either(&two_levels, control),
         ],
         "code": "E058",
     }));

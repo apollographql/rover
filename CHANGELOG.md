@@ -86,6 +86,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   `--global` (or `-g`) installs into `~/.rover/bin/` (or `$APOLLO_HOME/.rover/bin/`) and records the install in the global lockfile, leaving the project's `.rover/` untouched. For CI images that can't pass flags, `APOLLO_ROVER_GLOBAL=true` (or `1`) does the same.
 
+- **Commands that use a plugin look in the project first, then globally - @SharkBaitDLS**
+
+  Inside a project, `rover supergraph compose`, `rover dev`, `rover lsp`, and `rover connector` use a plugin installed in the project's `.rover/bin/` when it has the version needed, and otherwise one installed globally, so a plugin installed for the whole machine keeps working in a project that hasn't installed its own. `--format json` reports which level the plugin came from. A plugin these commands download still goes to `~/.rover/bin/`. Under `--skip-update`, a plugin installed at neither level fails with E058 naming both directories searched. A working directory Rover can't read, such as one that has since been deleted, counts as being outside any project.
+
 - **`rover dev` gains `--router-version`/`--composition-version`; `rover template` gains `--templates-api` - @dotdat**
 
   `--router-version`/`APOLLO_ROVER_DEV_ROUTER_VERSION` and `--composition-version`/`APOLLO_ROVER_DEV_COMPOSITION_VERSION` are scoped to `rover dev`, matching the existing `--mcp-version` pairing; `--federation-version` still takes precedence over `--composition-version`, as it did over the env var before. `--templates-api`/`APOLLO_TEMPLATES_API` is scoped to `rover template` (`rover init` doesn't use the templates API - it fetches templates from GitHub - so it doesn't get this flag). All three were previously env-var-only.

@@ -9,7 +9,10 @@ use rover_std::Style;
 use serde::Serialize;
 
 #[cfg(feature = "composition-js")]
-use crate::plugin::error::{DownloadControl, RequestOrigin};
+use crate::plugin::{
+    discovery::{ManifestDirs, project_in_scope},
+    error::{DownloadControl, RequestOrigin},
+};
 use crate::{
     PKG_NAME, RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
     command::{docs::shortlinks, plugin::PluginInstall},
@@ -137,9 +140,19 @@ impl Install {
         // is installed. The explicit `rover plugin install` doesn't go through
         // here, so neither stops it downloading. See #1892.
         let downloads_disabled_by = skip_update_control(skip_update);
+        // A plugin installed in the project in scope is used before a global
+        // one (FR26). Anything downloaded still goes to the global level.
+        let project = project_in_scope(ManifestDirs::for_this_process(
+            override_install_path.as_deref(),
+        ));
         let rover_installer = installer(PKG_NAME, self.force, override_install_path)?;
         if let Some(plugin) = &self.plugin {
-            PluginInstaller::new(client_config, rover_installer, self.force)
+            let mut installer = PluginInstaller::new(client_config, rover_installer, self.force);
+            if let Some(project) = project {
+                installer =
+                    installer.also_looking_in(plugin::PluginLevel::Project, project.join("bin"));
+            }
+            installer
                 .requested_by(origin)
                 .without_downloads(downloads_disabled_by)
                 .install(plugin)
