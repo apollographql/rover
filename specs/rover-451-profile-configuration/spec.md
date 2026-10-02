@@ -67,6 +67,7 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
   | `APOLLO_ROVER_DEV_COMPOSITION_VERSION` | `--composition-version` | `dev` | version | plugin default | | | |
   | `APOLLO_ROVER_DEV_MCP_VERSION` | `--mcp-version` | `dev` | version | plugin default | | | |
   | `APOLLO_ROVER_NO_CONFIG_NOTICES` | `--no-config-notices` | global | boolean | off | | | |
+  | `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` | — (see FR106) | — | boolean | off | ● | ● | |
 
   ● Profile = profile-eligible (§3.6). ● Project = project-eligible (§3.10). ● Net = network-destination setting (§3.9).
 
@@ -129,7 +130,7 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
   5. the default profile
   6. Rover's built-in default
 
-  This chain is stated here once and governs every setting in FR1. No command and no setting may apply its own ordering.
+  This chain is stated here once and governs every setting in FR1. No command and no setting may apply its own ordering, with the single exception of `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`, whose chain FR107 states.
 
 - **FR26**: "Explicit flag" means a flag actually passed on the command line. A flag's built-in default is tier 6, not tier 1. For the settings whose flags carry a built-in default today, this distinction is what allows a profile or project value to take effect at all.
 - **FR27**: Precedence is decided by presence, not by value. If a higher-precedence source supplied a value, it wins, and whether Rover then accepts or rejects that value follows §3.12.
@@ -195,7 +196,7 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
 ### 3.8 `rover config show` (A1.4)
 
 - **FR50**: `rover config show` must report, for every setting in FR1, its effective value and the source that supplied it, for the profile the invocation resolved to. It takes `--profile <name>` and `--format json`.
-- **FR51**: `source` must be exactly one of six literals, one per tier of FR25: `flag`, `environment`, `explicit_profile`, `project_file`, `default_profile`, `builtin`.
+- **FR51**: `source` must be exactly one of six literals, one per tier of FR25: `flag`, `environment`, `explicit_profile`, `project_file`, `default_profile`, `builtin`. One further literal, `user_manifest`, exists for the one setting whose chain has a user-level manifest tier, and is never reported for any other setting (FR110).
 - **FR52**: JSON output must additionally report, per setting, every lower-precedence source that also supplied a value and what it supplied. A single "winner" field cannot show an override, and the override is the thing a user running this verb is most often trying to see.
 - **FR53**: The JSON payload must travel in Rover's standard envelope:
 
@@ -301,7 +302,7 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
 - **FR73**: A credential name under `settings:` must be an error, not a warning, and must fail the command (§3.12).
 - **FR74**: A recognized key under `settings:` whose value fails validation must fail the command naming the file and the key (§3.12).
 - **FR75**: A network-destination value from the project file applies as-is: no confirmation, no allowlist, no per-user trust record, identically in an interactive terminal and in CI. FR65's notice is what makes the redirect visible, and it must fire on every invocation that sends a request there.
-- **FR76**: A `settings:` section in the user-level manifest must be ignored with one warning. Profiles are the user-level settings store; honoring a second one would reintroduce the sprawl this initiative exists to remove.
+- **FR76**: A `settings:` section in the user-level manifest must be ignored with one warning. Profiles are the user-level settings store; honoring a second one would reintroduce the sprawl this initiative exists to remove. The user-level manifest's top-level `allow_automatic_download` key is not part of a `settings:` section and is honored (FR109).
 
   Required text:
   > Warning: the user-level `rover.yaml` has a `settings:` section, which Rover ignores. Use `rover config set` to store user-level settings in a profile.
@@ -366,6 +367,27 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
 - **FR100**: Each flag's `--help` text must name its environment variable, and the docs must name each variable's flag (FR11).
 - **FR101**: The boolean exceptions must be documented where a reader will hit them: `APOLLO_TELEMETRY_DISABLED`'s presence-only parsing (FR21), `APOLLO_NO_COLOR`'s mirroring of `NO_COLOR` (FR22), and the fact that a stored boolean is a typed boolean and so reads `false` differently from the environment variable of the same name (FR24).
 - **FR102**: No configuration behavior may be documented in `--help` or in published docs that the shipping code does not implement.
+
+### 3.16 Automatic plugin downloads (B2, ROVER-420)
+
+The plugin system (ROVER-420) stops a plugin-using command from downloading a plugin it needs unless something opts in to automatic downloads. It defines the opt-in key `allow_automatic_download` at the top level of both manifests. This section makes the same opt-in a setting, so a profile and the project file's `settings:` section can carry it too, and fixes one order across all of them.
+
+- **FR106**: `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` is a boolean setting that decides whether a plugin-using command may download a plugin it needs and doesn't have. It governs only automatic downloads: an explicit `rover plugin install` is never automatic and is not affected by it. It has no flag, an exception to FR8 like `APOLLO_GRAPH_REF` (FR6). A download asked for in one invocation already has its own verb, so the setting describes only an environment's standing policy.
+- **FR107**: For this setting alone, Rover must take the first source in this chain that supplies a value:
+
+  1. the environment variable
+  2. an explicitly selected profile
+  3. the project file's `settings:` section
+  4. the project manifest's top-level `allow_automatic_download` key
+  5. the default profile
+  6. the user-level manifest's top-level `allow_automatic_download` key
+  7. Rover's built-in default, off
+
+  Tiers 1, 2, 3, 5, and 7 are FR25's tiers 2 through 6. Tiers 4 and 6 are the plugin system's keys, each placed beneath the settings tier at its own level. Within the project manifest, the `settings:` entry outranks the top-level key: it names the setting the way its environment variable does, and it is where every other project setting lives. A stored value at any tier is a typed boolean (FR24).
+- **FR108**: The environment variable follows FR20, which for this boolean governs over FR28's presence rule: `1` or `true` (case-insensitive) opts in, and `0`, `false`, an empty value, or absence leave it unset, so the next tier decides. The environment variable can therefore opt in but never opt out. Opting out is done by storing `false` at a stored tier.
+- **FR109**: The user-level manifest's `settings:` section stays ignored (FR76), including an `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` entry inside it. Only its top-level `allow_automatic_download` key is read, as FR107's tier 6, and reading it prints no warning.
+- **FR110**: `rover config show` must report this setting like any other (FR50). A value from tier 3 or tier 4 reports source `project_file`. A value from tier 6 reports source `user_manifest`, rendered in text output as "user-level rover.yaml". Every lower tier that also supplied a value is reported under `overridden` (FR52), so a project file setting it both under `settings:` and at the top level shows the top-level value as overridden.
+- **FR111**: Each key keeps its own section's validation rules (FR80). A `settings:` entry that isn't a boolean fails with FR84's project-file text and the invalid-value code. A top-level key that isn't a boolean is the plugin system's error to report. A project file that sets the two keys to different values is not an error: the `settings:` entry wins (FR107). The setting is not a network destination, so FR59(b) never applies to it. FR59(a) applies as for any other setting.
 
 ---
 
@@ -452,6 +474,15 @@ Given profile `staging` sets `APOLLO_GRAPH_REF`, when `rover dev --profile stagi
 **The four-tier chain matches the six-tier chain**
 Given any configuration containing no project file, when a Rover build with the Part A chain and a Rover build with the full chain resolve the same invocation, then every setting's value and source agree.
 
+
+**Automatic downloads follow one chain**
+Given a project file with `allow_automatic_download: false` at the top level and `settings: { APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true }`, when a plugin-using command needs a plugin that isn't installed, then the download is allowed, and `rover config show --format json` reports the setting with source `project_file`, with the top-level `false` under `overridden`. Given instead only the top-level `true` and a default profile storing `false`, then the download is allowed, because the project manifest's key outranks the default profile. Given additionally `--profile ci`, where profile `ci` stores `false`, then the download is not allowed.
+
+**The environment variable only opts in**
+Given `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD=false` in the environment and a project file whose top-level `allow_automatic_download` is `true`, when a plugin-using command needs a plugin that isn't installed, then the download is allowed. Given `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD=true` and a project file storing `false` under either key, then the download is allowed.
+
+**The user-level manifest's key ranks last**
+Given no project file, a user-level manifest with `allow_automatic_download: true` at the top level, and nothing else, when a plugin-using command needs a plugin that isn't installed, then the download is allowed and `rover config show` reports source `user_manifest`. Given additionally a default profile storing `false`, then the download is not allowed. Given instead a user-level manifest with `settings: { APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true }` and no top-level key, then the FR76 warning is printed and the download is not allowed.
 ---
 
 ## 5. Non-goals
@@ -514,6 +545,8 @@ Decisions taken while drafting, and their reasoning.
 
 - **Messages name the project file `rover.yaml`, not by a directory layout or the path discovery found** (FR42, FR65, FR70, FR72, FR84, FR85, FR105), matching the plugin system's own messages about the same file. The bare file name stays accurate however the manifest was found: from a nested directory, through a symlinked worktree, or through an explicitly named manifest path. A literal directory layout would be wrong in each of those cases. The one message about the user-level manifest already qualifies it as "the user-level `rover.yaml`" (FR76), so the unqualified name is unambiguous.
 
+
+- **`APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` is a setting with its own chain** (FR106–FR111), over leaving the opt-in as plugin-system manifest keys only. The opt-in describes an environment ("this CI image may download plugins"), which is what profiles and the project file exist to carry, and as a setting it gets `rover config show`, typed booleans, and the notices for free. The plugin system's top-level key stays, so a manifest written for the plugin system alone keeps working. The `settings:` entry outranks it in the same file because it reads like the environment variable it is named for. The user-level key ranks below the default profile because profiles are the user-level settings store (FR76); the key is honored only so that an existing user-level manifest keeps its meaning. The setting has no flag: a one-off download is already `rover plugin install`.
 ---
 
 ## 7. Test obligations
