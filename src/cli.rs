@@ -963,7 +963,7 @@ impl Rover {
 
     /// Unit tests never discover from the process's working directory: it's
     /// shared by every test running in parallel, and on a developer's machine
-    /// it could sit under a real `.rover/rover.yaml` whose settings (or
+    /// it could sit under a real `rover.yaml` whose settings (or
     /// credential) would leak into every test. A test that wants a project
     /// points at a temp tree with `set_manifest_dirs`, usually through
     /// [`manifest_dirs_for`], so the real rule is still what runs.
@@ -3844,7 +3844,7 @@ mod tests {
     // every command before it does anything.
 
     /// A `rover config list` run (which sends no request of its own) in a
-    /// project whose `.rover/rover.yaml` is `project`, with a user-level
+    /// project whose `rover.yaml` is `project`, with a user-level
     /// manifest of `user_level` when given.
     fn rover_in_project(
         project: &str,

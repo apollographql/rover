@@ -76,7 +76,7 @@ Integration tests live in `tests/integration/` and run against the compiled `rov
 
 ### Project files above a test's working directory
 
-The binary these tests (and the end-to-end tests) run isn't built with `cfg(test)`, so it looks for a project's `.rover/rover.yaml` from its real working directory, walking up until it reaches your home directory. A `.rover/rover.yaml` above a test's working directory therefore applies its `settings:` to that test. A credential in it fails every command the test runs. A test that depends on project-file behavior should create its own project in a temporary directory and set `current_dir` to it.
+The binary these tests (and the end-to-end tests) run isn't built with `cfg(test)`, so it looks for a project's `rover.yaml` (in a `.rover/` directory) from its real working directory, walking up until it reaches your home directory. A project `rover.yaml` above a test's working directory therefore applies its `settings:` to that test. A credential in it fails every command the test runs. A test that depends on project-file behavior should create its own project in a temporary directory and set `current_dir` to it.
 
 ### Snapshot tests
 
