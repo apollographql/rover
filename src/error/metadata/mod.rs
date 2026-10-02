@@ -498,10 +498,10 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
         // FR86: a stored setting's value failing its type's syntactic check
         // gets its own stable code - the message itself (from
         // `SettingValueError`'s `Display`, or the fuller wrapping in
-        // `Rover::resolve_profile_setting_with`) already names a concrete way
-        // to correct it, so no separate suggestion is added here.
-        // `skip_printing_cause: true` because `resolve_profile_setting_with`
-        // preserves `SettingValueError` via `anyhow::Error::context`, whose
+        // `Rover::validate_profile_value` or `validate_project_value`) already
+        // names a concrete way to correct it, so no separate suggestion is
+        // added here. `skip_printing_cause: true` because both preserve
+        // `SettingValueError` via `anyhow::Error::context`, whose
         // own `Display` is already folded into that context message - without
         // this, the read path would print the same reason twice (once in the
         // context message, once again as `anyhow`'s "Caused by:" tail).
