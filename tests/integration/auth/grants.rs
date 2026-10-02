@@ -92,6 +92,10 @@ fn run_sweep(server: &MockServer, extra: &[&str]) -> Output {
         .env_remove("APOLLO_CLIENT_ID")
         .env_remove("APOLLO_CLIENT_SECRET")
         .env("APOLLO_REGISTRY_URL", server.base_url())
+        // Stderr is asserted on, so it mustn't depend on whether the runner (CI does) asks for
+        // backtraces - `anyhow` would append one to every error.
+        .env("RUST_BACKTRACE", "0")
+        .env("RUST_LIB_BACKTRACE", "0")
         .args(["--oauth-client-id", ROVER_CLIENT_ID, "--skip-update-check"])
         .args([
             "auth", "grants", "revoke", "--org", "acme", "--user", "user-123", "--all",
