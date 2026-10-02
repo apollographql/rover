@@ -263,11 +263,11 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
 
 - **FR105**: Required text, case (a), project-file source. This mirrors FR66, with the file named in the profile's place:
 
-  > Note: `APOLLO_REGISTRY_URL` from the environment overrides the value set in `.rover/rover.yaml`.
+  > Note: `APOLLO_REGISTRY_URL` from the environment overrides the value set in `rover.yaml`.
 
   When the project file's value is a non-default network destination, one notice states both cases, mirroring FR67:
 
-  > Note: `APOLLO_REGISTRY_URL` from the environment is set to `https://env.example.com`, overriding the value set in `.rover/rover.yaml`.
+  > Note: `APOLLO_REGISTRY_URL` from the environment is set to `https://env.example.com`, overriding the value set in `rover.yaml`.
 
   An environment variable overriding the default profile stays silent, whether or not a project file exists.
 
@@ -512,7 +512,7 @@ Decisions taken while drafting, and their reasoning.
 
 - **The catalogue is the complete list, and corrects the PRD's inventory** (FR1, FR3). Drafting turned up `APOLLO_FIRE_FLOWER`, which the PRD's survey missed; `APOLLO_NODE_MODULES_BIN`, which Rover advertises and never reads (FR4); and `APOLLO_NODE_MODULES_BIN_DIR`, whose only observable effect is which suggestion an error prints, not install paths as the PRD describes. Recording these is the point of writing the catalogue as a single normative table rather than prose: it is the artifact that makes "every setting is documented" checkable.
 
-- **Messages name the project file `rover.yaml`, not by a directory layout or the path discovery found** (FR42, FR65, FR70, FR72, FR84, FR85), matching the plugin system's own messages about the same file. The bare file name stays accurate however the manifest was found: from a nested directory, through a symlinked worktree, or through an explicitly named manifest path. A literal directory layout would be wrong in each of those cases. The one message about the user-level manifest already qualifies it as "the user-level `rover.yaml`" (FR76), so the unqualified name is unambiguous.
+- **Messages name the project file `rover.yaml`, not by a directory layout or the path discovery found** (FR42, FR65, FR70, FR72, FR84, FR85, FR105), matching the plugin system's own messages about the same file. The bare file name stays accurate however the manifest was found: from a nested directory, through a symlinked worktree, or through an explicitly named manifest path. A literal directory layout would be wrong in each of those cases. The one message about the user-level manifest already qualifies it as "the user-level `rover.yaml`" (FR76), so the unqualified name is unambiguous.
 
 ---
 

@@ -4512,7 +4512,7 @@ mod tests {
         });
 
         assert_that!(message.unwrap()).is_some().is_equal_to(
-            "`.rover/rover.yaml` sets `APOLLO_ROVER_DOWNLOAD_HOST` to \
+            "`rover.yaml` sets `APOLLO_ROVER_DOWNLOAD_HOST` to \
             `https://mirror.example.com`."
                 .to_string(),
         );
@@ -4531,7 +4531,7 @@ mod tests {
             assert_that!(client_config.download_host_notice_message())
                 .is_some()
                 .is_equal_to(
-                    "`.rover/rover.yaml` sets `APOLLO_ROVER_DOWNLOAD_HOST` to \
+                    "`rover.yaml` sets `APOLLO_ROVER_DOWNLOAD_HOST` to \
                         `https://mirror.example.com`.",
                 );
             assert_that!(scenario.rover.config_override_notice(
@@ -4578,7 +4578,7 @@ mod tests {
                 .to_vec()
         )
         .is_equal_to(vec![
-            "Warning: `.rover/rover.yaml` sets `APOLLO_ROVER_NO_CONFIG_NOTICES`, which \
+            "Warning: `rover.yaml` sets `APOLLO_ROVER_NO_CONFIG_NOTICES`, which \
                 this version of Rover doesn't recognize. It will be ignored."
                 .to_string(),
         ]);
@@ -4663,14 +4663,14 @@ mod tests {
         SettingName::RegistryUrl,
         "https://env.example.com",
         "`APOLLO_REGISTRY_URL` from the environment is set to `https://env.example.com`, \
-        overriding the value set in `.rover/rover.yaml`."
+        overriding the value set in `rover.yaml`."
     )]
     #[case::not_a_network_destination(
         "settings:\n  APOLLO_CHECKS_TIMEOUT_SECONDS: 600\n",
         SettingName::ChecksTimeoutSeconds,
         "900",
         "`APOLLO_CHECKS_TIMEOUT_SECONDS` from the environment overrides the value set in \
-        `.rover/rover.yaml`."
+        `rover.yaml`."
     )]
     fn the_environment_overriding_the_project_file_is_noticed(
         #[case] project: &str,
@@ -4779,7 +4779,7 @@ mod tests {
 
         assert_that!(message.unwrap()).is_equal_to(noticed.then(|| {
             "`APOLLO_TELEMETRY_DISABLED` from the environment overrides the value set in \
-            `.rover/rover.yaml`."
+            `rover.yaml`."
                 .to_string()
         }));
     }
