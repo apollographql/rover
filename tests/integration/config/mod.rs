@@ -224,6 +224,15 @@ fn a_read_only_configuration_directory_doesnt_fail_an_unconfigured_user() {
     let config_home = root.join("config");
     fs::create_dir_all(&config_home).unwrap();
     fs::set_permissions(&config_home, fs::Permissions::from_mode(0o555)).unwrap();
+    // Root (CI's container jobs run as root) ignores permission bits, so the
+    // directory isn't actually read-only there and this can't be tested.
+    let probe = config_home.join(".write-probe");
+    if fs::write(&probe, "").is_ok() {
+        fs::remove_file(&probe).unwrap();
+        fs::set_permissions(&config_home, fs::Permissions::from_mode(0o755)).unwrap();
+        eprintln!("skipping: {config_home} is writable despite 0o555 (running as root?)");
+        return;
+    }
 
     let results: Vec<_> = [
         &["config", "show", "--format", "json"][..],
