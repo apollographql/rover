@@ -1,0 +1,20 @@
+---
+source: tests/integration/auth/grants.rs
+expression: "format!(\"--- stdout ---\\n{}\\n--- stderr ---\\n{}\",\nString::from_utf8_lossy(&output.stdout),\nString::from_utf8_lossy(&output.stderr))"
+---
+--- stdout ---
+┌────────────────┬───────────────────┬─────────┐
+│ Client         ┆ Client ID         ┆ Outcome │
+╞════════════════╪═══════════════════╪═════════╡
+│ Rover          ┆ rover-test-client ┆ revoked │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
+│ ci-deploy      ┆ c_8f2a            ┆ failed  │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
+│ nightly-checks ┆ c_91be            ┆ revoked │
+└────────────────┴───────────────────┴─────────┘
+
+--- stderr ---
+Revoked grants for `user-123` under 2 of 3 OAuth clients in organization `acme`. Revocation failed under:
+  - `ci-deploy` (`c_8f2a`): <query>:0:0: revocation is unavailable
+Run the same command again to retry. Clients already revoked are unaffected by a retry.
+error[E063]: Revocation failed under 1 of 3 OAuth clients.
