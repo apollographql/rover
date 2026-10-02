@@ -289,6 +289,32 @@ mod tests {
         });
     }
 
+    /// A standing opt-in may permit a download, but never one a run was told
+    /// not to make; and with no opt-in either, the control the user spelled
+    /// is the one named.
+    #[cfg(feature = "composition-js")]
+    #[rstest]
+    #[case::the_flag_over_an_opt_in(true, None, true, DownloadControl::SkipUpdateFlag)]
+    #[case::the_variable_over_an_opt_in(
+        false,
+        Some("true"),
+        true,
+        DownloadControl::SkipUpdateEnvVar
+    )]
+    #[case::the_flag_over_no_opt_in(true, None, false, DownloadControl::SkipUpdateFlag)]
+    #[case::the_variable_over_no_opt_in(false, Some("1"), false, DownloadControl::SkipUpdateEnvVar)]
+    fn skip_update_outranks_the_standing_opt_in(
+        #[case] flag: bool,
+        #[case] variable: Option<&str>,
+        #[case] allow_automatic_download: bool,
+        #[case] expected: DownloadControl,
+    ) {
+        temp_env::with_var(crate::utils::SKIP_UPDATE_ENV, variable, || {
+            assert_that!(on_the_fly_control(flag, allow_automatic_download))
+                .is_equal_to(Some(expected));
+        });
+    }
+
     #[rstest]
     #[case::plain(&["supergraph@=2.9.3"])]
     #[case::forced(&["router@2", "--force"])]
