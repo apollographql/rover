@@ -127,9 +127,9 @@ type OrganizationMutation {
   deleteKey(keyId: ID!): ID!
 
   """
-  Deletes a `client_credentials` OAuth client: a soft delete that also removes its secrets, service account, and principal
+  Deletes a `client_credentials` OAuth client: a soft delete that also removes its secrets, service account, and principal. Returns the deleted client's id.
   """
-  deleteOAuthClient(clientId: ID!): Void
+  deleteOAuthClient(clientId: ID!): ID!
 
   """Send an invitation to join the organization by E-mail"""
   invite(email: String!, role: UserPermission): AccountInvitation
@@ -3545,11 +3545,11 @@ input HistoricQueryParametersInput {
 An identity (such as a `User` or `Graph`) in Apollo Studio. See implementing types for details.
 """
 interface Identity {
-  """Returns a representation of the identity as an `Actor` type."""
-  asActor: Actor!
-
   """The identity's identifier, which is unique among objects of its type."""
   id: ID!
+
+  """Returns a representation of the identity as an `Actor` type."""
+  asActor: Actor!
 
   """The identity's human-readable name."""
   name: String!
@@ -3567,8 +3567,8 @@ type IgnoreOperationsInChecksResult {
 }
 
 type InternalIdentity implements Identity {
-  asActor: Actor!
   id: ID!
+  asActor: Actor!
   name: String!
   email: String
   accounts: [Organization!]!
@@ -7115,13 +7115,13 @@ type Graph implements Identity {
 Represents a machine identity associated with an organization. Used as a principal for API keys.
 """
 type ServiceAccount implements Identity {
+  """The service account's unique id."""
+  id: ID!
+
   """
   Returns a representation of this service account as an `Actor` type. Useful when determining which actor performed a particular action in Studio.
   """
   asActor: Actor!
-
-  """The service account's unique id."""
-  id: ID!
 
   """The name assigned to this service account."""
   name: String!
@@ -8088,13 +8088,13 @@ union UpsertRouterResult = GraphVariant | RouterUpsertFailure
 
 """A registered Apollo Studio user."""
 type User implements Identity {
+  """The user's unique ID."""
+  id: ID!
+
   """
   Returns a representation of this user as an `Actor` type. Useful when determining which actor (usually a `User` or `Graph`) performed a particular action in Studio.
   """
   asActor: Actor!
-
-  """The user's unique ID."""
-  id: ID!
 
   """The user's first and last name."""
   name: String!

@@ -413,6 +413,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🛠 Maintenance
 
+- **Update the Studio schema: `deleteOAuthClient` now returns the deleted client's ID - @dotdat**
+
+  `rover api-key delete` reads that ID as the mutation's result, in place of the `Void` the schema used to declare, and no longer treats any other response as a successful delete. The command's output is unchanged.
+
 - **Stop reading the unused `APOLLO_NODE_MODULES_BIN` variable - @dotdat**
 
   Rover registered `APOLLO_NODE_MODULES_BIN` as an environment variable it reads, but nothing ever used its value. It's no longer read. `APOLLO_NODE_MODULES_BIN_DIR`, which the npm installer sets, is unaffected.
