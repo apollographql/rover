@@ -282,6 +282,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🐛 Fixes
 
+- **Setting errors name a command that exists - @dotdat**
+
+  `rover config set` and `rover config unset` now tell you why a setting can't be stored in a profile, and which flag to pass instead. For example, `rover config set APOLLO_VCS_COMMIT abc123` says "`APOLLO_VCS_COMMIT` can't be stored in a profile. It describes a single invocation rather than an environment. Pass `--vcs-commit`, or set `APOLLO_VCS_COMMIT` in the environment." Previously it said the name wasn't a Rover setting at all. The same settings in a project's `rover.yaml` now get the "can't be set in a project file" warning. The error for a credential in `rover.yaml` (`E060`) now suggests `rover config auth`, which every build has, instead of `rover auth login`.
+
 - **`rover plugin install --manifest-path` reads that project's settings - @dotdat**
 
   With `--manifest-path`, `rover plugin install` now reads the `settings:` section of the manifest it names, not of the project found from the working directory, so a project's `APOLLO_ROVER_DOWNLOAD_HOST` applies to the install it asked for. Messages about that file name it by its own file name, such as `rover-ci.yaml`, rather than `rover.yaml`. Project settings and plugins are also now found by the same discovery code, so the two can't disagree about where a project is.

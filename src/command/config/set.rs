@@ -207,6 +207,23 @@ mod tests {
         );
     }
 
+    /// FR42's first required text, and its acceptance criterion: a setting
+    /// FR1 lists that can't be stored in a profile is rejected before
+    /// anything is written, naming the flag to pass instead.
+    #[test]
+    fn set_rejects_a_setting_that_isnt_profile_eligible() {
+        let error = Set::try_parse_from(["config set", "APOLLO_VCS_COMMIT", "abc123"])
+            .expect_err("expected a setting that can't be stored to be rejected");
+
+        assert_that!(error.to_string()).is_equal_to(
+            "error: invalid value 'APOLLO_VCS_COMMIT' for '<SETTING>': `APOLLO_VCS_COMMIT` can't \
+            be stored in a profile. It describes a single invocation rather than an environment. \
+            Pass `--vcs-commit`, or set `APOLLO_VCS_COMMIT` in the environment.\n\nFor more \
+            information, try '--help'.\n"
+                .to_string(),
+        );
+    }
+
     #[test]
     fn set_rejects_the_lowercase_project_file_alias() {
         let error = Set::try_parse_from([

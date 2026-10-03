@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 use camino::Utf8Path;
 use serde_yaml::Value;
 
-use super::{SettingName, SettingNameError};
+use super::{SettingName, SettingNameError, UNSTORABLE_SETTINGS};
 #[cfg(test)]
 use crate::plugin::discovery::ManifestDirs;
 use crate::{
@@ -51,18 +51,6 @@ fn merge_key_warning(file: &str) -> String {
 /// recognized here only so it can be refused loudly instead of falling through
 /// to FR72's ignore-with-a-warning rule.
 const CREDENTIAL_NAMES: [&str; 3] = ["APOLLO_KEY", "APOLLO_CLIENT_ID", "APOLLO_CLIENT_SECRET"];
-
-/// Settings Rover knows but that are never project-eligible (FR5): they
-/// describe the commit under test, so a stored value would mislabel every
-/// check and publish made from the clone. None is a `SettingName` variant
-/// yet, so each is recognized here only so it gets the not-project-eligible
-/// warning rather than the "doesn't recognize" one.
-const VCS_NAMES: [&str; 4] = [
-    "APOLLO_VCS_REMOTE_URL",
-    "APOLLO_VCS_BRANCH",
-    "APOLLO_VCS_COMMIT",
-    "APOLLO_VCS_AUTHOR",
-];
 
 /// One recognized, project-eligible setting from a `settings:` section.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -128,7 +116,7 @@ pub(crate) enum ProjectSettingsError {
     /// `file` is how the manifest is named (see [`project_file_label`]).
     #[error(
         "`{file}` sets `{key}` under `settings:`. Credentials can't be stored in a project \
-        file. Run `rover auth login`, or set `{canonical}` in the environment."
+        file. Run `rover config auth`, or set `{canonical}` in the environment."
     )]
     Credential {
         file: String,
@@ -192,13 +180,24 @@ impl ProjectSettings {
                     canonical,
                 });
             }
-            if either_spelling(&VCS_NAMES, key).is_some() {
+            // A setting Rover knows but never reads from a store, in either
+            // spelling, is told why it doesn't apply rather than that Rover
+            // doesn't recognize it - the same list `rover config set` names.
+            if UNSTORABLE_SETTINGS
+                .iter()
+                .any(|setting| setting.name == key || setting.name.to_lowercase() == key)
+            {
                 classified.warnings.push(not_project_eligible(file, key));
                 continue;
             }
             let name = match key.parse::<SettingName>() {
                 Ok(name) => name,
                 Err(SettingNameError::LowercaseSpelling { canonical, .. }) => canonical,
+                // Already handled above, in either spelling.
+                Err(SettingNameError::NotProfileEligible { .. }) => {
+                    classified.warnings.push(not_project_eligible(file, key));
+                    continue;
+                }
                 Err(SettingNameError::Unrecognized { .. }) => {
                     classified.warnings.push(unrecognized(file, key));
                     continue;
@@ -458,6 +457,8 @@ mod tests {
     #[rstest]
     #[case::canonical("APOLLO_VCS_COMMIT")]
     #[case::lowercase("apollo_vcs_branch")]
+    #[case::not_a_vcs_setting("APOLLO_LOG_LEVEL")]
+    #[case::not_a_vcs_setting_lowercase("apollo_rover_no_config_notices")]
     fn a_vcs_setting_warns_that_it_cant_be_set_in_a_project_file(#[case] key: &str) {
         let settings = classify(&format!("{key}: abc123")).unwrap();
 
@@ -640,7 +641,7 @@ mod tests {
 
         assert_that!(error.to_string()).is_equal_to(
             "`rover.yaml` sets `APOLLO_KEY` under `settings:`. Credentials can't be stored \
-            in a project file. Run `rover auth login`, or set `APOLLO_KEY` in the environment."
+            in a project file. Run `rover config auth`, or set `APOLLO_KEY` in the environment."
                 .to_string(),
         );
     }
