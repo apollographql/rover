@@ -50,7 +50,6 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
             };
         }
 
-        #[cfg(feature = "oauth")]
         if let Some(revoke_error) =
             error.downcast_ref::<crate::command::auth::grants::revoke::error::GrantsRevokeError>()
         {

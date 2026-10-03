@@ -20,7 +20,6 @@ impl Show {
     pub(crate) fn run(&self, rover: &Rover, profile: &ProfileOpt) -> RoverResult<ConfigShowOutput> {
         let houston_config = rover.get_rover_config_read_only()?;
 
-        #[cfg_attr(not(feature = "oauth"), allow(unused_mut))]
         let mut settings = vec![
             resolve_string_setting(
                 rover,
@@ -81,7 +80,6 @@ impl Show {
             )?,
             resolve_allow_automatic_download(rover, &houston_config)?,
         ];
-        #[cfg(feature = "oauth")]
         for name in [
             SettingName::OauthAuthorizationUrl,
             SettingName::OauthTokenUrl,
@@ -1113,16 +1111,10 @@ mod tests {
         home
     }
 
-    /// `config show`'s settings, minus the OAuth rows - they exist only in
-    /// builds with the `oauth` feature, and one snapshot serves every build.
+    /// `config show`'s settings, as JSON.
     fn shown(rover: &Rover) -> serde_json::Value {
         let output = Show {}.run(rover, &rover.get_profile_opt()).unwrap();
-        let settings: Vec<_> = output
-            .settings
-            .iter()
-            .filter(|setting| !setting.name.starts_with("APOLLO_OAUTH_"))
-            .collect();
-        serde_json::to_value(settings).unwrap()
+        serde_json::to_value(&output.settings).unwrap()
     }
 
     /// AC: every one of the six source literals, with each loser reported

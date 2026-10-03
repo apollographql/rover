@@ -70,19 +70,7 @@ fn config_show_reports_the_project_file_found_from_a_nested_directory() {
 
     assert!(output.status.success(), "{output:?}");
     let json: Value = serde_json::from_slice(&output.stdout).unwrap();
-    // The OAuth rows exist only in builds with the `oauth` feature, so
-    // they're left out to keep one snapshot for every build.
-    let settings: Vec<&Value> = json["data"]["settings"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .filter(|setting| {
-            !setting["name"]
-                .as_str()
-                .unwrap()
-                .starts_with("APOLLO_OAUTH_")
-        })
-        .collect();
+    let settings = &json["data"]["settings"];
     assert_json_snapshot!(settings);
 }
 

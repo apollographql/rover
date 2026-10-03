@@ -17,9 +17,11 @@ use rover_std::Style;
 use serde::{Serialize, Serializer, ser::SerializeStruct};
 use serde_json::{Value, json};
 
-#[cfg(feature = "oauth")]
-use crate::command::auth::grants::revoke::error::GrantsRevokeError;
-use crate::{command::CliOutput, options::JsonVersion, plugin::error::PluginFailure};
+use crate::{
+    command::{CliOutput, auth::grants::revoke::error::GrantsRevokeError},
+    options::JsonVersion,
+    plugin::error::PluginFailure,
+};
 
 /// A specialized `Error` type for Rover that wraps `anyhow`
 /// and provides some extra `Metadata` for end users depending
@@ -123,7 +125,6 @@ impl RoverError {
     pub fn print(&self) -> RoverResult<()> {
         // FR62/FR63: a partial sweep still reports every client's outcome on stdout, and names
         // the clients to retry on stderr, ahead of the error line itself.
-        #[cfg(feature = "oauth")]
         if let Some(GrantsRevokeError::PartialFailure { output }) =
             self.error.downcast_ref::<GrantsRevokeError>()
         {
@@ -199,7 +200,6 @@ impl RoverError {
 
         // FR67: `data` carries every client on a partial failure, so a runbook can read which to
         // retry without parsing `error.message`.
-        #[cfg(feature = "oauth")]
         if let Some(GrantsRevokeError::PartialFailure { output }) =
             self.error.downcast_ref::<GrantsRevokeError>()
         {

@@ -1,5 +1,4 @@
 mod api_key;
-#[cfg(feature = "oauth")]
 mod auth;
 mod client;
 mod completion;

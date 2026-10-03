@@ -42,6 +42,17 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
+- **OAuth is available in every build: `rover auth` and client-credentials authentication - @dotdat**
+
+  The experimental `oauth` Cargo feature is removed, and what it gated now ships in every build:
+
+  - `rover auth login`, using the browser or `--no-browser`, plus `rover auth logout` and `rover auth whoami`
+  - `rover auth grants revoke`, which revokes every grant one user holds in an organization
+  - authenticating with a client-credential pair by setting `APOLLO_CLIENT_ID` and `APOLLO_CLIENT_SECRET`
+  - the `--oauth-*` flags and their `APOLLO_OAUTH_*` settings, which now appear in `rover config show`
+
+  `rover config auth` and `rover config whoami` now point out that `rover auth login` is available. Building with `--features oauth` is no longer needed, and no longer accepted.
+
 - **`rover auth grants revoke` revokes every grant a user holds in an organization - @dotdat**
 
   `rover auth grants revoke --org <ORGANIZATION_ID> --user <USER_ID> --all [--confirm]` revokes the user's grants under Rover's own OAuth client and under every client-credential pair in the organization. Before revoking anything, it lists every pair and asks for confirmation, naming each OAuth client. Pass `--confirm` to skip the prompt; without a terminal to ask on (or with `--format json`), it fails with a new error code (`E062`) instead of waiting. Every client is attempted even when one fails, and the outcome under each is reported individually; if any failed, the command exits non-zero with a new error code (`E063`) and names the clients to retry, which is safe to do because revoking where the user holds no grant succeeds. Access tokens the user already holds keep working until they expire, and the sweep doesn't stop them logging in again. `--format json` reports `organization_id`, `user_id`, `user_is_member`, `cancelled`, and a `clients` array of `client_id`, `name`, `kind`, `outcome`, and `error`.

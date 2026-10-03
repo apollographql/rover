@@ -111,8 +111,7 @@ fn both_spellings_install_the_same_plugin(
 }
 
 /// Each command's own `-h`, up to the global options every command shares:
-/// those vary with the enabled features (`oauth` adds several) and are not this
-/// command's to describe.
+/// those are not this command's to describe.
 #[rstest]
 #[case::plugin_noun(&["plugin"])]
 #[case::plugin_install(&["plugin", "install"])]
