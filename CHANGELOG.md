@@ -398,6 +398,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   Rover registered `APOLLO_NODE_MODULES_BIN` as an environment variable it reads, but nothing ever used its value. It's no longer read. `APOLLO_NODE_MODULES_BIN_DIR`, which the npm installer sets, is unaffected.
 
+- **Test that an unconfigured user is unaffected - @dotdat**
+
+  New integration tests check that, with no configuration, `rover config show` and other commands create nothing beyond the files Rover already wrote before profile settings existed. They also check that a read-only configuration directory doesn't make those commands fail. The smoke tests now run the end-to-end suite with Rover's config home pointed at an empty location.
+
 - **Add a `rover-client` operation to look up one client-credential pair by its client ID - @dotdat**
 
   `pair_get::GetOAuthClient` looks up a single pair via `Organization.oauthClient`, reporting the Platform API's deliberately uninformative `null` (no such pair, no permission, or not enrolled) as `None` - the "not a pair, or can't tell" signal `rover api-key delete`/`rename` need to fall back to treating an ID as an API key. An HTTP 403 on the lookup is reported as `PairPermissionDenied`, which callers treat as "can't tell" too: `studio_graphql_service_with_attempt_timeout`, whose only callers are the pair reads, now classifies 403s the way `studio_graphql_service_with_timeout` already does. Also fixes `pair_delete` so a permission denial from `deleteOAuthClient` is reported as `E053`, matching `pair_create`. Not yet consumed by any command - foundation for rover-431's pair-aware `delete`/`rename`.
