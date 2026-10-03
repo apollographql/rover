@@ -45,6 +45,8 @@ Commands:
           Initialize a federated graph in your current directory
   api-key
           API Key Related Commands
+  auth
+          Authentication commands
   connector
           Work with Apollo Connectors
   completion
@@ -72,9 +74,11 @@ Commands:
   update
           Commands related to updating rover
   persisted-queries
-          Commands for persisted queries [aliases: pq]
+          Commands for persisted queries [alias: pq]
   install
           Installs Rover
+  plugin
+          Plugin management commands
   explain
           Explain error codes
   license
@@ -90,14 +94,25 @@ Options:
   -l, --log <LOG_LEVEL>
           Specify Rover's log level
 
+          [env: APOLLO_LOG_LEVEL=]
+
+      --profile <PROFILE_NAME>
+          Name of configuration profile to use
+
       --format <FORMAT_KIND>
           Specify Rover's format type
 
+          [env: APOLLO_FORMAT=]
           [default: plain]
           [possible values: plain, json]
 
   -o, --output <OUTPUT_FILE>
           Specify a file to write Rover's console output to instead of stdout
+
+      --no-color
+          Disable colored output.
+
+          `NO_COLOR`/`APOLLO_NO_COLOR` already disable it too, on any value other than an empty string, `0`, or `false` (case-insensitive) - this flag doesn't change that convention, it's just an additional way to opt out.
 
       --insecure-accept-invalid-certs
           Accept invalid certificates when performing HTTPS requests.
@@ -118,10 +133,110 @@ Options:
 
           Defaults to 30s for standard operations and 300s for plugin downloads.
 
+          [env: APOLLO_CLIENT_TIMEOUT=]
+
+      --registry-url <REGISTRY_URL>
+          Override the GraphOS registry endpoint
+
+          [env: APOLLO_REGISTRY_URL=]
+
+      --telemetry-url <TELEMETRY_URL>
+          Override the endpoint anonymous usage telemetry is reported to
+
+          [env: APOLLO_TELEMETRY_URL=]
+
+      --telemetry-disabled
+          Opt out of anonymous usage telemetry.
+
+          The `APOLLO_TELEMETRY_DISABLED` environment variable disables telemetry on any value it's set to, including `false` - this flag doesn't change that, it's just an additional way to opt out.
+
+      --checks-timeout <CHECKS_TIMEOUT>
+          Override how long check/launch polling waits (in whole seconds) before giving up
+
+          [env: APOLLO_CHECKS_TIMEOUT_SECONDS=]
+
+      --download-host <DOWNLOAD_HOST>
+          Override the host plugin binaries (the `router` and `supergraph` composition plugins) are downloaded from
+
+          [env: APOLLO_ROVER_DOWNLOAD_HOST=]
+
+      --vcs-remote-url <VCS_REMOTE_URL>
+          Override the Git remote URL reported to GraphOS on check/publish.
+
+          Defaults to the remote URL inferred from the current directory's Git repository.
+
+          [env: APOLLO_VCS_REMOTE_URL=]
+
+      --vcs-branch <VCS_BRANCH>
+          Override the Git branch reported to GraphOS on check/publish.
+
+          Defaults to the branch inferred from the current directory's Git repository.
+
+          [env: APOLLO_VCS_BRANCH=]
+
+      --vcs-commit <VCS_COMMIT>
+          Override the Git commit reported to GraphOS on check/publish.
+
+          Defaults to the commit inferred from the current directory's Git repository.
+
+          [env: APOLLO_VCS_COMMIT=]
+
+      --vcs-author <VCS_AUTHOR>
+          Override the Git commit author reported to GraphOS on check/publish.
+
+          Defaults to the author inferred from the current directory's Git repository.
+
+          [env: APOLLO_VCS_AUTHOR=]
+
+      --config-home <CONFIG_HOME>
+          Override the location of Rover's config directory, where profiles live
+
+          [env: APOLLO_CONFIG_HOME=]
+
+      --rover-home <ROVER_HOME>
+          Override the location Rover installs its binary and plugins to
+
+          [env: APOLLO_HOME=]
+
       --skip-update-check
           Skip checking for newer versions of rover.
 
           Set the `APOLLO_ROVER_SKIP_UPDATE` environment variable (to `1` or `true`) to disable all of Rover's auto-updating at once — both this self-update check and the `supergraph`/`router` plugin auto-updates (`--skip-update`).
+
+      --no-config-notices
+          Suppress the notices Rover prints when a profile or the project file overrides a network destination, or when an environment variable overrides a value an explicitly selected profile or the project file also set.
+
+          Set the `APOLLO_ROVER_NO_CONFIG_NOTICES` environment variable (to `1` or `true`) to suppress them the same way. Neither a profile nor a project file can suppress these notices - only this flag or its environment variable can.
+
+      --oauth-authorization-url <AUTHORIZATION_URL>
+          Override the OAuth authorization endpoint `rover auth login` uses
+
+          [env: APOLLO_OAUTH_AUTHORIZATION_URL=]
+
+      --oauth-token-url <TOKEN_URL>
+          Override the OAuth token endpoint `rover auth login` uses
+
+          [env: APOLLO_OAUTH_TOKEN_URL=]
+
+      --oauth-whoami-url <WHOAMI_URL>
+          Override the OAuth whoami/userinfo endpoint `rover auth whoami` uses
+
+          [env: APOLLO_OAUTH_WHOAMI_URL=]
+
+      --oauth-client-id <CLIENT_ID>
+          Override the OAuth client ID `rover auth login` uses
+
+          [env: APOLLO_OAUTH_CLIENT_ID=]
+
+      --oauth-revocation-url <REVOCATION_URL>
+          Override the OAuth revocation endpoint `rover auth logout` uses
+
+          [env: APOLLO_OAUTH_REVOCATION_URL=]
+
+      --oauth-device-authorization-url <DEVICE_AUTHORIZATION_URL>
+          Override the OAuth device authorization endpoint `rover auth login --no-browser` uses
+
+          [env: APOLLO_OAUTH_DEVICE_AUTHORIZATION_URL=]
 
   -h, --help
           Print help (see a summary with '-h')

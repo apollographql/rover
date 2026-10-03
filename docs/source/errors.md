@@ -335,3 +335,145 @@ Offline enterprise license support for Apollo is available on an as-needed basis
 
 The operation failed after reaching the maximum number of retries. This usually indicates a temporary issue with the service. Please try again later, and if the issue persists, contact Apollo support. 
 
+### E046
+
+This error occurs when Rover can't read, write, or delete a credential in the OS keychain (or its secure file-based fallback).
+
+This may happen if your OS keychain is locked, unavailable, or misconfigured, or if the credential store's on-disk fallback (`credentials.json`) is corrupted.
+
+Try running `rover config auth` again to re-save your credential. If this error persists, please [open an issue](https://github.com/apollographql/rover/issues/new?body=Error%20E046%0A%0ADescribe%20your%20issue%20or%20question%20here&labels=triage) and let us know.
+
+
+### E047
+
+This error occurs when `rover graph publish` or `rover subgraph publish` succeeds in publishing the schema, but a launch it triggered — or one of the downstream contract-variant launches it triggered — did not complete successfully.
+
+The publish itself is not affected: your schema was published to the graph registry. See the launch report printed above this error (or, with `--format json`, the `data` field) for which launch(es) failed and a link to view them in [Apollo Studio](https://studio.apollographql.com/).
+
+`data`'s shape matches the invoking command's normal success `data` — the full publish response, not a launch-specific subset.
+
+
+### E048
+
+This error occurs when Rover can't resolve which release of a plugin (`supergraph`, `router`, or `apollo-mcp-server`) a version request means. Either the plugin registry couldn't be reached, or it has no release matching the request — for example, an exact version such as `=2.9.9` that was never published.
+
+Check that the plugin and version in the error are what you meant to ask for, and that the plugin registry is reachable from your machine. If you download plugins from a registry other than Apollo's, make sure `--download-host` (or the `APOLLO_ROVER_DOWNLOAD_HOST` environment variable) points at it. Then re-run the command.
+
+If the version was published once and has since been withdrawn, Rover reports `E051` instead; run `rover explain E051` for details.
+
+
+### E049
+
+This error occurs when Rover chose a release of a plugin (`supergraph`, `router`, or `apollo-mcp-server`) but couldn't download its artifact — for example, because the plugin registry returned an HTTP error, or the transfer was interrupted or timed out.
+
+Re-run the command to retry the download. If it keeps failing, check your connection to the plugin registry. Plugin downloads are large, so on a slow connection you can allow them longer with `--client-timeout <SECONDS>`. That option replaces the 300-second default for plugin downloads, so pass a value above 300.
+
+
+### E050
+
+This error occurs when Rover downloaded a plugin (`supergraph`, `router`, or `apollo-mcp-server`) but couldn't install it — for example, because the downloaded archive was corrupt, or the install directory named in the error isn't writable or is out of space.
+
+Make sure the install directory is writable and has free space, then reinstall the plugin with `rover plugin install <name>@=<version> --force --elv2-license accept`. A corrupt archive is downloaded again on reinstall.
+
+
+### E051
+
+This error occurs when a request names an exact release of a plugin (`supergraph`, `router`, or `apollo-mcp-server`) that the plugin registry once served but no longer does — for example, a release that was withdrawn after a defect was found in it.
+
+This is a different error from `E048` (no release matches the request), so that a script can tell a version that never existed from one that was taken away. Rover never substitutes a different version on its own.
+
+The error names the plugin, the withdrawn version, and where the request came from (a command-line argument or flag, an environment variable, `supergraph.yaml`, a `rover.yaml` manifest, or the `plugin-versions.lock` that pinned a manifest's floating version). When the registry can say which releases are still available, it also names the newest release in the same major version. Change the request where it was made to that version. If the registry couldn't say, the error suggests a floating version instead, which picks the newest available release.
+
+
+### E052
+
+This error occurs when a plugin manifest, a `rover.yaml` in a `.rover/` directory, exists but can't be used. For example, it isn't UTF-8 text or valid YAML, holds more than one YAML document, or uses YAML merge keys (`<<`); its `plugins` section isn't a mapping of plugin name to version; it names a plugin other than `supergraph`, `router`, or `apollo-mcp-server`, declares one twice, or gives one no version; a version isn't one of the accepted forms; or the file can't be read at all. Rover never skips a manifest it can't use or treats it as absent.
+
+It also occurs when a manifest sets `install_root`, which this version of Rover doesn't support yet. Rather than ignore the setting and install plugins somewhere the manifest didn't ask for, Rover refuses the manifest until the key is removed.
+
+It also occurs when a plugin lockfile, a `plugin-versions.lock` next to a manifest, exists but can't be used: it isn't UTF-8 text or valid TOML, it has no `version`, an entry is missing a field or has one Rover doesn't recognize, a plugin is locked more than once, or an entry records a release its own `requested` version couldn't have resolved to. A lockfile written by a newer version of Rover, in a format this version doesn't read, is refused as well rather than ignored or overwritten; upgrade Rover to use it.
+
+It also occurs when a manifest and the lockfile beside it disagree: the manifest declares a plugin the lockfile doesn't record, or declares a version the release the lockfile records doesn't match. A plugin-using command such as `rover supergraph compose` fails rather than resolve the declaration afresh, which is what the lockfile exists to prevent. Run the `rover plugin install` the error names to bring the lockfile up to date. A manifest with no lockfile beside it is not out of date, and resolves normally.
+
+The error names the file and what's wrong with it. Fix or remove the file, then re-run the command.
+
+
+### E053
+
+This error occurs when the Platform API refuses to let you manage an organization's client-credential pairs (`rover api-key create <ORGANIZATION_ID> client-credentials`, `rotate`, or `delete`), or its members' grants.
+
+Managing client-credential pairs requires the organization admin role, and during the initial rollout of client-credential support, the organization must also be enrolled in it. Managing grants across an organization requires the organization's grant-management permission. Contact your organization admin if you believe you should have access.
+
+
+### E054
+
+This error occurs when a setting's value fails its type's syntactic check - for example, a URL setting's value isn't a valid URL (or uses a scheme other than `http`/`https`), or a boolean setting's value isn't `true` or `false`.
+
+Run `rover config set <SETTING> <value> --profile <name>` with a corrected value. If the invalid value is already stored on a profile, this also fixes the profile so other commands that read it stop failing.
+
+
+### E055
+
+This error occurs when a command needs a profile's credential, but that profile is known to Rover - for example, it has stored settings from `rover config set` - and has no credential of its own.
+
+Run `rover auth login --profile <name>` to authenticate that profile, or set the `APOLLO_KEY` environment variable to supply a credential without storing one on the profile.
+
+
+### E056
+
+This error occurs when `rover api-key list`'s request for an organization's client-credential pairs failed - a timeout, a server error, or some other failure distinct from the organization simply having no pairs or you not being able to see them.
+
+If API keys were also in scope (the default, or `--type` included `operator`/`subgraph`), they were already fetched successfully and are still shown. If `--type` named only `client-credentials`, there is nothing left to show. Either way, try the command again, and if the problem persists, check the Platform API's status.
+
+
+### E057
+
+This error occurs when `rover api-key rotate <ORGANIZATION_ID> <CLIENT_ID>` is given an ID that isn't a client-credential pair in that organization - nonexistent, belonging to a different organization, or an `operator`/`subgraph` API key instead.
+
+`rover api-key rotate` only rotates client-credential pairs. Use `rover api-key list <ORGANIZATION_ID>` to confirm the ID, or check that you're targeting the right organization. `operator` and `subgraph` keys don't have a rotate equivalent.
+
+
+### E058
+
+This error occurs when Rover needs a plugin that isn't installed, and downloads are disabled. `--no-download` (or `APOLLO_ROVER_NO_DOWNLOAD`) disables them for `rover plugin install`, and `--skip-update` (or `APOLLO_ROVER_SKIP_UPDATE`) disables them for the commands that install plugins as they run, such as `rover supergraph compose` and `rover dev`. Those commands also never download a plugin unless you opt in, with the `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` setting: in the environment, on a profile, or under `settings:` in the project's `rover.yaml`. Rover fails before it contacts the plugin registry, rather than downloading the plugin anyway or using a different version.
+
+The error names the plugin and the version it needed. When a flag or environment variable disabled downloads, it also names every directory Rover looked in and that control. Install the plugin ahead of time with `rover plugin install`, or re-run without the control that disabled downloads. If nothing opted in to downloads, install the plugin with `rover plugin install`, or opt in. Opting in doesn't override `--skip-update` or `--no-download`.
+
+
+### E059
+
+This error occurs when `rover api-key rename <ORGANIZATION_ID> <ID> <NEW_NAME>` is given a client-credential pair's client ID. Client-credential pairs can't be renamed yet, so nothing was changed.
+
+`rover api-key rename` renames `operator` and `subgraph` API keys only. To change a pair's name, create a new pair with `rover api-key create <ORGANIZATION_ID> client-credentials <NAME>` and delete the old one with `rover api-key delete <ORGANIZATION_ID> <CLIENT_ID>`.
+
+
+### E060
+
+This error occurs when the `settings:` section of a project manifest, `rover.yaml`, names a credential: `APOLLO_KEY`, `APOLLO_CLIENT_ID`, or `APOLLO_CLIENT_SECRET`, in either the canonical or the all-lowercase spelling. A project file is checked into a repository and shared with everyone who clones it, so Rover refuses to read a credential from it rather than ignore the key and leave the secret where it is.
+
+Remove the key from `rover.yaml`, then authenticate with `rover config auth`, or set the credential in the environment instead.
+
+
+### E061
+
+This error occurs when the `settings:` section of a project manifest, `rover.yaml`, sets the same setting twice, once under its canonical name (for example `APOLLO_REGISTRY_URL`) and once under that name's all-lowercase form (`apollo_registry_url`). Both spellings are accepted in a project file, but they name the same setting, so Rover refuses to pick one of the two values.
+
+Remove one of the two keys from `rover.yaml`, then re-run the command.
+
+
+### E062
+
+This error occurs when `rover auth grants revoke --org <ORGANIZATION_ID> --user <USER_ID> --all` needs your confirmation before revoking a user's grants, but there's no terminal to ask on - for example in CI, when stdin is redirected, or with `--format json`. Nothing was revoked.
+
+Pass `--confirm` to proceed without a prompt.
+
+
+### E063
+
+This error occurs when `rover auth grants revoke --org <ORGANIZATION_ID> --user <USER_ID> --all` revoked a user's grants under some OAuth clients, but failed under at least one. Rover attempts every client even after one fails, and names each client that failed, along with the Platform API's error for it.
+
+Run the same command again to retry. Revoking under a client where the user no longer holds a grant succeeds, so a retry only changes the clients that failed.
+
+A client the Platform API refused for lack of permission fails again on every retry until you're granted the organization's grant-management permission.
+
+
