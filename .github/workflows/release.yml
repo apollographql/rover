@@ -126,8 +126,11 @@ jobs:
           # The action defaults RUSTFLAGS to `-D warnings`, which is great for
           # the `checks.yml` CI but wrong for releases: configurations that
           # disable features (e.g. musl with --no-default-features) surface
-          # dead-code warnings that aren't release blockers.
+          # dead-code warnings that aren't release blockers. Since v2 the action
+          # also denies warnings through `CARGO_BUILD_WARNINGS`, so that needs
+          # switching off too.
           rustflags: ""
+          build-warnings: warn
 
       - name: Build and package (macOS)
         if: runner.os == 'macOS'

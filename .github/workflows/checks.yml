@@ -70,6 +70,26 @@ jobs:
     - name: Run Clippy
       run: cargo clippy --locked --workspace --all-features --all-targets
 
+  check_no_default_features:
+    # The musl release build turns off default features (no `composition-js`),
+    # and nothing else builds that configuration - so code that only compiles
+    # with them would otherwise first fail at release time. Like that release
+    # build, this allows warnings: without `composition-js` a lot of code is
+    # unused, and dead-code warnings there aren't worth gating on.
+    name: Check (no default features)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98
+    - name: Install stable@stable toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
+      with:
+        build-warnings: warn
+    - name: Check
+      run: cargo check --locked --workspace --no-default-features
+
   test_installers:
     # Gated explicitly as well as transitively. `needs: test` alone would skip
     # this correctly today, but relying on that propagation makes it the one job
@@ -241,6 +261,7 @@ jobs:
       - cargo-deny
       - fmt
       - clippy
+      - check_no_default_features
       - test
       - test_installers
       - test_minimal_glibc

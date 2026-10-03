@@ -16,6 +16,7 @@ impl Dev {
         _log_level: Option<Level>,
         _profile: &ProfileOpt,
         _stderr: &impl Print,
+        _graph_ref: Option<String>,
     ) -> RoverResult<RoverOutput> {
         Err(RoverError::new(anyhow!(
             "rover dev is not supported on this platform"
