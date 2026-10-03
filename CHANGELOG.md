@@ -293,6 +293,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🐛 Fixes
 
+- **`rover auth grants revoke --all` lists every pair instead of failing before it revokes anything - @dotdat**
+
+  The sweep lists every client-credential pair in the organization before revoking, and asked the Platform API for all of them in one page size that overflowed to `-1`, so the listing was refused with "'first' must be positive, but -1 was given" and nothing was revoked. Each page now asks for at most 50 pairs, and the listing pages through the rest. `rover api-key list` with a `--limit` too large for a GraphQL `Int` is fixed the same way.
+
 - **Setting errors name a command that exists - @dotdat**
 
   `rover config set` and `rover config unset` now tell you why a setting can't be stored in a profile, and which flag to pass instead. For example, `rover config set APOLLO_VCS_COMMIT abc123` says "`APOLLO_VCS_COMMIT` can't be stored in a profile. It describes a single invocation rather than an environment. Pass `--vcs-commit`, or set `APOLLO_VCS_COMMIT` in the environment." Previously it said the name wasn't a Rover setting at all. The same settings in a project's `rover.yaml` now get the "can't be set in a project file" warning. The error for a credential in `rover.yaml` (`E060`) now suggests `rover config auth`, which every build has, instead of `rover auth login`.
