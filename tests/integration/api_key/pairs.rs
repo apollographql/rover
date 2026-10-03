@@ -201,7 +201,7 @@ fn delete_reports_the_pair() {
     let delete_pair = mock_operation(
         &server,
         "DeletePairMutation",
-        json!({ "data": { "organization": { "deleteOAuthClient": null } } }),
+        json!({ "data": { "organization": { "deleteOAuthClient": "c_8f2a" } } }),
     );
     let delete_key = mock_operation(
         &server,

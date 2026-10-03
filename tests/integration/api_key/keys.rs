@@ -168,7 +168,7 @@ fn delete_key(#[case] json: bool) {
     let delete_pair = mock_operation(
         &server,
         "DeletePairMutation",
-        json!({ "data": { "organization": { "deleteOAuthClient": null } } }),
+        json!({ "data": { "organization": { "deleteOAuthClient": "c_8f2a" } } }),
     );
 
     let output = run_api_key(
