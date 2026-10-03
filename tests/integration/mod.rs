@@ -7,6 +7,7 @@ mod config;
 mod connector;
 mod dev;
 mod graph;
+mod help;
 mod info;
 mod installers;
 mod output;

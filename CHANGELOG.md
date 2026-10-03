@@ -293,6 +293,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🐛 Fixes
 
+- **`rover --help` opens with Rover's own description again - @dotdat**
+
+  `rover --help` and `rover help` printed an internal note about the `--oauth-*` flags where Rover's description and getting-started steps belong, in every build since OAuth stopped being an optional feature. `rover -h` was unaffected.
+
 - **`rover auth grants revoke --all` lists every pair instead of failing before it revokes anything - @dotdat**
 
   The sweep lists every client-credential pair in the organization before revoking, and asked the Platform API for all of them in one page size that overflowed to `-1`, so the listing was refused with "'first' must be positive, but -1 was given" and nothing was revoked. Each page now asks for at most 50 pairs, and the listing pages through the rest. `rover api-key list` with a `--limit` too large for a GraphQL `Int` is fixed the same way.
