@@ -1,0 +1,293 @@
+---
+title: Upgrading to Rover 1.0
+subtitle: What changes when you move from Rover 0.x to 1.0
+description: Learn which Rover 1.0 changes affect existing 0.x workflows, including opt-in plugin downloads, version 3 check JSON, publish launch polling, keychain credential storage, and the removal of rover cloud and Federation 1.
+---
+
+Rover 1.0 includes a few breaking changes. Most 0.x workflows keep working unchanged, but check this page before you upgrade, especially in CI.
+
+To install Rover 1.0, follow [Installing Rover](/rover/getting-started). To upgrade CI gradually, pin the version, for example `curl -sSL https://rover.apollo.dev/nix/v1.0.0 | sh`.
+
+## Summary
+
+| Change | Who's affected | What to do |
+| --- | --- | --- |
+| [Plugin downloads are opt-in](#plugin-downloads-are-opt-in) | Anyone running `rover supergraph compose`, `rover dev`, `rover lsp`, or `rover connector` without installing plugins first | Run `rover plugin install` ahead of time, or opt in with `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` |
+| [Check JSON output is version 3](#check-json-output-is-version-3) | Scripts that parse `rover subgraph check` or `rover graph check` with `--format json` | Read `downstream.variants` instead of `downstream.blocking_variants`, and expect `json_version: "3"` |
+| [Publish waits for launches](#publish-waits-for-launches) | Anyone running `rover graph publish` or `rover subgraph publish` | Allow for the extra wait, and handle `E047` when a launch fails |
+| [`rover cloud` is removed](#rover-cloud-is-removed) | Anyone using `rover cloud config fetch`, `update`, or `validate` | Manage cloud router configuration in GraphOS Studio |
+| [Federation 1 is removed](#federation-1-is-removed) | Anyone composing with, or installing, a Federation 1 version | Migrate your subgraphs to Federation 2 |
+| [`rover install --plugin` is deprecated](#rover-install---plugin-is-deprecated) | Scripts that run `rover install --plugin` | Switch to `rover plugin install` |
+| [Credentials are stored in the OS keychain](#credentials-are-stored-in-the-os-keychain) | Anyone who stores an API key with `rover config auth` | Usually nothing. Allow the keychain prompt if your OS shows one |
+| [`rover connector test` fails when tests fail](#rover-connector-test-fails-when-tests-fail) | CI that runs `rover connector test` | Expect a non-zero exit code when the suite fails |
+
+## Plugin downloads are opt-in
+
+**What changed:** `rover supergraph compose`, `rover dev`, `rover lsp`, and `rover connector` no longer download a plugin they need. They use a plugin only if it's already installed, either in the project or globally. In 0.x, these commands downloaded a missing plugin on demand.
+
+`rover plugin install` isn't affected, and still downloads.
+
+**How to tell you're affected:** the command stops with error [E058](/rover/errors#e058). For example, with a `supergraph.yaml` that pins `federation_version: =2.9.3`:
+
+```
+$ rover supergraph compose --config supergraph.yaml
+merging supergraph schema files
+error[E058]: Error when updating Federation Version
+
+Caused by:
+    0: Couldn't obtain the `supergraph` plugin
+    1: Rover needs the `supergraph` plugin v2.9.3, which isn't installed.
+        Run `rover plugin install supergraph@=2.9.3`, or set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true` under `settings:` in `rover.yaml` to let Rover download plugins on demand.
+```
+
+**What to do:** either install the plugins ahead of time or opt in to automatic downloads.
+
+- **Install ahead of time** with [`rover plugin install`](/rover/commands/plugin#plugin-install), for example `rover plugin install supergraph@=2.9.3`.
+- **Opt in to automatic downloads** with the `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` setting, which restores the 0.x behavior. Set it in any of these places:
+  - the environment: `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD=true` (or `1`)
+  - a profile: `rover config set APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD true`
+  - the project file, under `settings:` in `.rover/rover.yaml`:
+
+    ```yaml title=".rover/rover.yaml"
+    settings:
+      APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true
+    ```
+
+  `rover config show` reports the setting's value and where it came from. See [Automatic downloads](/rover/commands/plugin#automatic-downloads).
+
+`--skip-update` (or `APOLLO_ROVER_SKIP_UPDATE`) still forbids downloads, even when you've opted in.
+
+### Recommended setup for CI
+
+Pin the plugins in your repository so every machine installs the same releases, and install them before any command that needs them:
+
+1. Locally, install each plugin into the project. For example, `rover plugin install supergraph@=2.9.3 --manifest-path .rover/rover.yaml` creates the project if it doesn't exist yet.
+2. Commit `.rover/rover.yaml` and `.rover/plugin-versions.lock`. Rover adds a `.gitignore` that keeps the `.rover/bin/` binaries out of version control.
+3. In CI, run `rover plugin install` with no plugin named. It installs exactly the releases the lockfile records:
+
+    ```bash
+    rover plugin install --elv2-license accept
+    rover supergraph compose --config supergraph.yaml
+    ```
+
+See [Installing into a project](/rover/commands/plugin#installing-into-a-project) and [The plugin lockfile](/rover/commands/plugin#the-plugin-lockfile).
+
+## Check JSON output is version 3
+
+**What changed:** `rover subgraph check` and `rover graph check` with `--format json` now report `"json_version": "3"` (0.x reported `"2"`). Every other command still reports `"1"`.
+
+In the `downstream` task, the `blocking_variants` list of variant names is replaced by `variants`, which has one entry per contract variant:
+
+| Field | Description |
+| --- | --- |
+| `graph_id` | The graph the contract variant belongs to |
+| `variant_name` | The contract variant's name |
+| `blocking` | Whether the contract variant's check is configured to block |
+| `fails_upstream_workflow` | Whether GraphOS reports that this variant fails the check. `null` when GraphOS hasn't reported it |
+| `status` | The variant's check status: `PASSED`, `FAILED`, `BLOCKED`, or `PENDING` |
+
+`rover graph check` also reports the `downstream` task now. In 0.x it reported nothing about contract variants.
+
+Before, the `downstream` task in 0.x output (`json_version` `"2"`):
+
+```json
+"downstream": {
+  "task_status": "FAILED",
+  "target_url": "https://studio.apollographql.com/graph/my-graph/checks/downstream",
+  "blocking_variants": ["mobile"]
+}
+```
+
+After, the full 1.0 output of a `rover subgraph check` that a blocking contract variant fails:
+
+```json
+{
+  "json_version": "3",
+  "data": {
+    "core_schema_modified": false,
+    "tasks": {
+      "downstream": {
+        "task_status": "FAILED",
+        "target_url": "https://studio.apollographql.com/graph/my-graph/checks/downstream",
+        "variants": [
+          {
+            "graph_id": "my-graph",
+            "variant_name": "mobile",
+            "blocking": true,
+            "fails_upstream_workflow": null,
+            "status": "FAILED"
+          }
+        ]
+      }
+    },
+    "success": false
+  },
+  "error": {
+    "message": "The changes in the schema you proposed caused downstream checks to fail.",
+    "code": "E043"
+  }
+}
+```
+
+**How to tell you're affected:** your script reads `.data.tasks.downstream.blocking_variants`, or checks that `json_version` is `"2"`.
+
+**What to do:** update the script to read `variants`. To list the variants that fail the check, as `blocking_variants` did:
+
+```bash
+# Before
+rover subgraph check my-graph@current --name products --schema products.graphql --format json \
+  | jq -r '.data.tasks.downstream.blocking_variants[]'
+
+# After
+rover subgraph check my-graph@current --name products --schema products.graphql --format json \
+  | jq -r '.data.tasks.downstream.variants[]
+      | select(.fails_upstream_workflow == true or (.blocking and .status == "FAILED"))
+      | .variant_name'
+```
+
+### Other check changes
+
+- **Text output always shows the downstream summary.** Whenever a downstream task ran, the `Downstream Check` section prints even when nothing is blocking: `No contract variants configured for this graph.`, `Checked N contract variants, all passed.`, or `Checked N contract variants.`
+- **Text output always shows build and operation checks.** `Build Check [PASSED]` and `Operation Check [PASSED]` sections now print even when there are no schema changes or operation warnings.
+- **A blocking downstream failure fails the check.** When a blocking contract variant's downstream check fails, both commands exit non-zero with [E043](/rover/errors#e043), even if the overall check workflow status in GraphOS hasn't caught up yet. In 0.x, `rover subgraph check` could report success in that case, and `rover graph check` ignored contract variants entirely.
+
+## Publish waits for launches
+
+**What changed:** `rover graph publish` and `rover subgraph publish` now wait for the launch the publish triggers, and for any downstream contract-variant launches, to finish before returning. The wait is bounded by `--checks-timeout` (or `APOLLO_CHECKS_TIMEOUT_SECONDS`), which defaults to 300 seconds. If it runs out, the command fails with:
+
+```
+Timed out waiting for the launch to complete, or raise APOLLO_CHECKS_TIMEOUT_SECONDS.
+```
+
+When the publish triggers downstream launches, Rover lists them on stderr, for example:
+
+```
+Triggered downstream launches for 1 contract variant: mobile.
+View launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-1
+```
+
+**How to tell you're affected:** a publish takes longer than before, or fails after the schema was published. If a launch fails, the command exits non-zero with [E047](/rover/errors#e047), for example:
+
+```
+The publish succeeded, but downstream contract launch failed: mobile.
+View launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-1
+```
+
+The schema is still published. With `--format json`, `data` keeps the full publish response alongside the error:
+
+```json
+{
+  "json_version": "1",
+  "data": {
+    "api_schema_hash": "123456",
+    "supergraph_was_updated": true,
+    "subgraph_was_created": false,
+    "subgraph_was_updated": true,
+    "launch_url": "https://studio.apollographql.com/graph/my-graph/launches/launch-1",
+    "launch_cli_copy": null,
+    "launch_status": "COMPLETED",
+    "launch_superseded": false,
+    "downstream_launches": [
+      {
+        "graph_id": "my-graph",
+        "variant_name": "mobile",
+        "status": "FAILED",
+        "superseded": false,
+        "url": "https://studio.apollographql.com/graph/my-graph/launches/launch-2"
+      }
+    ],
+    "success": false
+  },
+  "error": {
+    "message": "The publish to 'my-graph@current' succeeded, but a triggered launch did not complete successfully. See the launch report above for details.",
+    "code": "E047"
+  }
+}
+```
+
+**What to do:**
+
+- If your launches take longer than five minutes, raise `--checks-timeout` or `APOLLO_CHECKS_TIMEOUT_SECONDS`.
+- Treat `E047` as "published, but the launch failed", not as a failed publish. Don't retry the publish; check the launch in GraphOS Studio.
+- Scripts that parse publish JSON can read the new fields. Both commands add `launch_status`, `launch_superseded`, and `downstream_launches`, and `rover graph publish` also adds `launch_url`. Each `downstream_launches` entry has `graph_id`, `variant_name`, `status`, `superseded`, and `url`.
+- `rover graph publish`'s stdout is unchanged: it still prints only the schema hash. To parse the hash reliably, use `--format json` and read `.data.api_schema_hash`.
+
+## `rover cloud` is removed
+
+**What changed:** `rover cloud config fetch`, `rover cloud config update`, and `rover cloud config validate` are removed. In 0.x they fetched, updated, and validated the cloud router configuration for a graph ref.
+
+**How to tell you're affected:**
+
+```
+$ rover cloud config fetch my-graph@current
+error: unrecognized subcommand 'cloud'
+
+Usage: rover [OPTIONS] <COMMAND>
+
+For more information, try '--help'.
+```
+
+**What to do:** view and edit your cloud router's configuration in [GraphOS Studio](https://studio.apollographql.com/) instead.
+
+## Federation 1 is removed
+
+**What changed:** Rover no longer supports Federation 1. `rover supergraph compose`, `rover dev`, `rover lsp`, `rover connector`, and `rover plugin install supergraph@<version>` reject any Federation 1 version.
+
+**How to tell you're affected:** the command fails with:
+
+```
+error: Federation 1 is no longer supported by Rover. Migrate your subgraphs to Federation 2 by adding `@link` directives (https://www.apollographql.com/docs/federation/federation-2/moving-to-federation-2#opt-in-to-federation-2), then remove any Federation 1 pin from your configuration.
+```
+
+Rover rejects these pins:
+
+- `federation_version: 1` or `federation_version: latest-1` in `supergraph.yaml`, or the same values passed to `--federation-version`
+- `latest-0` or an exact `0.x` version, such as `=0.36.0`
+- `supergraph@1`, `supergraph@latest-1`, `supergraph@latest-0`, or `supergraph@=0.x.y` passed to `rover plugin install` or `rover install --plugin`
+
+There's no 1.x release of the `supergraph` plugin, so an exact `=1.x.y` pin isn't valid either. `rover plugin install` and `--federation-version` reject it as an invalid version.
+
+**What to do:** [migrate your subgraphs to Federation 2](https://www.apollographql.com/docs/federation/federation-2/moving-to-federation-2#opt-in-to-federation-2), then pin a Federation 2 version, such as `federation_version: =2.9.3`.
+
+## `rover install --plugin` is deprecated
+
+**What changed:** plugins now have their own command, [`rover plugin install`](/rover/commands/plugin#plugin-install). `rover install --plugin` still works, but prints a warning:
+
+```
+$ rover install --plugin supergraph@=2.9.3
+warning: `rover install --plugin` is deprecated. Use `rover plugin install supergraph@=2.9.3` instead.
+```
+
+**What to do:** replace `rover install --plugin <NAME>@<VERSION>` with `rover plugin install <NAME>@<VERSION>`. It takes the same `--force` and `--elv2-license` options.
+
+## Credentials are stored in the OS keychain
+
+**What changed:** `rover config auth` now stores each profile's API key in the OS credential store instead of a plaintext file:
+
+- macOS: Keychain
+- Windows: Credential Manager
+- Linux: the kernel keyring
+
+When no credential store is available, for example on headless Linux or in CI, Rover falls back to a `credentials.json` file in its [configuration directory](/rover/configuring#where-rover-stores-configuration), readable only by you (`0600`).
+
+**How to tell you're affected:** on some platforms, your OS asks you to allow Rover access to the keychain the first time Rover reads or writes a credential in a session. If Rover can't read, write, or delete a credential, it fails with [E046](/rover/errors#e046).
+
+**What to do:** usually nothing.
+
+- Existing credentials migrate automatically. The first time Rover reads a profile's old `.sensitive` file, it moves the credential into the credential store and deletes the file.
+- `rover config auth`, `whoami`, `list`, `delete`, and `clear` work as before, and `APOLLO_KEY` still overrides a stored credential.
+- If you see E046, make sure your keychain is unlocked, then run `rover config auth` again to re-save the credential.
+
+## `rover connector test` fails when tests fail
+
+**What changed:** when the connector test suite fails, `rover connector test` now exits non-zero, and `--format json` reports `"success": false`. In 0.x it exited `0` and reported `"success": true` even when tests failed.
+
+**What to do:** if your CI ran `rover connector test` without checking its result, expect the step to fail when tests fail, and fix the failing tests.
+
+## Other things worth knowing
+
+These additions don't require any action, but you might want to use them:
+
+- **Log in with your browser.** `rover auth login` authenticates through your browser, or with `--no-browser` on a machine without one. See [`rover auth`](/rover/commands/auth).
+- **Client-credential pairs for CI.** Set `APOLLO_CLIENT_ID` and `APOLLO_CLIENT_SECRET` instead of an API key. Create pairs with `rover api-key create`. See [Choosing a credential](/rover/configuring#choosing-a-credential) and [Client-credential pairs](/rover/commands/api-key#client-credential-pairs).
+- **Settings on profiles and in project files.** Store settings such as `APOLLO_REGISTRY_URL` on a profile with `rover config set`, or share them with your team under `settings:` in `.rover/rover.yaml`. `rover config show` reports each setting's effective value and where it came from. See [Configuring Rover](/rover/configuring) and [`rover config`](/rover/commands/config).

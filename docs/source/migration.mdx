@@ -19,13 +19,13 @@ It's also helpful to [install](./getting-started) and [configure](./configuring)
 
 Rover's approach to [configuration](./configuring) is much more explicit and less abstracted than the Apollo CLI. Most configuration options in Rover are specified as flags on a particular command, rather than in a config file.
 
-The only config files that Rover uses are hidden config files created by the `config auth` command, along with a YAML file that's specifically for the [`supergraph compose`](./commands/supergraphs#yaml-configuration-file) command.
+Rover keeps your credentials in your operating system's credential store, and stores per-user settings on [configuration profiles](./configuring#configuration-profiles). A project can commit shared settings, such as a registry URL or timeouts, and the plugins it uses in a [`.rover/rover.yaml`](./configuring#project-settings) file. The [`supergraph compose`](./commands/supergraphs#yaml-configuration-file) command also reads its own YAML file. See [Where Rover stores configuration](./configuring#where-rover-stores-configuration).
 
 ### Authenticating with Studio
 
-The Apollo CLI authenticates with GraphOS Studio by reading an environment variable to determine the API key to use. With Rover, the recommended way to set API keys is with the `config auth` command. This command is interactive, however, so you can still use an [environment variable](./configuring#with-an-environment-variable) in your CI/CD environment.
+The Apollo CLI authenticates with GraphOS Studio by reading an environment variable to determine the API key to use. With Rover, the recommended way to authenticate on your own machine is `rover auth login`, which signs you in with OAuth. You can also store a personal API key with `rover config auth`. Both are interactive, so in your CI/CD environment you can still use an [environment variable](./configuring#with-an-environment-variable), as with the Apollo CLI. See [Choosing a credential](./configuring#choosing-a-credential).
 
-If you aren't sure where your API key is being read from or you're experiencing issues with your key, you can use the `config whoami` command to debug.
+If you aren't sure which credential Rover is using or you're experiencing issues with it, run `rover auth whoami` to debug.
 
 ### Replacing `apollo.config.js`
 
@@ -149,7 +149,7 @@ An example script for converting output from `rover {sub}graph check my-graph --
 
 <Note>
 
-these examples assume an environment variable or config file has been set up to authenticate the Apollo CLI, and the `rover config auth` command has been run to authenticate Rover.
+these examples assume an environment variable or config file has been set up to authenticate the Apollo CLI, and Rover has been authenticated with `rover auth login`, `rover config auth`, or `APOLLO_KEY`.
 
 </Note>
 

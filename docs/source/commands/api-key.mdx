@@ -81,6 +81,20 @@ APOLLO_CLIENT_SECRET=<CLIENT_SECRET>
 
 Rover exchanges them for an access token on each run. If `APOLLO_KEY` is also set, it takes precedence.
 
+If only one of the two is set, Rover stops before making any request:
+
+```
+error: APOLLO_CLIENT_ID is set but APOLLO_CLIENT_SECRET is not; both are required to authenticate with client credentials
+```
+
+If GraphOS rejects the pair, for example because the secret is wrong, expired, or was rotated away, the exchange fails and Rover reports the error GraphOS returned:
+
+```
+error: failed to exchange client credentials for an access token: invalid_client: Client authentication failed
+```
+
+Because the exchange happens on every command, a pair that stops working fails the next command that needs a credential. Neither failure has an error code, so with `--format json`, `error.code` is `null`.
+
 #### Example: setting up CI with a pair
 
 1. As an organization admin, create a pair for the graph your pipeline publishes to, and capture its credentials from the JSON output:
@@ -132,9 +146,11 @@ If you don't have permission to see your organization's client-credential pairs,
 
 </Note>
 
+If Rover can't fetch the pairs, for example because the request timed out or GraphOS returned a server error, the command fails with error `E056`. Any API keys in scope were already fetched and are still shown. Run the command again; if the problem persists, check the Platform API's status.
+
 #### Paging through client-credential pairs
 
-`api-key list` collects at most 100 pairs per run by default. Use `--limit` to change that. If the organization has more pairs than the limit, the command still succeeds and prints a note naming a cursor. Pass that cursor to `--after` to continue where the last run stopped:
+`api-key list` collects at most 100 pairs per run by default. Use `--limit` to change that. It must be a positive whole number. If the organization has more pairs than the limit, the command still succeeds and prints a note naming a cursor. Pass that cursor to `--after` to continue where the last run stopped:
 
 ```
 rover api-key list <ORGANIZATION_ID> --type client-credentials --limit 50 --after <CURSOR>
@@ -154,7 +170,24 @@ rover api-key rotate <ORGANIZATION_ID> <CLIENT_ID> [--grace-period-days <DAYS>]
 
 By default, every previous secret for the pair stops working immediately. To roll out the new secret without downtime, pass `--grace-period-days` to keep the previous secrets working for that many days.
 
-Rover prints the new secret to stdout, along with its expiry, and says on stderr when the previous secrets stop working. As with creating a pair, Rover shows the new secret only once. With `--format json`, the output includes `client_secret`, `secret_expires_at`, `grace_period_days`, and `previous_secrets_expire_at`.
+Rover prints the pair's client ID, the new secret, and the secret's expiry to stdout. As with creating a pair, Rover shows the new secret only once. On stderr, it reminds you to save the secret and says when the previous secrets stop working. Without a grace period:
+
+```
+Save this secret now. Rover can't show it again.
+Every previous secret for `<NAME>` has stopped working. To keep the old secret working while you roll out a new one, pass `--grace-period-days <DAYS>`.
+```
+
+With a grace period, the second line is instead:
+
+```
+Every previous secret for `<NAME>` keeps working until <TIMESTAMP>.
+```
+
+`<NAME>` is the pair's name, or its client ID if it has none.
+
+With `--format json`, the output includes `key_type` (`"ClientCredentials"`), `client_id`, `client_secret`, `secret_expires_at`, `grace_period_days`, and `previous_secrets_expire_at`.
+
+If the request fails in a way that leaves the outcome unclear, such as a timeout, Rover can't tell whether the secret was rotated and suggests checking with `rover api-key list <ORGANIZATION_ID>`. It never prints a secret in that case.
 
 `api-key rotate` works on client-credential pairs only. If the ID isn't a pair in the organization, the command fails with error `E057` and changes nothing.
 

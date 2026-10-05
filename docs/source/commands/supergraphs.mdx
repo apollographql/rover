@@ -170,39 +170,87 @@ The first time you use Federation 2 composition on a particular machine, Rover p
 CI systems wipe away any persisted Rover configuration on each run, and they can't accept the interactive ELv2 prompt. To automatically accept the prompt in CI, do any of the following:
 
 - Set the environment variable `APOLLO_ELV2_LICENSE=accept` in your CI environment.
-- Include `--elv2-license accept` in your `rover supergraph compose` command.
+- Include `--elv2-license accept` in your `rover supergraph compose` command, or in the [`rover plugin install`](/rover/commands/plugin#plugin-install) command that installs the `supergraph` plugin ahead of time.
 - Run `yes | rover supergraph compose`
 
 </Note>
 
-The ELv2-licensed `supergraph` plugin (built from [this source](https://github.com/apollographql/federation-rs)) is installed to `~/.rover/bin` if you installed with the `curl | sh` installer, and to `./node_modules/.bin/` if you installed with npm.
+### The `supergraph` plugin
+
+Composition runs in the ELv2-licensed `supergraph` plugin (built from [this source](https://github.com/apollographql/federation-rs)). `rover supergraph compose` uses the plugin only if it's already installed. It doesn't download it unless you [opt in to automatic downloads](/rover/commands/plugin#automatic-downloads). Install it ahead of time, for example in your CI setup, with [`rover plugin install`](/rover/commands/plugin#plugin-install):
+
+```bash
+rover plugin install supergraph@=2.9.3 --elv2-license accept
+```
+
+If the plugin isn't installed, the command stops and tells you how to install it:
+
+```
+error[E058]: Error when updating Federation Version
+
+Caused by:
+    0: Couldn't obtain the `supergraph` plugin
+    1: Rover needs the `supergraph` plugin v2.9.3, which isn't installed.
+        Run `rover plugin install supergraph@=2.9.3`, or set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true` under `settings:` in `rover.yaml` to let Rover download plugins on demand.
+```
+
+Rover looks for the plugin in the project's `.rover/bin/` directory first, then in the global `$APOLLO_HOME/.rover/bin/` directory (by default, `~/.rover/bin/`). See [Where plugins are installed](/rover/commands/plugin#where-plugins-are-installed).
+
+Each run reports the plugin it used on `stderr`:
+
+```
+Using the `supergraph` plugin v2.9.3 (already installed).
+```
+
+The line ends with `(downloaded)` when Rover downloaded the plugin during the run. With `--format json`, the same facts appear under `data.plugins`, with each plugin's `name`, `version`, `source`, `level`, and `path`. See [Output](/rover/commands/plugin#output).
 
 ### Setting a composition version
 
-Whenever you run `rover supergraph compose`, Rover automatically downloads the composition library for the given federation version you specified either in your [supergraph.yaml](#yaml-configuration-file) or via [stdin](#supergraph-compose).
+Rover composes with the federation version from the first of these that's set:
+
+1. The `--federation-version` option
+2. `federation_version` in your [supergraph.yaml](#yaml-configuration-file)
+3. The `supergraph` version [declared in `rover.yaml`](/rover/commands/plugin#declaring-plugins-in-roveryaml), in the project or globally
+
+When `supergraph.yaml` and `rover.yaml` both set a version and they disagree, Rover uses `supergraph.yaml` and warns:
+
+```
+warning: `supergraph.yaml` sets `federation_version: =2.9.3`, overriding the `supergraph` version declared in `rover.yaml`.
+```
 
 The command composes with Federation 2, implemented by the [`@apollo/composition`](https://www.npmjs.com/package/@apollo/composition) library.
 
 <Note>
 
 - The federation version you specify must not exceed the highest version supported by your router. Make sure to update your router before incrementing your `federation_version`. For details, see this [support table](/router/federation-version-support).
-- Federation 1 is no longer supported. Specifying a Federation 1 version—`1`, `latest-1`, or an exact `=0.x.y`/`=1.x.y`—fails with an error. To migrate your subgraphs, see [Moving to Federation 2](/federation/federation-2/moving-to-federation-2).
-- If you don't pin an exact `federation_version`, Rover composes with the latest release available at the time and warns you. A new federation release can change your supergraph schema without you choosing to, so pin an exact version for anything beyond local prototyping.
+- Federation 1 is no longer supported. Specifying `1`, `latest-1`, or an exact `=0.x.y` version fails with an error, and an exact `=1.x.y` version isn't accepted as a federation version. To migrate your subgraphs, see [Moving to Federation 2](/federation/federation-2/moving-to-federation-2).
+- If you don't pin an exact `federation_version`, Rover composes with the newest matching release and warns you. A new federation release can change your supergraph schema without you choosing to, so pin an exact version for anything beyond local prototyping.
 
 </Note>
 
 #### Automatic updates
 
-If you don't specify an exact `federation_version` in `supergraph.yaml`, Rover asks the Apollo plugin registry at `https://rover.apollo.dev` (or the host set by [`APOLLO_ROVER_DOWNLOAD_HOST`](/rover/configuring#supported-environment-variables)) for the latest Federation 2 composition version each time it runs, so a new release is picked up as soon as it ships.
+If you've [opted in to automatic downloads](/rover/commands/plugin#automatic-downloads) and don't specify an exact `federation_version`, Rover asks the Apollo plugin registry at `https://rover.apollo.dev` (or the host set by [`APOLLO_ROVER_DOWNLOAD_HOST`](/rover/configuring#supported-environment-variables)) for the latest Federation 2 composition version each time it runs, so a new release is picked up as soon as it ships.
+
+Without the opt-in, a floating version such as `2` uses the newest matching release that's already installed.
 
 This auto-update flow will cause issues if you don't update your router version prior to updating your composition pipeline.
 Apollo strongly recommends always specifying an exact `federation_version`.
 
 #### Preventing auto-updates
 
-In some cases, you might want Rover to skip updating its composition library to the latest version. For example, you might have a slow or nonexistent network connection.
+To make sure Rover never downloads a plugin or contacts the plugin registry, for example on a slow or nonexistent network connection, pass the `--skip-update` flag to `rover supergraph compose`, or set the `APOLLO_ROVER_SKIP_UPDATE` environment variable to `1` or `true`. This applies even if you've opted in to automatic downloads.
 
-In these cases, you can pass the `--skip-update` flag to `rover supergraph compose`. If you provide this flag, your `supergraph.yaml` file must specify a `federation_version` (which is recommended regardless).
+Under `--skip-update`, Rover uses the version from `supergraph.yaml` or `rover.yaml` as usual, and uses the newest installed release that matches it. If none is installed, the command fails with [`E058`](/rover/errors#e058), naming the directories it searched:
+
+```
+error[E058]: Error when updating Federation Version
+
+Caused by:
+    0: Couldn't obtain the `supergraph` plugin
+    1: Rover needs the `supergraph` plugin v2.9.3, but it isn't installed in `/work/app/.rover/bin` or `/home/me/.rover/bin` and downloads are disabled by `--skip-update`.
+        Run `rover plugin install supergraph@=2.9.3` to install it ahead of time, or re-run without `--skip-update` to let Rover download it.
+```
 
 ## Configuration awareness in your text editor
 

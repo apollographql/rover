@@ -1,6 +1,8 @@
 items:
   - label: Overview
     href: ./
+  - label: Upgrading to Rover 1.0
+    href: ./upgrading-to-1
   - label: Install
     href: ./getting-started
   - label: Configure
@@ -49,6 +51,8 @@ items:
         href: ./commands/license
       - label: persisted-queries
         href: ./commands/persisted-queries
+      - label: plugin
+        href: ./commands/plugin
       - label: readme
         href: ./commands/readmes
       - label: schema

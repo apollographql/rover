@@ -7,3 +7,5 @@ description: Analyze API requests, generate schemas, and create automated tests 
 Rover provides a set of `rover connector` commands for managing [Apollo Connectors](/graphos/connectors). These allow you to run and analyze API requests, generate schemas based on that analysis, and create automated tests for your connectors. 
 
 For a complete reference, see the [CLI tools for connectors](/graphos/connectors/tooling/cli-tools).
+
+`rover connector test` exits with a non-zero status when the test suite fails, so you can use it to gate CI. With `--format json`, a failing run reports `"success": false` in `data`.

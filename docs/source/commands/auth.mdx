@@ -16,9 +16,15 @@ The `auth login` command opens your default browser so you can authorize Rover w
 rover auth login
 ```
 
-Once you authorize the request, Rover saves the resulting credential to your `default` profile, or to the profile you name with `--profile`.
+Rover prints the authorization URL to stderr, whether or not the browser opens:
 
-Rover always prints the authorization URL. Pass `--no-open` if you'd rather open it yourself.
+```
+Opening your browser to authenticate. If it doesn't open automatically, visit this URL: <URL>
+```
+
+Pass `--no-open` if you'd rather open the URL yourself.
+
+Once you authorize the request, Rover saves the resulting credential to your `default` profile, or to the profile you name with `--profile`, and prints `Successfully logged in.`
 
 #### Logging in without a browser
 
@@ -28,7 +34,23 @@ On a machine with no browser, such as a remote server, pass `--no-browser`:
 rover auth login --no-browser
 ```
 
-Rover prints a verification URL and a code. Open the URL on any device, enter the code, and approve the request. Rover waits until you do.
+Rover prints a verification URL and a code:
+
+```
+To finish logging in, visit <URL> and enter the code: <CODE>
+```
+
+If GraphOS provides a URL with the code already filled in, Rover also prints `Or open this URL directly: <URL>`. Open either URL on any device, enter the code if asked, and approve the request. Rover waits until you do, then prints `Successfully logged in.` `--no-open` has no effect with `--no-browser`.
+
+#### When your session expires
+
+Rover doesn't refresh an OAuth session automatically. Once it expires, commands that use the profile stop authenticating, and `rover auth whoami` reports:
+
+```
+error: Your session has expired or is invalid. Run `rover auth login` to reauthenticate.
+```
+
+Run `rover auth login` again, with the same `--profile` if you used one.
 
 ## Checking who you're logged in as
 
@@ -40,7 +62,12 @@ The `auth whoami` command shows which identity the current profile authenticates
 rover auth whoami
 ```
 
-For an OAuth login, the output includes a `Grant Type` row:
+What it shows depends on the credential:
+
+- For an OAuth login, the output shows `Name`, `Email`, `User ID`, `Origin`, `Grant Type`, and the masked `Access Token`. With `--format json`, these are `name`, `email`, `user_id`, `origin`, `grant_type`, and `access_token`.
+- For an API key or a client-credential pair, Rover looks the credential up in GraphOS, the same way `rover config whoami` does. The output shows `Key Type`, `Graph ID` and `Graph Title` (for a graph key), `User ID` (for a personal key), `Origin`, `Grant Type` (for a pair only), and the masked `API Key`. With `--format json`, these are `key_type`, `graph_id`, `graph_title`, `user_id`, `origin`, `grant_type`, and `api_key`.
+
+Whenever Rover authenticated with an OAuth credential, whether from a login or by exchanging a client-credential pair, the output includes a `Grant Type` row:
 
 - `Browser login`: you logged in with `rover auth login`.
 - `Device code (--no-browser)`: you logged in with `rover auth login --no-browser`.
@@ -60,6 +87,22 @@ The `auth logout` command revokes the current profile's OAuth tokens with GraphO
 ```
 rover auth logout
 ```
+
+Revocation is best effort. If GraphOS can't be reached or rejects the request, Rover warns you and still removes the local credential:
+
+```
+warning: failed to revoke a token with the OAuth server: <ERROR>. Continuing to remove it locally.
+```
+
+Rover then prints `Successfully logged out of profile "<NAME>".`
+
+`auth logout` only works on a profile you logged in to with `rover auth login`. On a profile that holds a personal API key, it changes nothing and fails:
+
+```
+error: profile "<NAME>" isn't logged in via `rover auth login`
+```
+
+To remove a personal API key, delete the profile with `rover config delete <NAME>`.
 
 ## Revoking a user's grants
 
