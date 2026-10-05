@@ -50,6 +50,15 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
             };
         }
 
+        if crate::federation::is_federation_one_unsupported(error) {
+            return RoverErrorMetadata {
+                json_version: JsonVersion::default(),
+                suggestions: vec![],
+                code: Some(RoverErrorCode::E064),
+                skip_printing_cause: false,
+            };
+        }
+
         if let Some(revoke_error) =
             error.downcast_ref::<crate::command::auth::grants::revoke::error::GrantsRevokeError>()
         {

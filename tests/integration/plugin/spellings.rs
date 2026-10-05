@@ -146,3 +146,34 @@ fn help(#[case] command: &[&str]) {
         assert_snapshot!(own);
     });
 }
+
+/// Federation 1 is refused with its own error code, so a script can match on it, whichever
+/// spelling asks for it and whichever command carries the request.
+#[rstest]
+#[case::plugin_install_bare(&["plugin", "install", "supergraph@1"])]
+#[case::plugin_install_latest(&["plugin", "install", "supergraph@latest-1"])]
+#[case::plugin_install_exact(&["plugin", "install", "supergraph@=0.36.0"])]
+#[case::deprecated_alias(&["install", "--plugin", "supergraph@latest-0"])]
+fn federation_one_is_refused_with_an_error_code(#[case] args: &[&str]) {
+    let output = Command::cargo_bin("rover")
+        .unwrap()
+        .args(args)
+        .args([
+            "--skip-update-check",
+            "--telemetry-disabled",
+            "--format",
+            "json",
+        ])
+        .env("NO_COLOR", "1")
+        .output()
+        .unwrap();
+
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|err| {
+        panic!(
+            "stdout isn't JSON ({err})\nstderr: {}",
+            String::from_utf8_lossy(&output.stderr)
+        )
+    });
+    assert_that!(output.status.success()).is_false();
+    assert_that!(json["error"]["code"].as_str()).is_equal_to(Some("E064"));
+}

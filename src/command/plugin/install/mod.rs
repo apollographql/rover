@@ -86,6 +86,9 @@ impl PluginInstall {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
     ) -> RoverResult<RoverOutput> {
+        if let Some(plugin) = &self.plugin {
+            plugin.reject_unsupported()?;
+        }
         let project_manifest = self.project_manifest(override_install_path.as_deref())?;
         let make_installer = || -> RoverResult<Installer> {
             let mut rover_installer =
