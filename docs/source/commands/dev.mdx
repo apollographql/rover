@@ -49,9 +49,16 @@ Here's an example `rover dev` command that points to a locally running subgraph 
 rover dev --name products --schema ./products.graphql --url http://localhost:4000
 ```
 
+This works with no GraphOS credentials at all: composing and running a local router session against local or directly reachable subgraphs never requires a graph API key, a graph ref, or an offline license.
+
 <Note>
 
-To use [GraphOS Router features](/graphos/routing/graphos-features#graphos-router-features) or the `@connect` directive in your schema, provide the `APOLLO_KEY` and `APOLLO_GRAPH_REF` environment variables.
+Credentials are only needed to *opt in* to additional functionality: [GraphOS Router features](/graphos/routing/graphos-features#graphos-router-features) or the `@connect` directive in your schema. You can unlock these independently via any one of:
+
+- A [graph API key](/graphos/platform/access-management/api-keys/graph-api-keys) and graph ref, via the `APOLLO_KEY`/`APOLLO_GRAPH_REF` environment variables or the `--graph-ref` option
+- An [offline enterprise license](/router/enterprise-features/#offline-enterprise-license) file, via `--license <path>`
+
+See [GraphOS Router features](#graphos-router-features) below for details.
 
 </Note>
 
@@ -199,10 +206,12 @@ To configure advanced router functionality like CORS settings or header passthro
 
 ### GraphOS Router features
 
-If you want to use [GraphOS Router features](/graphos/routing/graphos-features#graphos-router-features), you must provide both:
+None of the following are required to run `rover dev` against local or directly reachable subgraphs. They're independent, opt-in ways to unlock [GraphOS Router features](/graphos/routing/graphos-features#graphos-router-features) and the `@connect` directive:
 
-1. A [graph API key](/graphos/platform/access-management/api-keys/graph-api-keys) either via the `APOLLO_KEY` environment variable or by [configuring credentials](./config#creating-configuration-profiles) in Rover
-1. A graph ref either via the `APOLLO_GRAPH_REF` environment variable or the `--graph-ref` option. Learn about the difference between these in the section below
+1. A [graph API key](/graphos/platform/access-management/api-keys/graph-api-keys) **and** a graph ref, provided together either via the `APOLLO_KEY`/`APOLLO_GRAPH_REF` environment variables or by [configuring credentials](./config#creating-configuration-profiles) in Rover plus the `--graph-ref` option. Learn about the difference between the environment variable and the option in the section below.
+1. An [offline enterprise license](/router/enterprise-features/#offline-enterprise-license) file, passed via `--license <path>`. This works entirely offline: no GraphOS credentials or network calls are required, and it can be combined with either of the credential sources above (the offline license takes priority for entitlement in that case).
+
+If none of these are supplied, `rover dev` still runs and composes normally — GraphOS Router features and `@connect` are just unavailable, and `rover dev` prints a one-time notice confirming this at startup.
 
 #### Understanding `APOLLO_GRAPH_REF` vs `--graph-ref` 
 
