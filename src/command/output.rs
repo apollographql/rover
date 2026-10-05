@@ -513,9 +513,16 @@ impl RoverOutput {
                 serde_json::to_string_pretty(introspection_response).map_err(io::Error::other)?,
             ),
             RoverOutput::ErrorExplanation(explanation) => {
-                // underline bolded md
-                let mut skin = MadSkin::default();
-                skin.bold.add_attr(Underlined);
+                // underline bolded md, unless color is off: a skin's styling
+                // is ANSI escapes, which `NO_COLOR`/`--no-color` and a piped
+                // stdout all ask us not to write
+                let skin = if rover_std::is_no_color_set() {
+                    MadSkin::no_style()
+                } else {
+                    let mut skin = MadSkin::default();
+                    skin.bold.add_attr(Underlined);
+                    skin
+                };
 
                 Some(format!("{}", skin.inline(explanation)))
             }

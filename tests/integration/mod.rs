@@ -6,6 +6,7 @@ mod config;
 #[cfg(feature = "composition-js")]
 mod connector;
 mod dev;
+mod explain;
 mod graph;
 mod help;
 mod info;
