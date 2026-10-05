@@ -1,0 +1,16 @@
+---
+source: src/command/auth/grants/revoke/output.rs
+expression: "JsonOutput::from(&output)"
+---
+{
+  "json_version": "1",
+  "data": {
+    "organization_id": "acme",
+    "user_id": "user-123",
+    "user_is_member": true,
+    "clients": [],
+    "cancelled": true,
+    "success": true
+  },
+  "error": null
+}

@@ -1,0 +1,14 @@
+---
+source: tests/integration/api_key/pairs.rs
+expression: failed_envelope(&output)
+---
+{
+  "json_version": "1",
+  "data": {
+    "success": false
+  },
+  "error": {
+    "message": "keys are unavailable",
+    "code": null
+  }
+}

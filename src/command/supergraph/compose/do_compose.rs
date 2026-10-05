@@ -13,6 +13,7 @@ use crate::{
     command::supergraph::compose::output::ComposeOutput,
     composition::{CompositionError, get_supergraph_binary},
     options::{PluginOpts, ProfileOpt},
+    plugin::error::RequestOrigin,
     utils::{
         client::StudioClientConfig,
         effect::{
@@ -63,6 +64,17 @@ pub struct SupergraphComposeOpts {
     pub federation_version: Option<FederationVersion>,
 }
 
+impl SupergraphComposeOpts {
+    /// The `supergraph` version this command was given, and where. The
+    /// precedence it then takes its place in is shared with every other
+    /// plugin-using command.
+    fn federation_version_override(&self) -> Option<(FederationVersion, RequestOrigin)> {
+        self.federation_version
+            .clone()
+            .map(|version| (version, RequestOrigin::Flag("--federation-version")))
+    }
+}
+
 impl Compose {
     pub async fn run(
         &self,
@@ -76,7 +88,7 @@ impl Compose {
         let exec_command_impl = TokioCommand::default();
 
         let composition_pipeline = get_supergraph_binary(
-            self.opts.federation_version.clone(),
+            self.opts.federation_version_override(),
             client_config,
             override_install_path,
             profile.clone(),

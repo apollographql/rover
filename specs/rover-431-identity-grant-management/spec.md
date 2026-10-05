@@ -194,7 +194,7 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
   - `null`, when the invocation authenticated with an API key and so has no grant.
 - **FR34**: Text output gains a `Grant Type` row, labeled `Browser login`, `Device code (--no-browser)`, `Client credentials`, or `Unknown — log in again to record it`. The row is omitted when `grant_type` is `null`.
 - **FR35**: `rover auth login` must record which grant type it established, in both its browser and `--no-browser` forms.
-- **FR36**: A credential stored by this version of Rover must remain usable by earlier versions of Rover that support OAuth login. Recording the grant type must not make a shared configuration directory unreadable to the older version.
+- **FR36**: A credential stored by this version of Rover must remain usable by earlier versions of Rover that support OAuth login. Recording the grant type must not make a shared configuration directory unreadable to the older version. No released version of Rover includes OAuth login yet, so no earlier reader exists today. Until one does, the requirement applies in this form: a stored credential that records a grant type must remain readable by a reader that doesn't know the grant type exists.
 
 ### 3.7 Listing grants (B2.1, B2.2, B2.4, B3.1, B3.7)
 
@@ -289,7 +289,7 @@ Single-grant revoke — PRD B2.3 (self-service) and B3.2 (any member's, by an ad
   Required text:
   > Revoking every grant for `user-123` needs confirmation, and there's no terminal to ask on. Pass `--confirm` to proceed without a prompt.
 
-- **FR60**: If `<USER_ID>` does not name a current member of the organization, Rover must print a warning to stderr and proceed, including in the prompt. A departing user is often removed from the organization before their grants are swept, and the sweep must still work for them.
+- **FR60**: If `<USER_ID>` does not name a current member of the organization, Rover must print a warning to stderr and proceed, including in the prompt. A departing user is often removed from the organization before their grants are swept, and the sweep must still work for them. If Rover can't determine whether the user is a member (the Platform API reports no member list, or the membership lookup fails), it must print no warning and proceed: membership decides only the warning, and the sweep must not depend on it.
 
   Required text:
   > Warning: `user-123` isn't a current member of organization `acme`. Rover will still revoke any grants they hold under the clients below.
@@ -334,7 +334,7 @@ Single-grant revoke — PRD B2.3 (self-service) and B3.2 (any member's, by an ad
   }
   ```
 
-  `outcome` is `"revoked"` or `"failed"`. `kind` is `"rover"` for Rover's OAuth client and `"client_credentials"` for a pair; `client_id` for Rover's OAuth client is the effective `APOLLO_OAUTH_CLIENT_ID`. `data` carries every client on both success and partial failure, so a runbook can read which clients to retry without parsing `error.message`. A declined prompt produces `"success": true`, `"clients": []`, and `"cancelled": true`. `cancelled` is present and `false` on every other outcome, so a consumer can tell "declined" apart from "swept, and the organization already had zero grants" without relying on an empty array.
+  `outcome` is `"revoked"` or `"failed"`. `kind` is `"rover"` for Rover's OAuth client and `"client_credentials"` for a pair; `client_id` for Rover's OAuth client is the effective `APOLLO_OAUTH_CLIENT_ID`. `data` carries every client on both success and partial failure, so a runbook can read which clients to retry without parsing `error.message`. A declined prompt produces `"success": true`, `"clients": []`, and `"cancelled": true`. `cancelled` is present and `false` on every other outcome, so a consumer can tell "declined" apart from "swept, and the organization already had zero grants" without relying on an empty array. `user_is_member` is `null` when Rover couldn't determine membership (FR60).
 ### 3.9 Secrets and logging (PRD §8.2)
 
 - **FR69**: A secret may be printed only in the output of the create or rotate call that minted it. It must never appear in debug or trace logging at any level, in telemetry, in an error message, or in the output of any other command.
@@ -553,4 +553,4 @@ This contract cannot be verified by unit tests alone. The following must be clos
 - **Per-client failure injection for the sweep.** FR61–FR64 require a fixture in which revocation fails under one client and succeeds under the rest, and in which enumeration fails partway through (FR56), so that "attempts every client," "exits non-zero," "names the failures," and "revokes nothing if enumeration fails" are each observable.
 - **Pair-listing failure injection for `list`.** FR16 needs a fixture where the pairs query genuinely fails (exit non-zero, `error` populated, `data.keys` still populated best-effort), distinguishable from a fixture where the API-key query itself fails instead (FR10, no output at all). No fixture is needed for "permission denied" as a distinct case — it isn't one; an empty, successful pairs result already covers every reason a caller might see no pairs (FR16).
 - **Non-terminal stdin.** FR59 needs a test that runs the sweep with stdin redirected and no `--confirm`, on every supported platform, because what counts as a terminal differs between Unix and Windows.
-- **Cross-version credential compatibility.** FR36 needs a test that writes a credential with this version of Rover and reads it with the most recent release that did not record grant type.
+- **Cross-version credential compatibility.** FR36 needs a test that writes a credential with this version of Rover and reads it with the most recent release that did not record grant type. No released version of Rover includes OAuth login, so no such release exists to test against (FR36). Until one does, a test that a credential recording a grant type is readable without knowledge of it stands in. Once a release ships OAuth login, later versions must be tested against that release.

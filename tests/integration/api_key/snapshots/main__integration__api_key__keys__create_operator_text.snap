@@ -1,0 +1,16 @@
+---
+source: tests/integration/api_key/keys.rs
+expression: "format!(\"--- stdout ---\\n{stdout}\\n--- stderr ---\\n{stderr}\")"
+---
+--- stdout ---
+┌──────────┬───────────────────────────────────┐
+│ ID       ┆ key-operator-2                    │
+├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Name     ┆ router-staging                    │
+├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Key Type ┆ Operator                          │
+├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ API Key  ┆ service:acme:a-new-operator-token │
+└──────────┴───────────────────────────────────┘
+
+--- stderr ---

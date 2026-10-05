@@ -34,13 +34,22 @@ use super::{
     },
 };
 use crate::{
+    command::install::{Plugin, federation_version},
     composition::supergraph::config::{
         full::FullyResolvedSupergraphConfig, lazy::LazilyResolvedSupergraphConfig,
     },
     config::SupergraphConfigYaml,
     federation::{FederationOneUnsupported, reject_federation_one},
     options::LicenseAccepter,
-    plugin::error::RequestOrigin,
+    plugin::{
+        discovery::ManifestDirs,
+        error::{PluginFailure, RequestOrigin},
+        layering::LayeredDeclarations,
+        precedence::{
+            self, ManifestOverridden, PluginRequest, RequestInputs, declarations_in_scope,
+        },
+        version::PluginName,
+    },
     utils::{
         client::StudioClientConfig,
         effect::{
@@ -75,6 +84,8 @@ pub enum CompositionPipelineError {
     ResolveSubgraphFromPrompt(ResolveSubgraphError),
     #[error(transparent)]
     FederationOneUnsupported(#[from] FederationOneUnsupported),
+    #[error("Couldn't decide which `supergraph` plugin version to use")]
+    Plugin(#[source] Box<PluginFailure>),
 }
 
 pub struct CompositionPipeline<State> {
@@ -160,8 +171,15 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
         resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
         fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
         passed_in_fed_version: Option<(FederationVersion, RequestOrigin)>,
+        plugin_levels: &ManifestDirs,
         warn_on_floating_version: bool,
     ) -> Result<CompositionPipeline<state::InstallSupergraph>, CompositionPipelineError> {
+        // Before anything reaches the network: a manifest that can't be used,
+        // or a lockfile that no longer records it, fails the command whatever
+        // its version ends up being taken from.
+        let declarations =
+            declarations_in_scope(plugin_levels).map_err(CompositionPipelineError::Plugin)?;
+
         // Reject an explicit Federation 1 pin (from the CLI flag, or from `supergraph.yaml`)
         // up front, before subgraph resolution runs. A Fed-1-pin-vs-Fed-2-subgraph mismatch
         // coming out of `fully_resolve_subgraphs` below is caught and defaulted to Fed 2 (see
@@ -175,7 +193,7 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
             reject_federation_one(&user_specified_fed_version)?;
         }
 
-        let (resolved_federation_version, config_path) = match self
+        let resolved = self
             .state
             .resolver
             .fully_resolve_subgraphs(
@@ -183,33 +201,35 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
                 fetch_remote_subgraph_factory.clone(),
                 &self.state.supergraph_root,
             )
-            .await
-        {
-            Ok((fully_resolved_supergraph_config, _)) => (
-                fully_resolved_supergraph_config.federation_version,
-                fully_resolved_supergraph_config.origin_path,
-            ),
-            Err(err) => {
-                warn!(
-                    "Could not fully resolve SupergraphConfig to discover Federation Version: {err}"
-                );
-                warn!("Defaulting to Federation Version: {LatestFedTwo}");
-                warnln!("Federation Version could not be detected, defaulting to: {LatestFedTwo}");
-                (LatestFedTwo, None)
-            }
-        };
+            .await;
+        if let Err(err) = &resolved {
+            warn!("Could not fully resolve SupergraphConfig to discover Federation Version: {err}");
+        }
+        let (from_config, config_path) =
+            config_pin(self.state.resolver.target_federation_version(), &resolved);
 
-        let (federation_version, federation_version_origin) = version_and_origin(
+        let request = supergraph_request(
             passed_in_fed_version,
-            resolved_federation_version,
+            from_config,
             config_path,
+            plugin_levels,
+            &declarations,
+        )
+        .map_err(CompositionPipelineError::Plugin)?;
+        if resolved.is_err() {
+            warnln!("{}", undetected(&request));
+        }
+        ManifestOverridden::process().warn_once(
+            &rover_print::print::stderr::default(),
+            &request,
+            &declarations,
         );
+        let federation_version =
+            federation_version(&request.request).map_err(CompositionPipelineError::Plugin)?;
+        let federation_version_origin = request.origin();
 
-        // Backstop, not currently reachable: `federation_version` here is always Fed 2 already --
-        // either it's `passed_in_fed_version` (already rejected above) or
-        // `resolved_federation_version`, which `FederationVersionResolver::resolve` can only
-        // produce as the user's pin (also already rejected above) or `LatestFedTwo`. Kept as a
-        // guard against a future change to the resolution path silently reopening this gap.
+        // A flag or `supergraph.yaml` asking for Federation 1 was refused above;
+        // a manifest asking for it is refused here.
         reject_federation_one(&federation_version)?;
 
         // Nudge users to pin an exact federation version. Composing against a
@@ -238,28 +258,55 @@ impl CompositionPipeline<state::ResolveFederationVersion> {
                 federation_version,
                 federation_version_origin,
                 resolve_introspect_subgraph_factory,
+                manifest_declarations: declarations,
             },
         })
     }
 }
 
-/// The version to compose with, and where it came from. Only an exact
-/// version can turn out to have been withdrawn, and one that didn't come from
-/// an override came from the supergraph config at `config_path`.
-fn version_and_origin(
-    passed_in: Option<(FederationVersion, RequestOrigin)>,
-    resolved: FederationVersion,
-    config_path: Option<Utf8PathBuf>,
-) -> (FederationVersion, Option<RequestOrigin>) {
-    match passed_in {
-        Some((version, origin)) => (version, Some(origin)),
-        None => {
-            let origin = resolved
-                .get_exact()
-                .map(|_| RequestOrigin::SupergraphConfig(config_path));
-            (resolved, origin)
-        }
+/// What `supergraph.yaml` asks for, `pinned`, and the file it was read from,
+/// given how resolving its subgraphs went. The pin stands whether or not they
+/// resolved: failing to check it against the subgraphs is no reason to let a
+/// manifest or the default take its place.
+fn config_pin<T, E>(
+    pinned: Option<FederationVersion>,
+    resolved: &Result<(FullyResolvedSupergraphConfig, T), E>,
+) -> (Option<FederationVersion>, Option<Utf8PathBuf>) {
+    let path = resolved
+        .as_ref()
+        .ok()
+        .and_then(|(config, _)| config.origin_path.clone());
+    (pinned, path)
+}
+
+/// What to say when the subgraphs couldn't be resolved to detect the
+/// Federation version from, naming where the version used instead came from.
+fn undetected(request: &PluginRequest) -> String {
+    match request.origin() {
+        None => format!("Federation Version could not be detected, defaulting to: {LatestFedTwo}"),
+        Some(origin) => format!(
+            "Federation Version could not be detected from the subgraphs, so using {}, {origin}.",
+            request.request
+        ),
     }
+}
+
+/// The `supergraph` request to compose with: `passed_in` from a flag or its
+/// environment variable, then `from_config` from the supergraph config at
+/// `config_path`, then the manifests, then the newest Federation 2 release.
+fn supergraph_request(
+    passed_in: Option<(FederationVersion, RequestOrigin)>,
+    from_config: Option<FederationVersion>,
+    config_path: Option<Utf8PathBuf>,
+    plugin_levels: &ManifestDirs,
+    declarations: &LayeredDeclarations,
+) -> Result<PluginRequest, Box<PluginFailure>> {
+    let as_request = |version| Plugin::Supergraph(version).request();
+    let inputs = RequestInputs::new(as_request(LatestFedTwo))
+        .with_override(passed_in.map(|(version, origin)| (as_request(version), origin)))
+        .with_supergraph_config(from_config.map(as_request), config_path);
+
+    precedence::request(PluginName::Supergraph, inputs, plugin_levels, declarations)
 }
 
 impl CompositionPipeline<state::InstallSupergraph> {
@@ -283,6 +330,7 @@ impl CompositionPipeline<state::InstallSupergraph> {
                 supergraph_binary,
                 resolve_introspect_subgraph_factory: self.state.resolve_introspect_subgraph_factory,
                 fetch_remote_subgraph_factory: self.state.fetch_remote_subgraph_factory,
+                manifest_declarations: self.state.manifest_declarations,
             },
         })
     }
@@ -423,6 +471,7 @@ impl CompositionPipeline<state::Run> {
                 output_dir,
                 compose_on_initialisation,
                 federation_updater_config,
+                self.state.manifest_declarations.clone(),
             );
         Ok(runner)
     }
@@ -491,7 +540,7 @@ pub(crate) mod state {
             },
             install::InstallSupergraphError,
         },
-        plugin::error::RequestOrigin,
+        plugin::{error::RequestOrigin, layering::LayeredDeclarations},
         utils::parsers::FileDescriptorType,
     };
 
@@ -508,6 +557,9 @@ pub(crate) mod state {
         pub federation_version_origin: Option<RequestOrigin>,
         pub resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
         pub fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
+        /// The manifests' declarations, which a mid-session change to
+        /// `supergraph.yaml` is weighed against.
+        pub manifest_declarations: LayeredDeclarations,
     }
     pub struct Run {
         pub resolver: InitializedSupergraphConfigResolver,
@@ -515,6 +567,7 @@ pub(crate) mod state {
         pub supergraph_binary: Result<SupergraphBinary, InstallSupergraphError>,
         pub resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
         pub fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
+        pub manifest_declarations: LayeredDeclarations,
     }
 }
 
@@ -528,30 +581,128 @@ mod tests {
     use super::*;
     use crate::composition::supergraph::config::scenario::fed_one_pin_with_fed_two_subgraph_resolver;
 
+    fn exact(minor: u64) -> FederationVersion {
+        FederationVersion::ExactFedTwo(semver::Version::new(2, minor, 3))
+    }
+
+    const FLAG: RequestOrigin = RequestOrigin::Flag("--federation-version");
+    const ENV: RequestOrigin = RequestOrigin::EnvVar("APOLLO_ROVER_DEV_COMPOSITION_VERSION");
+    const PINNED: &str = "plugins:\n  supergraph: \"=2.8.3\"\n";
+    const FLOATING: &str = "plugins:\n  supergraph: \"2\"\n";
+
+    /// Each of the places composition takes its version from, against a
+    /// project whose manifest declares `manifest`, with a lockfile pinning
+    /// `supergraph` at 2.5.3 beside it.
     #[rstest::rstest]
-    #[case::an_override(
-        Some((FederationVersion::ExactFedTwo(semver::Version::new(2, 9, 3)), RequestOrigin::Flag("--federation-version"))),
-        FederationVersion::ExactFedTwo(semver::Version::new(2, 8, 0)),
-        (FederationVersion::ExactFedTwo(semver::Version::new(2, 9, 3)), Some(RequestOrigin::Flag("--federation-version")))
-    )]
-    #[case::an_exact_pin_in_the_config(
+    #[case::a_flag(Some((exact(9), FLAG)), Some(exact(7)), PINNED, (exact(9), Some(FLAG)))]
+    #[case::its_variable(Some((exact(9), ENV)), Some(exact(7)), PINNED, (exact(9), Some(ENV)))]
+    #[case::the_config(
         None,
-        FederationVersion::ExactFedTwo(semver::Version::new(2, 8, 0)),
-        (FederationVersion::ExactFedTwo(semver::Version::new(2, 8, 0)), Some(RequestOrigin::SupergraphConfig(Some(Utf8PathBuf::from("graphs/prod.yaml")))))
+        Some(exact(7)),
+        PINNED,
+        (exact(7), Some(RequestOrigin::SupergraphConfig(Some("graphs/prod.yaml".into()))))
     )]
-    #[case::a_floating_version(
+    #[case::the_manifest(None, None, PINNED, (exact(8), Some(RequestOrigin::Manifest)))]
+    #[case::the_manifest_pinned_by_its_lockfile(
         None,
-        FederationVersion::LatestFedTwo,
-        (FederationVersion::LatestFedTwo, None)
+        None,
+        FLOATING,
+        (exact(5), Some(RequestOrigin::Lockfile))
     )]
+    #[case::the_default(None, None, "", (LatestFedTwo, None))]
     fn the_version_names_where_it_came_from(
         #[case] passed_in: Option<(FederationVersion, RequestOrigin)>,
-        #[case] resolved: FederationVersion,
+        #[case] from_config: Option<FederationVersion>,
+        #[case] manifest: &str,
         #[case] expected: (FederationVersion, Option<RequestOrigin>),
     ) {
-        let config_path = Some(Utf8PathBuf::from("graphs/prod.yaml"));
+        let temp = tempfile::tempdir().unwrap();
+        let project = Utf8PathBuf::try_from(temp.path().to_path_buf()).unwrap();
+        std::fs::write(project.join("rover.yaml"), manifest).unwrap();
+        std::fs::write(
+            project.join("plugin-versions.lock"),
+            "version = 1\n\n[[plugins]]\nname = \"supergraph\"\nrequested = \"2\"\nresolved = \"2.5.3\"\n",
+        )
+        .unwrap();
+        let levels = ManifestDirs {
+            global: None,
+            project: Some(project),
+        };
+        let declarations = LayeredDeclarations::load(&levels).unwrap();
 
-        assert_that!(version_and_origin(passed_in, resolved, config_path)).is_equal_to(expected);
+        let request = supergraph_request(
+            passed_in,
+            from_config,
+            Some("graphs/prod.yaml".into()),
+            &levels,
+            &declarations,
+        )
+        .unwrap();
+
+        assert_that!((
+            federation_version(&request.request).unwrap(),
+            request.origin()
+        ))
+        .is_equal_to(expected);
+    }
+
+    /// A pin in `supergraph.yaml` stands even when the subgraphs can't be
+    /// resolved, rather than falling through to a manifest or the default.
+    #[rstest::rstest]
+    #[case::resolved(Ok::<_, ()>((
+        FullyResolvedSupergraphConfig::builder()
+            .subgraphs(BTreeMap::new())
+            .federation_version(exact(7))
+            .origin_path(Utf8PathBuf::from("graphs/prod.yaml"))
+            .build(),
+        (),
+    )), Some(Utf8PathBuf::from("graphs/prod.yaml")))]
+    #[case::unresolved(Err(()), None)]
+    fn a_pin_stands_however_its_subgraphs_resolve(
+        #[case] resolved: Result<(FullyResolvedSupergraphConfig, ()), ()>,
+        #[case] path: Option<Utf8PathBuf>,
+    ) {
+        assert_that!(config_pin(Some(exact(7)), &resolved)).is_equal_to((Some(exact(7)), path));
+    }
+
+    #[rstest::rstest]
+    #[case::the_default(None, "Federation Version could not be detected, defaulting to: 2")]
+    #[case::a_manifest(
+        Some(RequestOrigin::Manifest),
+        "Federation Version could not be detected from the subgraphs, so using =2.8.3, declared \
+         in `rover.yaml`."
+    )]
+    #[case::supergraph_yaml(
+        Some(RequestOrigin::SupergraphConfig(None)),
+        "Federation Version could not be detected from the subgraphs, so using =2.8.3, set by \
+         `federation_version` in the supergraph config."
+    )]
+    fn an_undetected_version_says_where_the_one_used_came_from(
+        #[case] origin: Option<RequestOrigin>,
+        #[case] expected: &str,
+    ) {
+        use crate::plugin::{
+            layering::DeclarationLevel, precedence::RequestSource, version::VersionRequest,
+        };
+
+        let (request, source) = match origin {
+            None => (VersionRequest::Major(2), RequestSource::Default),
+            Some(RequestOrigin::Manifest) => (
+                VersionRequest::Exact(semver::Version::new(2, 8, 3)),
+                RequestSource::Manifest(DeclarationLevel::Project),
+            ),
+            Some(_) => (
+                VersionRequest::Exact(semver::Version::new(2, 8, 3)),
+                RequestSource::SupergraphConfig(None),
+            ),
+        };
+        let request = PluginRequest {
+            plugin: PluginName::Supergraph,
+            request,
+            source,
+        };
+
+        assert_that!(undetected(&request)).is_equal_to(expected.to_string());
     }
 
     #[test]
@@ -692,6 +843,10 @@ mod tests {
                 resolve_introspect_subgraph_factory,
                 fetch_remote_subgraph_factory,
                 None,
+                &ManifestDirs {
+                    global: None,
+                    project: None,
+                },
                 false,
             )
             .await;

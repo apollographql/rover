@@ -1,0 +1,8 @@
+---
+source: tests/integration/config/mod.rs
+expression: "json[\"error\"]"
+---
+{
+  "message": "`rover.yaml` sets `APOLLO_KEY` under `settings:`. Credentials can't be stored in a project file. Run `rover config auth`, or set `APOLLO_KEY` in the environment.",
+  "code": "E060"
+}

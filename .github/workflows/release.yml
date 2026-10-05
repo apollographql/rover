@@ -126,8 +126,11 @@ jobs:
           # The action defaults RUSTFLAGS to `-D warnings`, which is great for
           # the `checks.yml` CI but wrong for releases: configurations that
           # disable features (e.g. musl with --no-default-features) surface
-          # dead-code warnings that aren't release blockers.
+          # dead-code warnings that aren't release blockers. Since v2 the action
+          # also denies warnings through `CARGO_BUILD_WARNINGS`, so that needs
+          # switching off too.
           rustflags: ""
+          build-warnings: warn
 
       - name: Build and package (macOS)
         if: runner.os == 'macOS'
@@ -219,7 +222,7 @@ jobs:
           name: artifacts-${{ matrix.build_platform }}
           path: artifacts
 
-      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5.0.1
+      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
 
       - name: Resolve release parameters
         id: params
@@ -272,7 +275,7 @@ jobs:
           pattern: artifacts-*
           merge-multiple: true
 
-      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5.0.1
+      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
 
       - name: Resolve release parameters
         id: params

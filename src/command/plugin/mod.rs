@@ -49,6 +49,18 @@ impl Plugins {
     }
 }
 
+impl Plugins {
+    /// The project manifest this invocation names with `--manifest-path`, made
+    /// absolute, if any - the one manifest every section of it is read from
+    /// (FR78 of the profile-configuration spec), not only the plugin
+    /// declarations.
+    pub(crate) fn named_manifest(&self) -> Option<RoverResult<Utf8PathBuf>> {
+        match &self.command {
+            Command::Install(command) => command.named_manifest(),
+        }
+    }
+}
+
 #[cfg(test)]
 impl Plugins {
     /// The `install` verb this parsed to, for tests comparing the two spellings.

@@ -27,7 +27,7 @@ mod plugin;
 pub(crate) use plugin::PluginLevel;
 pub(crate) use plugin::{
     McpServerVersion, Plugin, PluginInstaller, PluginProvenance, PluginProvenanceTracker,
-    PluginSource,
+    PluginSource, federation_version,
 };
 
 #[derive(Debug, Serialize, Parser)]
@@ -51,8 +51,8 @@ impl Install {
         client_config: StudioClientConfig,
         stderr: &P,
     ) -> RoverResult<RoverOutput> {
-        if let Some(plugin_install) = self.as_plugin_install() {
-            stderr.warnln(DeprecatedAlias(&plugin_install.plugin));
+        if let (Some(plugin), Some(plugin_install)) = (&self.plugin, self.as_plugin_install()) {
+            stderr.warnln(DeprecatedAlias(plugin));
             return plugin_install
                 .run(override_install_path, client_config)
                 .await;
@@ -116,7 +116,7 @@ impl Install {
     /// `rover install --plugin` as the `rover plugin install` it stands in for.
     fn as_plugin_install(&self) -> Option<PluginInstall> {
         self.plugin.as_ref().map(|plugin| PluginInstall {
-            plugin: plugin.clone(),
+            plugin: Some(plugin.clone()),
             force: self.force,
             // The alias is deprecated, so it gains no new flags; the
             // environment variable still applies to it, through the verb.
@@ -138,9 +138,12 @@ impl Install {
         // `--skip-update`, or `APOLLO_ROVER_SKIP_UPDATE`, means every command that
         // installs a plugin on the fly (compose, dev, lsp) uses an installed
         // plugin and never reaches for the registry, failing by name when none
-        // is installed. The explicit `rover plugin install` doesn't go through
-        // here, so neither stops it downloading. See #1892.
-        let downloads_disabled_by = skip_update_control(skip_update);
+        // is installed. So does having nothing opt in to automatic downloads,
+        // as `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` resolved into the client
+        // config. The explicit `rover plugin install` doesn't go through here,
+        // so none of them stops it downloading. See #1892.
+        let downloads_disabled_by =
+            on_the_fly_control(skip_update, client_config.allow_automatic_download());
         // A plugin installed in the project in scope is used before a global
         // one (FR26). Anything downloaded still goes to the global level.
         let project = project_in_scope(ManifestDirs::for_this_process(
@@ -148,16 +151,22 @@ impl Install {
         ));
         let rover_installer = installer(PKG_NAME, self.force, override_install_path)?;
         if let Some(plugin) = &self.plugin {
-            let mut installer = PluginInstaller::new(client_config, rover_installer, self.force);
+            let mut installer =
+                PluginInstaller::new(client_config.clone(), rover_installer, self.force);
             if let Some(project) = project {
                 installer =
                     installer.also_looking_in(plugin::PluginLevel::Project, project.join("bin"));
             }
-            installer
+            let provenance = installer
                 .requested_by(origin)
                 .without_downloads(downloads_disabled_by)
                 .install(plugin)
-                .await
+                .await?;
+            // Only a download the opt-in let through uses it (FR60).
+            if provenance.source == PluginSource::Downloaded {
+                client_config.print_automatic_download_notice_once();
+            }
+            Ok(provenance)
         } else {
             let mut err =
                 RoverError::new(anyhow!("Could not find a plugin to get a version from."));
@@ -196,6 +205,21 @@ fn skip_update_control(flag: bool) -> Option<DownloadControl> {
     }
 }
 
+/// What forbids a command installing a plugin on the fly from downloading
+/// it, if anything does: `--skip-update` as [`skip_update_control`] spells
+/// it, or failing that, nothing having opted in to automatic downloads.
+///
+/// The per-invocation control comes first. A standing opt-in may permit a
+/// download, but never one a run was told not to make.
+#[cfg(feature = "composition-js")]
+fn on_the_fly_control(
+    skip_update: bool,
+    allow_automatic_download: bool,
+) -> Option<DownloadControl> {
+    skip_update_control(skip_update)
+        .or_else(|| (!allow_automatic_download).then_some(DownloadControl::NotOptedIn))
+}
+
 /// The binstall installer that Rover and its plugins are installed through.
 pub(crate) fn installer(
     binary_name: &str,
@@ -224,7 +248,7 @@ mod tests {
 
     use super::{DeprecatedAlias, Install};
     #[cfg(feature = "composition-js")]
-    use super::{DownloadControl, skip_update_control};
+    use super::{DownloadControl, on_the_fly_control, skip_update_control};
     use crate::command::Plugins;
 
     #[cfg(feature = "composition-js")]
@@ -252,6 +276,45 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "composition-js")]
+    #[rstest]
+    #[case::not_opted_in(false, Some(DownloadControl::NotOptedIn))]
+    #[case::opted_in(true, None)]
+    fn without_skip_update_downloading_waits_on_the_opt_in(
+        #[case] allow_automatic_download: bool,
+        #[case] expected: Option<DownloadControl>,
+    ) {
+        temp_env::with_var(crate::utils::SKIP_UPDATE_ENV, None::<&str>, || {
+            assert_that!(on_the_fly_control(false, allow_automatic_download)).is_equal_to(expected);
+        });
+    }
+
+    /// A standing opt-in may permit a download, but never one a run was told
+    /// not to make; and with no opt-in either, the control the user spelled
+    /// is the one named.
+    #[cfg(feature = "composition-js")]
+    #[rstest]
+    #[case::the_flag_over_an_opt_in(true, None, true, DownloadControl::SkipUpdateFlag)]
+    #[case::the_variable_over_an_opt_in(
+        false,
+        Some("true"),
+        true,
+        DownloadControl::SkipUpdateEnvVar
+    )]
+    #[case::the_flag_over_no_opt_in(true, None, false, DownloadControl::SkipUpdateFlag)]
+    #[case::the_variable_over_no_opt_in(false, Some("1"), false, DownloadControl::SkipUpdateEnvVar)]
+    fn skip_update_outranks_the_standing_opt_in(
+        #[case] flag: bool,
+        #[case] variable: Option<&str>,
+        #[case] allow_automatic_download: bool,
+        #[case] expected: DownloadControl,
+    ) {
+        temp_env::with_var(crate::utils::SKIP_UPDATE_ENV, variable, || {
+            assert_that!(on_the_fly_control(flag, allow_automatic_download))
+                .is_equal_to(Some(expected));
+        });
+    }
+
     #[rstest]
     #[case::plain(&["supergraph@=2.9.3"])]
     #[case::forced(&["router@2", "--force"])]
@@ -273,7 +336,7 @@ mod tests {
     #[case::legacy_spelling("supergraph@latest-2", "supergraph@2")]
     fn the_alias_names_its_replacement(#[case] request: &str, #[case] replacement: &str) {
         let install = Install::try_parse_from(["install", "--plugin", request]).unwrap();
-        let plugin = install.as_plugin_install().unwrap().plugin;
+        let plugin = install.as_plugin_install().unwrap().plugin.unwrap();
 
         assert_that!(DeprecatedAlias(&plugin).to_string()).is_equal_to(format!(
             "`rover install --plugin` is deprecated. Use `rover plugin install {replacement}` instead."

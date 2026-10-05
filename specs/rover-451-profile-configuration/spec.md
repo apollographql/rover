@@ -332,7 +332,7 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
 - **FR85**: A credential name under `settings:` must fail with its own message.
 
   Required text:
-  > `rover.yaml` sets `APOLLO_KEY` under `settings:`. Credentials can't be stored in a project file. Run `rover auth login`, or set `APOLLO_KEY` in the environment.
+  > `rover.yaml` sets `APOLLO_KEY` under `settings:`. Credentials can't be stored in a project file. Run `rover config auth`, or set `APOLLO_KEY` in the environment.
 
 - **FR86**: Three failure classes must have their own stable error codes, surfaced as `error.code` in JSON output and in the printed error:
   1. A stored setting's value failed validation (FR84).

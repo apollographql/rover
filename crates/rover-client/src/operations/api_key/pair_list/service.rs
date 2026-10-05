@@ -7,7 +7,7 @@ use tower::Service;
 use crate::{
     operations::api_key::pair_list::{
         list_pairs_query::{self, Variables},
-        ListOAuthClientsInput, ListOAuthClientsResponse, ListPairsQuery,
+        ListOAuthClientsInput, ListOAuthClientsResponse, ListPairsQuery, DEFAULT_PAIR_LIST_LIMIT,
     },
     RoverClientError,
 };
@@ -16,6 +16,13 @@ use crate::{
 /// page with `hasNextPage: true`, repeatedly). A well-behaved Platform API should never trip
 /// this; it exists so a misbehaving or malicious one can't hang this call indefinitely.
 const MAX_PAGES_WITHOUT_PROGRESS: usize = 20;
+
+/// The most pairs a single page asks for. [`ListOAuthClientsInput::limit`] is enforced across
+/// pages, so this bounds one request only: a limit can be far larger (`rover auth grants
+/// revoke` passes `usize::MAX`) and, sent as is, would overflow GraphQL's 32-bit `Int`. No
+/// server maximum is documented, so this is the default limit, a page size the Platform API
+/// is known to accept.
+const MAX_PAGE_SIZE: usize = DEFAULT_PAIR_LIST_LIMIT;
 
 /// Bounds a single HTTP attempt underneath this operation's retry budget (built via
 /// [`StudioClient::studio_graphql_service_with_attempt_timeout`](
@@ -107,11 +114,11 @@ where
             let mut pages_without_progress = 0usize;
 
             while pairs.len() < input.limit {
-                let remaining = (input.limit - pairs.len()) as i64;
+                let page_size = (input.limit - pairs.len()).min(MAX_PAGE_SIZE) as i64;
                 let vars = Variables {
                     organization_id: organization_id.clone(),
                     after: after.clone(),
-                    first: Some(remaining),
+                    first: Some(page_size),
                 };
                 let data = inner
                     .call(GraphQLRequest::new(vars))
@@ -188,7 +195,8 @@ mod tests {
 
     use chrono::DateTime;
     use futures::future;
-    use rover_graphql::GraphQLServiceError;
+    use mockall::Sequence;
+    use rover_graphql::{GraphQLRequest, GraphQLServiceError};
     use rover_tower::test::{expect_poll_ready, MockCloneService};
     use rstest::{fixture, rstest};
     use serde_json::json;
@@ -323,6 +331,72 @@ mod tests {
 
         assert_that!(response.pairs).is_equal_to(vec![expected_pair("c_1")]);
         assert_that!(response.next_after).is_equal_to(Some("cursor-1".to_string()));
+    }
+
+    /// The variables one page's request carries.
+    fn page_request(after: Option<&str>, first: i64) -> GraphQLRequest<ListPairsQuery> {
+        GraphQLRequest::new(Variables {
+            organization_id: "acme".to_string(),
+            after: after.map(str::to_string),
+            first: Some(first),
+        })
+    }
+
+    /// An uncapped listing (`rover auth grants revoke` passes `usize::MAX`) asks for at most
+    /// `MAX_PAGE_SIZE` pairs per page - a limit that size, sent as is, overflows to `first: -1`,
+    /// which the Platform API refuses - and still pages through to the last page.
+    #[tokio::test]
+    async fn call_caps_each_page_when_the_limit_is_unbounded() {
+        let mut mock = MockListPairsInnerService::new();
+        expect_poll_ready!(mock);
+        let mut sequence = Sequence::new();
+        mock.expect_call()
+            .times(1)
+            .in_sequence(&mut sequence)
+            .withf(|req| *req == page_request(None, MAX_PAGE_SIZE as i64))
+            .return_once(|_| future::ready(Ok(page(true, Some("cursor-1"), "c_1"))));
+        mock.expect_call()
+            .times(1)
+            .in_sequence(&mut sequence)
+            .withf(|req| *req == page_request(Some("cursor-1"), MAX_PAGE_SIZE as i64))
+            .return_once(|_| future::ready(Ok(page(false, None, "c_2"))));
+
+        let response = ListOAuthClients::new(MockCloneService::new(mock))
+            .oneshot(
+                ListOAuthClientsInput::builder()
+                    .organization_id("acme")
+                    .limit(usize::MAX)
+                    .build(),
+            )
+            .await
+            .unwrap();
+
+        assert_that!(response.pairs).is_equal_to(vec![expected_pair("c_1"), expected_pair("c_2")]);
+        assert_that!(response.next_after).is_equal_to(None);
+    }
+
+    /// A limit under the page cap asks for exactly what's left of it.
+    #[tokio::test]
+    async fn call_asks_for_no_more_than_the_limit() {
+        let mut mock = MockListPairsInnerService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call()
+            .times(1)
+            .withf(|req| *req == page_request(None, 3))
+            .return_once(|_| future::ready(Ok(page(false, None, "c_1"))));
+
+        let response = ListOAuthClients::new(MockCloneService::new(mock))
+            .oneshot(
+                ListOAuthClientsInput::builder()
+                    .organization_id("acme")
+                    .limit(3)
+                    .build(),
+            )
+            .await
+            .unwrap();
+
+        assert_that!(response.pairs).is_equal_to(vec![expected_pair("c_1")]);
+        assert_that!(response.next_after).is_equal_to(None);
     }
 
     /// A second call passing back the first call's `next_after` resumes from that cursor

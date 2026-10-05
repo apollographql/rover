@@ -1,0 +1,28 @@
+---
+source: tests/integration/api_key/pairs.rs
+expression: failed_envelope(&output)
+---
+{
+  "json_version": "1",
+  "data": {
+    "keys": [
+      {
+        "created_at": "2026-01-15T10:00:00Z",
+        "expires_at": null,
+        "id": "key-operator-1",
+        "name": "router-prod",
+        "key_type": "Operator"
+      }
+    ],
+    "client_credentials": null,
+    "client_credentials_next_after": null,
+    "success": false
+  },
+  "error": {
+    "message": "Rover couldn't list client-credential pairs in organization `acme`: pairs are unavailable. API keys are shown above.",
+    "causes": [
+      "pairs are unavailable"
+    ],
+    "code": "E056"
+  }
+}

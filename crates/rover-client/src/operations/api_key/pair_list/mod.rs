@@ -26,6 +26,7 @@ pub const DEFAULT_PAIR_LIST_LIMIT: usize = 50;
     query_path = "src/operations/api_key/pair_list/list_pairs_query.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
+    variables_derives = "Clone, PartialEq, Debug",
     deprecated = "warn"
 )]
 pub struct ListPairsQuery;

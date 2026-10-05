@@ -17,7 +17,13 @@ use crate::support::plugin_levels::{GlobalLevel, global_level};
 /// A gzipped tarball holding a `supergraph` binary where the installer looks
 /// for one, with `contents` as the binary.
 pub(super) fn supergraph_tarball(contents: &[u8]) -> Vec<u8> {
-    let binary = format!("dist/supergraph{}", std::env::consts::EXE_SUFFIX);
+    plugin_tarball("supergraph", contents)
+}
+
+/// A gzipped tarball holding a `plugin` binary where the installer looks for
+/// one, with `contents` as the binary.
+pub(super) fn plugin_tarball(plugin: &str, contents: &[u8]) -> Vec<u8> {
+    let binary = format!("dist/{plugin}{}", std::env::consts::EXE_SUFFIX);
     let mut header = tar::Header::new_gnu();
     header.set_size(contents.len() as u64);
     header.set_mode(0o755);
@@ -105,8 +111,7 @@ fn both_spellings_install_the_same_plugin(
 }
 
 /// Each command's own `-h`, up to the global options every command shares:
-/// those vary with the enabled features (`oauth` adds several) and are not this
-/// command's to describe.
+/// those are not this command's to describe.
 #[rstest]
 #[case::plugin_noun(&["plugin"])]
 #[case::plugin_install(&["plugin", "install"])]

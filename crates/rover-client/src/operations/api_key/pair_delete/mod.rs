@@ -5,12 +5,10 @@ pub mod service;
 
 pub use service::DeletePair;
 
-/// `deleteOAuthClient` returns nothing to read back on success.
-type Void = ();
-
 /// Deletes a `client_credentials` OAuth client (client-credential pair): a soft delete that
-/// also removes its secrets, service account, and principal (spec FR28-30). The caller already
-/// knows the `client_id` it passed in - there's nothing else to report.
+/// also removes its secrets, service account, and principal (spec FR28-30). The mutation
+/// returns the deleted client's ID, which the caller already passed in - there's nothing else
+/// to report.
 #[derive(GraphQLQuery, Debug)]
 #[graphql(
     query_path = "src/operations/api_key/pair_delete/delete_pair_mutation.graphql",

@@ -1,0 +1,38 @@
+---
+source: tests/integration/auth/grants.rs
+expression: envelope(&output)
+---
+{
+  "json_version": "1",
+  "data": {
+    "organization_id": "acme",
+    "user_id": "user-123",
+    "user_is_member": true,
+    "clients": [
+      {
+        "client_id": "rover-test-client",
+        "name": "Rover",
+        "kind": "rover",
+        "outcome": "revoked",
+        "error": null
+      },
+      {
+        "client_id": "c_8f2a",
+        "name": "ci-deploy",
+        "kind": "client_credentials",
+        "outcome": "revoked",
+        "error": null
+      },
+      {
+        "client_id": "c_91be",
+        "name": "nightly-checks",
+        "kind": "client_credentials",
+        "outcome": "revoked",
+        "error": null
+      }
+    ],
+    "cancelled": false,
+    "success": true
+  },
+  "error": null
+}

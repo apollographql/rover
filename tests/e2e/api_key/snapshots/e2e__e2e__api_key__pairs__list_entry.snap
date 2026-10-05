@@ -1,0 +1,16 @@
+---
+source: tests/e2e/api_key/pairs.rs
+expression: "redacted list_entry payload"
+---
+{
+  "key_type": "ClientCredentials",
+  "id": "[id]",
+  "client_id": "[client_id]",
+  "name": "[name]",
+  "graphs": "[graphs]",
+  "scopes": [
+    "rover:cli"
+  ],
+  "created_at": "[created_at]",
+  "created_by": "[created_by]"
+}

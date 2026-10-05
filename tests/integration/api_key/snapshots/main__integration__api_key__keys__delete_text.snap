@@ -1,0 +1,8 @@
+---
+source: tests/integration/api_key/keys.rs
+expression: "format!(\"--- stdout ---\\n{stdout}\\n--- stderr ---\\n{stderr}\")"
+---
+--- stdout ---
+
+--- stderr ---
+Deleted API Key key-operator-1

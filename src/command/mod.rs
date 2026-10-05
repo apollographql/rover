@@ -1,7 +1,6 @@
 // `pub(crate)`, not the default private `mod`, so `crate::error::mod`'s special-casing of
 // `RoverClientError::PairListFailure` can reach `api_key::list::output`'s render helpers.
 pub(crate) mod api_key;
-#[cfg(feature = "oauth")]
 pub mod auth;
 pub(crate) mod check_output;
 mod client;
@@ -33,7 +32,6 @@ pub(crate) mod template;
 mod update;
 
 pub use api_key::ApiKeys;
-#[cfg(feature = "oauth")]
 pub use auth::Auth;
 pub use client::Client;
 pub use completion::Completion;

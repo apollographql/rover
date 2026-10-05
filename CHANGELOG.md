@@ -18,9 +18,15 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 # [Unreleased]
 
-> Important: 3 potentially breaking changes below, indicated by **❗ BREAKING ❗**
+> Important: 4 potentially breaking changes below, indicated by **❗ BREAKING ❗**
 
 ## ❗ BREAKING ❗
+
+- **Commands no longer download the plugins they need unless you opt in - @SharkBaitDLS**
+
+  `rover supergraph compose`, `rover dev`, `rover lsp`, and `rover connector` now use a plugin only if it's already installed, in the project or globally, and never contact the plugin registry for it. A plugin installed at neither level stops the command with error E058, naming the plugin and saying how to install it, for example: "Rover needs the `supergraph` plugin v2.9.3, which isn't installed. Run `rover plugin install supergraph@=2.9.3`, or set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true` under `settings:` in `rover.yaml` to let Rover download plugins on demand." A floating version such as `federation_version: 2` uses the newest matching release already installed.
+
+  To restore the old behavior of downloading a missing plugin on demand, opt in with the new `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` setting. It's resolved like every other setting: set the environment variable to `true` (or `1`), store it on a profile with `rover config set APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD true`, or set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true` under `settings:` in the project's `.rover/rover.yaml`. The environment variable can only opt in; to opt out where a profile or project file opts in, store `false` in a tier that outranks it. `rover config show` reports the setting and where it came from. Alternatively, install each plugin ahead of time with `rover plugin install`, which isn't affected and still downloads. `--skip-update` and `APOLLO_ROVER_SKIP_UPDATE` still forbid downloads even when you've opted in.
 
 - **`rover subgraph check`'s JSON `downstream` task changes shape, bumping `json_version` to `"3"` - @dotdat**
 
@@ -36,11 +42,30 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
+- **OAuth is available in every build: `rover auth` and client-credentials authentication - @dotdat**
+
+  The experimental `oauth` Cargo feature is removed, and what it gated now ships in every build:
+
+  - `rover auth login`, using the browser or `--no-browser`, plus `rover auth logout` and `rover auth whoami`
+  - `rover auth grants revoke`, which revokes every grant one user holds in an organization
+  - authenticating with a client-credential pair by setting `APOLLO_CLIENT_ID` and `APOLLO_CLIENT_SECRET`
+  - the `--oauth-*` flags and their `APOLLO_OAUTH_*` settings, which now appear in `rover config show`
+
+  `rover config auth` and `rover config whoami` now point out that `rover auth login` is available. Building with `--features oauth` is no longer needed, and no longer accepted.
+
+- **`rover auth grants revoke` revokes every grant a user holds in an organization - @dotdat**
+
+  `rover auth grants revoke --org <ORGANIZATION_ID> --user <USER_ID> --all [--confirm]` revokes the user's grants under Rover's own OAuth client and under every client-credential pair in the organization. Before revoking anything, it lists every pair and asks for confirmation, naming each OAuth client. Pass `--confirm` to skip the prompt; without a terminal to ask on (or with `--format json`), it fails with a new error code (`E062`) instead of waiting. Every client is attempted even when one fails, and the outcome under each is reported individually; if any failed, the command exits non-zero with a new error code (`E063`) and names the clients to retry, which is safe to do because revoking where the user holds no grant succeeds. Access tokens the user already holds keep working until they expire, and the sweep doesn't stop them logging in again. `--format json` reports `organization_id`, `user_id`, `user_is_member`, `cancelled`, and a `clients` array of `client_id`, `name`, `kind`, `outcome`, and `error`.
+
 - **`rover api-key list` reports client-credential pairs alongside API keys - @dotdat**
 
   `rover api-key list <ORGANIZATION_ID>` now also lists the organization's client-credential pairs, in a `Client-credential pairs` table after the existing API key table. `--format json` adds a `client_credentials` array (`key_type: "ClientCredentials"`, `client_id`, `name`, `graphs`, `scopes`, `created_at`, `created_by`) and a `key_type` field on every existing `keys` entry. A new `--type <operator|subgraph|client-credentials>` flag (repeatable) narrows which types are reported; a type excluded entirely is omitted from the JSON payload rather than reported as `[]`. Existing `keys`-only output is unchanged when an organization has no pairs, or when `--type` excludes them.
 
   Pairs are paged and capped independently of API keys: by default, up to 100 are collected before returning, and a new `--limit <N>` flag overrides that cap. When more pairs exist beyond the cap, the command still succeeds, printing a resume note (and a JSON `client_credentials_next_after` cursor) that a new `--after <CURSOR>` flag accepts to continue from.
+
+- **`rover api-key rotate` mints a new secret for a client-credential pair - @dotdat**
+
+  `rover api-key rotate <ORGANIZATION_ID> <CLIENT_ID> [--grace-period-days <DAYS>]` rotates a pair's secret, printing the new client ID/secret/expiry to stdout (so CI setup can capture them) and a one-time reminder to stderr that the secret can't be shown again, alongside a warning naming when every previous secret stops working - immediately by default, or at the end of `--grace-period-days` when given. `--format json` reports `client_id`, `client_secret`, `secret_expires_at`, `grace_period_days`, and `previous_secrets_expire_at` under `key_type: "ClientCredentials"`. Rotating an ID that isn't a client-credential pair in that organization fails with a new, stable error code (`E057`) rather than silently doing nothing.
 
 - **`rover api-key delete` deletes client-credential pairs - @dotdat**
 
@@ -97,6 +122,22 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **`rover plugin install --manifest-path` creates the project it names - @SharkBaitDLS**
 
   When the manifest `--manifest-path` names doesn't exist yet, a successful install creates it, along with any missing parent directories, the `bin/` the plugin goes in, the lockfile, and a `.gitignore` ignoring `bin/` so the binaries aren't committed while `rover.yaml` and `plugin-versions.lock` are. An existing `.gitignore` is left as it is. If the install fails, the directories it was creating are removed again. This is the only way Rover ever creates a project: no other command does.
+
+- **`rover supergraph compose`, `rover connector`, `rover lsp`, and `rover dev` take the `supergraph` version from `rover.yaml` - @SharkBaitDLS**
+
+  When neither `--federation-version` nor `federation_version` in `supergraph.yaml` sets it, these commands now use the `supergraph` version declared in a `.rover/rover.yaml` manifest: the project's, found by searching up from the working directory, and otherwise the global one in `~/.rover` (or `$APOLLO_HOME/.rover`). The flag, then `supergraph.yaml`, still win over both, so adding a manifest never changes what an existing repository composes with; when `supergraph.yaml` and the manifest disagree, Rover warns once that `supergraph.yaml` is overriding the manifest. A floating version declared in a manifest uses the exact release that level's `plugin-versions.lock` records, without asking the plugin registry. A manifest that its lockfile no longer matches stops the command with error E052, naming the `rover plugin install` that brings the lockfile up to date.
+
+- **`rover dev` takes the `router` and `apollo-mcp-server` versions from `rover.yaml` - @SharkBaitDLS**
+
+  When `--router-version` (or `APOLLO_ROVER_DEV_ROUTER_VERSION`) and `--mcp-version` (or `APOLLO_ROVER_DEV_MCP_VERSION`) aren't set, `rover dev` now uses the `router` and `apollo-mcp-server` versions declared in the project's or the global `rover.yaml`, pinned to the release the declaring level's `plugin-versions.lock` records, the same way it already takes the `supergraph` version. A composition version set by `--composition-version` or `APOLLO_ROVER_DEV_COMPOSITION_VERSION` now also stays in effect when `federation_version` in `supergraph.yaml` changes mid-session, as one set by `--federation-version` already did, since both outrank `supergraph.yaml`.
+
+- **`rover plugin install` with no plugin named installs what the lockfile records - @SharkBaitDLS**
+
+  Run with no `<NAME>@<VERSION>`, `rover plugin install` installs every plugin the `plugin-versions.lock` at the level it targets records, at exactly the release recorded there, the way `npm ci` installs from `package-lock.json`. It asks the plugin registry to resolve nothing, so a committed project lockfile installs the same releases on every machine. The level is chosen as it is for a named install: the project in scope, otherwise the global level, or whichever `--global` or `--manifest-path` names. A locked release the plugin registry no longer serves fails with error E051 naming the lockfile, rather than installing a neighbouring release. With neither a lockfile nor a `rover.yaml` there, the command fails, asking for a plugin to be named. `--format json` reports every plugin installed under `data.plugins`.
+
+- **`rover plugin install` with no plugin named also installs what `rover.yaml` declares - @SharkBaitDLS**
+
+  A plugin the target level's `rover.yaml` declares but its `plugin-versions.lock` doesn't record yet is resolved, installed, and added to the lockfile, while every plugin already locked keeps the release recorded for it: a floating version such as `2` is never re-resolved unless it's named on the command line. A locked release the manifest no longer allows, such as one locked at `2.1.0` and now declared `=2.2.0`, stops the install with error E052 before anything is downloaded, naming the `rover plugin install` that updates it.
 
 - **`rover dev` gains `--router-version`/`--composition-version`; `rover template` gains `--templates-api` - @dotdat**
 
@@ -252,6 +293,34 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🐛 Fixes
 
+- **E020 points new users at `rover auth login` and client credentials - @dotdat fixes ROVER-487**
+
+  With no configuration profiles, commands like `rover auth whoami` failed with E020, whose suggestion only mentioned `rover config auth` and `$APOLLO_KEY`. It now leads with `rover auth login` and mentions `$APOLLO_CLIENT_ID`/`$APOLLO_CLIENT_SECRET` for CI; the E020 explanation says the same.
+
+- **`rover --help` opens with Rover's own description again - @dotdat**
+
+  `rover --help` and `rover help` printed an internal note about the `--oauth-*` flags where Rover's description and getting-started steps belong, in every build since OAuth stopped being an optional feature. `rover -h` was unaffected.
+
+- **`rover auth grants revoke --all` lists every pair instead of failing before it revokes anything - @dotdat**
+
+  The sweep lists every client-credential pair in the organization before revoking, and asked the Platform API for all of them in one page size that overflowed to `-1`, so the listing was refused with "'first' must be positive, but -1 was given" and nothing was revoked. Each page now asks for at most 50 pairs, and the listing pages through the rest. `rover api-key list` with a `--limit` too large for a GraphQL `Int` is fixed the same way.
+
+- **Setting errors name a command that exists - @dotdat**
+
+  `rover config set` and `rover config unset` now tell you why a setting can't be stored in a profile, and which flag to pass instead. For example, `rover config set APOLLO_VCS_COMMIT abc123` says "`APOLLO_VCS_COMMIT` can't be stored in a profile. It describes a single invocation rather than an environment. Pass `--vcs-commit`, or set `APOLLO_VCS_COMMIT` in the environment." Previously it said the name wasn't a Rover setting at all. The same settings in a project's `rover.yaml` now get the "can't be set in a project file" warning. The error for a credential in `rover.yaml` (`E060`) now suggests `rover config auth`, which every build has, instead of `rover auth login`.
+
+- **`rover plugin install --manifest-path` reads that project's settings - @dotdat**
+
+  With `--manifest-path`, `rover plugin install` now reads the `settings:` section of the manifest it names, not of the project found from the working directory, so a project's `APOLLO_ROVER_DOWNLOAD_HOST` applies to the install it asked for. Messages about that file name it by its own file name, such as `rover-ci.yaml`, rather than `rover.yaml`. Project settings and plugins are also now found by the same discovery code, so the two can't disagree about where a project is.
+
+- **A response Rover can't parse now says where it failed - @dotdat**
+
+  When a GraphOS response couldn't be parsed, Rover reported only `Deserialization error` (`E012`), leaving no way to tell a non-JSON reply (an outage or proxy page) from a response of the wrong shape. The message now names the HTTP status, whether the failure was a syntax error (not JSON at all) or a data error (JSON of the wrong shape), and the line and column. It still never quotes the response body, which may hold a secret.
+
+- **`rover lsp` honors `APOLLO_HOME` (`--rover-home`) - @SharkBaitDLS**
+
+  `rover lsp` installed and looked for its `supergraph` plugin under `~/.rover` even when `APOLLO_HOME` (or `--rover-home`) moved Rover's home elsewhere, unlike every other plugin-using command. It now uses the same Rover home they do.
+
 - **An empty `APOLLO_HOME` no longer installs Rover and its plugins into the working directory - @SharkBaitDLS**
 
   An exported but empty `APOLLO_HOME` (or `--rover-home ""`) used to place `.rover/` under whatever directory you ran Rover from, so `rover install` and plugin installs scattered copies across your projects and missed the ones already in `~/.rover`. An empty value now counts as unset, and Rover uses `~/.rover` as it does when the variable isn't set at all. On a machine with no home directory, that means Rover now reports the missing home directory rather than installing into the working directory. An empty `APOLLO_NODE_MODULES_BIN_DIR` likewise counts as unset.
@@ -347,6 +416,18 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   When the registry rejects a key by returning `HTTP 200` with `"data": null` and a body-level "Invalid credentials" error (rather than an `HTTP 401`/`406`), Rover used to report a generic, undifferentiated `error: No data field provided` instead of the usual `E013`/`E014`. The credential-rejection check only ever looked at a nested `extensions.response` field on each GraphQL error, never the error's own top-level `message`, which is where this particular response places the context. The check now looks at each error's top-level message, and runs regardless of whether `data` is present, `null`, or omitted. A related gap is fixed alongside it: `rover graph fetch` and `rover graph-artifact list-tags` now also check whether the rejected key was malformed (e.g. missing colons) before settling on `E013`, matching the check every other command already applied - so a key that was never validly shaped reports `E014` there too, not just `E013`.
 
 ## 🛠 Maintenance
+
+- **Update the Studio schema: `deleteOAuthClient` now returns the deleted client's ID - @dotdat**
+
+  `rover api-key delete` reads that ID as the mutation's result, in place of the `Void` the schema used to declare, and no longer treats any other response as a successful delete. The command's output is unchanged.
+
+- **Stop reading the unused `APOLLO_NODE_MODULES_BIN` variable - @dotdat**
+
+  Rover registered `APOLLO_NODE_MODULES_BIN` as an environment variable it reads, but nothing ever used its value. It's no longer read. `APOLLO_NODE_MODULES_BIN_DIR`, which the npm installer sets, is unaffected.
+
+- **Test that an unconfigured user is unaffected - @dotdat**
+
+  New integration tests check that, with no configuration, `rover config show` and other commands create nothing beyond the files Rover already wrote before profile settings existed. They also check that a read-only configuration directory doesn't make those commands fail. The smoke tests now run the end-to-end suite with Rover's config home pointed at an empty location.
 
 - **Add a `rover-client` operation to look up one client-credential pair by its client ID - @dotdat**
 

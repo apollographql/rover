@@ -26,16 +26,20 @@ pub(crate) static DEFAULT_DEVICE_AUTHORIZATION_URL: LazyLock<Url> =
 // ROVER_OAUTH_CLIENT_ID_STAGING in .zshrc for the staging equivalent.
 pub(crate) const DEFAULT_CLIENT_ID: &str = "52SYxOlIEM8U5BjKeIv88ClPBSBMq4K06LWB9HtM5EY";
 
-/// Top-level `rover` flags for overriding `rover auth login`'s OAuth server
-/// endpoints and client ID.
-///
-/// Flattened into `Rover` as global flags rather than ones scoped to
-/// `auth login`, so they can also apply to any future command that needs to
-/// refresh an OAuth token.
-///
-/// No `default_value`s: an absent flag/env var has to stay `None` so the
-/// profile tier can apply beneath it (FR26) - the built-in defaults are
-/// applied after resolution, by `OauthConfig::new`.
+// Top-level `rover` flags for overriding `rover auth login`'s OAuth server
+// endpoints and client ID.
+//
+// Flattened into `Rover` as global flags rather than ones scoped to
+// `auth login`, so they can also apply to any future command that needs to
+// refresh an OAuth token.
+//
+// No `default_value`s: an absent flag/env var has to stay `None` so the
+// profile tier can apply beneath it (FR26) - the built-in defaults are
+// applied after resolution, by `OauthConfig::new`.
+//
+// A plain comment, not a doc comment: clap turns a flattened struct's doc
+// comment into the parent command's description, which would replace
+// `rover --help`'s own.
 #[derive(Debug, Clone, Serialize, Parser)]
 pub struct OauthOpts {
     /// Override the OAuth authorization endpoint `rover auth login` uses.

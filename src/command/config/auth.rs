@@ -2,9 +2,7 @@ use anyhow::anyhow;
 use clap::Parser;
 use config::Profile;
 use houston as config;
-use rover_print::print::Print;
-#[cfg(feature = "oauth")]
-use rover_print::print::PrintExt;
+use rover_print::print::{Print, PrintExt};
 use rover_std::Style;
 use serde::Serialize;
 
@@ -24,14 +22,12 @@ use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult, options:
 pub struct Auth {}
 
 impl Auth {
-    #[cfg_attr(not(feature = "oauth"), allow(unused_variables))]
     pub fn run(
         &self,
         config: config::Config,
         profile: &ProfileOpt,
         stderr: &impl Print,
     ) -> RoverResult<RoverOutput> {
-        #[cfg(feature = "oauth")]
         stderr.warnln(
             "OAuth authentication is now available - consider running `rover auth login` instead of storing a Personal API Key.",
         );

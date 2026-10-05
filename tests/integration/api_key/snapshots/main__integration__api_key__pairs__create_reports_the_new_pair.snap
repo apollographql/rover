@@ -1,0 +1,23 @@
+---
+source: tests/integration/api_key/pairs.rs
+expression: parsed(successful_stdout(&output).as_bytes())
+---
+{
+  "json_version": "1",
+  "data": {
+    "key_type": "ClientCredentials",
+    "id": "c_8f2a",
+    "client_id": "c_8f2a",
+    "client_secret": "s_fixture-secret",
+    "secret_expires_at": "2028-09-25T16:00:00Z",
+    "name": "ci-deploy",
+    "graphs": [
+      "inventory"
+    ],
+    "scopes": [
+      "rover:cli"
+    ],
+    "success": true
+  },
+  "error": null
+}

@@ -181,7 +181,6 @@ mod tests {
             .expect("expected unset to succeed despite an unrelated invalid stored value");
     }
 
-    #[cfg(feature = "oauth")]
     #[tokio::test]
     async fn show_succeeds_when_the_oauth_token_url_is_unreachable() {
         let temp_dir = tempfile::tempdir().unwrap();

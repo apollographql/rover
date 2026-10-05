@@ -1,0 +1,13 @@
+---
+source: tests/integration/api_key/pairs.rs
+expression: parsed(successful_stdout(&output).as_bytes())
+---
+{
+  "json_version": "1",
+  "data": {
+    "id": "c_8f2a",
+    "key_type": "ClientCredentials",
+    "success": true
+  },
+  "error": null
+}

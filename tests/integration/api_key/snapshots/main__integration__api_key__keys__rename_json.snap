@@ -1,0 +1,14 @@
+---
+source: tests/integration/api_key/keys.rs
+expression: parsed
+---
+{
+  "json_version": "1",
+  "data": {
+    "old_name": "router-prod",
+    "new_name": "router-production",
+    "id": "key-operator-1",
+    "success": true
+  },
+  "error": null
+}

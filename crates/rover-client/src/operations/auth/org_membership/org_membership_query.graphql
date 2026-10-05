@@ -1,0 +1,9 @@
+query OrgMembershipQuery($organizationId: ID!) {
+    organization(id: $organizationId) {
+        memberships {
+            user {
+                id
+            }
+        }
+    }
+}

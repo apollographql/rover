@@ -133,7 +133,10 @@ mod tests {
             elv2_license_accepted: Some(true),
         };
         let override_install_path = NamedTempFile::new("override_path")?;
-        let install_router = InstallRouter::new(RouterVersion::LatestTwo, studio_client_config);
+        let install_router = InstallRouter::new(
+            RouterVersion::LatestTwo,
+            studio_client_config.with_allow_automatic_download(true),
+        );
         http_server.mock(|when, then| {
             when.is_true(|request| {
                 request.method() == Method::HEAD && request.uri().path().starts_with("/tar/router")

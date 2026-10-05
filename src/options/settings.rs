@@ -4,7 +4,6 @@ use rover_studio::types::GraphRef;
 use serde::{Serialize, Serializer};
 use url::Url;
 
-#[cfg(feature = "oauth")]
 use super::oauth::{
     DEFAULT_AUTHORIZATION_URL, DEFAULT_CLIENT_ID, DEFAULT_DEVICE_AUTHORIZATION_URL,
     DEFAULT_REVOCATION_URL, DEFAULT_TOKEN_URL, DEFAULT_WHOAMI_URL,
@@ -27,10 +26,8 @@ const DEFAULT_TEMPLATES_API: &str = "https://rover.apollo.dev/templates";
 /// This slice's subset of the full settings catalogue (spec.md §3.1/FR1):
 /// the registry/telemetry/OAuth-endpoint group ROVER-451 Part A's first
 /// slice covers, plus the checks-timeout/download-host/templates-api/graph-ref
-/// group its second slice adds. Every setting here is profile-eligible. The
-/// OAuth endpoints only exist when the `oauth` feature is compiled in - the
-/// whole `rover auth login` machinery they configure is gated the same way,
-/// so a stored value for one would otherwise have nothing to affect.
+/// group its second slice adds, plus the plugin system's opt-in to automatic
+/// downloads (§3.16). Every setting here is profile-eligible.
 ///
 /// A setting from the full catalogue that isn't a variant here (VCS context)
 /// isn't unsupported forever - it's simply out of scope for this slice, per
@@ -50,17 +47,12 @@ pub(crate) enum SettingName {
     DownloadHost,
     TemplatesApi,
     GraphRef,
-    #[cfg(feature = "oauth")]
+    AllowAutomaticDownload,
     OauthAuthorizationUrl,
-    #[cfg(feature = "oauth")]
     OauthTokenUrl,
-    #[cfg(feature = "oauth")]
     OauthDeviceAuthorizationUrl,
-    #[cfg(feature = "oauth")]
     OauthRevocationUrl,
-    #[cfg(feature = "oauth")]
     OauthWhoamiUrl,
-    #[cfg(feature = "oauth")]
     OauthClientId,
 }
 
@@ -79,9 +71,7 @@ pub(crate) enum SettingType {
     /// (FR24).
     Bool,
     /// An opaque string with no further syntactic constraint. Only ever
-    /// produced for `APOLLO_OAUTH_CLIENT_ID`, so it's otherwise dead code
-    /// when the `oauth` feature isn't compiled in.
-    #[cfg_attr(not(feature = "oauth"), allow(dead_code))]
+    /// produced for `APOLLO_OAUTH_CLIENT_ID`.
     String,
     /// A non-negative whole number of seconds.
     WholeSeconds,
@@ -107,8 +97,8 @@ impl SettingName {
             SettingName::DownloadHost,
             SettingName::TemplatesApi,
             SettingName::GraphRef,
+            SettingName::AllowAutomaticDownload,
         ];
-        #[cfg(feature = "oauth")]
         all.extend([
             SettingName::OauthAuthorizationUrl,
             SettingName::OauthTokenUrl,
@@ -133,17 +123,12 @@ impl SettingName {
             SettingName::DownloadHost => "APOLLO_ROVER_DOWNLOAD_HOST",
             SettingName::TemplatesApi => "APOLLO_TEMPLATES_API",
             SettingName::GraphRef => "APOLLO_GRAPH_REF",
-            #[cfg(feature = "oauth")]
+            SettingName::AllowAutomaticDownload => "APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD",
             SettingName::OauthAuthorizationUrl => "APOLLO_OAUTH_AUTHORIZATION_URL",
-            #[cfg(feature = "oauth")]
             SettingName::OauthTokenUrl => "APOLLO_OAUTH_TOKEN_URL",
-            #[cfg(feature = "oauth")]
             SettingName::OauthDeviceAuthorizationUrl => "APOLLO_OAUTH_DEVICE_AUTHORIZATION_URL",
-            #[cfg(feature = "oauth")]
             SettingName::OauthRevocationUrl => "APOLLO_OAUTH_REVOCATION_URL",
-            #[cfg(feature = "oauth")]
             SettingName::OauthWhoamiUrl => "APOLLO_OAUTH_WHOAMI_URL",
-            #[cfg(feature = "oauth")]
             SettingName::OauthClientId => "APOLLO_OAUTH_CLIENT_ID",
         }
     }
@@ -155,18 +140,18 @@ impl SettingName {
             | SettingName::TelemetryUrl
             | SettingName::DownloadHost
             | SettingName::TemplatesApi => SettingType::Url,
-            SettingName::TelemetryDisabled => SettingType::Bool,
+            SettingName::TelemetryDisabled | SettingName::AllowAutomaticDownload => {
+                SettingType::Bool
+            }
             SettingName::ChecksTimeoutSeconds | SettingName::ClientTimeout => {
                 SettingType::WholeSeconds
             }
             SettingName::GraphRef => SettingType::GraphRef,
-            #[cfg(feature = "oauth")]
             SettingName::OauthAuthorizationUrl
             | SettingName::OauthTokenUrl
             | SettingName::OauthDeviceAuthorizationUrl
             | SettingName::OauthRevocationUrl
             | SettingName::OauthWhoamiUrl => SettingType::Url,
-            #[cfg(feature = "oauth")]
             SettingName::OauthClientId => SettingType::String,
         }
     }
@@ -183,14 +168,13 @@ impl SettingName {
             SettingName::TelemetryDisabled
             | SettingName::ChecksTimeoutSeconds
             | SettingName::ClientTimeout
-            | SettingName::GraphRef => false,
-            #[cfg(feature = "oauth")]
+            | SettingName::GraphRef
+            | SettingName::AllowAutomaticDownload => false,
             SettingName::OauthAuthorizationUrl
             | SettingName::OauthTokenUrl
             | SettingName::OauthDeviceAuthorizationUrl
             | SettingName::OauthRevocationUrl
             | SettingName::OauthWhoamiUrl => true,
-            #[cfg(feature = "oauth")]
             SettingName::OauthClientId => false,
         }
     }
@@ -224,19 +208,14 @@ impl SettingName {
             SettingName::DownloadHost => Some(DEFAULT_DOWNLOAD_HOST.to_string()),
             SettingName::TemplatesApi => Some(DEFAULT_TEMPLATES_API.to_string()),
             SettingName::GraphRef => None,
-            #[cfg(feature = "oauth")]
+            SettingName::AllowAutomaticDownload => Some("false".to_string()),
             SettingName::OauthAuthorizationUrl => Some(DEFAULT_AUTHORIZATION_URL.to_string()),
-            #[cfg(feature = "oauth")]
             SettingName::OauthTokenUrl => Some(DEFAULT_TOKEN_URL.to_string()),
-            #[cfg(feature = "oauth")]
             SettingName::OauthDeviceAuthorizationUrl => {
                 Some(DEFAULT_DEVICE_AUTHORIZATION_URL.to_string())
             }
-            #[cfg(feature = "oauth")]
             SettingName::OauthRevocationUrl => Some(DEFAULT_REVOCATION_URL.to_string()),
-            #[cfg(feature = "oauth")]
             SettingName::OauthWhoamiUrl => Some(DEFAULT_WHOAMI_URL.to_string()),
-            #[cfg(feature = "oauth")]
             SettingName::OauthClientId => Some(DEFAULT_CLIENT_ID.to_string()),
         }
     }
@@ -272,6 +251,17 @@ pub(crate) enum SettingNameError {
         input: String,
         canonical: SettingName,
     },
+    /// The input is the canonical name of a setting FR1 lists but that
+    /// can't be stored in a profile (FR42's first required text).
+    #[error(
+        "`{name}` can't be stored in a profile. {reason} Pass `{flag}`, or set `{name}` in \
+        the environment."
+    )]
+    NotProfileEligible {
+        name: &'static str,
+        flag: &'static str,
+        reason: &'static str,
+    },
     /// The input isn't any known setting's canonical name, in any casing.
     #[error(
         "`{input}` isn't a Rover setting. Run `rover config show` to list the settings \
@@ -279,6 +269,94 @@ pub(crate) enum SettingNameError {
     )]
     Unrecognized { input: String },
 }
+
+/// One of FR1's settings that can be stored neither in a profile nor in the
+/// project file, with the flag that sets it for one invocation and why it
+/// isn't stored (spec.md §6).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct UnstorableSetting {
+    pub(crate) name: &'static str,
+    pub(crate) flag: &'static str,
+    pub(crate) reason: &'static str,
+}
+
+const PER_INVOCATION: &str = "It describes a single invocation rather than an environment.";
+const PERSONAL: &str = "It's a property of you and your terminal rather than an environment.";
+const BOOTSTRAP: &str = "It decides where Rover looks for profiles, so a profile can't hold it.";
+const PLUGIN_VERSION: &str =
+    "It picks a plugin version for one `rover dev` run rather than describing an environment.";
+
+/// Every FR1 setting that's neither profile- nor project-eligible. None is
+/// a [`SettingName`] variant - nothing reads them from a store - so they're
+/// listed here only so a store naming one is told why it doesn't apply,
+/// rather than that Rover doesn't recognize it.
+pub(crate) const UNSTORABLE_SETTINGS: [UnstorableSetting; 13] = [
+    UnstorableSetting {
+        name: "APOLLO_LOG_LEVEL",
+        flag: "--log",
+        reason: PERSONAL,
+    },
+    UnstorableSetting {
+        name: "APOLLO_FORMAT",
+        flag: "--format",
+        reason: PERSONAL,
+    },
+    UnstorableSetting {
+        name: "APOLLO_NO_COLOR",
+        flag: "--no-color",
+        reason: PERSONAL,
+    },
+    UnstorableSetting {
+        name: "APOLLO_CONFIG_HOME",
+        flag: "--config-home",
+        reason: BOOTSTRAP,
+    },
+    UnstorableSetting {
+        name: "APOLLO_HOME",
+        flag: "--rover-home",
+        reason: BOOTSTRAP,
+    },
+    UnstorableSetting {
+        name: "APOLLO_VCS_REMOTE_URL",
+        flag: "--vcs-remote-url",
+        reason: PER_INVOCATION,
+    },
+    UnstorableSetting {
+        name: "APOLLO_VCS_BRANCH",
+        flag: "--vcs-branch",
+        reason: PER_INVOCATION,
+    },
+    UnstorableSetting {
+        name: "APOLLO_VCS_COMMIT",
+        flag: "--vcs-commit",
+        reason: PER_INVOCATION,
+    },
+    UnstorableSetting {
+        name: "APOLLO_VCS_AUTHOR",
+        flag: "--vcs-author",
+        reason: PER_INVOCATION,
+    },
+    UnstorableSetting {
+        name: "APOLLO_ROVER_DEV_ROUTER_VERSION",
+        flag: "--router-version",
+        reason: PLUGIN_VERSION,
+    },
+    UnstorableSetting {
+        name: "APOLLO_ROVER_DEV_COMPOSITION_VERSION",
+        flag: "--composition-version",
+        reason: PLUGIN_VERSION,
+    },
+    UnstorableSetting {
+        name: "APOLLO_ROVER_DEV_MCP_VERSION",
+        flag: "--mcp-version",
+        reason: PLUGIN_VERSION,
+    },
+    UnstorableSetting {
+        name: "APOLLO_ROVER_NO_CONFIG_NOTICES",
+        flag: "--no-config-notices",
+        reason: "Only a flag or the environment can turn configuration notices off.",
+    },
+];
 
 impl FromStr for SettingName {
     type Err = SettingNameError;
@@ -295,6 +373,16 @@ impl FromStr for SettingName {
             return Err(SettingNameError::LowercaseSpelling {
                 input: input.to_string(),
                 canonical: *name,
+            });
+        }
+        if let Some(unstorable) = UNSTORABLE_SETTINGS
+            .iter()
+            .find(|setting| setting.name == input)
+        {
+            return Err(SettingNameError::NotProfileEligible {
+                name: unstorable.name,
+                flag: unstorable.flag,
+                reason: unstorable.reason,
             });
         }
         Err(SettingNameError::Unrecognized {
@@ -444,6 +532,58 @@ mod tests {
         });
     }
 
+    /// FR42: each FR1 setting that can't be stored names its own flag, and
+    /// why it isn't stored.
+    #[rstest]
+    #[case::per_invocation(
+        "APOLLO_VCS_BRANCH",
+        "`APOLLO_VCS_BRANCH` can't be stored in a profile. It describes a single invocation \
+        rather than an environment. Pass `--vcs-branch`, or set `APOLLO_VCS_BRANCH` in the \
+        environment."
+    )]
+    #[case::personal(
+        "APOLLO_FORMAT",
+        "`APOLLO_FORMAT` can't be stored in a profile. It's a property of you and your terminal \
+        rather than an environment. Pass `--format`, or set `APOLLO_FORMAT` in the environment."
+    )]
+    #[case::bootstrap(
+        "APOLLO_CONFIG_HOME",
+        "`APOLLO_CONFIG_HOME` can't be stored in a profile. It decides where Rover looks for \
+        profiles, so a profile can't hold it. Pass `--config-home`, or set `APOLLO_CONFIG_HOME` \
+        in the environment."
+    )]
+    #[case::plugin_version(
+        "APOLLO_ROVER_DEV_ROUTER_VERSION",
+        "`APOLLO_ROVER_DEV_ROUTER_VERSION` can't be stored in a profile. It picks a plugin \
+        version for one `rover dev` run rather than describing an environment. Pass \
+        `--router-version`, or set `APOLLO_ROVER_DEV_ROUTER_VERSION` in the environment."
+    )]
+    #[case::notices(
+        "APOLLO_ROVER_NO_CONFIG_NOTICES",
+        "`APOLLO_ROVER_NO_CONFIG_NOTICES` can't be stored in a profile. Only a flag or the \
+        environment can turn configuration notices off. Pass `--no-config-notices`, or set \
+        `APOLLO_ROVER_NO_CONFIG_NOTICES` in the environment."
+    )]
+    fn a_setting_that_cant_be_stored_says_how_to_set_it(#[case] input: &str, #[case] text: &str) {
+        let error = input.parse::<SettingName>().unwrap_err();
+
+        assert_that!(error.to_string()).is_equal_to(text.to_string());
+    }
+
+    /// No setting is both storable and listed as unstorable.
+    #[test]
+    fn the_unstorable_list_and_the_catalogue_dont_overlap() {
+        for setting in UNSTORABLE_SETTINGS {
+            assert_that!(
+                SettingName::all()
+                    .iter()
+                    .any(|name| name.as_str() == setting.name)
+            )
+            .named(setting.name)
+            .is_false();
+        }
+    }
+
     #[test]
     fn an_unknown_name_is_unrecognized() {
         let error = "APOLLO_NOT_A_SETTING".parse::<SettingName>().unwrap_err();
@@ -562,16 +702,15 @@ mod tests {
         assert_that!(SettingName::TemplatesApi.is_network_destination()).is_true();
         assert_that!(SettingName::ChecksTimeoutSeconds.is_network_destination()).is_false();
         assert_that!(SettingName::GraphRef.is_network_destination()).is_false();
+        assert_that!(SettingName::AllowAutomaticDownload.is_network_destination()).is_false();
     }
 
-    #[cfg(feature = "oauth")]
     #[test]
     fn oauth_client_id_is_a_string_and_not_a_network_destination() {
         assert_that!(SettingName::OauthClientId.setting_type()).is_equal_to(SettingType::String);
         assert_that!(SettingName::OauthClientId.is_network_destination()).is_false();
     }
 
-    #[cfg(feature = "oauth")]
     #[test]
     fn oauth_endpoints_are_network_destination_urls() {
         for name in [

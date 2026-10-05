@@ -84,6 +84,7 @@ fn rover(command: &mut Command, registry: &Registry, env: &[(&str, &str)]) -> Ru
         .env_remove("APOLLO_NODE_MODULES_BIN_DIR")
         .env_remove("APOLLO_ROVER_NO_DOWNLOAD")
         .env_remove("APOLLO_ROVER_SKIP_UPDATE")
+        .env_remove("APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD")
         .envs(env.iter().copied())
         .output()
         .unwrap();
@@ -296,6 +297,192 @@ fn skip_update_fails_by_name_for_a_plugin_that_is_not_installed(
     }));
 }
 
+/// How a test opts in to automatic downloads: by one of the tiers the
+/// `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` setting resolves through.
+#[derive(Debug, Clone, Copy)]
+enum OptIn {
+    /// `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true` under `settings:` in the
+    /// project's `rover.yaml`.
+    ProjectFile,
+    /// The setting stored on the default profile.
+    Profile,
+    /// `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD=true`.
+    Variable,
+}
+
+impl OptIn {
+    /// Store this opt-in under `levels`, and return the environment it needs.
+    fn apply(self, levels: &TwoLevels) -> Vec<(&'static str, &'static str)> {
+        match self {
+            Self::ProjectFile => {
+                fs::write(
+                    levels.project.rover_dir().join("rover.yaml"),
+                    "settings:\n  APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true\n",
+                )
+                .unwrap();
+                Vec::new()
+            }
+            Self::Profile => {
+                levels.global.store_setting(
+                    "default",
+                    "APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD",
+                    "true",
+                );
+                Vec::new()
+            }
+            Self::Variable => vec![("APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD", "true")],
+        }
+    }
+}
+
+/// FR79: a standing opt-in may permit a download, but never one a run was
+/// told not to make. With it set by any route, `--skip-update` still
+/// fails by name for a plugin installed nowhere, and nothing is downloaded.
+#[rstest]
+fn a_standing_opt_in_never_overrides_skip_update(
+    two_levels: TwoLevels,
+    #[values(OptIn::ProjectFile, OptIn::Profile, OptIn::Variable)] opt_in: OptIn,
+    #[values(
+        (&["--skip-update"][..], None, "--skip-update"),
+        (&[][..], Some(("APOLLO_ROVER_SKIP_UPDATE", "true")), "APOLLO_ROVER_SKIP_UPDATE")
+    )]
+    control: (&[&str], Option<(&str, &str)>, &str),
+) {
+    let (flags, variable, named) = control;
+    write_config(&two_levels, "=2.9.3");
+    let mut env = opt_in.apply(&two_levels);
+    env.extend(variable);
+
+    let run = compose(&two_levels, flags, &env);
+
+    assert_that!((run.code, run.requests)).is_equal_to((Some(1), 0));
+    assert_that!(&run.json["error"]).is_equal_to(serde_json::json!({
+        "message": "Error when updating Federation Version",
+        "causes": [
+            "Couldn't obtain the `supergraph` plugin",
+            missing_from_either(&two_levels, named),
+        ],
+        "code": "E058",
+    }));
+}
+
+/// FR79 for the explicit install step: an opt-in to automatic downloads
+/// doesn't lift `--no-download` either.
+#[rstest]
+fn a_standing_opt_in_never_overrides_no_download(
+    two_levels: TwoLevels,
+    #[values(OptIn::Profile, OptIn::Variable)] opt_in: OptIn,
+    #[values(
+        (&["--no-download"][..], None, "--no-download"),
+        (&[][..], Some(("APOLLO_ROVER_NO_DOWNLOAD", "true")), "APOLLO_ROVER_NO_DOWNLOAD")
+    )]
+    control: (&[&str], Option<(&str, &str)>, &str),
+) {
+    let (flags, variable, named) = control;
+    let mut env = opt_in.apply(&two_levels);
+    env.extend(variable);
+    let args: Vec<&str> = ["supergraph@=2.9.3", "--global"]
+        .iter()
+        .chain(flags)
+        .copied()
+        .collect();
+
+    let (run, _registry) = install(&two_levels.global, &args, &env);
+
+    assert_that!((run.code, run.requests, &run.json["error"]["code"])).is_equal_to((
+        Some(1),
+        0,
+        &Value::from("E058"),
+    ));
+    assert_that!(&run.json["error"]["message"]).is_equal_to(Value::from(missing(
+        &two_levels.bin_dir(Level::Global),
+        named,
+    )));
+}
+
+/// FR80: `rover plugin install` is the explicit install step, never an
+/// automatic one, so it downloads with nothing opted in, and even where
+/// `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` is stored as `false`, whether it
+/// names the plugin or, bare, installs what the project's lockfile records. A
+/// gate threaded through a code path it shares with the on-the-fly commands
+/// would fail this. The project opts out in its project file, and a global
+/// install is opted out on the default profile.
+#[rstest]
+#[case::into_the_project_with_nothing_opted_in(Level::Project, false, false)]
+#[case::into_the_project_with_the_project_opted_out(Level::Project, true, false)]
+#[case::globally_with_the_profile_opted_out(Level::Global, true, false)]
+#[case::bare_from_the_lockfile_with_nothing_opted_in(Level::Project, false, true)]
+#[case::bare_from_the_lockfile_with_the_project_opted_out(Level::Project, true, true)]
+fn an_explicit_install_downloads_without_the_opt_in(
+    two_levels: TwoLevels,
+    #[case] into: Level,
+    #[case] opted_out: bool,
+    #[case] bare: bool,
+) {
+    let dir = match into {
+        Level::Global => two_levels.global.rover_dir(),
+        Level::Project => two_levels.project.rover_dir(),
+    };
+    let opt_out = if opted_out && into == Level::Project {
+        "settings:\n  APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: false\n"
+    } else {
+        ""
+    };
+    if opted_out && into == Level::Global {
+        two_levels.global.store_setting(
+            "default",
+            "APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD",
+            "false",
+        );
+    }
+    if bare {
+        fs::write(
+            dir.join("rover.yaml"),
+            format!("{opt_out}plugins:\n  supergraph: \"2\"\n"),
+        )
+        .unwrap();
+        fs::write(
+            dir.join("plugin-versions.lock"),
+            "version = 1\n\n[[plugins]]\nname = \"supergraph\"\nrequested = \"2\"\nresolved = \
+             \"2.9.3\"\n",
+        )
+        .unwrap();
+    } else if !opt_out.is_empty() {
+        fs::write(dir.join("rover.yaml"), opt_out).unwrap();
+    }
+    let registry = Registry::new();
+    let mut command = Command::new(cargo_bin("rover"));
+    two_levels.apply(&mut command);
+    command.args(["plugin", "install"]);
+    if !bare {
+        command.arg("supergraph@=2.9.3");
+    }
+    if into == Level::Global {
+        command.arg("--global");
+    }
+
+    let run = rover(&mut command, &registry, &[]);
+
+    let binary = two_levels
+        .bin_dir(into)
+        .join(format!("supergraph-v2.9.3{}", std::env::consts::EXE_SUFFIX));
+    assert_that!((
+        run.code,
+        &run.json["data"]["plugins"][0]["source"],
+        &run.json["data"]["plugins"][0]["path"],
+        run.requests,
+        binary.exists(),
+    ))
+    .named(&run.json.to_string())
+    .is_equal_to((
+        Some(0),
+        &Value::from("downloaded"),
+        &Value::from(binary.as_str()),
+        1,
+        true,
+    ));
+}
+
 /// The stub plugins are shell scripts, so these are Unix-only.
 #[cfg(unix)]
 mod with_a_runnable_plugin {
@@ -323,16 +510,84 @@ mod with_a_runnable_plugin {
         .is_equal_to((Some(0), 0, &Value::from("2.9.3")));
     }
 
-    /// `--no-download` guards the explicit install step, not a build.
+    /// `--no-download` guards the explicit install step, not a build, so a
+    /// build opted in to downloading still downloads.
     #[rstest]
     fn no_download_does_not_stop_a_build_from_downloading(two_levels: TwoLevels) {
         write_config(&two_levels, "=2.9.3");
 
-        let run = compose(&two_levels, &[], &[("APOLLO_ROVER_NO_DOWNLOAD", "true")]);
+        let run = compose(
+            &two_levels,
+            &[],
+            &[
+                ("APOLLO_ROVER_NO_DOWNLOAD", "true"),
+                ("APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD", "true"),
+            ],
+        );
 
         // The stub the registry serves prints nothing, so composition itself
         // fails; what matters is that the plugin was fetched to try.
         assert_that!(run.requests).is_greater_than(0);
         assert_that!(&run.json["error"]["code"]).is_not_equal_to(Value::from("E058"));
     }
+}
+
+/// `rover lsp` looks for its plugin under the Rover home the run was given,
+/// as every other plugin-using command does, not under `~/.rover`.
+#[rstest]
+fn lsp_uses_the_plugin_installed_under_the_rover_home(two_levels: TwoLevels) {
+    use std::{
+        io::{BufRead, BufReader},
+        process::Stdio,
+        sync::mpsc,
+        time::Duration,
+    };
+
+    two_levels.seed_plugin(Level::Global, "supergraph", "2.9.3");
+    write_config(&two_levels, "=2.9.3");
+    let mut command = Command::new(cargo_bin("rover"));
+    two_levels.apply(&mut command);
+    let mut child = command
+        .args([
+            "lsp",
+            "--supergraph-config",
+            "supergraph.yaml",
+            "--skip-update",
+        ])
+        .args(["--skip-update-check", "--telemetry-disabled"])
+        .env("NO_COLOR", "1")
+        .env_remove("APOLLO_ROVER_SKIP_UPDATE")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let stderr = child.stderr.take().unwrap();
+    let (sender, receiver) = mpsc::channel();
+    std::thread::spawn(move || {
+        for line in BufReader::new(stderr).lines().map_while(Result::ok) {
+            if sender.send(line).is_err() {
+                break;
+            }
+        }
+    });
+
+    // The session runs until it is stopped, so stop it once it has said
+    // which plugin it is using.
+    let mut seen = Vec::new();
+    while let Ok(line) = receiver.recv_timeout(Duration::from_secs(60)) {
+        let using = line.starts_with("Using the `supergraph` plugin");
+        seen.push(line);
+        if using {
+            break;
+        }
+    }
+    let _ = child.kill();
+    let _ = child.wait();
+
+    assert_that!(seen.last().cloned())
+        .named(&seen.join("\n"))
+        .is_equal_to(Some(
+            "Using the `supergraph` plugin v2.9.3 (already installed).".to_string(),
+        ));
 }

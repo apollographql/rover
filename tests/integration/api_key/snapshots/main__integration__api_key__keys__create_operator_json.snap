@@ -1,0 +1,15 @@
+---
+source: tests/integration/api_key/keys.rs
+expression: parsed
+---
+{
+  "json_version": "1",
+  "data": {
+    "api_key": "service:acme:a-new-operator-token",
+    "key_type": "Operator",
+    "id": "key-operator-2",
+    "name": "router-staging",
+    "success": true
+  },
+  "error": null
+}

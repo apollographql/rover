@@ -10,7 +10,7 @@ license-file = "./LICENSE"
 name = "rover"
 readme = "README.md"
 repository = "https://github.com/apollographql/rover/"
-version = "0.41.0"
+version = "1.0.0-rc.1"
 default-run = "rover"
 
 publish = false
@@ -90,7 +90,6 @@ composition-js = []
 
 # gates `rover auth login` and its supporting OAuth machinery, which is still
 # under active development (ROVER-391) and not yet ready for general release.
-oauth = ["dep:rover-auth", "dep:rover-open"]
 
 ### cross-workspace dependencies
 # these dependencies can be used by any other workspace crate by specifying the dependency like so:
@@ -271,7 +270,6 @@ comfy-table = { workspace = true }
 console = { workspace = true }
 derive-getters = { workspace = true }
 dialoguer = { workspace = true }
-directories-next = { workspace = true }
 dotenvy = { workspace = true }
 dunce = { workspace = true }
 flate2 = { workspace = true }
@@ -291,11 +289,11 @@ rand = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 robot-panic = { workspace = true }
-rover-auth = { workspace = true, optional = true }
+rover-auth = { workspace = true }
 rover-client = { workspace = true }
 rover-graphql = { workspace = true }
 rover-http = { workspace = true }
-rover-open = { workspace = true, optional = true }
+rover-open = { workspace = true }
 rover-print = { workspace = true }
 rover-schema = { workspace = true }
 rover-std = { workspace = true }

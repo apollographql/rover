@@ -1,0 +1,16 @@
+---
+source: tests/integration/api_key/pairs.rs
+expression: "format!(\"--- stdout ---\\n{}\\n--- stderr ---\\n{}\",\nString::from_utf8_lossy(&output.stdout),\nString::from_utf8_lossy(&output.stderr))"
+---
+--- stdout ---
+┌────────────────┬─────────────┬────────────────────────────┬────────────┐
+│ ID             ┆ Name        ┆ Created At                 ┆ Expires At │
+╞════════════════╪═════════════╪════════════════════════════╪════════════╡
+│ key-operator-1 ┆ router-prod ┆ 2026-01-15 10:00:00 +00:00 ┆ Never      │
+└────────────────┴─────────────┴────────────────────────────┴────────────┘
+
+--- stderr ---
+error[E056]: Rover couldn't list client-credential pairs in organization `acme`: pairs are unavailable. API keys are shown above.
+
+Caused by:
+    pairs are unavailable

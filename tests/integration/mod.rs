@@ -1,4 +1,4 @@
-#[cfg(feature = "oauth")]
+mod api_key;
 mod auth;
 mod client;
 mod completion;
@@ -7,6 +7,7 @@ mod config;
 mod connector;
 mod dev;
 mod graph;
+mod help;
 mod info;
 mod installers;
 mod output;

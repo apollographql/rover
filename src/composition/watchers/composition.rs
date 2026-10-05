@@ -13,7 +13,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::{error, info};
 
 use crate::{
-    command::install::PluginProvenance,
+    command::install::{Plugin, PluginProvenance},
     composition::{
         CompositionError,
         CompositionError::ResolvingSubgraphsError,
@@ -37,7 +37,12 @@ use crate::{
     },
     config::SupergraphConfigYaml,
     federation::reject_federation_one,
-    plugin::error::RequestOrigin,
+    plugin::{
+        error::RequestOrigin,
+        layering::LayeredDeclarations,
+        precedence::{ManifestOverridden, PluginRequest, RequestSource},
+        version::PluginName,
+    },
     subtask::SubtaskHandleStream,
     utils::effect::{exec::ExecCommand, install::InstallBinary, write_file::WriteFile},
 };
@@ -117,6 +122,9 @@ pub struct CompositionWatcher<ExecC, WriteF> {
     initial_supergraph_config: FullyResolvedSupergraphConfig,
     initial_resolution_errors: BTreeMap<String, ResolveSubgraphError>,
     federation_updater_config: Option<FederationUpdaterConfig>,
+    /// The manifests' declarations, so that a `federation_version` added to
+    /// `supergraph.yaml` mid-session that overrides one can say so (FR30).
+    manifest_declarations: Option<LayeredDeclarations>,
     supergraph_binary: Result<SupergraphBinary, InstallSupergraphError>,
     exec_command: ExecC,
     write_file: WriteF,
@@ -208,6 +216,18 @@ where
                                 if let Err(err) = reject_federation_one(&fed_version) {
                                     let _ = sender.send(CompositionEvent::Error(err.into())).tap_err(|err| error!("{:?}", err));
                                     continue;
+                                }
+                                let config_path = supergraph_config.origin_path().clone();
+                                if let Some(declarations) = &self.manifest_declarations {
+                                    ManifestOverridden::process().warn_once(
+                                        &rover_print::print::stderr::default(),
+                                        &PluginRequest {
+                                            plugin: PluginName::Supergraph,
+                                            request: Plugin::Supergraph(fed_version.clone()).request(),
+                                            source: RequestSource::SupergraphConfig(config_path),
+                                        },
+                                        declarations,
+                                    );
                                 }
                                 info!("Attempting to change supergraph version to {:?}", fed_version);
                                 infoln!("Attempting to change supergraph version to {}", fed_version);

@@ -140,7 +140,7 @@ mod tests {
         };
         let data: delete_pair_mutation::ResponseData = serde_json::from_value(json!({
             "organization": {
-                "deleteOAuthClient": null
+                "deleteOAuthClient": "c_8f2a"
             }
         }))
         .unwrap();
@@ -203,5 +203,19 @@ mod tests {
             the organization must be enrolled in client-credential support."
                 .to_string(),
         );
+    }
+
+    // `deleteOAuthClient` returns the deleted client's ID (`ID!`). A response without one isn't a
+    // successful delete, so it fails to parse rather than being reported as a success.
+    #[rstest]
+    #[case::null(json!(null))]
+    #[case::a_boolean(json!(true))]
+    #[case::an_object(json!({}))]
+    fn a_response_without_the_deleted_id_does_not_parse(#[case] value: serde_json::Value) {
+        let data = serde_json::from_value::<delete_pair_mutation::ResponseData>(json!({
+            "organization": { "deleteOAuthClient": value }
+        }));
+
+        assert_that!(data).is_err();
     }
 }

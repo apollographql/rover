@@ -34,7 +34,6 @@ impl WhoAmI {
         profile: &ProfileOpt,
         stderr: &impl Print,
     ) -> RoverResult<RoverOutput> {
-        #[cfg(feature = "oauth")]
         stderr.print(&StyledText::plain(
             "note: `rover config whoami` is being replaced by `rover auth whoami` - consider switching over.",
         ));
@@ -113,7 +112,6 @@ impl LegacyWhoami {
         let credential = config::Profile::new(&self.profile.profile_name, &client_config.config)
             .get_credential()?;
 
-        #[cfg(feature = "oauth")]
         if !matches!(
             credential.origin,
             CredentialOrigin::OauthAuthorizationPkce(_) | CredentialOrigin::OauthClientCredentials

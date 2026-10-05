@@ -1,0 +1,17 @@
+---
+source: tests/e2e/api_key/pairs.rs
+expression: "redacted create payload"
+---
+{
+  "key_type": "ClientCredentials",
+  "id": "[id]",
+  "client_id": "[client_id]",
+  "client_secret": "[client_secret]",
+  "secret_expires_at": "[secret_expires_at]",
+  "name": "[name]",
+  "graphs": "[graphs]",
+  "scopes": [
+    "rover:cli"
+  ],
+  "success": true
+}

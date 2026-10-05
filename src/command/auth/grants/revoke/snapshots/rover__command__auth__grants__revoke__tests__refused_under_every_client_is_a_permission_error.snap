@@ -1,0 +1,14 @@
+---
+source: src/command/auth/grants/revoke/mod.rs
+expression: "JsonOutput::from(&err)"
+---
+{
+  "json_version": "1",
+  "data": {
+    "success": false
+  },
+  "error": {
+    "message": "You don't have permission to manage grants across organization `acme`. This requires the organization's grant-management permission.",
+    "code": "E053"
+  }
+}

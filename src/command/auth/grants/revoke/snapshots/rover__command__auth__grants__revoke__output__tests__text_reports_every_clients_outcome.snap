@@ -1,0 +1,13 @@
+---
+source: src/command/auth/grants/revoke/output.rs
+expression: strip_ansi_codes(&one_failed().text())
+---
+┌────────────────┬───────────┬─────────┐
+│ Client         ┆ Client ID ┆ Outcome │
+╞════════════════╪═══════════╪═════════╡
+│ Rover          ┆ rover     ┆ revoked │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
+│ ci-deploy      ┆ c_8f2a    ┆ revoked │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
+│ nightly-checks ┆ c_91be    ┆ failed  │
+└────────────────┴───────────┴─────────┘

@@ -1,0 +1,20 @@
+---
+source: tests/integration/api_key/keys.rs
+expression: parsed
+---
+{
+  "json_version": "1",
+  "data": {
+    "keys": [
+      {
+        "created_at": "2026-01-15T10:00:00Z",
+        "expires_at": null,
+        "id": "key-operator-1",
+        "name": "router-prod",
+        "key_type": "Operator"
+      }
+    ],
+    "success": true
+  },
+  "error": null
+}

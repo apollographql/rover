@@ -44,15 +44,37 @@ impl PluginLockfile {
         manifest_path: &Utf8Path,
         manifest: &RoverManifest,
     ) -> Result<(), Box<PluginFailure>> {
+        self.first_drift(manifest_path, manifest, true)
+    }
+
+    /// [`Self::check_against`], except that a declaration this lockfile has
+    /// no entry for yet has not drifted: installing from the manifest is
+    /// what resolves and records it. Only a locked release the declaration
+    /// no longer allows has.
+    pub fn check_entries_against(
+        &self,
+        manifest_path: &Utf8Path,
+        manifest: &RoverManifest,
+    ) -> Result<(), Box<PluginFailure>> {
+        self.first_drift(manifest_path, manifest, false)
+    }
+
+    fn first_drift(
+        &self,
+        manifest_path: &Utf8Path,
+        manifest: &RoverManifest,
+        unlocked_has_drifted: bool,
+    ) -> Result<(), Box<PluginFailure>> {
         let drifted = manifest.plugins.iter().find_map(|(plugin, declaration)| {
             let locked = self.get(plugin);
-            (!locked.is_some_and(|locked| records(locked, &declaration.request))).then(|| {
-                PluginFailure::LockfileDrift {
-                    manifest: manifest_path.to_path_buf(),
-                    plugin,
-                    declared: declaration.request.clone(),
-                    locked: locked.cloned(),
-                }
+            let agrees = locked.map_or(!unlocked_has_drifted, |locked| {
+                records(locked, &declaration.request)
+            });
+            (!agrees).then(|| PluginFailure::LockfileDrift {
+                manifest: manifest_path.to_path_buf(),
+                plugin,
+                declared: declaration.request.clone(),
+                locked: locked.cloned(),
             })
         });
 
@@ -105,11 +127,17 @@ mod tests {
     }
 
     fn check(manifest: &str) -> Result<(), String> {
+        check_with(manifest, PluginLockfile::check_against)
+    }
+
+    fn check_with(
+        manifest: &str,
+        check: fn(&PluginLockfile, &Utf8Path, &RoverManifest) -> Result<(), Box<PluginFailure>>,
+    ) -> Result<(), String> {
         let lockfile = PluginLockfile::parse(Utf8Path::new(LOCKFILE), LOCKED).unwrap();
         let manifest = RoverManifest::parse(Utf8Path::new(MANIFEST_FILE), manifest).unwrap();
 
-        lockfile
-            .check_against(Utf8Path::new(MANIFEST_FILE), &manifest)
+        check(&lockfile, Utf8Path::new(MANIFEST_FILE), &manifest)
             .map_err(|failure| failure.to_string())
     }
 
@@ -149,6 +177,24 @@ mod tests {
         assert_that!(check(manifest)).is_equal_to(Err(format!(
             "The plugin lockfile is out of date with `{MANIFEST_FILE}`: {expected}"
         )));
+    }
+
+    #[rstest]
+    #[case::a_declaration_the_lockfile_lacks("plugins:\n  apollo-mcp-server: latest\n", Ok(()))]
+    #[case::a_locked_release_the_declaration_allows("plugins:\n  router: \"2\"\n", Ok(()))]
+    #[case::a_locked_release_the_declaration_no_longer_allows(
+        "plugins:\n  apollo-mcp-server: latest\n  router: \"=2.2.0\"\n",
+        Err(format!(
+            "The plugin lockfile is out of date with `{MANIFEST_FILE}`: `router` is declared as \
+             `=2.2.0` but locked at `2.1.0`."
+        ))
+    )]
+    fn checking_only_entries_ignores_a_declaration_not_locked_yet(
+        #[case] manifest: &str,
+        #[case] expected: Result<(), String>,
+    ) {
+        assert_that!(check_with(manifest, PluginLockfile::check_entries_against))
+            .is_equal_to(expected);
     }
 
     #[rstest]
