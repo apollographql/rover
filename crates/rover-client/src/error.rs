@@ -412,9 +412,7 @@ pub enum RoverClientError {
         source: Box<RoverClientError>,
     },
 
-    #[error(
-        "Timed out waiting for the launch to complete, or raise APOLLO_CHECKS_TIMEOUT_SECONDS."
-    )]
+    #[error("Timed out waiting for the launch to complete.")]
     LaunchTimeoutError { url: Option<String> },
 
     #[error(

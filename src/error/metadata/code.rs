@@ -72,6 +72,7 @@ pub enum RoverErrorCode {
     E061,
     E062,
     E063,
+    E065,
 }
 
 impl Display for RoverErrorCode {
@@ -336,6 +337,10 @@ impl RoverErrorCode {
             (
                 RoverErrorCode::E063,
                 include_str!("./codes/E063.md").to_string(),
+            ),
+            (
+                RoverErrorCode::E065,
+                include_str!("./codes/E065.md").to_string(),
             ),
         ];
         contents.into_iter().collect()

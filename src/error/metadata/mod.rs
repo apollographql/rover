@@ -316,7 +316,7 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 | RoverClientError::PreviewResultUnavailable { .. } => (None, None),
                 RoverClientError::LaunchTimeoutError { url } => (
                     Some(RoverErrorSuggestion::IncreaseChecksTimeout { url: url.clone() }),
-                    None,
+                    Some(RoverErrorCode::E065),
                 ),
                 RoverClientError::RequestTooLarge { .. } => (
                     Some(RoverErrorSuggestion::Adhoc(
@@ -566,5 +566,22 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
         }
 
         RoverErrorMetadata::default()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rover_client::RoverClientError;
+    use speculoos::prelude::*;
+
+    use crate::{RoverError, RoverErrorCode};
+
+    #[test]
+    fn a_launch_that_outlasts_the_wait_has_its_own_code_and_message() {
+        let error = RoverError::new(RoverClientError::LaunchTimeoutError { url: None });
+
+        assert_that!(error.code()).is_equal_to(Some(RoverErrorCode::E065));
+        assert_that!(error.message())
+            .is_equal_to("Timed out waiting for the launch to complete.".to_string());
     }
 }
