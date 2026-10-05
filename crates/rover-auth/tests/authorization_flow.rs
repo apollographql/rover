@@ -33,6 +33,7 @@ async fn test_full_pkce_flow_authorize_and_exchange() {
         .build();
 
     let mut mock_open_url = MockOpenUrl::new();
+    mock_open_url.expect_opens_browser().return_const(true);
     mock_open_url.expect_open_url().times(1).returning(|url| {
         let state = url
             .query_pairs()
@@ -108,6 +109,7 @@ async fn test_authorize_still_completes_when_opening_the_browser_fails() {
         .build();
 
     let mut mock_open_url = MockOpenUrl::new();
+    mock_open_url.expect_opens_browser().return_const(true);
     mock_open_url.expect_open_url().times(1).returning(|url| {
         // Simulate a browser-open failure; still spawn the callback so the
         // flow can complete regardless (the URL is always printed too, but

@@ -4,6 +4,12 @@ use url::Url;
 pub trait OpenUrl {
     type Error: std::error::Error;
     fn open_url(&self, url: &Url) -> Result<(), Self::Error>;
+
+    /// Whether [`OpenUrl::open_url`] actually tries to open anything, so that what is said to the
+    /// user doesn't claim a browser is opening when it isn't.
+    fn opens_browser(&self) -> bool {
+        true
+    }
 }
 
 #[derive(Default, Clone, Debug)]
@@ -23,5 +29,9 @@ impl OpenUrl for NoopOpenUrl {
     type Error = std::io::Error;
     fn open_url(&self, _: &Url) -> Result<(), Self::Error> {
         Ok(())
+    }
+
+    fn opens_browser(&self) -> bool {
+        false
     }
 }

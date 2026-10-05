@@ -157,8 +157,17 @@ impl Sensitive {
     }
 
     /// Removes a profile's credential from the secret store, if present.
+    ///
+    /// Also removes a credential still in the legacy file, which hasn't been migrated into the
+    /// secret store yet: left behind, it would be loaded, and migrated, as if nothing had been
+    /// removed.
     pub fn delete(profile_name: &str, config: &Config) -> Result<(), HoustonProblem> {
         Sensitive::store(config)?.delete(&Sensitive::key(profile_name))?;
+        match std::fs::remove_file(Sensitive::legacy_path(profile_name, config).as_std_path()) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error.into()),
+        }
         Ok(())
     }
 

@@ -99,9 +99,7 @@ impl AuthorizationFlow<state::AuthorizationFlowInit> {
         // so nothing about this depends on browser-launch behavior at all.
         stderr.print(&StyledText::new(
             Style::Info,
-            format!(
-                "Opening your browser to authenticate. If it doesn't open automatically, visit this URL: {auth_url}"
-            ),
+            announcement(open_auth_url.opens_browser(), &auth_url),
         ));
         if let Err(err) = open_auth_url.open_url(&auth_url) {
             tracing::error!("Failed to open URL automatically: {}", err);
@@ -114,6 +112,17 @@ impl AuthorizationFlow<state::AuthorizationFlowInit> {
                 client,
             },
         })
+    }
+}
+
+/// What to tell the user about `auth_url`: that a browser is opening only when one is.
+fn announcement(opens_browser: bool, auth_url: &Url) -> String {
+    if opens_browser {
+        format!(
+            "Opening your browser to authenticate. If it doesn't open automatically, visit this URL: {auth_url}"
+        )
+    } else {
+        format!("Visit this URL to authenticate: {auth_url}")
     }
 }
 
@@ -153,6 +162,20 @@ impl AuthorizationFlow<state::AuthorizationFlowWithCode> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_announcement_claims_a_browser_only_when_one_opens() {
+        let url = Url::parse("https://auth.example.com/authorize?state=abc").unwrap();
+
+        assert_eq!(
+            super::announcement(true, &url),
+            "Opening your browser to authenticate. If it doesn't open automatically, visit this URL: https://auth.example.com/authorize?state=abc"
+        );
+        assert_eq!(
+            super::announcement(false, &url),
+            "Visit this URL to authenticate: https://auth.example.com/authorize?state=abc"
+        );
+    }
+
     use std::{
         net::{IpAddr, Ipv4Addr, SocketAddr},
         time::Duration,
@@ -239,6 +262,7 @@ mod tests {
             }
         });
         let expected_auth_url = auth_url.clone();
+        mock_open_auth_url.expect_opens_browser().return_const(true);
         mock_open_auth_url
             .expect_open_url()
             .times(1)
@@ -328,6 +352,7 @@ mod tests {
                 Ok(mock_redirect_server_await)
             }
         });
+        mock_open_auth_url.expect_opens_browser().return_const(true);
         mock_open_auth_url
             .expect_open_url()
             .times(1)

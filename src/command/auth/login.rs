@@ -77,6 +77,13 @@ impl OpenUrl for BrowserOpener {
             Self::Noop(opener) => opener.open_url(url),
         }
     }
+
+    fn opens_browser(&self) -> bool {
+        match self {
+            Self::System(opener) => opener.opens_browser(),
+            Self::Noop(opener) => opener.opens_browser(),
+        }
+    }
 }
 
 impl Login {
