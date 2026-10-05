@@ -91,6 +91,10 @@ fn install(level: &GlobalLevel, args: &[&str]) -> (Value, String) {
 
 #[rstest]
 #[case::plugin_noun(&["plugin", "install", "supergraph@=2.9.3"], "")]
+#[case::legacy_version_spelling(
+    &["plugin", "install", "supergraph@v2.9.3"],
+    "warning: `v2.9.3` is a deprecated version format. Use `=2.9.3` instead.\n"
+)]
 #[case::deprecated_alias(
     &["install", "--plugin", "supergraph@=2.9.3"],
     "warning: `rover install --plugin` is deprecated. Use `rover plugin install supergraph@=2.9.3` instead.\n"

@@ -313,6 +313,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   An invalid `APOLLO_GRAPH_REF` was rejected with E054 when stored on a profile or in `rover.yaml`, but accepted from the environment and reported as-is by `rover config show`; it is now rejected there too. An invalid `APOLLO_GRAPH_REF` in `rover.yaml` also failed `rover config show` but not `rover config list`, unlike every other setting; commands that resolve settings now fail on it consistently.
 
+- **`rover plugin install` warns when a plugin version uses a legacy spelling - @dotdat fixes ROVER-489**
+
+  `rover plugin install supergraph@latest-2` and `@vX.Y.Z` worked silently. They still work, and now print a deprecation warning naming the modern spelling (`2`, `=X.Y.Z`), once per distinct spelling. `rover install --plugin` shares the argument and warns the same way.
+
 - **`rover --help` opens with Rover's own description again - @dotdat**
 
   `rover --help` and `rover help` printed an internal note about the `--oauth-*` flags where Rover's description and getting-started steps belong, in every build since OAuth stopped being an optional feature. `rover -h` was unaffected.
