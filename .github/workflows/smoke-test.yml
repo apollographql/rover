@@ -42,6 +42,8 @@ jobs:
         name: "Checkout rover repo"
       - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
         with:
+          # Save caches from main only: other PRs can't reuse a PR's cache, and it evicts main's (10 GB repo limit).
+          cache-save-if: ${{ github.ref == 'refs/heads/main' }}
           target: ${{ matrix.compile_target.target }}
       - name: Build binaries
         shell: bash
