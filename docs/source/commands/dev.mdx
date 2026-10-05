@@ -232,7 +232,7 @@ The first time you use Federation 2 composition on a particular machine, Rover p
 
 `rover dev` runs three plugins: `supergraph` for composition, `router`, and, with [`--mcp`](#run-your-mcp-server), `apollo-mcp-server`. The `supergraph` and `router` plugins are ELv2-licensed (built from the [federation-rs source](https://github.com/apollographql/federation-rs) and the [router source](https://github.com/apollographql/router)).
 
-`rover dev` uses a plugin only if it's already installed. It doesn't download one unless you [opt in to automatic downloads](/rover/commands/plugin#automatic-downloads). Install the plugins ahead of time with [`rover plugin install`](/rover/commands/plugin#plugin-install):
+If a plugin isn't installed, `rover dev` downloads it and prints a warning that a future version of Rover will stop downloading plugins automatically. To avoid the downloads and the warning, install the plugins ahead of time with [`rover plugin install`](/rover/commands/plugin#plugin-install):
 
 ```bash showLineNumbers=false
 rover plugin install supergraph@=2.9.3
@@ -240,15 +240,7 @@ rover plugin install router@2
 rover plugin install apollo-mcp-server@latest
 ```
 
-If a plugin isn't installed, `rover dev` stops and tells you how to install it:
-
-```
-error[E058]: Couldn't obtain the `router` plugin
-
-Caused by:
-    Rover needs the `router` plugin v2.0.0, which isn't installed.
-        Run `rover plugin install router@=2.0.0`, or set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true` under `settings:` in `rover.yaml` to let Rover download plugins on demand.
-```
+To keep downloading without the warning, or to stop downloading, set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`. With it set to `false`, `rover dev` stops when a plugin isn't installed and tells you how to install it. For details, see [Automatic downloads](/rover/commands/plugin#automatic-downloads).
 
 Rover looks for each plugin in the project's `.rover/bin/` directory first, then in the global `$APOLLO_HOME/.rover/bin/` directory (by default, `~/.rover/bin/`). See [Where plugins are installed](/rover/commands/plugin#where-plugins-are-installed). At startup, `rover dev` reports each plugin it uses:
 
@@ -275,7 +267,7 @@ A `rover.yaml` in your project, or the global one, can [declare](/rover/commands
 
 For each of these, the flag takes precedence over its environment variable.
 
-To make sure `rover dev` never downloads a plugin, even if you've opted in to automatic downloads, pass `--skip-update` or set `APOLLO_ROVER_SKIP_UPDATE` to `1` or `true`. `rover dev` then uses the newest installed release that matches each version, and fails with [`E058`](/rover/errors#e058) if none is installed.
+To make sure `rover dev` never downloads a plugin, whatever `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` is set to, pass `--skip-update` or set `APOLLO_ROVER_SKIP_UPDATE` to `1` or `true`. `rover dev` then uses the newest installed release that matches each version, and fails with [`E058`](/rover/errors#e058) if none is installed.
 
 # Run your MCP server
 

@@ -1,7 +1,7 @@
 ---
 title: Upgrading to Rover 1.0
 subtitle: What changes when you move from Rover 0.x to 1.0
-description: Learn which Rover 1.0 changes affect existing 0.x workflows, including opt-in plugin downloads, version 3 check JSON, publish launch polling, keychain credential storage, and the removal of rover cloud and Federation 1.
+description: Learn which Rover 1.0 changes affect existing 0.x workflows, including the warning on automatic plugin downloads, version 3 check JSON, publish launch polling, keychain credential storage, and the removal of rover cloud and Federation 1.
 ---
 
 Rover 1.0 includes a few breaking changes. Most 0.x workflows keep working unchanged, but check this page before you upgrade, especially in CI.
@@ -12,7 +12,7 @@ To install Rover 1.0, follow [Installing Rover](/rover/getting-started). To upgr
 
 | Change | Who's affected | What to do |
 | --- | --- | --- |
-| [Plugin downloads are opt-in](#plugin-downloads-are-opt-in) | Anyone running `rover supergraph compose`, `rover dev`, `rover lsp`, or `rover connector` without installing plugins first | Run `rover plugin install` ahead of time, or opt in with `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` |
+| [Automatic plugin downloads warn](#automatic-plugin-downloads-warn) | Anyone running `rover supergraph compose`, `rover dev`, `rover lsp`, or `rover connector` without installing plugins first | Nothing breaks now. Run `rover plugin install` ahead of time, or set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` |
 | [Check JSON output is version 3](#check-json-output-is-version-3) | Scripts that parse `rover subgraph check` or `rover graph check` with `--format json` | Read `downstream.variants` instead of `downstream.blocking_variants`, and expect `json_version: "3"` |
 | [Publish waits for launches](#publish-waits-for-launches) | Anyone running `rover graph publish` or `rover subgraph publish` | Allow for the extra wait, and handle `E047` when a launch fails |
 | [`rover cloud` is removed](#rover-cloud-is-removed) | Anyone using `rover cloud config fetch`, `update`, or `validate` | Manage cloud router configuration in GraphOS Studio |
@@ -21,41 +21,43 @@ To install Rover 1.0, follow [Installing Rover](/rover/getting-started). To upgr
 | [Credentials are stored in the OS keychain](#credentials-are-stored-in-the-os-keychain) | Anyone who stores an API key with `rover config auth` | Usually nothing. Allow the keychain prompt if your OS shows one |
 | [`rover connector test` fails when tests fail](#rover-connector-test-fails-when-tests-fail) | CI that runs `rover connector test` | Expect a non-zero exit code when the suite fails |
 
-## Plugin downloads are opt-in
+## Automatic plugin downloads warn
 
-**What changed:** `rover supergraph compose`, `rover dev`, `rover lsp`, and `rover connector` no longer download a plugin they need. They use a plugin only if it's already installed, either in the project or globally. In 0.x, these commands downloaded a missing plugin on demand.
-
-`rover plugin install` isn't affected and still downloads.
-
-**How to tell you're affected:** the command stops with error [E058](/rover/errors#e058). For example, with a `supergraph.yaml` that pins `federation_version: =2.9.3`:
+**What changed:** `rover supergraph compose`, `rover dev`, `rover lsp`, and `rover connector` still download a plugin they need and don't have, as in 0.x. Now each such download prints a warning, because a future version of Rover will stop downloading plugins automatically:
 
 ```
 $ rover supergraph compose --config supergraph.yaml
 merging supergraph schema files
-error[E058]: Error when updating Federation Version
-
-Caused by:
-    0: Couldn't obtain the `supergraph` plugin
-    1: Rover needs the `supergraph` plugin v2.9.3, which isn't installed.
-        Run `rover plugin install supergraph@=2.9.3`, or set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true` under `settings:` in `rover.yaml` to let Rover download plugins on demand.
+downloading the 'supergraph' plugin from https://rover.apollo.dev/tar/supergraph/aarch64-apple-darwin/v2.9.3
+the 'supergraph' plugin was successfully installed to /home/me/.rover/bin/supergraph-v2.9.3
+Warning: Rover downloaded the `supergraph` plugin v2.9.3 because `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` isn't set. A future version of Rover will not install plugins automatically. Install plugins ahead of time with `rover plugin install supergraph@=2.9.3`, or set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` to `true` to keep downloading them or `false` to stop now.
+Using the `supergraph` plugin v2.9.3 (downloaded).
 ```
 
-**What to do:** either install the plugins ahead of time or opt in to automatic downloads.
+`rover plugin install` isn't affected.
 
-- **Install ahead of time** with [`rover plugin install`](/rover/commands/plugin#plugin-install), for example `rover plugin install supergraph@=2.9.3`.
-- **Opt in to automatic downloads** with the `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` setting, which restores the 0.x behavior. Set it in any of these places:
-  - the environment: `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD=true` (or `1`)
-  - a profile: `rover config set APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD true`
-  - the project file, under `settings:` in `.rover/rover.yaml`:
+**How to tell you're affected:** you see the warning. Nothing fails because of it, and `--no-config-notices` doesn't silence it.
 
-    ```yaml title=".rover/rover.yaml"
-    settings:
-      APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true
-    ```
+**What to do:** prepare for the future change now, in one of these ways:
 
-  `rover config show` reports the setting's value and where it came from. For details, see [Automatic downloads](/rover/commands/plugin#automatic-downloads).
+- **Install plugins ahead of time** with [`rover plugin install`](/rover/commands/plugin#plugin-install), for example `rover plugin install supergraph@=2.9.3`. In CI, see [Recommended setup for CI](#recommended-setup-for-ci).
+- **Keep downloading, without the warning,** by setting `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` to `true`.
+- **Stop downloading now** by setting it to `false`. A command that needs a plugin installed nowhere then fails with [`E058`](/rover/errors#e058) and says how to install it.
 
-`--skip-update` (or `APOLLO_ROVER_SKIP_UPDATE`) still forbids downloads, even when you've opted in.
+Set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` in any of these places:
+
+- the environment: `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD=true` (or `1`), or `false` (or `0`)
+- a profile: `rover config set APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD false`
+- the project file, under `settings:` in `.rover/rover.yaml`:
+
+  ```yaml title=".rover/rover.yaml"
+  settings:
+    APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: false
+  ```
+
+`rover config show` reports the setting's value and where it came from. For details, see [Automatic downloads](/rover/commands/plugin#automatic-downloads).
+
+`--skip-update` (or `APOLLO_ROVER_SKIP_UPDATE`) still forbids downloads, whatever `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` is set to.
 
 ### Recommended setup for CI
 

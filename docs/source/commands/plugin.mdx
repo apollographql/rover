@@ -12,7 +12,7 @@ Some Rover commands delegate their work to a plugin binary:
 | `router` | GraphOS Router | [`rover dev`](/rover/commands/dev) |
 | `apollo-mcp-server` | Apollo MCP Server | [`rover dev --mcp`](/rover/commands/dev#run-your-mcp-server) |
 
-These commands use a plugin only if it's already installed. They don't download one unless you [opt in to automatic downloads](#automatic-downloads). Install plugins ahead of time with `rover plugin install`.
+These commands download a plugin they need and don't have, and warn that a future version of Rover won't. To control that, see [Automatic downloads](#automatic-downloads). To install plugins ahead of time, use `rover plugin install`.
 
 ## `plugin install`
 
@@ -253,42 +253,51 @@ When `rover.yaml` declares a floating version and the lockfile at the same level
 
 ## Automatic downloads
 
-`rover supergraph compose`, `rover dev`, `rover lsp`, and `rover connector` use a plugin only if it's installed, in the project or globally. If it isn't, the command stops and tells you how to install it:
+`rover supergraph compose`, `rover dev`, `rover lsp`, and `rover connector` use a plugin that's already installed, in the project or globally. If it isn't installed, the command downloads it into the global install root, even inside a project, and writes no lockfile. To install a plugin into a project and record it, use `rover plugin install`.
+
+The `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` setting controls these downloads. When nothing sets it, each download prints a warning, because a future version of Rover will stop downloading plugins automatically:
 
 ```
-error[E058]: Error when updating Federation Version
-
-Caused by:
-    0: Couldn't obtain the `supergraph` plugin
-    1: Rover needs the `supergraph` plugin v2.9.3, which isn't installed.
-        Run `rover plugin install supergraph@=2.9.3`, or set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true` under `settings:` in `rover.yaml` to let Rover download plugins on demand.
+Warning: Rover downloaded the `supergraph` plugin v2.9.3 because `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` isn't set. A future version of Rover will not install plugins automatically. Install plugins ahead of time with `rover plugin install supergraph@=2.9.3`, or set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` to `true` to keep downloading them or `false` to stop now.
 ```
 
-A floating version, such as `federation_version: 2`, uses the newest matching release that's already installed.
+`--no-config-notices` doesn't silence this warning. Only setting `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`, to either value, does:
 
-To let these commands download a missing plugin, opt in with the `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` setting, in any of these ways:
+- `true` keeps downloading missing plugins, without the warning.
+- `false` stops downloading. A plugin installed nowhere then stops the command with [`E058`](/rover/errors#e058):
 
-- Set the `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` environment variable to `1` or `true`. The environment variable can only opt in. If you set it to `false`, it doesn't opt out of a profile or project that opts in.
+  ```
+  error[E058]: Error when updating Federation Version
+
+  Caused by:
+      0: Couldn't obtain the `supergraph` plugin
+      1: Rover needs the `supergraph` plugin v2.9.3, but it isn't installed in `/work/app/.rover/bin` or `/home/me/.rover/bin` and downloads are disabled by `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`.
+          Run `rover plugin install supergraph@=2.9.3` to install it ahead of time, or set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` to `true` to let Rover download it.
+  ```
+
+  With downloads turned off, a floating version such as `federation_version: 2` uses the newest matching release that's already installed.
+
+Set it in any of these ways:
+
+- Set the `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` environment variable to `1` or `true`, or to `0` or `false`. The environment variable outranks a profile and the project file.
 - Store it on a profile with [`rover config set`](/rover/commands/config#config-set):
 
   ```bash
-  rover config set APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD true
+  rover config set APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD false
   ```
 
 - Set it under `settings:` in the project's `.rover/rover.yaml`:
 
   ```yaml title=".rover/rover.yaml"
   settings:
-    APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true
+    APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: false
   ```
 
-  The global `rover.yaml` can't opt in. Rover ignores its `settings:` section and warns.
+  The global `rover.yaml` can't set it. Rover ignores its `settings:` section and warns.
 
-Run `rover config show` to see the setting's value and where it came from.
+Run `rover config show` to see the setting's value and where it came from. With nothing set, it reports `true` from the built-in default.
 
-When you've opted in, Rover downloads a missing plugin into the global install root, even inside a project, and writes no lockfile. To install a plugin into a project and record it, use `rover plugin install`.
-
-`--skip-update` and `APOLLO_ROVER_SKIP_UPDATE` still forbid downloads when you've opted in. Under either, a missing plugin fails with [`E058`](/rover/errors#e058), naming every directory Rover searched:
+`--skip-update` and `APOLLO_ROVER_SKIP_UPDATE` forbid downloads even when `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` is `true`. Under either, a missing plugin fails with [`E058`](/rover/errors#e058), naming every directory Rover searched:
 
 ```
 error[E058]: Error when updating Federation Version

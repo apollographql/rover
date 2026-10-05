@@ -177,22 +177,19 @@ CI systems wipe away any persisted Rover configuration on each run, and they can
 
 ### The `supergraph` plugin
 
-Composition runs in the ELv2-licensed `supergraph` plugin (built from the [federation-rs source](https://github.com/apollographql/federation-rs)). `rover supergraph compose` uses the plugin only if it's already installed. It doesn't download it unless you [opt in to automatic downloads](/rover/commands/plugin#automatic-downloads). Install it ahead of time, for example in your CI setup, with [`rover plugin install`](/rover/commands/plugin#plugin-install):
+Composition runs in the ELv2-licensed `supergraph` plugin (built from the [federation-rs source](https://github.com/apollographql/federation-rs)). If the plugin isn't installed, `rover supergraph compose` downloads it and prints a warning that a future version of Rover will stop downloading plugins automatically. To avoid the download and the warning, install the plugin ahead of time, for example in your CI setup, with [`rover plugin install`](/rover/commands/plugin#plugin-install):
 
 ```bash
 rover plugin install supergraph@=2.9.3 --elv2-license accept
 ```
 
-If the plugin isn't installed, the command stops and tells you how to install it:
+When the command downloads the plugin, it warns:
 
 ```
-error[E058]: Error when updating Federation Version
-
-Caused by:
-    0: Couldn't obtain the `supergraph` plugin
-    1: Rover needs the `supergraph` plugin v2.9.3, which isn't installed.
-        Run `rover plugin install supergraph@=2.9.3`, or set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true` under `settings:` in `rover.yaml` to let Rover download plugins on demand.
+Warning: Rover downloaded the `supergraph` plugin v2.9.3 because `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` isn't set. A future version of Rover will not install plugins automatically. Install plugins ahead of time with `rover plugin install supergraph@=2.9.3`, or set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` to `true` to keep downloading them or `false` to stop now.
 ```
+
+To keep downloading without the warning, or to stop downloading, set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`. For details, see [Automatic downloads](/rover/commands/plugin#automatic-downloads).
 
 Rover looks for the plugin in the project's `.rover/bin/` directory first, then in the global `$APOLLO_HOME/.rover/bin/` directory (by default, `~/.rover/bin/`). See [Where plugins are installed](/rover/commands/plugin#where-plugins-are-installed).
 
@@ -230,16 +227,16 @@ The command composes with Federation 2, implemented by the [`@apollo/composition
 
 #### Automatic updates
 
-If you've [opted in to automatic downloads](/rover/commands/plugin#automatic-downloads) and don't specify an exact `federation_version`, Rover asks the Apollo plugin registry at `https://rover.apollo.dev` (or the host set by [`APOLLO_ROVER_DOWNLOAD_HOST`](/rover/configuring#supported-environment-variables)) for the latest Federation 2 composition version each time it runs, so a new release is picked up as soon as it is released.
+Unless you've [turned automatic downloads off](/rover/commands/plugin#automatic-downloads), when you don't specify an exact `federation_version`, Rover asks the Apollo plugin registry at `https://rover.apollo.dev` (or the host set by [`APOLLO_ROVER_DOWNLOAD_HOST`](/rover/configuring#supported-environment-variables)) for the latest Federation 2 composition version each time it runs, so a new release is picked up as soon as it is released.
 
-Without the opt-in, a floating version such as `2` uses the newest matching release that's already installed.
+With automatic downloads turned off, a floating version such as `2` uses the newest matching release that's already installed.
 
 This auto-update flow will cause issues if you don't update your router version prior to updating your composition pipeline.
 Apollo strongly recommends always specifying an exact `federation_version`.
 
 #### Preventing auto-updates
 
-To make sure Rover never downloads a plugin or contacts the plugin registry, for example on a slow or nonexistent network connection, pass the `--skip-update` flag to `rover supergraph compose`, or set the `APOLLO_ROVER_SKIP_UPDATE` environment variable to `1` or `true`. This applies even if you've opted in to automatic downloads.
+To make sure Rover never downloads a plugin or contacts the plugin registry, for example on a slow or nonexistent network connection, pass the `--skip-update` flag to `rover supergraph compose`, or set the `APOLLO_ROVER_SKIP_UPDATE` environment variable to `1` or `true`. This applies even when `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` is `true`.
 
 Under `--skip-update`, Rover uses the version from `supergraph.yaml` or `rover.yaml` as usual, and uses the newest installed release that matches it. If none is installed, the command fails with [`E058`](/rover/errors#e058), naming the directories it searched:
 

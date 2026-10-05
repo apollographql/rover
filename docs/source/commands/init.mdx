@@ -92,7 +92,7 @@ After you've completed the wizard, it prints your graph's `APOLLO_GRAPH_REF` and
 
 #### Install the plugins `rover dev` needs
 
-`rover dev` runs the `supergraph` composition plugin and the `router` plugin, and Rover doesn't download them automatically by default. Before your first `rover dev`, install them, using the `federation_version` from your generated `supergraph.yaml` for the `supergraph` plugin:
+`rover dev` runs the `supergraph` composition plugin and the `router` plugin. If they aren't installed, `rover dev` downloads them and warns that a future version of Rover will stop downloading plugins automatically. To avoid that, install them before your first `rover dev`, using the `federation_version` from your generated `supergraph.yaml` for the `supergraph` plugin:
 
 ```terminal showLineNumbers=false
 rover plugin install supergraph@<FEDERATION_VERSION>
@@ -101,7 +101,7 @@ rover plugin install router@2
 
 For example, if `supergraph.yaml` sets `federation_version: =2.9.3`, run `rover plugin install supergraph@=2.9.3`. Rover asks you to accept the ELv2 license the first time.
 
-Alternatively, opt in to [automatic downloads](/rover/commands/plugin#automatic-downloads) so `rover dev` downloads missing plugins itself. If a plugin is missing, `rover dev` stops and names the plugin and version it needs.
+To control whether `rover dev` downloads missing plugins itself, see [Automatic downloads](/rover/commands/plugin#automatic-downloads).
 
 #### Start developing
 
@@ -197,7 +197,7 @@ rover init --mcp \
 
 #### Run your MCP server
 
-When the `rover init` wizard is complete, use [`rover dev`](./dev) to start everything together. As for a graph, [install the plugins `rover dev` needs](#install-the-plugins-rover-dev-needs) first, adding the MCP server plugin with `rover plugin install apollo-mcp-server@latest`, or opt in to [automatic downloads](/rover/commands/plugin#automatic-downloads). For details, see [Running the Apollo MCP Server](/apollo-mcp-server/run).
+When the `rover init` wizard is complete, use [`rover dev`](./dev) to start everything together. As for a graph, [install the plugins `rover dev` needs](#install-the-plugins-rover-dev-needs) first, adding the MCP server plugin with `rover plugin install apollo-mcp-server@latest`, or let `rover dev` download them with a warning (see [Automatic downloads](/rover/commands/plugin#automatic-downloads)). For details, see [Running the Apollo MCP Server](/apollo-mcp-server/run).
 
 #### Connect your MCP server to Claude Desktop
 
