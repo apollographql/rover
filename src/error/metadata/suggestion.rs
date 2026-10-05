@@ -217,8 +217,9 @@ impl Display for RoverErrorSuggestion {
                 "When trying to compose with a local .graphql file, make sure you supply a `routing_url` in your config YAML.".to_string()
             }
             NewUserNoProfiles => {
-                format!("It looks like you may be new here. Welcome! To authenticate with Apollo Studio, run {}, or set {} to a valid Apollo Studio API key.",
-                    Style::Command.paint("`rover config auth`"), Style::Command.paint(format!("`${}`", RoverEnvKey::Key))
+                format!("It looks like you may be new here. Welcome! To authenticate with Apollo Studio, run {}, or run {} to store a Personal API Key. In CI, set {} to a valid Apollo Studio API key, or {} and {} to a client-credential pair.",
+                    Style::Command.paint("`rover auth login`"), Style::Command.paint("`rover config auth`"), Style::Command.paint(format!("`${}`", RoverEnvKey::Key)),
+                    Style::Command.paint("`$APOLLO_CLIENT_ID`"), Style::Command.paint("`$APOLLO_CLIENT_SECRET`")
                 )
             }
             Adhoc(msg) => msg.to_string(),
