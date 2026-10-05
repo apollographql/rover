@@ -118,19 +118,19 @@ fn subgraph_check_fails_on_blocking_downstream_contract_failure() {
                 }]
             }]
         }}}}"#,
-        &["--fail-on-blocking-contract-checks"],
+        &["--include-contract-checks"],
     );
 
     assert!(!success, "expected a nonzero exit code; json: {json}");
     assert_json_snapshot!(json);
 }
 
-/// Without `--fail-on-blocking-contract-checks` the command goes by Studio's overall result for
+/// Without `--include-contract-checks` the command goes by Studio's overall result for
 /// the check, so a failed blocking contract variant is reported (with the status Studio gave the
 /// downstream task) and does not fail it.
 #[test]
 #[serial]
-fn subgraph_check_ignores_a_blocking_contract_failure_unless_asked_to_fail_on_it() {
+fn subgraph_check_ignores_a_blocking_contract_failure_unless_contract_checks_are_included() {
     let (success, json) = run_subgraph_check(
         r#"{"data":{"graph":{"checkWorkflow":{
             "status":"PASSED",

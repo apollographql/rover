@@ -85,7 +85,7 @@ pub async fn run(
         },
     )
     .await?;
-    get_check_response_from_data(data, graph_ref, input.fail_on_blocking_downstream)
+    get_check_response_from_data(data, graph_ref, input.include_contract_checks)
 }
 
 fn get_target_url_from_status_data(
@@ -101,7 +101,7 @@ fn get_target_url_from_status_data(
 fn get_check_response_from_data(
     data: QueryResponseData,
     graph_ref: GraphRef,
-    fail_on_blocking_downstream: bool,
+    include_contract_checks: bool,
 ) -> Result<CheckWorkflowResponse, RoverClientError> {
     let graph = data.graph.ok_or(RoverClientError::GraphNotFound {
         graph_ref: graph_ref.clone(),
@@ -184,9 +184,9 @@ fn get_check_response_from_data(
         downstream_status,
         downstream_target_url,
         downstream_result,
-        fail_on_blocking_downstream,
+        include_contract_checks,
     );
-    let downstream_failed = fail_on_blocking_downstream
+    let downstream_failed = include_contract_checks
         && maybe_downstream_response
             .as_ref()
             .map(DownstreamCheckResponse::has_blocking_failure)
@@ -479,7 +479,7 @@ mod tests {
         assert_that!(&result.unwrap().maybe_downstream_response).is_equal_to(Some(expected));
     }
 
-    /// Without `--fail-on-blocking-contract-checks` the command goes by the workflow's own
+    /// Without `--include-contract-checks` the command goes by the workflow's own
     /// status, so a blocking contract variant that has failed is reported and does not fail it,
     /// and the downstream task keeps the status Studio gave it.
     #[rstest]
