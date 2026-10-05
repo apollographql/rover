@@ -90,7 +90,7 @@ pub async fn run(
         },
     )
     .await?;
-    get_check_response_from_data(data, graph_ref, subgraph)
+    get_check_response_from_data(data, graph_ref, subgraph, input.fail_on_blocking_downstream)
 }
 
 fn get_target_url_from_status_data(
@@ -107,6 +107,7 @@ fn get_check_response_from_data(
     data: QueryResponseData,
     graph_ref: GraphRef,
     subgraph: String,
+    fail_on_blocking_downstream: bool,
 ) -> Result<CheckWorkflowResponse, RoverClientError> {
     let graph = data.graph.ok_or(RoverClientError::GraphNotFound {
         graph_ref: graph_ref.clone(),
@@ -229,11 +230,13 @@ fn get_check_response_from_data(
         downstream_status,
         downstream_target_url,
         downstream_result,
+        fail_on_blocking_downstream,
     );
-    let downstream_failed = maybe_downstream_response
-        .as_ref()
-        .map(DownstreamCheckResponse::has_blocking_failure)
-        .unwrap_or(false);
+    let downstream_failed = fail_on_blocking_downstream
+        && maybe_downstream_response
+            .as_ref()
+            .map(DownstreamCheckResponse::has_blocking_failure)
+            .unwrap_or(false);
 
     let check_response = CheckWorkflowResponse {
         default_target_url,
@@ -464,19 +467,21 @@ fn get_downstream_response_from_result(
     results: Option<
         Vec<SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnDownstreamCheckTaskResults>,
     >,
+    escalate_blocking_failures: bool,
 ) -> Option<DownstreamCheckResponse> {
-    match results {
-        Some(results) => {
-            let variants: Vec<DownstreamVariantCheckResult> =
-                results.into_iter().map(Into::into).collect();
-            Some(DownstreamCheckResponse::new(
-                variants,
-                task_status.into(),
-                target_url,
-            ))
+    let variants: Vec<DownstreamVariantCheckResult> =
+        results?.into_iter().map(Into::into).collect();
+    Some(if escalate_blocking_failures {
+        DownstreamCheckResponse::new(variants, task_status.into(), target_url)
+    } else {
+        // Studio's own status for the task, which is what the command goes by when it isn't
+        // asked to look past it.
+        DownstreamCheckResponse {
+            task_status: task_status.into(),
+            target_url,
+            variants,
         }
-        None => None,
-    }
+    })
 }
 
 #[cfg(test)]
@@ -540,6 +545,7 @@ mod tests {
         let input = CheckWorkflowInput {
             graph_ref: "test-graph@test-variant".parse().unwrap(),
             workflow_id: "test-workflow".to_string(),
+            fail_on_blocking_downstream: false,
             checks_timeout_seconds: 30,
         };
 
@@ -573,7 +579,7 @@ mod tests {
         let data = create_check_workflow_data(CheckWorkflowStatus::PASSED, json!([]));
         let subgraph = "test-subgraph".to_string();
 
-        let result = get_check_response_from_data(data, graph_ref, subgraph);
+        let result = get_check_response_from_data(data, graph_ref, subgraph, true);
 
         assert!(result.is_ok());
         let response = result.unwrap();
@@ -594,7 +600,7 @@ mod tests {
         let data = create_check_workflow_data(CheckWorkflowStatus::FAILED, json!([]));
         let subgraph = "test-subgraph".to_string();
 
-        let result = get_check_response_from_data(data, graph_ref.clone(), subgraph);
+        let result = get_check_response_from_data(data, graph_ref.clone(), subgraph, true);
 
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -629,7 +635,8 @@ mod tests {
         );
 
         let response =
-            get_check_response_from_data(data, graph_ref, "test-subgraph".to_string()).unwrap();
+            get_check_response_from_data(data, graph_ref, "test-subgraph".to_string(), true)
+                .unwrap();
 
         assert_eq!(
             response.maybe_core_schema_status,
@@ -663,7 +670,7 @@ mod tests {
         );
         let subgraph = "test-subgraph".to_string();
 
-        let result = get_check_response_from_data(data, graph_ref.clone(), subgraph.clone());
+        let result = get_check_response_from_data(data, graph_ref.clone(), subgraph.clone(), true);
 
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -696,7 +703,7 @@ mod tests {
         );
         let subgraph = "test-subgraph".to_string();
 
-        let result = get_check_response_from_data(data, graph_ref, subgraph);
+        let result = get_check_response_from_data(data, graph_ref, subgraph, true);
 
         // Should succeed instead of returning MalformedResponse error
         assert!(result.is_ok());
@@ -723,7 +730,7 @@ mod tests {
 
         let subgraph = "test-subgraph".to_string();
 
-        let result = get_check_response_from_data(data, graph_ref, subgraph);
+        let result = get_check_response_from_data(data, graph_ref, subgraph, true);
 
         // Should succeed instead of returning MalformedResponse error
         assert!(result.is_ok());
@@ -731,6 +738,53 @@ mod tests {
 
         // Lint response should be None since result was null
         assert!(response.maybe_lint_response.is_none());
+    }
+
+    /// Without `--fail-on-blocking-contract-checks` the command goes by the workflow's own
+    /// status, so a blocking contract variant that has failed is reported and does not fail it,
+    /// and the downstream task keeps the status Studio gave it.
+    #[rstest]
+    fn blocking_downstream_failure_does_not_fail_the_check_unless_asked(graph_ref: GraphRef) {
+        let data = create_check_workflow_data(
+            CheckWorkflowStatus::PASSED,
+            json!([
+                {
+                    "__typename": "DownstreamCheckTask",
+                    "id": "downstream-task",
+                    "status": "PASSED",
+                    "targetURL": "https://studio.apollographql.com/graph/test-graph/checks/downstream",
+                    "results": [
+                        {
+                            "__typename": "DownstreamCheckResult",
+                            "blocking": true,
+                            "downstreamGraphID": "test-graph",
+                            "downstreamVariantName": "mobile",
+                            "downstreamWorkflow": { "status": "FAILED" },
+                            "failsUpstreamWorkflow": null
+                        }
+                    ]
+                }
+            ]),
+        );
+
+        let response =
+            get_check_response_from_data(data, graph_ref, "test-subgraph".to_string(), false)
+                .unwrap();
+
+        let expected = DownstreamCheckResponse {
+            task_status: CheckTaskStatus::PASSED,
+            target_url: Some(
+                "https://studio.apollographql.com/graph/test-graph/checks/downstream".to_string(),
+            ),
+            variants: vec![DownstreamVariantCheckResult {
+                graph_id: "test-graph".to_string(),
+                variant_name: "mobile".to_string(),
+                blocking: true,
+                fails_upstream_workflow: None,
+                status: CheckTaskStatus::FAILED,
+            }],
+        };
+        assert_that!(&response.maybe_downstream_response).is_equal_to(Some(expected));
     }
 
     /// A blocking downstream contract workflow that has actually failed makes the
@@ -764,7 +818,7 @@ mod tests {
         );
         let subgraph = "test-subgraph".to_string();
 
-        let result = get_check_response_from_data(data, graph_ref.clone(), subgraph);
+        let result = get_check_response_from_data(data, graph_ref.clone(), subgraph, true);
 
         assert_that!(&result).is_err();
         match result.unwrap_err() {
@@ -822,7 +876,7 @@ mod tests {
         );
         let subgraph = "test-subgraph".to_string();
 
-        let result = get_check_response_from_data(data, graph_ref.clone(), subgraph);
+        let result = get_check_response_from_data(data, graph_ref.clone(), subgraph, true);
 
         assert_that!(&result).is_err();
         match result.unwrap_err() {
@@ -880,7 +934,7 @@ mod tests {
         );
         let subgraph = "test-subgraph".to_string();
 
-        let response = get_check_response_from_data(data, graph_ref, subgraph).unwrap();
+        let response = get_check_response_from_data(data, graph_ref, subgraph, true).unwrap();
 
         let expected = DownstreamCheckResponse {
             task_status: CheckTaskStatus::FAILED,
@@ -938,7 +992,7 @@ mod tests {
         );
         let subgraph = "test-subgraph".to_string();
 
-        let response = get_check_response_from_data(data, graph_ref, subgraph).unwrap();
+        let response = get_check_response_from_data(data, graph_ref, subgraph, true).unwrap();
 
         let expected = DownstreamCheckResponse {
             task_status: CheckTaskStatus::PASSED,
