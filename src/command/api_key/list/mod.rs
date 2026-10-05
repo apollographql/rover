@@ -45,17 +45,17 @@ pub(crate) struct List {
     )]
     type_filter: Vec<ApiKeyType>,
 
-    /// Resume client-credential pairs enumeration from this cursor (spec FR90/FR91) - a previous
+    /// Resume client-credential pairs enumeration from this cursor - a previous
     /// invocation's `client_credentials_next_after`, or the text output's resume note. Has no
     /// effect when `--type` excludes `client-credentials`.
     #[clap(long)]
     after: Option<String>,
 
-    /// Collect at most this many client-credential pairs before returning (spec FR90/FR91). An
+    /// Collect at most this many client-credential pairs before returning. An
     /// organization with more pairs than this still succeeds: it reports what it collected plus
     /// a cursor to resume from with `--after`. Has no effect when `--type` excludes
     /// `client-credentials`. Rejected at parse time if `0` - a cap of zero could never report
-    /// FR90's "every pair collected" correctly, since it would never make a single request.
+    /// "every pair collected" correctly, since it would never make a single request.
     #[clap(
         long,
         default_value_t = NonZeroUsize::new(DEFAULT_PAIRS_LIMIT).expect("DEFAULT_PAIRS_LIMIT is nonzero")

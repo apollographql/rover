@@ -50,7 +50,8 @@ pub struct OauthOpts {
     )]
     pub(crate) authorization_url: Option<Url>,
 
-    /// Override the OAuth token endpoint `rover auth login` uses.
+    /// Override the OAuth token endpoint `rover auth login` and the client-credentials
+    /// exchange (`APOLLO_CLIENT_ID`/`APOLLO_CLIENT_SECRET`) use.
     #[arg(
         long = "oauth-token-url",
         global = true,
