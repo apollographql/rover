@@ -16,7 +16,10 @@ pub async fn run(
             .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?,
     );
     let service = service.ready().await?;
-    service.call(input).await
+    service
+        .call(input)
+        .await
+        .map_err(|err| client.refine_rejected_credential_error(err))
 }
 
 #[cfg(test)]

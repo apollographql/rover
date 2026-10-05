@@ -17,6 +17,8 @@ pub async fn run(client: &StudioClient) -> Result<InitMembershipsResponse, Rover
     let service = service.ready().await?;
     let identity = service
         .call(MembershipsRequest::new(client.get_credential_origin()))
-        .await?;
+        .await
+        .map_err(RoverClientError::from)
+        .map_err(|err| client.refine_rejected_credential_error(err))?;
     Ok(identity)
 }
