@@ -165,6 +165,12 @@ impl Install {
             // Only a download the opt-in let through uses it (FR60).
             if provenance.source == PluginSource::Downloaded {
                 client_config.print_automatic_download_notice_once();
+                if client_config.warns_on_automatic_download() {
+                    use rover_print::style::StyledText;
+                    rover_print::print::stderr::default().print(&StyledText::plain(
+                        AutomaticDownloadWarning(&provenance).to_string(),
+                    ));
+                }
             }
             Ok(provenance)
         } else {
@@ -192,6 +198,28 @@ impl fmt::Display for DeprecatedAlias<'_> {
     }
 }
 
+/// The warning a command prints when it downloads a plugin on its own because
+/// nothing set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`. Deliberately loud: no
+/// flag or `--no-config-notices` silences it, only setting the variable.
+#[cfg(feature = "composition-js")]
+struct AutomaticDownloadWarning<'a>(&'a PluginProvenance);
+
+#[cfg(feature = "composition-js")]
+impl fmt::Display for AutomaticDownloadWarning<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let PluginProvenance { name, version, .. } = self.0;
+        write!(
+            f,
+            "Warning: Rover downloaded the `{name}` plugin v{version} because \
+             `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` isn't set. A future version of Rover will \
+             not install plugins automatically. Install plugins ahead of time with \
+             `rover plugin install {name}@={version}`, or set \
+             `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` to `true` to keep downloading them or \
+             `false` to stop now."
+        )
+    }
+}
+
 /// What `--skip-update` disables downloads as, if anything: the flag when it
 /// was passed, or failing that, `APOLLO_ROVER_SKIP_UPDATE`.
 #[cfg(feature = "composition-js")]
@@ -207,7 +235,7 @@ fn skip_update_control(flag: bool) -> Option<DownloadControl> {
 
 /// What forbids a command installing a plugin on the fly from downloading
 /// it, if anything does: `--skip-update` as [`skip_update_control`] spells
-/// it, or failing that, nothing having opted in to automatic downloads.
+/// it, or failing that, `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` set to `false`.
 ///
 /// The per-invocation control comes first. A standing opt-in may permit a
 /// download, but never one a run was told not to make.
@@ -217,7 +245,7 @@ fn on_the_fly_control(
     allow_automatic_download: bool,
 ) -> Option<DownloadControl> {
     skip_update_control(skip_update)
-        .or_else(|| (!allow_automatic_download).then_some(DownloadControl::NotOptedIn))
+        .or_else(|| (!allow_automatic_download).then_some(DownloadControl::OptedOut))
 }
 
 /// The binstall installer that Rover and its plugins are installed through.
@@ -278,7 +306,7 @@ mod tests {
 
     #[cfg(feature = "composition-js")]
     #[rstest]
-    #[case::not_opted_in(false, Some(DownloadControl::NotOptedIn))]
+    #[case::opted_out(false, Some(DownloadControl::OptedOut))]
     #[case::opted_in(true, None)]
     fn without_skip_update_downloading_waits_on_the_opt_in(
         #[case] allow_automatic_download: bool,

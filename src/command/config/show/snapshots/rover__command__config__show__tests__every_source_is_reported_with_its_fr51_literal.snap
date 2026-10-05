@@ -69,7 +69,7 @@ expression: "serde_json::json!({\n    \"explicit_profile\": explicit, \"default_
     },
     {
       "name": "APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD",
-      "value": "false",
+      "value": "true",
       "source": "builtin",
       "overridden": []
     },
@@ -171,7 +171,7 @@ expression: "serde_json::json!({\n    \"explicit_profile\": explicit, \"default_
     },
     {
       "name": "APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD",
-      "value": "false",
+      "value": "true",
       "source": "builtin",
       "overridden": []
     },

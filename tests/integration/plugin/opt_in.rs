@@ -1,10 +1,12 @@
-//! Rover 1.0's opt-in to automatic plugin downloads, through the real binary.
+//! Automatic plugin downloads and `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`,
+//! through the real binary.
 //!
 //! A command that installs plugins on the fly downloads one installed at
-//! neither level only when the `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` setting
-//! opts in, from the environment, a profile, or the project file's
-//! `settings:`, and never under `--skip-update`. Every run here is against a
-//! registry that counts what it is asked.
+//! neither level unless `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` is `false`,
+//! from the environment, a profile, or the project file's `settings:`, and
+//! never under `--skip-update`. When nothing sets it, each download warns
+//! that a future version of Rover will stop downloading automatically. Every
+//! run here is against a registry that counts what it is asked.
 
 use std::{fs, process::Command};
 
@@ -17,17 +19,55 @@ use speculoos::prelude::*;
 use super::spellings::supergraph_tarball;
 use crate::support::plugin_levels::{Level, TwoLevels, two_levels};
 
-/// How a run opts in to automatic downloads, if it does.
+/// How a run sets `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`, if it does.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum OptIn {
     Nothing,
     /// `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true` under `settings:` in the
     /// project's `rover.yaml`.
     ProjectFile,
-    /// The setting stored on the default profile.
+    /// `true` stored on the default profile.
     Profile,
     /// `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD=true`.
     Variable,
+    /// `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: false` in the project's
+    /// `rover.yaml`.
+    ProjectFileOff,
+    /// `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD=false`.
+    VariableOff,
+}
+
+impl OptIn {
+    const fn turns_downloads_off(self) -> bool {
+        matches!(self, Self::ProjectFileOff | Self::VariableOff)
+    }
+}
+
+/// The warning a run prints for each plugin it downloads because nothing set
+/// `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`.
+const DOWNLOAD_WARNING: &str = "Warning: Rover downloaded the `supergraph` plugin v2.9.3 because \
+    `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` isn't set. A future version of Rover will not install \
+    plugins automatically. Install plugins ahead of time with `rover plugin install \
+    supergraph@=2.9.3`, or set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` to `true` to keep \
+    downloading them or `false` to stop now.";
+
+/// How many times `run` printed [`DOWNLOAD_WARNING`].
+fn warnings(run: &Run) -> usize {
+    run.stderr
+        .lines()
+        .filter(|line| *line == DOWNLOAD_WARNING)
+        .count()
+}
+
+/// The E058 cause for `supergraph` v2.9.3 missing at both levels with
+/// downloads turned off by `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`.
+fn turned_off(levels: &TwoLevels) -> String {
+    format!(
+        "Rover needs the `supergraph` plugin v2.9.3, but it isn't installed in `{}` or `{}` and \
+         downloads are disabled by `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`.",
+        levels.bin_dir(Level::Project),
+        levels.bin_dir(Level::Global),
+    )
 }
 
 /// The project file's `settings:`, setting the opt-in to `value`.
@@ -61,9 +101,9 @@ fn compose_version(
     format: &str,
 ) -> Run {
     match opt_in {
-        OptIn::ProjectFile => fs::write(
+        OptIn::ProjectFile | OptIn::ProjectFileOff => fs::write(
             levels.project.rover_dir().join("rover.yaml"),
-            project_file_setting(true),
+            project_file_setting(opt_in == OptIn::ProjectFile),
         )
         .unwrap(),
         OptIn::Profile => {
@@ -71,10 +111,11 @@ fn compose_version(
                 .global
                 .store_setting("default", "APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD", "true")
         }
-        OptIn::Nothing | OptIn::Variable => {}
+        OptIn::Nothing | OptIn::Variable | OptIn::VariableOff => {}
     }
     let env: &[(&str, &str)] = match opt_in {
         OptIn::Variable => &[("APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD", "true")],
+        OptIn::VariableOff => &[("APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD", "false")],
         _ => &[],
     };
     compose_with(levels, version, flags, format, env)
@@ -170,14 +211,23 @@ fn not_obtained(why: String, requested: &str) -> Value {
     })
 }
 
-/// FR77 to FR79 across every combination: how the run opts in, whether the
-/// plugin is installed, and whether `--skip-update` is passed. An installed
-/// plugin is always used as it is; a missing one is downloaded only when
-/// something opted in and `--skip-update` didn't forbid it.
+/// FR77 to FR79 across every combination: how the run sets the opt-in,
+/// whether the plugin is installed, and whether `--skip-update` is passed. An
+/// installed plugin is always used as it is; a missing one is downloaded
+/// unless the setting is `false` or `--skip-update` forbids it, with a warning
+/// when nothing set it.
 #[rstest]
 fn the_opt_in_decides_whether_a_missing_plugin_is_downloaded(
     two_levels: TwoLevels,
-    #[values(OptIn::Nothing, OptIn::ProjectFile, OptIn::Profile, OptIn::Variable)] opt_in: OptIn,
+    #[values(
+        OptIn::Nothing,
+        OptIn::ProjectFile,
+        OptIn::Profile,
+        OptIn::Variable,
+        OptIn::ProjectFileOff,
+        OptIn::VariableOff
+    )]
+    opt_in: OptIn,
     #[values(true, false)] installed: bool,
     #[values(true, false)] skip_update: bool,
 ) {
@@ -200,31 +250,37 @@ fn the_opt_in_decides_whether_a_missing_plugin_is_downloaded(
             two_levels.bin_dir(Level::Global),
         );
         (json!([]), Some(not_obtained(searched, "=2.9.3")), 0)
-    } else if opt_in == OptIn::Nothing {
-        let missing =
-            "Rover needs the `supergraph` plugin v2.9.3, which isn't installed.".to_string();
-        (json!([]), Some(not_obtained(missing, "=2.9.3")), 0)
+    } else if opt_in.turns_downloads_off() {
+        (
+            json!([]),
+            Some(not_obtained(turned_off(&two_levels), "=2.9.3")),
+            0,
+        )
     } else {
         (used(&two_levels, "downloaded"), None, 1)
     };
+    let warned = usize::from(requests == 1 && opt_in == OptIn::Nothing);
     let reported_error = (run.json["error"]["code"] == "E058").then(|| run.json["error"].clone());
     assert_that!((
         run.code,
         &run.json["data"]["plugins"],
         reported_error,
-        run.requests
+        run.requests,
+        warnings(&run),
     ))
     .named(&run.stderr)
-    .is_equal_to((Some(1), &plugins, error, requests));
+    .is_equal_to((Some(1), &plugins, error, requests, warned));
 }
 
-/// The FR77 text in full, as printed: what is missing, and both ways to
-/// get it.
+/// With downloads turned off, the E058 text in full, as printed: what is
+/// missing, where Rover looked, what turned downloads off, and both ways to
+/// get the plugin.
 #[rstest]
-fn a_missing_plugin_says_how_to_install_it_or_opt_in(two_levels: TwoLevels) {
-    let run = compose(&two_levels, OptIn::Nothing, &[], "plain");
+fn a_missing_plugin_says_how_to_install_it_or_turn_downloads_on(two_levels: TwoLevels) {
+    let run = compose(&two_levels, OptIn::VariableOff, &[], "plain");
 
     let stderr: Vec<&str> = run.stderr.lines().collect();
+    let cause = format!("    1: {}", turned_off(&two_levels));
     assert_that!((run.code, run.requests)).is_equal_to((Some(1), 0));
     assert_that!(stderr).is_equal_to(vec![
         "merging supergraph schema files",
@@ -232,11 +288,25 @@ fn a_missing_plugin_says_how_to_install_it_or_opt_in(two_levels: TwoLevels) {
         "",
         "Caused by:",
         "    0: Couldn't obtain the `supergraph` plugin",
-        "    1: Rover needs the `supergraph` plugin v2.9.3, which isn't installed.",
-        "        Run `rover plugin install supergraph@=2.9.3`, or set \
-         `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true` under `settings:` in `rover.yaml` to let \
-         Rover download plugins on demand.",
+        cause.as_str(),
+        "        Run `rover plugin install supergraph@=2.9.3` to install it ahead of time, or set \
+         `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` to `true` to let Rover download it.",
     ]);
+}
+
+/// When nothing sets `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`, a missing plugin
+/// is downloaded with one warning, which `--no-config-notices` doesn't
+/// silence.
+#[rstest]
+fn with_nothing_set_a_download_warns_even_without_config_notices(
+    two_levels: TwoLevels,
+    #[values(&[] as &[&str], &["--no-config-notices"])] flags: &[&str],
+) {
+    let run = compose(&two_levels, OptIn::Nothing, flags, "plain");
+
+    assert_that!((run.requests, warnings(&run)))
+        .named(&run.stderr)
+        .is_equal_to((1, 1));
 }
 
 /// Where the opt-in is stored for the settings-chain criteria.
@@ -249,22 +319,28 @@ enum Stored {
     ProjectFileAndCiProfile,
     /// The default profile stores `true`.
     DefaultProfile,
-    /// `allow_automatic_download: true` at the project manifest's top level.
+    /// `allow_automatic_download: false` at the project manifest's top level.
     TopLevelKey,
 }
 
 /// The profile-configuration acceptance criteria for automatic downloads
 /// (ROVER-451 FR106-FR108), through the real binary, for a plugin installed
-/// nowhere: the opt-in follows the settings chain, its environment variable
-/// can opt in but never out, and nothing outside `settings:` opts in.
+/// nowhere: the setting follows the settings chain, its environment variable
+/// can opt in or out, downloads are allowed when nothing sets it, and nothing
+/// outside `settings:` sets it.
 #[rstest]
 #[case::the_project_file_opts_in(Stored::ProjectFile(true), None, true)]
+#[case::the_project_file_opts_out(Stored::ProjectFile(false), None, false)]
 #[case::an_explicit_profile_outranks_the_project_file(Stored::ProjectFileAndCiProfile, None, false)]
 #[case::the_default_profile_opts_in(Stored::DefaultProfile, None, true)]
-#[case::nothing_opts_in(Stored::Nothing, None, false)]
-#[case::the_variable_cannot_opt_out(Stored::ProjectFile(true), Some("false"), true)]
+#[case::nothing_sets_it(Stored::Nothing, None, true)]
+#[case::the_variable_opts_out_over_the_project_file(
+    Stored::ProjectFile(true),
+    Some("false"),
+    false
+)]
 #[case::the_variable_opts_in_over_the_project_file(Stored::ProjectFile(false), Some("true"), true)]
-#[case::a_top_level_key_is_not_an_opt_in(Stored::TopLevelKey, None, false)]
+#[case::a_top_level_key_is_not_the_setting(Stored::TopLevelKey, None, true)]
 fn the_opt_in_follows_the_settings_chain(
     two_levels: TwoLevels,
     #[case] stored: Stored,
@@ -291,7 +367,7 @@ fn the_opt_in_follows_the_settings_chain(
             "true",
         ),
         Stored::TopLevelKey => {
-            fs::write(&project_file, "allow_automatic_download: true\n").unwrap();
+            fs::write(&project_file, "allow_automatic_download: false\n").unwrap();
         }
     }
     let env: Vec<(&str, &str)> = variable
@@ -304,9 +380,11 @@ fn the_opt_in_follows_the_settings_chain(
     let (plugins, error, requests) = if allowed {
         (used(&two_levels, "downloaded"), None, 1)
     } else {
-        let missing =
-            "Rover needs the `supergraph` plugin v2.9.3, which isn't installed.".to_string();
-        (json!([]), Some(not_obtained(missing, "=2.9.3")), 0)
+        (
+            json!([]),
+            Some(not_obtained(turned_off(&two_levels), "=2.9.3")),
+            0,
+        )
     };
     let reported_error = (run.json["error"]["code"] == "E058").then(|| run.json["error"].clone());
     assert_that!((
@@ -319,13 +397,14 @@ fn the_opt_in_follows_the_settings_chain(
     .is_equal_to((Some(1), &plugins, error, requests));
 }
 
-/// FR108: a user-level manifest can't opt in. Its `settings:` section is
-/// ignored with FR76's warning, and nothing is downloaded.
+/// FR108: a user-level manifest can't set it. Its `settings:` section is
+/// ignored with FR76's warning, so a `false` there turns nothing off: the
+/// plugin is downloaded, with the warning for an unset setting.
 #[rstest]
-fn a_user_level_manifest_cannot_opt_in(two_levels: TwoLevels) {
+fn a_user_level_manifest_cannot_turn_downloads_off(two_levels: TwoLevels) {
     fs::write(
         two_levels.global.rover_dir().join("rover.yaml"),
-        project_file_setting(true),
+        project_file_setting(false),
     )
     .unwrap();
 
@@ -335,11 +414,11 @@ fn a_user_level_manifest_cannot_opt_in(two_levels: TwoLevels) {
                    ignores. Use `rover config set` to store user-level settings in a profile.";
     assert_that!((
         run.stderr.lines().any(|line| line == warning),
-        &run.json["error"]["code"],
         run.requests,
+        warnings(&run),
     ))
     .named(&run.stderr)
-    .is_equal_to((true, &Value::from("E058"), 0));
+    .is_equal_to((true, 1, 1));
 }
 
 /// FR59(a): when the environment variable opts in over the project file's
@@ -363,9 +442,9 @@ fn the_variable_overriding_the_project_file_is_noticed(two_levels: TwoLevels) {
     let notice = "Note: `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` from the environment overrides \
                   the value set in `rover.yaml`.";
     let notices = run.stderr.lines().filter(|line| *line == notice).count();
-    assert_that!((notices, run.requests))
+    assert_that!((notices, run.requests, warnings(&run)))
         .named(&run.stderr)
-        .is_equal_to((1, 1));
+        .is_equal_to((1, 1, 0));
 }
 
 /// `rover config show` reports where the opt-in came from, as it does for
@@ -400,15 +479,16 @@ fn config_show_reports_the_opt_in_from_the_project_file(two_levels: TwoLevels) {
     })));
 }
 
-/// A floating request with no opt-in is met as `--skip-update` meets one
-/// (FR52): by the newest installed release in the requested major, with
-/// nothing asked of the registry, even though it would resolve the request
-/// to a newer release; and with none installed, it fails as a missing plugin.
+/// A floating request with downloads turned off is met as `--skip-update`
+/// meets one (FR52): by the newest installed release in the requested major,
+/// with nothing asked of the registry, even though it would resolve the
+/// request to a newer release; and with none installed, it fails as a missing
+/// plugin.
 #[rstest]
 #[case::the_newest_installed_in_the_major(&["2.8.0", "2.9.3", "3.0.0"])]
 #[case::none_installed_in_the_major(&["3.0.0"])]
 #[case::nothing_installed(&[])]
-fn without_an_opt_in_a_floating_request_takes_what_is_installed(
+fn with_downloads_turned_off_a_floating_request_takes_what_is_installed(
     two_levels: TwoLevels,
     #[case] installed: &[&str],
 ) {
@@ -416,12 +496,17 @@ fn without_an_opt_in_a_floating_request_takes_what_is_installed(
         two_levels.seed_plugin(Level::Global, "supergraph", version);
     }
 
-    let run = compose_version(&two_levels, "2", OptIn::Nothing, &[], "json");
+    let run = compose_version(&two_levels, "2", OptIn::VariableOff, &[], "json");
 
     let (plugins, error) = if installed.contains(&"2.9.3") {
         (used(&two_levels, "installed"), None)
     } else {
-        let missing = "Rover needs a `supergraph` plugin v2.x, but none is installed.".to_string();
+        let missing = format!(
+            "Rover needs a `supergraph` plugin v2.x, but none is installed in `{}` or `{}` and \
+             downloads are disabled by `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`.",
+            two_levels.bin_dir(Level::Project),
+            two_levels.bin_dir(Level::Global),
+        );
         (json!([]), Some(not_obtained(missing, "2")))
     };
     let reported_error = (run.json["error"]["code"] == "E058").then(|| run.json["error"].clone());
@@ -435,11 +520,12 @@ fn without_an_opt_in_a_floating_request_takes_what_is_installed(
     .is_equal_to((Some(1), &plugins, error, 0));
 }
 
-/// A mid-session `federation_version` change in `rover dev` with no opt-in
-/// asks nothing of the registry for a release that isn't installed: the
-/// session keeps the version it has and reports the plugin as missing.
+/// A mid-session `federation_version` change in `rover dev` with downloads
+/// turned off asks nothing of the registry for a release that isn't
+/// installed: the session keeps the version it has and reports the plugin as
+/// missing.
 #[rstest]
-fn without_an_opt_in_a_mid_session_switch_downloads_nothing(two_levels: TwoLevels) {
+fn with_downloads_turned_off_a_mid_session_switch_downloads_nothing(two_levels: TwoLevels) {
     use std::{
         io::{BufRead, BufReader},
         process::Stdio,
@@ -476,7 +562,7 @@ fn without_an_opt_in_a_mid_session_switch_downloads_nothing(two_levels: TwoLevel
         .env("NO_COLOR", "1")
         .env_remove("APOLLO_NODE_MODULES_BIN_DIR")
         .env_remove("APOLLO_ROVER_SKIP_UPDATE")
-        .env_remove("APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD")
+        .env("APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD", "false")
         .env_remove("APOLLO_ROVER_DEV_COMPOSITION_VERSION")
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -517,10 +603,11 @@ fn without_an_opt_in_a_mid_session_switch_downloads_nothing(two_levels: TwoLevel
     let retained = wait_for(
         "warning: Failed to change supergraph version, current version has been retained...",
     );
-    let refused = wait_for(
-        "Error when updating Federation Version: Couldn't obtain the `supergraph` plugin: Rover \
-         needs the `supergraph` plugin v2.9.3, which isn't installed.",
+    let refused_line = format!(
+        "Error when updating Federation Version: Couldn't obtain the `supergraph` plugin: {}",
+        turned_off(&two_levels)
     );
+    let refused = wait_for(&refused_line);
     let _ = child.kill();
     let _ = child.wait();
 

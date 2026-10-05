@@ -60,6 +60,12 @@ pub(crate) fn is_switched_on(value: &str) -> bool {
     value == "1" || value == "true"
 }
 
+/// Whether a boolean environment variable's `value` is `0` or `false`.
+pub(crate) fn is_switched_off(value: &str) -> bool {
+    let value = value.trim().to_lowercase();
+    value == "0" || value == "false"
+}
+
 /// The environment variable that suppresses spec.md's configuration
 /// override notices (§3.9), alongside the `--no-config-notices` flag.
 /// Deliberately not persisted in a profile or a project file: a "quiet

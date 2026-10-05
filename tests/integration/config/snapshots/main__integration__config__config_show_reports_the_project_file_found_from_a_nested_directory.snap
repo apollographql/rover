@@ -53,7 +53,7 @@ expression: settings
   },
   {
     "name": "APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD",
-    "value": "false",
+    "value": "true",
     "source": "builtin",
     "overridden": []
   },

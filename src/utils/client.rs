@@ -230,6 +230,8 @@ pub struct StudioClientConfig {
     allow_automatic_download: bool,
     #[getter(skip)]
     automatic_download_notice: Option<Arc<DeferredNotice>>,
+    #[getter(skip)]
+    warn_on_automatic_download: bool,
 }
 
 impl StudioClientConfig {
@@ -259,6 +261,7 @@ impl StudioClientConfig {
             download_host_notice: None,
             allow_automatic_download: false,
             automatic_download_notice: None,
+            warn_on_automatic_download: false,
         }
     }
 
@@ -286,6 +289,19 @@ impl StudioClientConfig {
     /// Whether a command may download a plugin it needs and doesn't have.
     pub const fn allow_automatic_download(&self) -> bool {
         self.allow_automatic_download
+    }
+
+    /// Warns on each plugin a command downloads on its own, because nothing
+    /// set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` and a future version of
+    /// Rover will stop downloading by default.
+    pub const fn with_automatic_download_warning(mut self, warn: bool) -> Self {
+        self.warn_on_automatic_download = warn;
+        self
+    }
+
+    /// Whether a download a command makes on its own should warn.
+    pub const fn warns_on_automatic_download(&self) -> bool {
+        self.warn_on_automatic_download
     }
 
     /// Carries the FR64 override notice text to print the first time a

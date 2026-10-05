@@ -1336,8 +1336,9 @@ impl Rover {
         // only the ones that go on to need a plugin. Its notice is decided
         // here too, and printed only if the opt-in lets a download happen
         // (FR60), by `StudioClientConfig::print_automatic_download_notice_once`.
-        let client_config =
-            client_config.with_allow_automatic_download(self.resolve_allow_automatic_download()?);
+        let client_config = client_config
+            .with_allow_automatic_download(self.resolve_allow_automatic_download()?)
+            .with_automatic_download_warning(self.warns_on_automatic_download()?);
         Ok(match self.automatic_download_override_notice()? {
             Some(message) => client_config.with_automatic_download_notice(message),
             None => client_config,
@@ -1349,7 +1350,9 @@ impl Rover {
     /// the project file stored. It isn't a network destination, so FR59(b)
     /// never applies (FR109).
     fn automatic_download_override_notice(&self) -> RoverResult<Option<String>> {
-        if self.config_notices_suppressed() || self.allow_automatic_download_env()?.is_none() {
+        if self.config_notices_suppressed()
+            || self.allow_automatic_download_env()?.as_deref() != Some("true")
+        {
             return Ok(None);
         }
         self.switched_on_override_notice(SettingName::AllowAutomaticDownload)
@@ -1619,29 +1622,53 @@ impl Rover {
         Ok(resolved)
     }
 
-    /// `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` from the environment, read as
-    /// the opt-in it is (FR107): `true` when it's `1` or `true`, and otherwise
-    /// unset, so the stored tiers decide. The variable can opt in, but never
-    /// out.
+    /// `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` from the environment (FR107):
+    /// `true` when it's `1` or `true`, `false` when it's `0` or `false`, and
+    /// otherwise unset, so the stored tiers decide. The variable can opt in
+    /// or out.
     fn allow_automatic_download_env(&self) -> io::Result<Option<String>> {
         Ok(self
             .get_env_var(RoverEnvKey::RoverAllowAutomaticDownload)?
-            .filter(|value| crate::utils::is_switched_on(value))
-            .map(|_| "true".to_string()))
+            .and_then(|value| {
+                if crate::utils::is_switched_on(&value) {
+                    Some("true".to_string())
+                } else if crate::utils::is_switched_off(&value) {
+                    Some("false".to_string())
+                } else {
+                    None
+                }
+            }))
     }
 
-    /// Whether a command may download a plugin it needs and doesn't have
-    /// (FR106): `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`, resolved through the
-    /// environment, an explicit profile, the project file, and the default
-    /// profile, and off when none of them sets it. It has no flag, so the
-    /// environment is its highest tier, as for `APOLLO_GRAPH_REF`. An explicit
-    /// `rover plugin install` is never automatic, so this doesn't govern it.
-    pub(crate) fn resolve_allow_automatic_download(&self) -> RoverResult<bool> {
+    /// `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` as the environment, an explicit
+    /// profile, the project file, and the default profile set it, or `None`
+    /// when none of them does. It has no flag, so the environment is its
+    /// highest tier, as for `APOLLO_GRAPH_REF`.
+    fn allow_automatic_download_setting(&self) -> RoverResult<Option<bool>> {
         let resolved = self.resolve_setting(
             self.allow_automatic_download_env()?,
             SettingName::AllowAutomaticDownload,
         )?;
-        Ok(resolved.is_some_and(|value| value.eq_ignore_ascii_case("true")))
+        Ok(resolved.map(|value| value.eq_ignore_ascii_case("true")))
+    }
+
+    /// Whether a command may download a plugin it needs and doesn't have
+    /// (FR106): as `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` is set, and allowed
+    /// when nothing sets it, with a warning on each download (see
+    /// [`Rover::warns_on_automatic_download`]). An explicit
+    /// `rover plugin install` is never automatic, so this doesn't govern it.
+    pub(crate) fn resolve_allow_automatic_download(&self) -> RoverResult<bool> {
+        Ok(self.allow_automatic_download_setting()?.unwrap_or(true))
+    }
+
+    /// Whether a download only happens because nothing sets
+    /// `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`, so Rover warns that a future
+    /// version won't download plugins automatically. Setting it either way
+    /// says what the user wants, so neither warns. `--no-config-notices`
+    /// doesn't silence the warning: it announces a change in behavior, not a
+    /// configuration override.
+    pub(crate) fn warns_on_automatic_download(&self) -> RoverResult<bool> {
+        Ok(self.allow_automatic_download_setting()?.is_none())
     }
 
     pub(crate) fn get_env_var(&self, key: RoverEnvKey) -> io::Result<Option<String>> {
@@ -5067,11 +5094,12 @@ mod tests {
     const OPTED_IN: &str = "settings:\n  APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true\n";
     const OPTED_OUT: &str = "settings:\n  APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: false\n";
 
-    /// FR106-FR108: the opt-in to automatic plugin downloads is resolved like
-    /// any other setting, its environment variable can opt in but never out,
-    /// and a key outside `settings:` opts nothing in.
+    /// FR106-FR108: the setting for automatic plugin downloads is resolved
+    /// like any other setting, its environment variable can opt in or out,
+    /// downloads are allowed when nothing sets it, and a key outside
+    /// `settings:` sets nothing.
     #[rstest::rstest]
-    #[case::nothing_opts_in(None, &[], &[], None, false)]
+    #[case::nothing_sets_it(None, &[], &[], None, true)]
     #[case::the_project_file_opts_in(Some(OPTED_IN), &[], &[], None, true)]
     #[case::an_explicit_profile_outranks_the_project_file(
         Some(OPTED_IN),
@@ -5097,14 +5125,15 @@ mod tests {
     #[case::the_variable_opts_in(None, &[], &[], Some("true"), true)]
     #[case::the_variable_as_one(None, &[], &[], Some("1"), true)]
     #[case::the_variable_opts_in_over_the_project_file(Some(OPTED_OUT), &[], &[], Some("TRUE"), true)]
-    #[case::the_variable_cannot_opt_out(Some(OPTED_IN), &[], &[], Some("false"), true)]
-    #[case::a_variable_that_is_off_opts_nothing_in(None, &[], &[], Some("0"), false)]
-    #[case::a_top_level_key_is_not_an_opt_in(
-        Some("allow_automatic_download: true\n"),
+    #[case::the_variable_opts_out_over_the_project_file(Some(OPTED_IN), &[], &[], Some("false"), false)]
+    #[case::the_variable_as_zero(None, &[], &[], Some("0"), false)]
+    #[case::a_variable_that_is_neither_sets_nothing(Some(OPTED_OUT), &[], &[], Some("yes"), false)]
+    #[case::a_top_level_key_is_not_the_setting(
+        Some("allow_automatic_download: false\n"),
         &[],
         &[],
         None,
-        false
+        true
     )]
     fn the_automatic_download_opt_in_follows_the_settings_chain(
         #[case] project: Option<&str>,
@@ -5148,18 +5177,56 @@ mod tests {
     /// Every command's client config carries the resolved opt-in, which is
     /// how the commands that install plugins on the fly learn it.
     #[rstest::rstest]
-    #[case::opted_in(Some(OPTED_IN), true)]
-    #[case::not_opted_in(None, false)]
+    #[case::opted_in(Some(OPTED_IN), true, false)]
+    #[case::opted_out(Some(OPTED_OUT), false, false)]
+    #[case::nothing_sets_it(None, true, true)]
     #[tokio::test]
-    async fn the_client_config_carries_the_automatic_download_opt_in(
+    async fn the_client_config_carries_the_automatic_download_setting(
         #[case] project: Option<&str>,
-        #[case] expected: bool,
+        #[case] allowed: bool,
+        #[case] warns: bool,
     ) {
         let scenario = scenario(project, &[], &[], &[]);
 
         let client_config = scenario.rover.get_client_config().await.unwrap();
 
-        assert_that!(client_config.allow_automatic_download()).is_equal_to(expected);
+        assert_that!((
+            client_config.allow_automatic_download(),
+            client_config.warns_on_automatic_download()
+        ))
+        .is_equal_to((allowed, warns));
+    }
+
+    /// Only a download nothing asked for warns: setting the variable either
+    /// way, in the environment or stored, says what the user wants.
+    #[rstest::rstest]
+    #[case::nothing_sets_it(None, &[], None, true)]
+    #[case::the_project_file_opts_in(Some(OPTED_IN), &[], None, false)]
+    #[case::the_project_file_opts_out(Some(OPTED_OUT), &[], None, false)]
+    #[case::a_profile_opts_in(
+        None,
+        &[("default", "APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD", "true")],
+        None,
+        false
+    )]
+    #[case::the_variable_opts_in(None, &[], Some("1"), false)]
+    #[case::the_variable_opts_out(None, &[], Some("false"), false)]
+    #[case::a_variable_that_is_neither(None, &[], Some("yes"), true)]
+    fn only_an_unset_setting_warns_on_automatic_download(
+        #[case] project: Option<&str>,
+        #[case] stored: &[(&str, &str, &str)],
+        #[case] variable: Option<&str>,
+        #[case] expected: bool,
+    ) {
+        let mut scenario = scenario(project, stored, &[], &[]);
+        if let Some(variable) = variable {
+            scenario
+                .rover
+                .insert_env_var(RoverEnvKey::RoverAllowAutomaticDownload, variable)
+                .unwrap();
+        }
+
+        assert_that!(scenario.rover.warns_on_automatic_download()).is_ok_containing(expected);
     }
 
     /// FR59(a): the environment variable opting in over a `false` that an

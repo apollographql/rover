@@ -286,23 +286,31 @@ fn resolve_telemetry_disabled(
 }
 
 /// `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` has no flag, and its environment
-/// variable only opts in (FR107): `1` or `true` reports as the typed boolean
-/// `true` from the environment, and any other value is as if it were unset.
-/// Unlike `APOLLO_TELEMETRY_DISABLED`, an invalid stored value fails the
-/// command, as it does everywhere else (FR109).
+/// variable is read as a boolean (FR107): `1` or `true` reports as `true`
+/// from the environment, `0` or `false` as `false`, and any other value is as
+/// if it were unset. Unlike `APOLLO_TELEMETRY_DISABLED`, an invalid stored
+/// value fails the command, as it does everywhere else (FR109).
 fn resolve_allow_automatic_download(
     rover: &Rover,
     houston_config: &houston::Config,
 ) -> RoverResult<SettingReport> {
     let name = SettingName::AllowAutomaticDownload;
-    let opted_in_by_env = rover
+    let from_env = rover
         .get_env_var(RoverEnvKey::RoverAllowAutomaticDownload)?
-        .is_some_and(|value| crate::utils::is_switched_on(&value));
+        .and_then(|value| {
+            if crate::utils::is_switched_on(&value) {
+                Some("true")
+            } else if crate::utils::is_switched_off(&value) {
+                Some("false")
+            } else {
+                None
+            }
+        });
 
-    if opted_in_by_env {
+    if let Some(value) = from_env {
         return Ok(SettingReport {
             name: name.as_str(),
-            value: Some("true".to_string()),
+            value: Some(value.to_string()),
             source: Source::Environment,
             overridden: stored_layers(rover, houston_config, name)?,
         });
@@ -1373,19 +1381,23 @@ mod tests {
         None,
         serde_json::json!({"value": "true", "source": "default_profile", "overridden": []})
     )]
-    #[case::nothing_opts_in(
+    #[case::nothing_sets_it(
         None,
         &[],
         &[],
         None,
-        serde_json::json!({"value": "false", "source": "builtin", "overridden": []})
+        serde_json::json!({"value": "true", "source": "builtin", "overridden": []})
     )]
-    #[case::the_variable_cannot_opt_out(
+    #[case::the_variable_opts_out_over_the_project_file(
         Some(OPTED_IN),
         &[],
         &[],
         Some("false"),
-        serde_json::json!({"value": "true", "source": "project_file", "overridden": []})
+        serde_json::json!({
+            "value": "false",
+            "source": "environment",
+            "overridden": [{"source": "project_file", "value": "true"}],
+        })
     )]
     #[case::the_variable_opts_in_over_the_project_file(
         Some(OPTED_OUT),

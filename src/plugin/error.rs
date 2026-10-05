@@ -135,18 +135,18 @@ pub(crate) struct NotUtf8(#[source] pub(crate) std::string::FromUtf8Error);
 /// `--skip-update` guards the commands that install plugins on the fly. The
 /// two are separate: neither implies the other.
 ///
-/// The commands that install on the fly are also stopped when nothing opted
-/// in to their downloading at all, which no flag spells: that is
-/// [`Self::NotOptedIn`].
+/// The commands that install on the fly are also stopped when
+/// `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` is set to `false`: that is
+/// [`Self::OptedOut`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum DownloadControl {
     NoDownloadFlag,
     NoDownloadEnvVar,
     SkipUpdateFlag,
     SkipUpdateEnvVar,
-    /// Nothing set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` to let a command
-    /// download a plugin on its own.
-    NotOptedIn,
+    /// `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` is set to `false`, so a command
+    /// doesn't download a plugin on its own.
+    OptedOut,
 }
 
 impl DownloadControl {
@@ -157,7 +157,7 @@ impl DownloadControl {
             Self::NoDownloadEnvVar => "APOLLO_ROVER_NO_DOWNLOAD",
             Self::SkipUpdateFlag => "--skip-update",
             Self::SkipUpdateEnvVar => "APOLLO_ROVER_SKIP_UPDATE",
-            Self::NotOptedIn => "APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD",
+            Self::OptedOut => "APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD",
         }
     }
 }
@@ -247,15 +247,6 @@ impl fmt::Display for PluginFailure {
                 control,
             } => {
                 match (requested.exact(), control) {
-                    // Nothing was disabled, only never enabled, so there is
-                    // no control to name, and no directory searched matters
-                    // to the fix.
-                    (Some(version), DownloadControl::NotOptedIn) => {
-                        return write!(
-                            f,
-                            "Rover needs the `{plugin}` plugin v{version}, which isn't installed."
-                        );
-                    }
                     (Some(version), _) => write!(
                         f,
                         "Rover needs the `{plugin}` plugin v{version}, but it isn't installed"
@@ -269,9 +260,6 @@ impl fmt::Display for PluginFailure {
                             "Rover needs a `{plugin}` plugin{range}, but none is installed"
                         )?;
                     }
-                }
-                if *control == DownloadControl::NotOptedIn {
-                    return f.write_str(".");
                 }
                 if !searched.is_empty() {
                     write!(f, " in {}", either(searched))?;
@@ -743,8 +731,8 @@ impl fmt::Display for PluginNextStep {
                     DownloadControl::NoDownloadEnvVar | DownloadControl::SkipUpdateEnvVar => {
                         format!("with `{}` unset", control.name())
                     }
-                    // Nothing to lift: opting in is what lets Rover download.
-                    DownloadControl::NotOptedIn => String::new(),
+                    // Not used: setting the variable back to `true` lifts it.
+                    DownloadControl::OptedOut => String::new(),
                 };
                 match control {
                     DownloadControl::NoDownloadFlag | DownloadControl::NoDownloadEnvVar => write!(
@@ -757,9 +745,9 @@ impl fmt::Display for PluginNextStep {
                         f,
                         "Run `rover plugin install {argument}` to install it ahead of time, or re-run {off} to let Rover download it."
                     ),
-                    DownloadControl::NotOptedIn => write!(
+                    DownloadControl::OptedOut => write!(
                         f,
-                        "Run `rover plugin install {argument}`, or set `{}: true` under `settings:` in `{MANIFEST_FILE}` to let Rover download plugins on demand.",
+                        "Run `rover plugin install {argument}` to install it ahead of time, or set `{}` to `true` to let Rover download it.",
                         control.name()
                     ),
                 }
@@ -1046,14 +1034,14 @@ mod tests {
         "error[E058]: Rover needs the `supergraph` plugin v2.9.3, but it isn't installed in `/work/app/.rover/bin` or `/home/me/.rover/bin` and downloads are disabled by `--no-download`.\n        \
          Run `rover plugin install supergraph@=2.9.3` without `--no-download` to download it.\n"
     )]
-    #[case::downloads_not_opted_in(
+    #[case::downloads_opted_out(
         downloads_disabled(
             VersionRequest::Exact(v("2.9.3")),
             &BOTH_LEVELS,
-            DownloadControl::NotOptedIn,
+            DownloadControl::OptedOut,
         ),
-        "error[E058]: Rover needs the `supergraph` plugin v2.9.3, which isn't installed.\n        \
-         Run `rover plugin install supergraph@=2.9.3`, or set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true` under `settings:` in `rover.yaml` to let Rover download plugins on demand.\n"
+        "error[E058]: Rover needs the `supergraph` plugin v2.9.3, but it isn't installed in `/work/app/.rover/bin` or `/home/me/.rover/bin` and downloads are disabled by `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`.\n        \
+         Run `rover plugin install supergraph@=2.9.3` to install it ahead of time, or set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` to `true` to let Rover download it.\n"
     )]
     fn each_failure_prints_its_code_message_cause_and_next_step(
         #[case] failure: PluginFailure,
@@ -1145,14 +1133,14 @@ mod tests {
             "requested_version": "2",
         })
     )]
-    #[case::downloads_not_opted_in(
+    #[case::downloads_opted_out(
         downloads_disabled(
             VersionRequest::Major(2),
             &BOTH_LEVELS,
-            DownloadControl::NotOptedIn,
+            DownloadControl::OptedOut,
         ),
         serde_json::json!({
-            "message": "Rover needs a `supergraph` plugin v2.x, but none is installed.",
+            "message": "Rover needs a `supergraph` plugin v2.x, but none is installed in `/work/app/.rover/bin` or `/home/me/.rover/bin` and downloads are disabled by `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`.",
             "code": "E058",
             "plugin": "supergraph",
             "requested_version": "2",
@@ -1408,24 +1396,26 @@ mod tests {
         ));
     }
 
+    /// Downloads turned off by `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` are
+    /// reported like any other control: naming it and where Rover looked.
     #[rstest]
     #[case::exact(
         VersionRequest::Exact(v("2.9.3")),
-        "Rover needs the `supergraph` plugin v2.9.3, which isn't installed."
+        "Rover needs the `supergraph` plugin v2.9.3, but it isn't installed in `/work/app/.rover/bin` or `/home/me/.rover/bin` and downloads are disabled by `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`."
     )]
     #[case::major(
         VersionRequest::Major(2),
-        "Rover needs a `supergraph` plugin v2.x, but none is installed."
+        "Rover needs a `supergraph` plugin v2.x, but none is installed in `/work/app/.rover/bin` or `/home/me/.rover/bin` and downloads are disabled by `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`."
     )]
     #[case::latest(
         VersionRequest::Latest,
-        "Rover needs a `supergraph` plugin, but none is installed."
+        "Rover needs a `supergraph` plugin, but none is installed in `/work/app/.rover/bin` or `/home/me/.rover/bin` and downloads are disabled by `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`."
     )]
-    fn a_plugin_nothing_opted_in_to_downloading_names_no_control(
+    fn a_plugin_opted_out_of_downloading_names_the_setting(
         #[case] requested: VersionRequest,
         #[case] expected: &str,
     ) {
-        let failure = downloads_disabled(requested, &BOTH_LEVELS, DownloadControl::NotOptedIn);
+        let failure = downloads_disabled(requested, &BOTH_LEVELS, DownloadControl::OptedOut);
 
         assert_that!(failure.to_string()).is_equal_to(expected.to_string());
     }
@@ -1467,9 +1457,9 @@ mod tests {
         DownloadControl::SkipUpdateEnvVar,
         "Run `rover plugin install supergraph@2` to install it ahead of time, or re-run with `APOLLO_ROVER_SKIP_UPDATE` unset to let Rover download it."
     )]
-    #[case::not_opted_in(
-        DownloadControl::NotOptedIn,
-        "Run `rover plugin install supergraph@2`, or set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true` under `settings:` in `rover.yaml` to let Rover download plugins on demand."
+    #[case::opted_out(
+        DownloadControl::OptedOut,
+        "Run `rover plugin install supergraph@2` to install it ahead of time, or set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` to `true` to let Rover download it."
     )]
     fn a_missing_plugin_suggests_lifting_the_control_that_is_in_force(
         #[case] control: DownloadControl,

@@ -426,13 +426,14 @@ mod tests {
         Ok(())
     }
 
-    /// Without an opt-in, an on-the-fly install of a plugin installed
-    /// nowhere stops, saying how to install it, and never asks the registry.
+    /// With `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` turned off, an on-the-fly
+    /// install of a plugin installed nowhere stops, saying how to install it,
+    /// and never asks the registry.
     #[tokio::test]
     #[rstest]
     #[timeout(Duration::from_secs(15))]
     #[serial]
-    async fn without_an_opt_in_a_missing_plugin_is_not_downloaded() -> Result<()> {
+    async fn with_downloads_turned_off_a_missing_plugin_is_not_downloaded() -> Result<()> {
         let http_server = MockServer::start();
         let mock_server_endpoint = format!("http://{}", http_server.address());
         let registry = http_server.mock(|when, then| {
@@ -441,6 +442,7 @@ mod tests {
         });
         let install_home = TempDir::new().unwrap();
         let override_install_path = Utf8PathBuf::from_path_buf(install_home.to_path_buf()).unwrap();
+        let searched = override_install_path.join(".rover").join("bin");
         let studio_client_config = StudioClientConfig::new(
             Some(mock_server_endpoint.to_string()),
             Config {
@@ -452,7 +454,8 @@ mod tests {
             ClientBuilder::default(),
             ClientTimeout::new(1),
         )
-        .with_download_host(mock_server_endpoint);
+        .with_download_host(mock_server_endpoint)
+        .with_allow_automatic_download(false);
         let install_supergraph = InstallSupergraph::new(
             FederationVersion::ExactFedTwo(Version::new(2, 9, 3)),
             studio_client_config,
@@ -477,7 +480,7 @@ mod tests {
         )
         .await;
 
-        let error = RoverError::new(result.expect_err("nothing opted in to the download"));
+        let error = RoverError::new(result.expect_err("downloads are turned off"));
         assert_that!((
             error.code(),
             error.plugin_failure().map(ToString::to_string),
@@ -486,8 +489,13 @@ mod tests {
         ))
         .is_equal_to((
             Some(RoverErrorCode::E058),
-            Some("Rover needs the `supergraph` plugin v2.9.3, which isn't installed.".to_string()),
-            vec!["Run `rover plugin install supergraph@=2.9.3`, or set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true` under `settings:` in `rover.yaml` to let Rover download plugins on demand.".to_string()],
+            Some(format!(
+                "Rover needs the `supergraph` plugin v2.9.3, but it isn't installed in `{searched}` \
+                 and downloads are disabled by `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`."
+            )),
+            vec!["Run `rover plugin install supergraph@=2.9.3` to install it ahead of time, or set \
+                  `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` to `true` to let Rover download it."
+                .to_string()],
             0,
         ));
         Ok(())
