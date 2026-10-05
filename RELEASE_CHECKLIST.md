@@ -24,17 +24,7 @@ commits previous to it. Preparing it involves several phases:
    1. [This search](https://github.com/apollographql/rover/pulls?q=is%3Apr+is%3Aclosed+is%3Amerged+merged%3A%3E%3D2024-09-01) lists PRs merged before a specific date, update this to the day after the last release to make sure nothing is missed
    2. [This search](https://github.com/apollographql/rover/pulls?q=is%3Apr+is%3Aclosed+is%3Amerged+merged%3A%3E%3D2024-09-01+no%3Amilestone) lists PRs merged before a specific date that do not have a milestone attached.
    3.    **Note:** If a PR is merged and then reverted before the release there's no need to include both PRs in the CHANGELOG.
-6. Go through the closed PRs in the milestone. Each should have a changelog
-   label indicating if the change is documentation, feature, fix, or maintenance. If
-   there is a missing label, please add one. If it is a breaking change, also add a BREAKING label.
-7. Add this release to the `CHANGELOG.md`. Use the structure of previous
-   entries. An example entry looks like this:
-
-   > - **Fixes Input Value Definition block string encoding for descriptions - @lrlna, #1116 fixes #1088**
-   >
-   >   Input values are now multilined when a description is present to allow for a more readable generated SDL.
-
-   As you can see, there is a brief description, followed by the author's GitHub handle, the PR number and the issue number. If there is no issue associated with a PR, just put the PR number.
+6. Run `cargo xtask changeset preview` and check the release notes it prints against the PRs in the milestone. Each user-visible PR should have added a changeset to `.changeset/`. Fix a missing or inaccurate entry by adding or editing its changeset file, not `CHANGELOG.md`.
 
 ### Create a release PR
 
@@ -44,12 +34,13 @@ commits previous to it. Preparing it involves several phases:
 4. Update the installer versions in [`docs/source/getting-started.mdx`](./docs/source/getting-started.mdx) and [`docs/source/ci-cd.mdx`](./docs/source/ci-cd.mdx). (eventually this should be automated).
 5. Run `cargo run -- help` and copy the output to the "Command-line Options" section in [`README.md`](./README.md#command-line-options).
 6. Run `mise run prep`.
-7. Push up all of your local changes. The commit message should be "release: v#.#.#"
-8. Open a Pull Request from the branch you pushed.
-9. Add the release pull request to the milestone you opened.
-10. Paste the changelog entry into the description of the Pull Request.
-11. Add the "🚢release" label to the PR.
-12. Get the PR reviewed
+7. Run `cargo xtask changeset release v#.#.#`. It adds the release's section to `CHANGELOG.md` from the changesets, writes the GitHub release notes to `.changeset/notes/v#.#.#.md`, and deletes the changesets it used.
+8. Push up all of your local changes. The commit message should be "release: v#.#.#"
+9. Open a Pull Request from the branch you pushed.
+10. Add the release pull request to the milestone you opened.
+11. Paste the contents of `.changeset/notes/v#.#.#.md` into the description of the Pull Request.
+12. Add the "🚢release" label to the PR.
+13. Get the PR reviewed
     1. If this necessitates making changes, squash or fixup all changes into a single commit. Use the `Squash and Merge` GitHub button.
 
 ### Tag and build release
@@ -65,7 +56,7 @@ This part of the release process is handled by GitHub Actions, and our binaries 
 7. Watch the release show up on the [releases page](https://github.com/apollographql/rover/releases)
 8. Verify that all of the [actions repos](https://github.com/search?q=org%3Aapollographql-gh-actions+rover&type=repositories) had releases created.
    - For each repo, open the new release on that repo, click `Edit`, then `Update release` to push the new version to the Marketplace. Releases created via the API don't auto-publish when authored by a GitHub App token (see https://github.com/orgs/community/discussions/7941).
-9. Click `Edit`, paste the release notes from the changelog, and save the changes to the release.
+9. Check the release's notes. The release workflow fills them in from `.changeset/notes/v#.#.#.md` at the tagged commit. If that file was missing, click `Edit`, paste the release's section from `CHANGELOG.md`, and save.
 10. Close the milestone for this release.
 
 ### Verify The Release
@@ -89,7 +80,7 @@ These are releases that usually proceed a standard release as a way of getting f
 5. Run `mise run prep` (this wraps `cargo xtask prep` with the pinned toolchain from [`mise.toml`](./mise.toml)).
 6. Push up all of your local changes. The commit message should be "release: v#.#.#-rc.#"
 7. Open a Pull Request from the branch you pushed. The description for this PR should include the salient changes in this release candidate, and what testing should be applied to it.
-8. Paste the changelog entry into the description of the Pull Request.
+8. Paste the output of `cargo xtask changeset preview` into the description of the Pull Request. A release candidate doesn't run `cargo xtask changeset release`: the changesets stay in `.changeset/` until the final release consumes them.
 9. Add the "🚢release" label to the PR.
 10. Get the PR reviewed
     1. If this necessitates making changes, squash or fixup all changes into a single commit. Use the `Squash and Merge` GitHub button.
