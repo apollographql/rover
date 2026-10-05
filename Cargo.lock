@@ -180,7 +180,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5cf9cb85c9c600cc8ff8154d502a4c8bbf9abb8c3f915d34914c1950a1a6273a"
 dependencies = [
  "ahash 0.8.12",
- "apollo-parser",
+ "apollo-parser 0.8.6",
+ "ariadne",
+ "futures",
+ "indexmap 2.14.2",
+ "rowan",
+ "serde",
+ "serde_json_bytes",
+ "thiserror 2.0.21",
+ "triomphe",
+ "typed-arena",
+]
+
+[[package]]
+name = "apollo-compiler"
+version = "2.0.0-beta.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "031ad1ba5d073dc231b63bfac51cea2f180f4280c41b766f4d6db0f57474841f"
+dependencies = [
+ "ahash 0.8.12",
+ "apollo-parser 0.9.0-beta.0",
  "ariadne",
  "futures",
  "indexmap 2.14.2",
@@ -266,7 +285,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b196d6c2afc089764ca9037fcae529998c52df58f907edcb0d3b520dd26bdfe8"
 dependencies = [
  "ahash 0.8.12",
- "apollo-compiler",
+ "apollo-compiler 1.33.0",
  "derive_more",
  "either",
  "encoding_rs",
@@ -290,7 +309,46 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_json_bytes",
- "shape",
+ "shape 0.7.0",
+ "strum 0.28.0",
+ "strum_macros 0.28.0",
+ "thiserror 2.0.21",
+ "time",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "apollo-federation"
+version = "3.0.0-preview.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb22f5d4c33e84b23b280b5ef1d52becb360a3a75d335de34b4d86ad9c3e5b53"
+dependencies = [
+ "ahash 0.8.12",
+ "apollo-compiler 2.0.0-beta.1",
+ "derive_more",
+ "either",
+ "encoding_rs",
+ "form_urlencoded",
+ "hashbrown 0.17.1",
+ "heck",
+ "http",
+ "indexmap 2.14.2",
+ "itertools 0.15.0",
+ "levenshtein",
+ "mime",
+ "multi_try",
+ "multimap",
+ "nom 8.0.0",
+ "nom_locate",
+ "parking_lot",
+ "percent-encoding",
+ "petgraph",
+ "regex",
+ "serde",
+ "serde_json",
+ "serde_json_bytes",
+ "shape 0.9.1",
  "strum 0.28.0",
  "strum_macros 0.28.0",
  "thiserror 2.0.21",
@@ -305,10 +363,27 @@ version = "0.17.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1ab545555d32a9b22d659886d487561c8ae2f34ac16b8614f80d14a37058b88"
 dependencies = [
- "apollo-compiler",
- "apollo-federation",
+ "apollo-federation 2.16.4",
  "log",
  "schemars",
+ "semver",
+ "serde",
+ "serde_json",
+ "serde_with",
+ "serde_yaml 0.8.26",
+ "thiserror 1.0.69",
+ "url",
+]
+
+[[package]]
+name = "apollo-federation-types"
+version = "0.18.0-rc.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e796ae15b30b0a8a00eebcf617ee495331110b079ef4d41246fe6730eeb1b8d"
+dependencies = [
+ "apollo-compiler 2.0.0-beta.1",
+ "apollo-federation 3.0.0-preview.0",
+ "log",
  "semver",
  "serde",
  "serde_json",
@@ -373,13 +448,14 @@ dependencies = [
 
 [[package]]
 name = "apollo-language-server"
-version = "0.9.0"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c7a39c2b36cce38964fff9fecda31237748cd7957f01ff1bd77ad6d0ec1824b"
+checksum = "e576939a1c6f8b0a9289f264b6499519091f87b3a421b6ced73d9da6128c70bd"
 dependencies = [
- "apollo-compiler",
- "apollo-federation-types",
- "apollo-parser",
+ "apollo-compiler 2.0.0-beta.1",
+ "apollo-federation 3.0.0-preview.0",
+ "apollo-federation-types 0.18.0-rc.1",
+ "apollo-parser 0.9.0-beta.0",
  "debounced",
  "futures",
  "itertools 0.14.0",
@@ -461,6 +537,17 @@ name = "apollo-parser"
 version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "11f6e2be4b3474e5890d34d3e483d49ec9b5cbf9e358bc62c9cc5423376df54b"
+dependencies = [
+ "memchr",
+ "rowan",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "apollo-parser"
+version = "0.9.0-beta.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0c72cf951e113a1a27378bdddb82ccf08bbe2f49436cf597eb851ae8cb012ea3"
 dependencies = [
  "memchr",
  "rowan",
@@ -5755,10 +5842,10 @@ name = "rover"
 version = "1.0.0-rc.1"
 dependencies = [
  "anyhow",
- "apollo-compiler",
- "apollo-federation-types",
+ "apollo-compiler 1.33.0",
+ "apollo-federation-types 0.17.9",
  "apollo-language-server",
- "apollo-parser",
+ "apollo-parser 0.8.6",
  "assert-json-diff",
  "assert_cmd",
  "assert_fs",
@@ -5897,10 +5984,10 @@ name = "rover-client"
 version = "0.0.0"
 dependencies = [
  "anyhow",
- "apollo-compiler",
- "apollo-federation-types",
+ "apollo-compiler 1.33.0",
+ "apollo-federation-types 0.17.9",
  "apollo-http-client",
- "apollo-parser",
+ "apollo-parser 0.8.6",
  "ariadne",
  "backon",
  "bon",
@@ -6022,7 +6109,7 @@ dependencies = [
 name = "rover-schema"
 version = "0.0.0"
 dependencies = [
- "apollo-compiler",
+ "apollo-compiler 1.33.0",
  "bon",
  "heck",
  "indoc",
@@ -6708,7 +6795,18 @@ version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e68f64918904ec44a5574808ffa986a2a1abf14738ebfc8479eed64d2882b0b1"
 dependencies = [
- "apollo-compiler",
+ "apollo-compiler 1.33.0",
+ "indexmap 2.14.2",
+ "serde_json",
+ "serde_json_bytes",
+]
+
+[[package]]
+name = "shape"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6b7b173db9755192afa577a469506cf52c81274ca66aeac3637027717ab93b1e"
+dependencies = [
  "indexmap 2.14.2",
  "serde_json",
  "serde_json_bytes",
@@ -7100,7 +7198,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3cf681d955b5748dcc7af5b9347959b947e2bf75b4e1432b2298624c74b8376b"
 dependencies = [
  "anyhow",
- "apollo-compiler",
+ "apollo-compiler 1.33.0",
  "cached",
  "clap",
  "http-body-util",
