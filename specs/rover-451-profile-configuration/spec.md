@@ -101,7 +101,7 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
 - **FR10**: Adding an environment variable to a setting that has a flag with a built-in default must not change what happens when neither is supplied. The default is the default either way.
 - **FR11**: A flag's `--help` text must name its environment variable, and the documented environment variable table must name each variable's flag (FR101), so a reader arriving from either side finds the other.
 - **FR12**: No existing flag or environment variable may change its meaning, its default, or how its value is parsed. Every addition in this spec is additive.
-- **FR13**: A value that is syntactically invalid for its type must be rejected the same way regardless of which of the two supplied it. A flag and its environment variable must not disagree about what counts as a valid value.
+- **FR13**: A value that is syntactically invalid for its type must be rejected the same way regardless of which of the two supplied it. A flag and its environment variable must not disagree about what counts as a valid value. `APOLLO_GRAPH_REF` has no flag, so its environment variable is held to the same syntax as the value stored on a profile or in the project file: an invalid one is rejected with the same error code, and an invalid project-file value fails every command that resolves settings, not only the one that spawns a router.
 
 ### 3.3 The active profile (P1.6, A2)
 

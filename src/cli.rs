@@ -723,10 +723,35 @@ impl Rover {
         explicit: Option<String>,
         name: SettingName,
     ) -> RoverResult<Option<String>> {
-        if explicit.is_some() {
-            return Ok(explicit);
+        if let Some(explicit) = explicit {
+            return self.validate_explicit_value(name, explicit).map(Some);
         }
         Ok(self.resolve_stored_setting(name)?.map(|(_, value)| value))
+    }
+
+    /// `raw`, a flag's or environment variable's value for `name`, validated
+    /// when nothing upstream has already done it (FR13). Clap parses every
+    /// flag-backed setting's value before it gets here, but `APOLLO_GRAPH_REF`
+    /// has no flag (FR6), so its environment variable arrives as an
+    /// unchecked string and would otherwise be accepted when the same value
+    /// stored on a profile or in the project file is rejected.
+    pub(crate) fn validate_explicit_value(
+        &self,
+        name: SettingName,
+        raw: String,
+    ) -> RoverResult<String> {
+        if name != SettingName::GraphRef {
+            return Ok(raw);
+        }
+        name.setting_type().validate(raw).map_err(|error| {
+            let message = format!(
+                "`{name}` in the environment is set to `{raw}`, which {reason} Unset `{name}`, \
+                or set it to a valid value.",
+                raw = error.input(),
+                reason = describe_invalid_value(&error),
+            );
+            RoverError::new(anyhow::Error::new(error).context(message))
+        })
     }
 
     /// Every stored tier that supplies `name`, highest precedence first, each
@@ -1226,6 +1251,14 @@ impl Rover {
     }
 
     pub(crate) async fn get_client_config(&self) -> RoverResult<StudioClientConfig> {
+        // `APOLLO_GRAPH_REF` is only otherwise read by `rover dev`, so an
+        // invalid stored value would fail every setting-reading command but
+        // not these ones. Resolving it here applies the same precedence and
+        // the same validation as every other setting resolved below (FR74).
+        self.resolve_setting(
+            self.get_env_var(RoverEnvKey::GraphRef)?,
+            SettingName::GraphRef,
+        )?;
         let override_endpoint =
             self.resolve_setting(self.registry_url.clone(), SettingName::RegistryUrl)?;
         if let Some(message) = self.config_override_notice(
@@ -4615,6 +4648,55 @@ mod tests {
         assert_that!(error.message()).is_equal_to(
             "`rover.yaml` sets `APOLLO_CHECKS_TIMEOUT_SECONDS` to `soon`, which isn't a \
             whole number of seconds. Use a whole number of seconds, for example `300`."
+                .to_string(),
+        );
+        assert_that!(error.code())
+            .is_some()
+            .is_equal_to(RoverErrorCode::E054);
+    }
+
+    /// An invalid `APOLLO_GRAPH_REF` in the project file fails the commands
+    /// that resolve any other project setting, not only `rover dev`.
+    #[tokio::test]
+    async fn an_invalid_project_graph_ref_fails_client_config() {
+        let scenario = scenario(
+            Some("settings:\n  APOLLO_GRAPH_REF: \"bad!!\"\n"),
+            &[],
+            &[],
+            &["APOLLO_GRAPH_REF", "APOLLO_REGISTRY_URL"],
+        );
+
+        let error = scenario.rover.get_client_config().await.unwrap_err();
+
+        assert_that!(error.code())
+            .is_some()
+            .is_equal_to(RoverErrorCode::E054);
+        assert_that!(
+            error
+                .message()
+                .starts_with("`rover.yaml` sets `APOLLO_GRAPH_REF` to `bad!!`")
+        )
+        .is_true();
+    }
+
+    /// FR13: the environment variable is held to the same syntax as the
+    /// same value stored on a profile or in the project file.
+    #[test]
+    fn an_invalid_environment_graph_ref_is_rejected() {
+        let scenario = scenario(None, &[], &[], &["APOLLO_GRAPH_REF"]);
+        let mut rover = scenario.rover;
+        rover
+            .insert_env_var(RoverEnvKey::GraphRef, "bad!!")
+            .unwrap();
+
+        let error = rover.resolve_graph_ref_setting().unwrap_err();
+
+        assert_that!(error.message()).is_equal_to(
+            "`APOLLO_GRAPH_REF` in the environment is set to `bad!!`, which isn't a valid graph \
+            ref. Graph refs must be in the format `<NAME>` or `<NAME>@<VARIANT>`, where `<NAME>` \
+            must start with a letter and can otherwise only contain letters, numbers, or the \
+            characters `-` or `_`, and must be 64 characters or less; `<VARIANT>` must be 63 \
+            characters or less. Unset `APOLLO_GRAPH_REF`, or set it to a valid value."
                 .to_string(),
         );
         assert_that!(error.code())

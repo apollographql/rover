@@ -309,6 +309,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   Both told you to run `rover config delete --profile <NAME>`, but `config delete` takes the profile name as a positional argument, so following the suggestion failed with a missing-argument error. They now suggest `rover config delete <NAME>`.
 
+- **`APOLLO_GRAPH_REF` is validated the same way from every source - @dotdat fixes ROVER-488**
+
+  An invalid `APOLLO_GRAPH_REF` was rejected with E054 when stored on a profile or in `rover.yaml`, but accepted from the environment and reported as-is by `rover config show`; it is now rejected there too. An invalid `APOLLO_GRAPH_REF` in `rover.yaml` also failed `rover config show` but not `rover config list`, unlike every other setting; commands that resolve settings now fail on it consistently.
+
 - **`rover --help` opens with Rover's own description again - @dotdat**
 
   `rover --help` and `rover help` printed an internal note about the `--oauth-*` flags where Rover's description and getting-started steps belong, in every build since OAuth stopped being an optional feature. `rover -h` was unaffected.
