@@ -26,6 +26,9 @@ struct Xtask {
 
 #[derive(Debug, Parser)]
 pub enum Command {
+    /// Manage changesets, the per-change files CHANGELOG.md is built from
+    Changeset(commands::ChangesetCommand),
+
     /// Build Rover's binaries for distribution
     Dist(commands::Dist),
 
@@ -45,6 +48,7 @@ pub enum Command {
 impl Xtask {
     pub async fn run(&self) -> Result<()> {
         match &self.command {
+            Command::Changeset(command) => command.run(),
             Command::Dist(command) => command.run(),
             Command::Prep(command) => command.run().await,
             Command::Package(command) => command.run(),
