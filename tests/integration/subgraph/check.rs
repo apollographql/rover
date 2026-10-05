@@ -155,3 +155,62 @@ fn subgraph_check_succeeds_despite_non_blocking_task_status_failure() {
     assert!(success, "expected a zero exit code; json: {json}");
     assert_json_snapshot!(json);
 }
+
+/// `--background` starts the check and returns without waiting for it: the check is submitted
+/// once, and the workflow is neither polled nor fetched. Without it the same run polls until
+/// the workflow finishes, as every other test here shows.
+#[test]
+#[serial]
+fn subgraph_check_background_submits_the_check_and_does_not_wait_for_it() {
+    let server = MockServer::start();
+    server.mock(|when, then| {
+        when.method(POST).body_includes("IsFederatedGraph");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(IS_FEDERATED_RESPONSE);
+    });
+    let submission_mock = server.mock(|when, then| {
+        when.method(POST).body_includes("SubgraphCheckMutation");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(CHECK_SUBMISSION_RESPONSE);
+    });
+    let status_mock = server.mock(|when, then| {
+        when.method(POST)
+            .body_includes("SubgraphCheckWorkflowStatusQuery");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(STATUS_POLL_RESPONSE);
+    });
+    let fetch_mock = server.mock(|when, then| {
+        when.method(POST)
+            .body_includes("SubgraphCheckWorkflowQuery");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body("{}");
+    });
+
+    let temp = tempfile::tempdir().unwrap();
+    let schema = temp.path().join("schema.graphql");
+    fs::write(&schema, "type Query { hello: String }").unwrap();
+
+    let output = Command::cargo_bin("rover")
+        .unwrap()
+        .env("APOLLO_KEY", "testkey")
+        .env("APOLLO_REGISTRY_URL", server.base_url())
+        .args(["subgraph", "check", "my-graph@current", "--background"])
+        .args(["--name", "my-subgraph"])
+        .arg("--schema")
+        .arg(&schema)
+        .args(["--format", "json"])
+        .output()
+        .unwrap();
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(output.status.success(), "{stderr}");
+    submission_mock.assert_calls(1);
+    status_mock.assert_calls(0);
+    fetch_mock.assert_calls(0);
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_json_snapshot!(json);
+}

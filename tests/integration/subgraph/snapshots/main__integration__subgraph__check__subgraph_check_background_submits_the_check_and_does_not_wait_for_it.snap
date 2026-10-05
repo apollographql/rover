@@ -1,0 +1,13 @@
+---
+source: tests/integration/subgraph/check.rs
+expression: json
+---
+{
+  "json_version": "1",
+  "data": {
+    "target_url": "https://studio.apollographql.com/graph/my-graph/checks/1",
+    "workflow_id": "workflow-1",
+    "success": true
+  },
+  "error": null
+}

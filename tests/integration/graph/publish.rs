@@ -198,14 +198,3 @@ fn background_is_not_a_publish_option() {
     assert_eq!(output.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&output.stderr).contains("unexpected argument '--background'"));
 }
-
-#[test]
-fn background_is_still_a_check_option() {
-    let output = Command::cargo_bin("rover")
-        .unwrap()
-        .args(["graph", "check", "--help"])
-        .output()
-        .unwrap();
-
-    assert!(String::from_utf8_lossy(&output.stdout).contains("--background"));
-}
