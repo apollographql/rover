@@ -66,7 +66,7 @@ impl Logout {
                 "profile \"{profile_name}\" isn't logged in via `rover auth login`"
             ))
             .with_suggestion(RoverErrorSuggestion::Adhoc(format!(
-                "If you're using a Personal API Key, run `rover config delete --profile {profile_name}` instead."
+                "If you're using a Personal API Key, run `rover config delete {profile_name}` instead."
             ))));
         };
 
