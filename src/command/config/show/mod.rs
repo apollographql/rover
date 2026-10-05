@@ -1118,7 +1118,7 @@ mod tests {
         serde_json::to_value(&output.settings).unwrap()
     }
 
-    /// FR13: an invalid `APOLLO_GRAPH_REF` in the environment is the winning
+    /// An invalid `APOLLO_GRAPH_REF` in the environment is the winning
     /// tier, so `config show` fails on it the way it does on a stored one.
     #[test]
     fn an_invalid_environment_graph_ref_fails_show() {

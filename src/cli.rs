@@ -730,9 +730,10 @@ impl Rover {
     }
 
     /// `raw`, a flag's or environment variable's value for `name`, validated
-    /// when nothing upstream has already done it (FR13). Clap parses every
+    /// when nothing upstream has already done it, so that a value is held to
+    /// the same syntax whichever source supplies it. Clap parses every
     /// flag-backed setting's value before it gets here, but `APOLLO_GRAPH_REF`
-    /// has no flag (FR6), so its environment variable arrives as an
+    /// has no flag, so its environment variable arrives as an
     /// unchecked string and would otherwise be accepted when the same value
     /// stored on a profile or in the project file is rejected.
     pub(crate) fn validate_explicit_value(
@@ -1254,7 +1255,7 @@ impl Rover {
         // `APOLLO_GRAPH_REF` is only otherwise read by `rover dev`, so an
         // invalid stored value would fail every setting-reading command but
         // not these ones. Resolving it here applies the same precedence and
-        // the same validation as every other setting resolved below (FR74).
+        // the same validation as every other setting resolved below.
         self.resolve_setting(
             self.get_env_var(RoverEnvKey::GraphRef)?,
             SettingName::GraphRef,
@@ -4679,7 +4680,7 @@ mod tests {
         .is_true();
     }
 
-    /// FR13: the environment variable is held to the same syntax as the
+    /// The environment variable is held to the same syntax as the
     /// same value stored on a profile or in the project file.
     #[test]
     fn an_invalid_environment_graph_ref_is_rejected() {
