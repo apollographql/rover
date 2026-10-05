@@ -297,6 +297,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   With no configuration profiles, commands like `rover auth whoami` failed with E020, whose suggestion only mentioned `rover config auth` and `$APOLLO_KEY`. It now leads with `rover auth login` and mentions `$APOLLO_CLIENT_ID`/`$APOLLO_CLIENT_SECRET` for CI; the E020 explanation says the same.
 
+- **`--query-percentage-threshold` keeps its value - @dotdat fixes ROVER-494**
+
+  `rover graph check`, `rover subgraph check` and `publish --check` turned any `--query-percentage-threshold` below `100` into `0`, so the threshold silently did nothing, and rejected decimals. `--query-percentage-threshold 25` now sends `0.25`, and values like `0.5` are accepted.
+
 - **`rover --help` opens with Rover's own description again - @dotdat**
 
   `rover --help` and `rover help` printed an internal note about the `--oauth-*` flags where Rover's description and getting-started steps belong, in every build since OAuth stopped being an optional feature. `rover -h` was unaffected.

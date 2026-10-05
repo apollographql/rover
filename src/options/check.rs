@@ -41,16 +41,50 @@ fn parse_query_count_threshold(threshold: &str) -> Result<i64, io::Error> {
     }
 }
 
+/// Parses a percentage (`25`, `0.5`) into the fraction (`0.25`, `0.005`) the Platform API takes.
 fn parse_query_percentage_threshold(threshold: &str) -> Result<f64, io::Error> {
-    let threshold = threshold
-        .parse::<i64>()
+    let percentage = threshold
+        .parse::<f64>()
         .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
-    if !(0..=100).contains(&threshold) {
+    // A range check rather than `!(..).contains()` on the other side, so that NaN is refused too.
+    if (0.0..=100.0).contains(&percentage) {
+        Ok(percentage / 100.0)
+    } else {
         Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             anyhow!("Valid numbers are in the range 0 <= x <= 100"),
         ))
-    } else {
-        Ok((threshold / 100) as f64)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+    use speculoos::prelude::*;
+
+    use super::parse_query_percentage_threshold;
+
+    #[rstest]
+    #[case::zero("0", 0.0)]
+    #[case::whole_percentage("25", 0.25)]
+    #[case::one_percent("1", 0.01)]
+    #[case::just_under_the_top("99", 0.99)]
+    #[case::the_top("100", 1.0)]
+    #[case::decimal("0.5", 0.005)]
+    #[case::decimal_above_one("12.5", 0.125)]
+    fn a_percentage_becomes_the_fraction_the_api_takes(#[case] input: &str, #[case] expected: f64) {
+        assert_that!(parse_query_percentage_threshold(input).unwrap()).is_close_to(expected, 1e-9);
+    }
+
+    #[rstest]
+    #[case::negative("-1")]
+    #[case::over_the_top("100.5")]
+    #[case::far_over("1000")]
+    #[case::not_a_number("lots")]
+    #[case::nan("NaN")]
+    #[case::infinity("inf")]
+    #[case::empty("")]
+    fn anything_else_is_rejected(#[case] input: &str) {
+        assert_that!(parse_query_percentage_threshold(input)).is_err();
     }
 }
