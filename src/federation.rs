@@ -5,7 +5,7 @@
 use apollo_federation_types::config::FederationVersion;
 
 /// Documentation link describing how to opt a subgraph in to Federation 2 via `@link`.
-pub const FEDERATION_2_MIGRATION_URL: &str = "https://www.apollographql.com/docs/federation/federation-2/moving-to-federation-2#opt-in-to-federation-2";
+pub const FEDERATION_2_MIGRATION_URL: &str = "https://www.apollographql.com/docs/graphos/schema-design/federated-schemas/reference/moving-to-federation-2#opt-in-to-federation-2";
 
 /// Error returned whenever a resolved [`FederationVersion`] is Federation 1. Rover no longer
 /// supports composing, installing, or building against Federation 1 in any form.
@@ -60,24 +60,32 @@ pub(crate) fn reject_federation_one(
 /// `init` errors that carry one do so `#[error(transparent)]`, which hides it from the error
 /// chain, so each is checked for by name.
 pub(crate) fn is_federation_one_unsupported(error: &anyhow::Error) -> bool {
+    error.downcast_ref::<FederationOneUnsupported>().is_some() || wrapped_refusal(error)
+}
+
+/// The wrapping errors only exist in a build with composition.
+#[cfg(feature = "composition-js")]
+fn wrapped_refusal(error: &anyhow::Error) -> bool {
     use crate::{
         command::init::operations::GraphOperationError,
         composition::{CompositionError, pipeline::CompositionPipelineError},
     };
 
-    error.downcast_ref::<FederationOneUnsupported>().is_some()
-        || matches!(
-            error.downcast_ref::<CompositionError>(),
-            Some(CompositionError::FederationOneUnsupported(_))
-        )
-        || matches!(
-            error.downcast_ref::<CompositionPipelineError>(),
-            Some(CompositionPipelineError::FederationOneUnsupported(_))
-        )
-        || matches!(
-            error.downcast_ref::<GraphOperationError>(),
-            Some(GraphOperationError::FederationOneUnsupported(_))
-        )
+    matches!(
+        error.downcast_ref::<CompositionError>(),
+        Some(CompositionError::FederationOneUnsupported(_))
+    ) || matches!(
+        error.downcast_ref::<CompositionPipelineError>(),
+        Some(CompositionPipelineError::FederationOneUnsupported(_))
+    ) || matches!(
+        error.downcast_ref::<GraphOperationError>(),
+        Some(GraphOperationError::FederationOneUnsupported(_))
+    )
+}
+
+#[cfg(not(feature = "composition-js"))]
+const fn wrapped_refusal(_: &anyhow::Error) -> bool {
+    false
 }
 
 #[cfg(test)]
@@ -86,35 +94,48 @@ mod tests {
     use speculoos::prelude::*;
 
     use super::{FederationOneUnsupported, reject_federation_one};
-    use crate::{
-        RoverError, RoverErrorCode,
-        command::init::operations::GraphOperationError,
-        composition::{CompositionError, pipeline::CompositionPipelineError},
-    };
+    use crate::{RoverError, RoverErrorCode};
 
     /// Every way the refusal reaches the user carries E064, so a script can match on
-    /// `error.code`, including through the `#[error(transparent)]` wrappers that hide it from
-    /// the error chain.
-    #[rstest::rstest]
-    #[case::bare(anyhow::Error::new(FederationOneUnsupported))]
-    #[case::composition(anyhow::Error::new(CompositionError::FederationOneUnsupported(
-        FederationOneUnsupported
-    )))]
-    #[case::pipeline(anyhow::Error::new(CompositionPipelineError::FederationOneUnsupported(
-        FederationOneUnsupported
-    )))]
-    #[case::init(anyhow::Error::new(GraphOperationError::FederationOneUnsupported(
-        FederationOneUnsupported
-    )))]
-    fn the_refusal_has_its_own_error_code(#[case] error: anyhow::Error) {
+    /// `error.code`.
+    #[test]
+    fn the_bare_refusal_has_its_own_error_code() {
+        let error = anyhow::Error::new(FederationOneUnsupported);
         assert_that!(RoverError::new(error).code()).is_equal_to(Some(RoverErrorCode::E064));
     }
 
-    #[test]
-    fn an_unrelated_composition_error_has_no_such_code() {
-        let error =
-            anyhow::Error::new(CompositionError::InvalidSupergraphConfig("bad".to_string()));
-        assert_that!(RoverError::new(error).code()).is_none();
+    /// ...including through the `#[error(transparent)]` wrappers that hide it from the error
+    /// chain, which only exist in a build with composition.
+    #[cfg(feature = "composition-js")]
+    mod wrapped {
+        use speculoos::prelude::*;
+
+        use super::{FederationOneUnsupported, RoverError, RoverErrorCode};
+        use crate::{
+            command::init::operations::GraphOperationError,
+            composition::{CompositionError, pipeline::CompositionPipelineError},
+        };
+
+        #[rstest::rstest]
+        #[case::composition(anyhow::Error::new(CompositionError::FederationOneUnsupported(
+            FederationOneUnsupported
+        )))]
+        #[case::pipeline(anyhow::Error::new(CompositionPipelineError::FederationOneUnsupported(
+            FederationOneUnsupported
+        )))]
+        #[case::init(anyhow::Error::new(GraphOperationError::FederationOneUnsupported(
+            FederationOneUnsupported
+        )))]
+        fn the_refusal_has_its_own_error_code(#[case] error: anyhow::Error) {
+            assert_that!(RoverError::new(error).code()).is_equal_to(Some(RoverErrorCode::E064));
+        }
+
+        #[test]
+        fn an_unrelated_composition_error_has_no_such_code() {
+            let error =
+                anyhow::Error::new(CompositionError::InvalidSupergraphConfig("bad".to_string()));
+            assert_that!(RoverError::new(error).code()).is_none();
+        }
     }
 
     #[rstest::rstest]
