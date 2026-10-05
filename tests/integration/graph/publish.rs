@@ -177,3 +177,24 @@ fn graph_publish_json_includes_data_and_error_code_when_a_downstream_launch_fail
     let json: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_json_snapshot!(json);
 }
+
+/// `--check` gates the publish on the check's result, so there is nothing for `--background`
+/// (start the check and don't wait for it) to mean here. Only `graph check` offers it.
+#[test]
+fn background_is_not_a_publish_option() {
+    let output = Command::cargo_bin("rover")
+        .unwrap()
+        .args([
+            "graph",
+            "publish",
+            "my-graph@current",
+            "--check",
+            "--background",
+        ])
+        .args(["--schema", "-"])
+        .output()
+        .unwrap();
+
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("unexpected argument '--background'"));
+}

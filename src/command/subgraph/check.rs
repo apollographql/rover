@@ -29,6 +29,10 @@ pub struct Check {
 
     #[clap(flatten)]
     config: CheckConfigOpts,
+
+    /// If the check should be run asynchronously and exit without waiting for check results
+    #[arg(long)]
+    background: bool,
 }
 
 impl Check {
@@ -66,7 +70,7 @@ impl Check {
             &client,
         )
         .await?;
-        if self.config.background {
+        if self.background {
             Ok(RoverOutput::AsyncCheckResponse(workflow_res))
         } else {
             let check_res = check_workflow::run(

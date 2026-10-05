@@ -21,10 +21,6 @@ pub struct CheckConfigOpts {
     /// Size of the time window with which to validate schema against (i.e "24h" or "1w 2d 5h")
     #[arg(long)]
     pub validation_period: Option<ValidationPeriod>,
-
-    /// If the check should be run asynchronously and exit without waiting for check results
-    #[arg(long)]
-    pub background: bool,
 }
 
 fn parse_query_count_threshold(threshold: &str) -> Result<i64, io::Error> {
