@@ -63,7 +63,7 @@ impl InstallBinary for InstallSupergraph {
         elv2_license_accepter: LicenseAccepter,
         skip_update: bool,
     ) -> Result<Self::Binary, Self::Error> {
-        if self.federation_version.is_fed_two() {
+        if self.federation_version.is_fed_two() || self.federation_version.is_fed_three() {
             elv2_license_accepter
                 .require_elv2_license(&self.studio_client_config)
                 .map_err(|_err| InstallSupergraphError::LicenseNotAccepted)?

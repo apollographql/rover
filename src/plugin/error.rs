@@ -482,7 +482,7 @@ fn replacement<'a>(version: &Version, newest: Option<&'a Version>) -> Option<&'a
 const fn floating_request(plugin: PluginName, major: u64) -> Option<VersionRequest> {
     match (plugin, major) {
         (PluginName::ApolloMcpServer, _) => Some(VersionRequest::Latest),
-        (PluginName::Supergraph, 2) | (PluginName::Router, 1 | 2) => {
+        (PluginName::Supergraph, 2..=3) | (PluginName::Router, 1..=3) => {
             Some(VersionRequest::Major(major))
         }
         _ => None,
@@ -1297,13 +1297,13 @@ mod tests {
             );
     }
 
-    /// No floating form today's parsers accept means "the newest 3.x", so the
+    /// No floating form today's parsers accept means "the newest 4.x", so the
     /// suggestion asks for an exact release rather than one they'd reject.
     #[test]
     fn a_withdrawn_release_with_no_accepted_floating_form_asks_for_an_exact_one() {
         let step = PluginFailure::NoLongerServed {
             plugin: PluginName::Router,
-            version: v("3.0.1"),
+            version: v("4.0.1"),
             origin: RequestOrigin::PluginArgument,
             newest_in_major: None,
         }
@@ -1500,7 +1500,7 @@ mod tests {
     }
 
     #[rstest]
-    #[case::a_supergraph_major_install_cannot_spell(PluginName::Supergraph, 3)]
+    #[case::a_supergraph_major_install_cannot_spell(PluginName::Supergraph, 4)]
     #[case::a_major_mcp_server_latest_could_leave(PluginName::ApolloMcpServer, 1)]
     fn a_drift_with_no_floating_spelling_asks_for_an_exact_version(
         #[case] plugin: PluginName,

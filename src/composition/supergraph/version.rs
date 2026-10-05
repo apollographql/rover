@@ -36,6 +36,7 @@ impl TryFrom<SupergraphVersion> for FederationVersion {
         match supergraph_version.version.major {
             0 | 1 => Ok(FederationVersion::ExactFedOne(supergraph_version.version)),
             2 => Ok(FederationVersion::ExactFedTwo(supergraph_version.version)),
+            3 => Ok(FederationVersion::ExactFedThree(supergraph_version.version)),
             _ => Err(SupergraphVersionError::UnsupportedFederationVersion {
                 version: supergraph_version,
             }),
@@ -100,8 +101,12 @@ mod tests {
         Some(FederationVersion::ExactFedOne(Version::from_str("1.2.3-SNAPSHOT.1234+asdf").unwrap())),
 
     )]
+    #[case::supported_federation_three(
+        SupergraphVersion::new(Version::from_str("3.0.0-preview.0").unwrap()),
+        Some(FederationVersion::ExactFedThree(Version::from_str("3.0.0-preview.0").unwrap())),
+    )]
     #[case::unsupported(
-        SupergraphVersion::new(Version::from_str("3.0.0").unwrap()),
+        SupergraphVersion::new(Version::from_str("4.0.0").unwrap()),
         None,
     )]
     fn test_fed_version_from_supergraph_version(

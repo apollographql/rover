@@ -29,6 +29,7 @@ impl Plugin {
                 VersionRequest::Exact(version) => Some(RouterVersion::Exact(version.clone())),
                 VersionRequest::Major(1) => Some(RouterVersion::LatestOne),
                 VersionRequest::Latest | VersionRequest::Major(2) => Some(RouterVersion::LatestTwo),
+                VersionRequest::Major(3) => Some(RouterVersion::LatestThree),
                 VersionRequest::Major(_) => None,
             }
             .map(Self::Router),
@@ -71,11 +72,15 @@ pub(crate) fn federation_version(
     request: &VersionRequest,
 ) -> Result<FederationVersion, Box<PluginFailure>> {
     match request {
-        VersionRequest::Exact(version) if version.major >= 2 => {
+        VersionRequest::Exact(version) if version.major >= 3 => {
+            Ok(FederationVersion::ExactFedThree(version.clone()))
+        }
+        VersionRequest::Exact(version) if version.major == 2 => {
             Ok(FederationVersion::ExactFedTwo(version.clone()))
         }
         VersionRequest::Exact(version) => Ok(FederationVersion::ExactFedOne(version.clone())),
         VersionRequest::Latest | VersionRequest::Major(2) => Ok(FederationVersion::LatestFedTwo),
+        VersionRequest::Major(3) => Ok(FederationVersion::LatestFedThree),
         VersionRequest::Major(0 | 1) => Ok(FederationVersion::LatestFedOne),
         VersionRequest::Major(_) => Err(uninstallable(PluginName::Supergraph, request)),
     }
@@ -95,6 +100,11 @@ mod tests {
     #[case::latest("latest", FederationVersion::LatestFedTwo)]
     #[case::the_federation_two_major("2", FederationVersion::LatestFedTwo)]
     #[case::a_federation_one_major("1", FederationVersion::LatestFedOne)]
+    #[case::exact_federation_three(
+        "=3.0.0-preview.1",
+        FederationVersion::ExactFedThree("3.0.0-preview.1".parse().unwrap())
+    )]
+    #[case::the_federation_three_major("3", FederationVersion::LatestFedThree)]
     fn a_supergraph_request_converts(#[case] request: &str, #[case] expected: FederationVersion) {
         let request: VersionRequest = request.parse().unwrap();
 
@@ -107,6 +117,8 @@ mod tests {
     #[case("=2.9.3")]
     #[case("=0.36.0")]
     #[case("2")]
+    #[case("3")]
+    #[case("=3.0.0-preview.1")]
     fn a_converted_request_converts_back(#[case] request: &str) {
         let request: VersionRequest = request.parse().unwrap();
 
@@ -122,12 +134,14 @@ mod tests {
     #[case::router_latest(PluginName::Router, "latest", Some("2"))]
     #[case::router_two(PluginName::Router, "2", Some("2"))]
     #[case::router_one(PluginName::Router, "1", Some("1"))]
-    #[case::router_three(PluginName::Router, "3", None)]
+    #[case::router_three(PluginName::Router, "3", Some("3"))]
+    #[case::router_four(PluginName::Router, "4", None)]
     #[case::mcp_exact(PluginName::ApolloMcpServer, "=1.0.0", Some("=1.0.0"))]
     #[case::mcp_latest(PluginName::ApolloMcpServer, "latest", Some("latest"))]
     #[case::mcp_major(PluginName::ApolloMcpServer, "1", None)]
     #[case::supergraph_two(PluginName::Supergraph, "2", Some("2"))]
-    #[case::supergraph_three(PluginName::Supergraph, "3", None)]
+    #[case::supergraph_three(PluginName::Supergraph, "3", Some("3"))]
+    #[case::supergraph_four(PluginName::Supergraph, "4", None)]
     fn each_plugin_converts_what_it_can_install(
         #[case] plugin: PluginName,
         #[case] request: &str,
@@ -150,11 +164,11 @@ mod tests {
 
     #[rstest]
     fn a_major_rover_cannot_install_is_a_resolution_failure() {
-        let failure = federation_version(&VersionRequest::Major(3)).unwrap_err();
+        let failure = federation_version(&VersionRequest::Major(4)).unwrap_err();
 
         assert_that!(rover_std::format_error_chain(&*failure)).is_equal_to(
-            "Couldn't resolve a release of the `supergraph` plugin matching `3` from the plugin \
-             registry.: this version of Rover can't install a `supergraph` release matching `3`"
+            "Couldn't resolve a release of the `supergraph` plugin matching `4` from the plugin \
+             registry.: this version of Rover can't install a `supergraph` release matching `4`"
                 .to_string(),
         );
     }
