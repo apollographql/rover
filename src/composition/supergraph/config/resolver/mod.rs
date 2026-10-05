@@ -41,6 +41,7 @@ use crate::{
     RoverError,
     cli::Rover,
     config::SupergraphConfigYaml,
+    federation::{FederationOneUnsupported, is_federation_one_exact_pin},
     utils::{effect::read_stdin::ReadStdin, expansion::expand, parsers::FileDescriptorType},
 };
 
@@ -144,6 +145,9 @@ pub enum LoadSupergraphConfigError {
     /// Occurs when a supergraph cannot be expanded correctly
     #[error("Failed to expand supergraph config. Error: {0}")]
     ExpansionError(RoverError),
+    /// Occurs when the config pins an exact Federation 1 version that no longer parses at all
+    #[error(transparent)]
+    FederationOneUnsupported(#[from] FederationOneUnsupported),
 }
 
 impl SupergraphConfigResolver<state::LoadSupergraphConfig> {
@@ -204,9 +208,20 @@ impl SupergraphConfigResolver<state::LoadSupergraphConfig> {
             .map_err(LoadSupergraphConfigError::ReadFileDescriptor)?;
         let yaml_contents = expand(serde_yaml::from_str(&contents)?)
             .map_err(LoadSupergraphConfigError::ExpansionError)?;
-        match serde_yaml::from_value(yaml_contents) {
+        match serde_yaml::from_value(yaml_contents.clone()) {
             Ok(supergraph_config) => Ok(supergraph_config),
             Err(err) => {
+                // A pin like `=1.0.0` is not a version `FederationVersion` can parse, so it
+                // lands here with the rest of the file ignored, and the composition quietly
+                // proceeds on Federation 2. It is refused instead, as every other
+                // Federation 1 pin is.
+                if let Some(pin) = yaml_contents
+                    .get("federation_version")
+                    .and_then(serde_yaml::Value::as_str)
+                    && is_federation_one_exact_pin(pin)
+                {
+                    return Err(FederationOneUnsupported.into());
+                }
                 warn!("Could not initially parse supergraph config: {}", err);
                 warn!("Proceeding with empty supergraph config");
                 Ok(SupergraphConfigYaml::default())

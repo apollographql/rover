@@ -19,6 +19,30 @@ pub const FEDERATION_2_MIGRATION_URL: &str = "https://www.apollographql.com/docs
 )]
 pub struct FederationOneUnsupported;
 
+/// Whether `input` is an exact version pin (`=0.36.0`, `v1.0.0`) below Federation 2. Such a pin
+/// is Federation 1 by any reading, but [`FederationVersion`]'s own parser doesn't accept every
+/// one of them (`=1.0.0` isn't a supergraph plugin release at all), so it can't be left to
+/// [`reject_federation_one`] to catch it after parsing.
+pub(crate) fn is_federation_one_exact_pin(input: &str) -> bool {
+    input
+        .strip_prefix(['=', 'v'])
+        .and_then(|version| semver::Version::parse(version).ok())
+        .is_some_and(|version| version.major < 2)
+}
+
+/// Parses a `--federation-version` value: [`FederationVersion`]'s own grammar, except that a
+/// Federation 1 exact pin is refused with the Federation 1 message however it is spelled, and
+/// a value that isn't a version at all is not told that `1` would do, since it is refused.
+pub(crate) fn parse_federation_version(input: &str) -> Result<FederationVersion, String> {
+    match input.parse::<FederationVersion>() {
+        Ok(version) => Ok(version),
+        Err(_) if is_federation_one_exact_pin(input) => Err(FederationOneUnsupported.to_string()),
+        Err(_) => Err(format!(
+            "Specified version `{input}` is not supported. You can specify '2', or a fully qualified version prefixed with an '=', like: =2.0.0"
+        )),
+    }
+}
+
 /// Rover no longer supports Federation 1 at any composition-facing entry point. This is checked
 /// as a standalone function so the rejection itself can be unit tested without standing up the
 /// rest of `resolve_federation_version`'s subgraph-resolution machinery.
@@ -38,6 +62,18 @@ mod tests {
     use speculoos::prelude::*;
 
     use super::{FederationOneUnsupported, reject_federation_one};
+
+    #[rstest::rstest]
+    #[case::exact_one("=1.0.0", true)]
+    #[case::exact_zero("=0.36.0", true)]
+    #[case::v_prefixed("v1.2.3", true)]
+    #[case::exact_two("=2.9.0", false)]
+    #[case::exact_three("=3.0.0", false)]
+    #[case::bare_one("1", false)]
+    #[case::not_a_version("banana", false)]
+    fn only_an_exact_pin_below_federation_two_counts(#[case] input: &str, #[case] expected: bool) {
+        assert_that!(super::is_federation_one_exact_pin(input)).is_equal_to(expected);
+    }
 
     #[test]
     fn reject_federation_one_rejects_latest_fed_one() {
