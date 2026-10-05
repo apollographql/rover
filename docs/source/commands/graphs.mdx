@@ -105,16 +105,16 @@ rover graph publish my-graph@my-variant --schema ./schema.graphql
 
 The argument `my-graph@my-variant` in the example above specifies the ID of the GraphOS graph you're publishing to, along with which [variant](/graphos/graphs/#variants) you're publishing to.
 
-If the graph exists in GraphOS but the variant doesn't, a new variant is created on publish.
+If the graph exists in GraphOS but the variant doesn't, Rover creates a new variant on publish.
 
-To attach a message to this publish in the GraphOS Studio changelog, pass `--changelog-message`:
+Pass `--changelog-message` to attach a message to this publish in the GraphOS Studio changelog:
 
 ```shell
 rover graph publish my-graph@my-variant --schema ./schema.graphql \
   --changelog-message "Add the Product.reviews field"
 ```
 
-After publishing, Rover waits for the launch the publish triggers to finish. See [Waiting for launches](#waiting-for-launches).
+After publishing, Rover waits for the launch the publish triggers to finish. For details, see [Waiting for launches](#waiting-for-launches).
 
 ### Providing the schema
 
@@ -161,7 +161,7 @@ rover graph publish my-graph@current --schema ./schema.graphql --check
 
 If all checks pass, Rover publishes the schema and then [waits for the launches it triggers](#waiting-for-launches). If any check fails, Rover prints the check output and exits without publishing.
 
-For details on configuring checks (time range, operation thresholds, linting rules), see the [`graph check`](#graph-check) section. The `--query-count-threshold`, `--query-percentage-threshold`, and `--validation-period` options override the check configuration for the checks that `--check` runs, as they do for `graph check`.
+For details on configuring checks (time range, operation thresholds, and linting rules), see the [`graph check`](#graph-check) section. The `--query-count-threshold`, `--query-percentage-threshold`, and `--validation-period` options override the check configuration for the checks that `--check` runs, as they do for `graph check`.
 
 #### Waiting for launches
 

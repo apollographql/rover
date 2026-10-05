@@ -177,7 +177,7 @@ CI systems wipe away any persisted Rover configuration on each run, and they can
 
 ### The `supergraph` plugin
 
-Composition runs in the ELv2-licensed `supergraph` plugin (built from [this source](https://github.com/apollographql/federation-rs)). `rover supergraph compose` uses the plugin only if it's already installed. It doesn't download it unless you [opt in to automatic downloads](/rover/commands/plugin#automatic-downloads). Install it ahead of time, for example in your CI setup, with [`rover plugin install`](/rover/commands/plugin#plugin-install):
+Composition runs in the ELv2-licensed `supergraph` plugin (built from the [federation-rs source](https://github.com/apollographql/federation-rs)). `rover supergraph compose` uses the plugin only if it's already installed. It doesn't download it unless you [opt in to automatic downloads](/rover/commands/plugin#automatic-downloads). Install it ahead of time, for example in your CI setup, with [`rover plugin install`](/rover/commands/plugin#plugin-install):
 
 ```bash
 rover plugin install supergraph@=2.9.3 --elv2-license accept
@@ -202,7 +202,7 @@ Each run reports the plugin it used on `stderr`:
 Using the `supergraph` plugin v2.9.3 (already installed).
 ```
 
-The line ends with `(downloaded)` when Rover downloaded the plugin during the run. With `--format json`, the same facts appear under `data.plugins`, with each plugin's `name`, `version`, `source`, `level`, and `path`. See [Output](/rover/commands/plugin#output).
+The line ends with `(downloaded)` when Rover downloaded the plugin during the run. With `--format json`, the same facts appear under `data.plugins`, with each plugin's `name`, `version`, `source`, `level`, and `path`. For details, see [Output](/rover/commands/plugin#output).
 
 ### Setting a composition version
 
@@ -224,13 +224,13 @@ The command composes with Federation 2, implemented by the [`@apollo/composition
 
 - The federation version you specify must not exceed the highest version supported by your router. Make sure to update your router before incrementing your `federation_version`. For details, see this [support table](/router/federation-version-support).
 - Federation 1 is no longer supported. Specifying `1`, `latest-1`, or an exact `=0.x.y` version fails with an error, and an exact `=1.x.y` version isn't accepted as a federation version. To migrate your subgraphs, see [Moving to Federation 2](/federation/federation-2/moving-to-federation-2).
-- If you don't pin an exact `federation_version`, Rover composes with the newest matching release and warns you. A new federation release can change your supergraph schema without you choosing to, so pin an exact version for anything beyond local prototyping.
+- If you don't pin an exact `federation_version`, Rover composes with the newest matching release and warns you. A new federation release can change your supergraph schema without your input, so pin an exact version for anything beyond local prototyping.
 
 </Note>
 
 #### Automatic updates
 
-If you've [opted in to automatic downloads](/rover/commands/plugin#automatic-downloads) and don't specify an exact `federation_version`, Rover asks the Apollo plugin registry at `https://rover.apollo.dev` (or the host set by [`APOLLO_ROVER_DOWNLOAD_HOST`](/rover/configuring#supported-environment-variables)) for the latest Federation 2 composition version each time it runs, so a new release is picked up as soon as it ships.
+If you've [opted in to automatic downloads](/rover/commands/plugin#automatic-downloads) and don't specify an exact `federation_version`, Rover asks the Apollo plugin registry at `https://rover.apollo.dev` (or the host set by [`APOLLO_ROVER_DOWNLOAD_HOST`](/rover/configuring#supported-environment-variables)) for the latest Federation 2 composition version each time it runs, so a new release is picked up as soon as it is released.
 
 Without the opt-in, a floating version such as `2` uses the newest matching release that's already installed.
 

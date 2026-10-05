@@ -26,12 +26,12 @@ If you're using Rover with a CI/CD provider not listed here, we'd love for you t
 
 Rover commands that communicate with [GraphOS](/graphos/) require a credential. GraphOS supports graph API keys, subgraph API keys, and personal [API keys](/graphos/platform/access-management/api-keys), as well as client-credential pairs.
 
-On your local development machine, log in with [`rover auth login`](/rover/commands/auth). If you'd rather use a personal API key, provide it to Rover with the [`rover config auth` command](./configuring#via-the-auth-command). See [Choosing a credential](/rover/configuring#choosing-a-credential).
+On your local development machine, log in with [`rover auth login`](/rover/commands/auth). If you'd rather use a personal API key, provide it to Rover with the [`rover config auth` command](./configuring#via-the-auth-command). For details, see [Choosing a credential](/rover/configuring#choosing-a-credential).
 
 In shared environments like CI, use one of these, [set as environment variables](./configuring#supported-environment-variables):
 
 - A graph or subgraph API key, in `APOLLO_KEY`.
-- A [client-credential pair](/rover/commands/api-key#client-credential-pairs), in `APOLLO_CLIENT_ID` and `APOLLO_CLIENT_SECRET`. Rover exchanges the pair for a short-lived access token on each run, so no long-lived key is stored in your pipeline. If `APOLLO_KEY` is also set, it takes precedence.
+- A [client-credential pair](/rover/commands/api-key#client-credential-pairs), in `APOLLO_CLIENT_ID` and `APOLLO_CLIENT_SECRET`. Rover exchanges the pair for a short-lived access token on each run, so your pipeline stores no long-lived key. If `APOLLO_KEY` is also set, it takes precedence.
 
 The examples on this page use `APOLLO_KEY`. To use a pair instead, expose `APOLLO_CLIENT_ID` and `APOLLO_CLIENT_SECRET` the same way.
 
@@ -46,7 +46,7 @@ Rover doesn't download plugins on demand by default. A command that needs a plug
   rover supergraph compose --config ./supergraph.yaml
   ```
 
-  See [Installing into a project](/rover/commands/plugin#installing-into-a-project) and [The plugin lockfile](/rover/commands/plugin#the-plugin-lockfile).
+  For details, see [Installing into a project](/rover/commands/plugin#installing-into-a-project) and [The plugin lockfile](/rover/commands/plugin#the-plugin-lockfile).
 
 - **Install a pinned version.** Name the plugin and an exact version, matching the `federation_version` in your `supergraph.yaml`:
 
@@ -55,9 +55,9 @@ Rover doesn't download plugins on demand by default. A command that needs a plug
   rover supergraph compose --config ./supergraph.yaml
   ```
 
-- **Opt in to automatic downloads.** Set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD=true` in the job's environment, and Rover downloads a missing plugin when a command needs it. See [Automatic downloads](/rover/commands/plugin#automatic-downloads).
+- **Opt in to automatic downloads.** Set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD=true` in the job's environment, and Rover downloads a missing plugin when a command needs it. For details, see [Automatic downloads](/rover/commands/plugin#automatic-downloads).
 
-The supergraph plugin is licensed under ELv2. `--elv2-license accept`, or `APOLLO_ELV2_LICENSE=accept` in the environment, accepts the license without an interactive prompt.
+The supergraph plugin is licensed under ELv2. To accept the license without an interactive prompt, pass `--elv2-license accept` or set `APOLLO_ELV2_LICENSE=accept` in the environment.
 
 ## Choosing an integration method
 

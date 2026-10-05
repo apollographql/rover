@@ -88,11 +88,11 @@ After you've chosen your use case, the wizard prompts you for a project name. It
 
 ### Next steps
 
-Once you've completed the wizard, it prints your graph's `APOLLO_GRAPH_REF` and `APOLLO_KEY`, and a [`rover dev`](./dev) command to start developing your graph.
+After you've completed the wizard, it prints your graph's `APOLLO_GRAPH_REF` and `APOLLO_KEY`, and a [`rover dev`](./dev) command to start developing your graph.
 
 #### Install the plugins `rover dev` needs
 
-`rover dev` runs the `supergraph` composition plugin and the `router` plugin, and Rover doesn't download them on demand by default. Before your first `rover dev`, install them, using the `federation_version` from your generated `supergraph.yaml` for the `supergraph` plugin:
+`rover dev` runs the `supergraph` composition plugin and the `router` plugin, and Rover doesn't download them automatically by default. Before your first `rover dev`, install them, using the `federation_version` from your generated `supergraph.yaml` for the `supergraph` plugin:
 
 ```terminal showLineNumbers=false
 rover plugin install supergraph@<FEDERATION_VERSION>
@@ -197,7 +197,7 @@ rover init --mcp \
 
 #### Run your MCP server
 
-When the `rover init` wizard is complete, you can use [`rover dev`](./dev) to start everything together. As for a graph, [install the plugins `rover dev` needs](#install-the-plugins-rover-dev-needs) first, adding the MCP server plugin with `rover plugin install apollo-mcp-server@latest`, or opt in to [automatic downloads](/rover/commands/plugin#automatic-downloads). See [Running the Apollo MCP Server](/apollo-mcp-server/run).
+When the `rover init` wizard is complete, use [`rover dev`](./dev) to start everything together. As for a graph, [install the plugins `rover dev` needs](#install-the-plugins-rover-dev-needs) first, adding the MCP server plugin with `rover plugin install apollo-mcp-server@latest`, or opt in to [automatic downloads](/rover/commands/plugin#automatic-downloads). For details, see [Running the Apollo MCP Server](/apollo-mcp-server/run).
 
 #### Connect your MCP server to Claude Desktop
 

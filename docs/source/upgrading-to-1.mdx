@@ -25,7 +25,7 @@ To install Rover 1.0, follow [Installing Rover](/rover/getting-started). To upgr
 
 **What changed:** `rover supergraph compose`, `rover dev`, `rover lsp`, and `rover connector` no longer download a plugin they need. They use a plugin only if it's already installed, either in the project or globally. In 0.x, these commands downloaded a missing plugin on demand.
 
-`rover plugin install` isn't affected, and still downloads.
+`rover plugin install` isn't affected and still downloads.
 
 **How to tell you're affected:** the command stops with error [E058](/rover/errors#e058). For example, with a `supergraph.yaml` that pins `federation_version: =2.9.3`:
 
@@ -53,7 +53,7 @@ Caused by:
       APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true
     ```
 
-  `rover config show` reports the setting's value and where it came from. See [Automatic downloads](/rover/commands/plugin#automatic-downloads).
+  `rover config show` reports the setting's value and where it came from. For details, see [Automatic downloads](/rover/commands/plugin#automatic-downloads).
 
 `--skip-update` (or `APOLLO_ROVER_SKIP_UPDATE`) still forbids downloads, even when you've opted in.
 
@@ -70,7 +70,7 @@ Pin the plugins in your repository so every machine installs the same releases, 
     rover supergraph compose --config supergraph.yaml
     ```
 
-See [Installing into a project](/rover/commands/plugin#installing-into-a-project) and [The plugin lockfile](/rover/commands/plugin#the-plugin-lockfile).
+For details, see [Installing into a project](/rover/commands/plugin#installing-into-a-project) and [The plugin lockfile](/rover/commands/plugin#the-plugin-lockfile).
 
 ## Check JSON output is version 3
 
@@ -209,7 +209,7 @@ The schema is still published. With `--format json`, `data` keeps the full publi
 
 - If your launches take longer than five minutes, raise `--checks-timeout` or `APOLLO_CHECKS_TIMEOUT_SECONDS`.
 - Treat `E047` as "published, but the launch failed", not as a failed publish. Don't retry the publish; check the launch in GraphOS Studio.
-- Scripts that parse publish JSON can read the new fields. Both commands add `launch_status`, `launch_superseded`, and `downstream_launches`, and `rover graph publish` also adds `launch_url`. Each `downstream_launches` entry has `graph_id`, `variant_name`, `status`, `superseded`, and `url`.
+- Your scripts that parse publish JSON can read the new fields. Both commands add `launch_status`, `launch_superseded`, and `downstream_launches`, and `rover graph publish` also adds `launch_url`. Each `downstream_launches` entry has `graph_id`, `variant_name`, `status`, `superseded`, and `url`.
 - `rover graph publish`'s stdout is unchanged: it still prints only the schema hash. To parse the hash reliably, use `--format json` and read `.data.api_schema_hash`.
 
 ## `rover cloud` is removed

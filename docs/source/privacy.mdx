@@ -6,14 +6,14 @@ description: Understand what data Rover collects and how to opt out of data coll
 
 Rover doesn't collect any personally identifiable information such as API keys, graph names, or file paths. 
 
-By default, Rover collects some anonymous usage data to help us improve the tool. To opt out of data collection, use any of the following:
+By default, Rover collects some anonymous usage data to help Apollo improve the tool. To opt out of data collection, use any of the following:
 
 - Set the `APOLLO_TELEMETRY_DISABLED` environment variable in each environment where you use Rover. Any value disables telemetry, including `false` or an empty value.
 - Pass `--telemetry-disabled` to a command.
 - Store the setting on a profile with `rover config set APOLLO_TELEMETRY_DISABLED true`. It applies whenever Rover uses that profile.
 - Add `APOLLO_TELEMETRY_DISABLED: true` under `settings:` in your project's `.rover/rover.yaml`, to opt out for everyone who runs Rover in the project.
 
-In a profile or the project file, the value is a real boolean, so `false` there keeps telemetry enabled. See [Configuring Rover](/rover/configuring#boolean-values) for how Rover reads each source and which one wins.
+In a profile or the project file, the value is a real boolean, so `false` there keeps telemetry enabled. See [Configuring Rover](/rover/configuring#boolean-values) for how Rover reads each source and which one takes priority.
 
 ## Collected data
 

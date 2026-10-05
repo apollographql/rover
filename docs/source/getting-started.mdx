@@ -97,7 +97,7 @@ docker run --rm \
 - `-e APOLLO_KEY` forwards your API key from the host environment.
 - `-v "$PWD:/workspace" -w /workspace` mounts your project so Rover can read your schema files.
 
-To authenticate with a [client-credential pair](/rover/commands/api-key#client-credential-pairs) instead of an API key, forward `APOLLO_CLIENT_ID` and `APOLLO_CLIENT_SECRET`:
+Authenticate with a [client-credential pair](/rover/commands/api-key#client-credential-pairs) instead of an API key by forwarding `APOLLO_CLIENT_ID` and `APOLLO_CLIENT_SECRET`:
 
 ```bash
 docker run --rm \

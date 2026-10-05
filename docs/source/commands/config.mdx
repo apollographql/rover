@@ -23,7 +23,7 @@ This includes settings-only profiles created by [`config set`](#config-set). If 
 
 ### `config whoami`
 
-The `config whoami` command checks the credential Rover would use against GraphOS and displays its identity:
+The `config whoami` command checks the credential Rover uses against GraphOS and displays its identity:
 
 ```
 rover config whoami
@@ -71,7 +71,7 @@ After you paste the key, Rover stores it in your operating system's credential s
 Successfully saved API key. Consider running `rover config whoami` to verify your API authentication.
 ```
 
-The key replaces any credential already on the profile, including an OAuth login. The profile's settings are kept.
+The key replaces any credential already on the profile, including an OAuth login. Rover keeps the profile's settings.
 
 By default, your configuration profile is saved with the name `default`. You can specify a different name with the `--profile` option:
 
@@ -85,7 +85,7 @@ A configuration profile can also store non-secret settings, with or without a cr
 
 ### `config show`
 
-The `config show` command reports every setting's effective value and which source supplied it: `flag`, `environment`, `profile (explicit)` for a profile named with `--profile`, `project file`, `profile (default)`, or `built-in default`. Run it inside a project to include the project's `rover.yaml`. In this example, the `staging` profile sets the registry URL, the project's `rover.yaml` sets the checks timeout (and a registry URL that the profile outranks), and `APOLLO_TELEMETRY_DISABLED` is set in the environment:
+The `config show` command reports every setting's effective value and which source supplied it: `flag`, `environment`, `profile (explicit)` for a profile named with `--profile`, `project file`, `profile (default)`, or `built-in default`. Run it inside your project to include the project's `rover.yaml`. In this example, the `staging` profile sets the registry URL, your project's `rover.yaml` sets the checks timeout (and a registry URL that the profile outranks), and `APOLLO_TELEMETRY_DISABLED` is set in the environment:
 
 ```
 rover config show --profile staging
@@ -176,7 +176,7 @@ rover config set APOLLO_REGISTRY_URL https://registry.staging.example.com --prof
 Set `APOLLO_REGISTRY_URL` to `https://registry.staging.example.com` in profile `staging`.
 ```
 
-`<SETTING>` is the setting's environment variable name, spelled exactly, such as `APOLLO_REGISTRY_URL`. The value is validated before anything is stored. For example, a URL that doesn't use `http` or `https` is rejected rather than saved:
+`<SETTING>` is the setting's environment variable name, spelled exactly, such as `APOLLO_REGISTRY_URL`. Rover validates the value before storing it. For example, Rover rejects a URL that doesn't use `http` or `https` rather than saving it:
 
 ```
 rover config set APOLLO_REGISTRY_URL ftp://registry.example.com --profile staging

@@ -47,12 +47,12 @@ This works with no GraphOS credentials at all: composing and running a local rou
 
 <Note>
 
-Credentials are only needed to *opt in* to additional functionality: [GraphOS Router features](/graphos/routing/graphos-features#graphos-router-features) or the `@connect` directive in your schema. You can unlock these independently via any one of:
+Credentials are only needed to *opt in* to additional functionality: [GraphOS Router features](/graphos/routing/graphos-features#graphos-router-features) or the `@connect` directive in your schema. You can unlock these independently via any one of the following:
 
 - A [graph API key](/graphos/platform/access-management/api-keys/graph-api-keys) and graph ref, via the `APOLLO_KEY`/`APOLLO_GRAPH_REF` environment variables or the `--graph-ref` option
 - An [offline enterprise license](/router/enterprise-features/#offline-enterprise-license) file, via `--license <path>`
 
-See [GraphOS Router features](#graphos-router-features) below for details.
+For details, see [GraphOS Router features](#graphos-router-features).
 
 </Note>
 
@@ -202,10 +202,10 @@ To configure advanced router functionality like CORS settings or header passthro
 
 None of the following are required to run `rover dev` against local or directly reachable subgraphs. They're independent, opt-in ways to unlock [GraphOS Router features](/graphos/routing/graphos-features#graphos-router-features) and the `@connect` directive:
 
-1. A [graph API key](/graphos/platform/access-management/api-keys/graph-api-keys) **and** a graph ref, provided together either via the `APOLLO_KEY`/`APOLLO_GRAPH_REF` environment variables or by [configuring credentials](./config#creating-configuration-profiles) in Rover plus the `--graph-ref` option. Learn about the difference between the environment variable and the option in the section below.
+1. A [graph API key](/graphos/platform/access-management/api-keys/graph-api-keys) **and** a graph ref, provided together either via the `APOLLO_KEY`/`APOLLO_GRAPH_REF` environment variables or by [configuring credentials](./config#creating-configuration-profiles) in Rover plus the `--graph-ref` option. Learn about the difference between the environment variable and the option in the following section.
 1. An [offline enterprise license](/router/enterprise-features/#offline-enterprise-license) file, passed via `--license <path>`. This works entirely offline: no GraphOS credentials or network calls are required, and it can be combined with either of the credential sources above (the offline license takes priority for entitlement in that case).
 
-If none of these are supplied, `rover dev` still runs and composes normally — GraphOS Router features and `@connect` are just unavailable, and `rover dev` prints this notice at startup:
+If none of these are supplied, `rover dev` still runs and composes normally. GraphOS Router features and `@connect` are unavailable, and `rover dev` prints this notice at startup:
 
 ```
 ==> Running without GraphOS credentials. GraphOS Router Enterprise features and @connect are disabled. Pass --graph-ref, set APOLLO_KEY/APOLLO_GRAPH_REF, or pass --license to enable them.
@@ -230,7 +230,7 @@ The first time you use Federation 2 composition on a particular machine, Rover p
 
 ## Plugins
 
-`rover dev` runs three plugins: `supergraph` for composition, `router`, and, with [`--mcp`](#run-your-mcp-server), `apollo-mcp-server`. The `supergraph` and `router` plugins are ELv2-licensed (built from [this source](https://github.com/apollographql/federation-rs) and [this source](https://github.com/apollographql/router)).
+`rover dev` runs three plugins: `supergraph` for composition, `router`, and, with [`--mcp`](#run-your-mcp-server), `apollo-mcp-server`. The `supergraph` and `router` plugins are ELv2-licensed (built from the [federation-rs source](https://github.com/apollographql/federation-rs) and the [router source](https://github.com/apollographql/router)).
 
 `rover dev` uses a plugin only if it's already installed. It doesn't download one unless you [opt in to automatic downloads](/rover/commands/plugin#automatic-downloads). Install the plugins ahead of time with [`rover plugin install`](/rover/commands/plugin#plugin-install):
 

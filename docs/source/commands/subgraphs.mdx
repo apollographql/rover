@@ -283,7 +283,7 @@ By default, `rover subgraph publish` will fail if an unparsable routing URL is a
 
 <td>
 
-This is shorthand for `--routing-url "" --allow-invalid-routing-url`. **It will override any existing routing URL for the subgraph.**
+This is shorthand for `--routing-url "" --allow-invalid-routing-url`. **This flag overrides any existing routing URL for the subgraph.**
 
 </td>
 </tr>
@@ -296,7 +296,7 @@ This is shorthand for `--routing-url "" --allow-invalid-routing-url`. **It will 
 
 <td>
 
-Run all configured checks before publishing. If any checks fail, the publish is aborted and no schema changes are pushed. Equivalent to running `rover subgraph check` with the same arguments before publishing. See [Running checks before publishing](#running-checks-before-publishing).
+Run all configured checks before publishing. If any checks fail, Rover aborts the publish and pushes no schema changes. Equivalent to running `rover subgraph check` with the same arguments before publishing. See [Running checks before publishing](#running-checks-before-publishing).
 
 </td>
 </tr>
@@ -373,7 +373,7 @@ rover subgraph publish my-graph@current --schema ./schema.graphql --name account
   --routing-url "https://my-running-subgraph.com/api" --check
 ```
 
-If all checks pass, Rover publishes the subgraph schema and then [waits for the launches it triggers](#waiting-for-launches). If any check fails, Rover prints the check output and exits without publishing.
+If all checks pass, Rover publishes the subgraph schema and then waits for the launches it triggers. For details, see [Waiting for launches](#waiting-for-launches). If any check fails, Rover prints the check output and exits without publishing.
 
 For details on configuring checks (time range, operation thresholds, linting rules), see the [`subgraph check`](#subgraph-check) section.
 
@@ -773,7 +773,7 @@ Optional. A tag name to include when filtering. To include multiple tag names, s
 --include-tag foo --include-tag bar
 ```
 
-Omit all of `--include-tag`/`--exclude-tag`/`--hide-unreachable-types` (and their `--no-*` counterparts) to preview composition only, with no filtering applied. If you provide any one of them, configure all three.
+Omit all of `--include-tag`/`--exclude-tag`/`--hide-unreachable-types` (and their `--no-*` counterparts) to preview composition only, with no filtering applied. If you provide any one of them, you must configure all three.
 
 </td>
 </tr>
@@ -797,7 +797,7 @@ Sets an empty include list for the previewed contract schema. To use a non-empty
 </td>
 <td>
 
-Specify a tag name to [exclude tag names](/graphos/delivery/contracts/#contract-filters) when filtering. To exclude multiple tag names, specify `--exclude-tag` multiple times:
+Specify a tag name to [exclude tag names](/graphos/delivery/contracts/#contract-filters) when filtering. To exclude multiple tag names, use `--exclude-tag` multiple times:
 
 ```bash
 --exclude-tag foo --exclude-tag bar
@@ -815,7 +815,7 @@ Use `--no-exclude-tags` to specify an empty exclude list.
 </td>
 <td>
 
-Specify an empty [exclude list](/graphos/delivery/contracts/#contract-filters) for the previewed contract schema. Use `--exclude-tag` to specify a non-empty list.
+Specify an empty [exclude list](/graphos/delivery/contracts/#contract-filters) for your previewed contract schema. Use `--exclude-tag` to specify a non-empty list.
 
 </td>
 </tr>
@@ -839,7 +839,7 @@ Automatically [hides](/graphos/delivery/contracts/#contract-filters) types that 
 </td>
 <td>
 
-Disable the automatic hiding of types that can never be reached in operations on your previewed contract schema.
+Disables the automatic hiding of types that can never be reached in operations on your previewed contract schema.
 
 </td>
 </tr>

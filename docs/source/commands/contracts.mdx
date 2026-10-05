@@ -68,7 +68,7 @@ Options include:
 
 The name of the [source variant](/graphos/delivery/contracts/) to use for supergraph schema filtering.
 
-The source variant must belong to the same graph as the contract variant. It must also be a federated variant with subgraphs.
+The source variant must belong to the same graph as the contract variant and must be a federated variant with subgraphs.
 
 **Required** the first time you publish a contract.
 
@@ -217,7 +217,7 @@ rover contract preview my-graph@my-source-variant \
   --hide-unreachable-types
 ```
 
-The argument `my-graph@my-source-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the graph and the [source variant](/graphos/delivery/contracts/) whose already-composed supergraph schema you want to filter.
+The argument `my-graph@my-source-variant` in the preceding example is a [graph ref](../conventions/#graph-refs) that specifies the ID of the graph and the [source variant](/graphos/delivery/contracts/) whose already-composed supergraph schema you want to filter.
 
 Preview builds run asynchronously on GraphOS. By default, Rover starts the build and polls its status until it completes, then prints the resulting schema. See [Running previews asynchronously](#running-previews-asynchronously) below to instead return immediately with a build ID and check the result later.
 
@@ -245,7 +245,7 @@ A tag name to include in [contract filters](/graphos/delivery/contracts/#contrac
 --include-tag foo --include-tag bar
 ```
 
-To specify an empty include list, use `--no-include-tags`.
+Use `--no-include-tags` to specify an empty include list.
 
 One of `--include-tag` or `--no-include-tags` is required when starting a new preview build (not used with `--build-id`).
 

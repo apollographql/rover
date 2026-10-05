@@ -12,7 +12,7 @@ Some Rover commands delegate their work to a plugin binary:
 | `router` | GraphOS Router | [`rover dev`](/rover/commands/dev) |
 | `apollo-mcp-server` | Apollo MCP Server | [`rover dev --mcp`](/rover/commands/dev#run-your-mcp-server) |
 
-Those commands use a plugin only if it's already installed. They don't download one unless you [opt in to automatic downloads](#automatic-downloads). Install plugins ahead of time with `rover plugin install`.
+These commands use a plugin only if it's already installed. They don't download one unless you [opt in to automatic downloads](#automatic-downloads). Install plugins ahead of time with `rover plugin install`.
 
 ## `plugin install`
 
@@ -95,11 +95,11 @@ downloading the 'supergraph' plugin from https://rover.apollo.dev/tar/supergraph
 the 'supergraph' plugin was successfully installed to /work/app/.rover/bin/supergraph-v2.9.3
 ```
 
-In JSON output, the plugin is reported with `"level": "project"`.
+In JSON output, Rover reports the plugin with `"level": "project"`.
 
 #### Creating a project
 
-Rover never creates a project on its own. To create one, name its manifest with `--manifest-path`:
+Rover never creates a project on its own. To create one, name your manifest with `--manifest-path`:
 
 ```bash
 rover plugin install supergraph@=2.9.3 --manifest-path .rover/rover.yaml
@@ -120,13 +120,13 @@ Rover doesn't overwrite a `.gitignore` that's already there. If the install fail
 
 `--manifest-path` also installs into a project other than the one Rover would find from the working directory. The [`settings:`](/rover/configuring#project-settings) in the named project's `rover.yaml` apply to the command.
 
-`--manifest-path` can't be combined with a global install. With `--global`, the command is refused:
+You can't combine `--manifest-path` with a global install. With `--global`, Rover refuses the command:
 
 ```
 error: the argument '--manifest-path <FILE>' cannot be used with '--global'
 ```
 
-With `APOLLO_ROVER_GLOBAL` set, it's refused too:
+Rover also refuses the command if you set `APOLLO_ROVER_GLOBAL`:
 
 ```
 Error: `--manifest-path` names a project to install into, but `APOLLO_ROVER_GLOBAL` asks for a global install.
@@ -161,14 +161,14 @@ Rover installs every plugin the lockfile records, at exactly the version it reco
 
 This makes a committed lockfile reproducible: every machine that runs `rover plugin install` in the project gets the same versions.
 
-If `rover.yaml` and the lockfile disagree, the command fails rather than silently choosing one. For example, after changing a declared version in `rover.yaml`:
+If `rover.yaml` and the lockfile disagree, the command fails instead of silently choosing one. For example, after changing a declared version in `rover.yaml`:
 
 ```
 error[E052]: The plugin lockfile is out of date with `/work/app/.rover/rover.yaml`: `supergraph` is declared as `=2.9.4` but locked at `2.9.3`.
         Run `rover plugin install supergraph@=2.9.4` to update it.
 ```
 
-Plugin-using commands such as `rover supergraph compose` fail the same way. A `rover.yaml` with no lockfile beside it isn't an error: its declarations are used as written.
+Plugin-using commands such as `rover supergraph compose` fail the same way. A `rover.yaml` with no lockfile beside it isn't an error: Rover uses its declarations as written.
 
 ## The plugin lockfile
 
@@ -217,7 +217,7 @@ Rover reads `rover.yaml` from two places:
 - **Project:** `.rover/rover.yaml` in the project.
 - **Global:** `$APOLLO_HOME/.rover/rover.yaml` (by default, `~/.rover/rover.yaml`).
 
-When both declare a plugin, the project declaration wins for that plugin. A project that declares only `router` still uses the global declaration for `supergraph`.
+When both declare a plugin, the project declaration takes precedence for that plugin. If your project declares only `router`, Rover still uses the global declaration for `supergraph`.
 
 A `rover.yaml` that Rover can't use fails with [`E052`](/rover/errors#e052) naming the file. For example, an unknown plugin name or a YAML merge key (`<<`) under `plugins:` is refused:
 
@@ -268,7 +268,7 @@ A floating version, such as `federation_version: 2`, uses the newest matching re
 
 To let these commands download a missing plugin, opt in with the `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` setting, in any of these ways:
 
-- Set the `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` environment variable to `1` or `true`. The environment variable can only opt in. Setting it to `false` doesn't opt out of a profile or project that opts in.
+- Set the `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` environment variable to `1` or `true`. The environment variable can only opt in. If you set it to `false`, it doesn't opt out of a profile or project that opts in.
 - Store it on a profile with [`rover config set`](/rover/commands/config#config-set):
 
   ```bash
@@ -286,7 +286,7 @@ To let these commands download a missing plugin, opt in with the `APOLLO_ROVER_A
 
 Run `rover config show` to see the setting's value and where it came from.
 
-When you've opted in, a missing plugin is downloaded into the global install root, even inside a project, and no lockfile is written. To install a plugin into a project and record it, use `rover plugin install`.
+When you've opted in, Rover downloads a missing plugin into the global install root, even inside a project, and writes no lockfile. To install a plugin into a project and record it, use `rover plugin install`.
 
 `--skip-update` and `APOLLO_ROVER_SKIP_UPDATE` still forbid downloads when you've opted in. Under either, a missing plugin fails with [`E058`](/rover/errors#e058), naming every directory Rover searched:
 
