@@ -42,7 +42,7 @@ Using the `supergraph` plugin v2.9.3 (downloaded).
 
 - **Install plugins ahead of time** with [`rover plugin install`](/rover/commands/plugin#plugin-install), for example `rover plugin install supergraph@=2.9.3`. In CI, see [Recommended setup for CI](#recommended-setup-for-ci).
 - **Keep downloading, without the warning,** by setting `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` to `true`.
-- **Stop downloading now** by setting it to `false`. A command that needs a plugin installed nowhere then fails with [`E058`](/rover/errors#e058) and says how to install it.
+- **Stop downloading now** by setting it to `false`. A command that needs a plugin that isn't installed then fails with [`E058`](/rover/errors#e058) and says how to install it.
 
 Set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` in any of these places:
 

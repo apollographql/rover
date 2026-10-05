@@ -177,7 +177,7 @@ CI systems wipe away any persisted Rover configuration on each run, and they can
 
 ### The `supergraph` plugin
 
-Composition runs in the ELv2-licensed `supergraph` plugin (built from the [federation-rs source](https://github.com/apollographql/federation-rs)). If the plugin isn't installed, `rover supergraph compose` downloads it and prints a warning that a future version of Rover will stop downloading plugins automatically. To avoid the download and the warning, install the plugin ahead of time, for example in your CI setup, with [`rover plugin install`](/rover/commands/plugin#plugin-install):
+Composition runs in the ELv2-licensed `supergraph` plugin (built from the [federation-rs source](https://github.com/apollographql/federation-rs)). If the plugin isn't installed, `rover supergraph compose` downloads it and prints a warning that a future version of Rover will stop downloading plugins automatically. To avoid the download and the warning, install the plugin ahead of time, for example in your CI setup, with the [`rover plugin install` command](/rover/commands/plugin#plugin-install):
 
 ```bash
 rover plugin install supergraph@=2.9.3 --elv2-license accept

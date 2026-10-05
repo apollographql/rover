@@ -12,7 +12,7 @@ Some Rover commands delegate their work to a plugin binary:
 | `router` | GraphOS Router | [`rover dev`](/rover/commands/dev) |
 | `apollo-mcp-server` | Apollo MCP Server | [`rover dev --mcp`](/rover/commands/dev#run-your-mcp-server) |
 
-These commands download a plugin they need and don't have, and warn that a future version of Rover won't. To control that, see [Automatic downloads](#automatic-downloads). To install plugins ahead of time, use `rover plugin install`.
+These commands download a required plugin if it's missing, and warn that a future version of Rover won't. To install plugins ahead of time, use `rover plugin install`. To control downloads, see [Automatic downloads](#automatic-downloads).
 
 ## `plugin install`
 

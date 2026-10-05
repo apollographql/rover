@@ -240,7 +240,7 @@ rover plugin install router@2
 rover plugin install apollo-mcp-server@latest
 ```
 
-To keep downloading without the warning, or to stop downloading, set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`. With it set to `false`, `rover dev` stops when a plugin isn't installed and tells you how to install it. For details, see [Automatic downloads](/rover/commands/plugin#automatic-downloads).
+To keep downloading without the warning, or to stop downloading, set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`. When you set it to `false`, `rover dev` stops when a plugin isn't installed and tells you how to install it. For details, see [Automatic downloads](/rover/commands/plugin#automatic-downloads).
 
 Rover looks for each plugin in the project's `.rover/bin/` directory first, then in the global `$APOLLO_HOME/.rover/bin/` directory (by default, `~/.rover/bin/`). See [Where plugins are installed](/rover/commands/plugin#where-plugins-are-installed). At startup, `rover dev` reports each plugin it uses:
 
