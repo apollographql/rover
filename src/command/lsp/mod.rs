@@ -472,7 +472,7 @@ async fn create_composition_runner(
         .await?
         .install_supergraph_binary(
             client_config.clone(),
-            override_install_path,
+            override_install_path.clone(),
             lsp_opts.plugin_opts.elv2_license_accepter,
             lsp_opts.plugin_opts.skip_update,
         )
@@ -500,6 +500,7 @@ async fn create_composition_runner(
                 studio_client_config: client_config,
                 elv2_licence_accepter: lsp_opts.plugin_opts.elv2_license_accepter,
                 skip_update: lsp_opts.plugin_opts.skip_update,
+                override_install_path,
             }),
         )
         .await?)
