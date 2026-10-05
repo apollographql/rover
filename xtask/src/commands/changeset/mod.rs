@@ -35,22 +35,23 @@ enum Action {
 
 impl ChangesetCommand {
     pub(crate) fn run(&self) -> Result<()> {
-        let dir = changeset_dir();
+        let root: &Utf8Path = &PKG_PROJECT_ROOT;
         match &self.command {
-            Action::Add(add) => add.run(&dir),
-            Action::Check(check) => check.run(&dir),
+            Action::Add(add) => add.run(&changeset_dir(root)),
+            Action::Check(check) => check.run(root),
             Action::Preview => {
-                let changesets = load_ordered(&dir)?;
+                let changesets = load_ordered(root)?;
                 println!("{}", notes::release_notes(&values(&changesets)));
                 Ok(())
             }
-            Action::Release(release) => release.run(&dir),
+            Action::Release(release) => release.run(root),
         }
     }
 }
 
-fn changeset_dir() -> Utf8PathBuf {
-    PKG_PROJECT_ROOT.join(".changeset")
+/// `.changeset/` in the repository at `root`.
+fn changeset_dir(root: &Utf8Path) -> Utf8PathBuf {
+    root.join(".changeset")
 }
 
 #[derive(Debug, Parser)]
@@ -174,21 +175,25 @@ struct Check {
 }
 
 impl Check {
-    fn run(&self, dir: &Utf8Path) -> Result<()> {
+    /// Checks the changesets in the repository at `root`.
+    fn run(&self, root: &Utf8Path) -> Result<()> {
         let paths = if self.all {
-            changeset_paths(dir)?
+            changeset_paths(&changeset_dir(root))?
         } else {
-            let added = git(&[
-                "diff",
-                "--name-only",
-                "--diff-filter=A",
-                &format!("origin/{}...HEAD", self.base),
-                "--",
-                ".changeset/",
-            ])?;
+            let added = git(
+                root,
+                &[
+                    "diff",
+                    "--name-only",
+                    "--diff-filter=A",
+                    &format!("origin/{}...HEAD", self.base),
+                    "--",
+                    ".changeset/",
+                ],
+            )?;
             let paths: Vec<Utf8PathBuf> = added
                 .lines()
-                .map(|line| PKG_PROJECT_ROOT.join(line))
+                .map(|line| root.join(line))
                 .filter(|path| is_changeset(path))
                 .collect();
             if paths.is_empty() {
@@ -228,21 +233,23 @@ struct Release {
 }
 
 impl Release {
-    fn run(&self, dir: &Utf8Path) -> Result<()> {
+    /// Releases the changesets in the repository at `root`.
+    fn run(&self, root: &Utf8Path) -> Result<()> {
+        let dir = changeset_dir(root);
         let version = self.version.trim_start_matches('v');
         semver::Version::parse(version).with_context(|| format!("`{version}` isn't a version"))?;
         let date = self
             .date
             .clone()
-            .unwrap_or_else(|| chrono::Local::now().format("%Y-%m-%d").to_string());
+            .unwrap_or_else(|| chrono::Utc::now().format("%Y-%m-%d").to_string());
 
-        let changesets = load_ordered(dir)?;
+        let changesets = load_ordered(root)?;
         if changesets.is_empty() {
             bail!("there are no changesets in {dir} to release");
         }
         let notes = notes::release_notes(&values(&changesets));
 
-        let changelog_path = PKG_PROJECT_ROOT.join("CHANGELOG.md");
+        let changelog_path = root.join("CHANGELOG.md");
         let changelog = fs::read_to_string(&changelog_path)?;
         fs::write(
             &changelog_path,
@@ -289,32 +296,44 @@ fn read(path: &Utf8Path) -> Result<Changeset> {
     Changeset::parse(&text)
 }
 
-/// Every changeset, newest first: by when the commit that added it was made,
-/// with ones not committed yet first, and by file name among equals.
-fn load_ordered(dir: &Utf8Path) -> Result<Vec<(Utf8PathBuf, Changeset)>> {
+/// Every changeset in the repository at `root`, newest first (see
+/// [`newest_first`]).
+fn load_ordered(root: &Utf8Path) -> Result<Vec<(Utf8PathBuf, Changeset)>> {
     let mut keyed = Vec::new();
-    for path in changeset_paths(dir)? {
+    for path in changeset_paths(&changeset_dir(root))? {
         let changeset = read(&path).with_context(|| format!("{path} is invalid"))?;
-        let added = git(&[
-            "log",
-            "--diff-filter=A",
-            "--format=%ct",
-            "-1",
-            "--",
-            path.as_str(),
-        ])?
+        let added = git(
+            root,
+            &[
+                "log",
+                "--diff-filter=A",
+                "--format=%ct",
+                "-1",
+                "--",
+                path.as_str(),
+            ],
+        )?
         .trim()
         .parse::<i64>()
-        .unwrap_or(i64::MAX);
+        .ok();
         keyed.push((added, path, changeset));
     }
+    Ok(newest_first(keyed))
+}
+
+/// Orders items by when the commit that added each was made, newest first.
+/// Ones not committed yet (`None`) come first, and the file name breaks ties,
+/// so changesets added in one commit keep their names' order.
+fn newest_first<T>(mut keyed: Vec<(Option<i64>, Utf8PathBuf, T)>) -> Vec<(Utf8PathBuf, T)> {
     keyed.sort_by(|(a_time, a_path, _), (b_time, b_path, _)| {
-        b_time.cmp(a_time).then_with(|| a_path.cmp(b_path))
+        let a_time = a_time.unwrap_or(i64::MAX);
+        let b_time = b_time.unwrap_or(i64::MAX);
+        b_time.cmp(&a_time).then_with(|| a_path.cmp(b_path))
     });
-    Ok(keyed
+    keyed
         .into_iter()
-        .map(|(_, path, changeset)| (path, changeset))
-        .collect())
+        .map(|(_, path, item)| (path, item))
+        .collect()
 }
 
 fn values(changesets: &[(Utf8PathBuf, Changeset)]) -> Vec<Changeset> {
@@ -324,10 +343,11 @@ fn values(changesets: &[(Utf8PathBuf, Changeset)]) -> Vec<Changeset> {
         .collect()
 }
 
-fn git(args: &[&str]) -> Result<String> {
+/// Runs git in the repository at `root`, returning its stdout.
+fn git(root: &Utf8Path, args: &[&str]) -> Result<String> {
     let output = Command::new("git")
         .args(args)
-        .current_dir(PKG_PROJECT_ROOT.as_std_path())
+        .current_dir(root.as_std_path())
         .output()
         .context("running git")?;
     if !output.status.success() {
@@ -338,4 +358,273 @@ fn git(args: &[&str]) -> Result<String> {
         ));
     }
     Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::process::Command;
+
+    use camino::{Utf8Path, Utf8PathBuf};
+    use indoc::indoc;
+    use rstest::rstest;
+    use speculoos::prelude::*;
+    use tempfile::TempDir;
+
+    use super::*;
+
+    /// A throwaway git repository with a `.changeset/` directory.
+    struct Repo {
+        _dir: TempDir,
+        root: Utf8PathBuf,
+    }
+
+    impl Repo {
+        fn new() -> Self {
+            let dir = TempDir::new().unwrap();
+            let root = Utf8PathBuf::try_from(dir.path().to_path_buf()).unwrap();
+            fs::create_dir_all(root.join(".changeset")).unwrap();
+            let repo = Self { _dir: dir, root };
+            repo.git(&["init", "-q", "-b", "main"], None);
+            repo
+        }
+
+        fn git(&self, args: &[&str], date: Option<&str>) {
+            let mut command = Command::new("git");
+            command
+                .args([
+                    "-c",
+                    "user.name=Test",
+                    "-c",
+                    "user.email=test@example.com",
+                    "-c",
+                    "commit.gpgsign=false",
+                ])
+                .args(args)
+                .current_dir(&self.root);
+            if let Some(date) = date {
+                command
+                    .env("GIT_AUTHOR_DATE", date)
+                    .env("GIT_COMMITTER_DATE", date);
+            }
+            let output = command.output().unwrap();
+            assert!(
+                output.status.success(),
+                "git {args:?}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+
+        fn write(&self, path: &str, contents: &str) {
+            fs::write(self.root.join(path), contents).unwrap();
+        }
+
+        /// Writes a valid `fix` changeset named `name` with `summary`.
+        fn changeset(&self, name: &str, summary: &str) {
+            self.write(
+                &format!(".changeset/{name}.md"),
+                &format!("---\ncategory: fix\nbreaking: false\n---\n\n{summary}\n"),
+            );
+        }
+
+        /// Commits everything, dated `epoch` seconds.
+        fn commit(&self, epoch: i64) {
+            self.git(&["add", "-A"], None);
+            self.git(
+                &["commit", "-q", "--allow-empty", "-m", "commit"],
+                Some(&format!("@{epoch} +0000")),
+            );
+        }
+
+        /// Makes the current commit `origin/main`, the base `check` compares
+        /// against.
+        fn mark_base(&self) {
+            self.git(&["update-ref", "refs/remotes/origin/main", "HEAD"], None);
+        }
+    }
+
+    fn summaries(root: &Utf8Path) -> Vec<String> {
+        load_ordered(root)
+            .unwrap()
+            .into_iter()
+            .map(|(_, changeset)| changeset.summary)
+            .collect()
+    }
+
+    #[test]
+    fn newest_first_puts_uncommitted_then_newest_and_breaks_ties_by_name() {
+        let keyed = vec![
+            (Some(100), Utf8PathBuf::from("b-old"), ()),
+            (Some(300), Utf8PathBuf::from("c-new"), ()),
+            (None, Utf8PathBuf::from("z-pending"), ()),
+            (Some(200), Utf8PathBuf::from("b-tied"), ()),
+            (Some(200), Utf8PathBuf::from("a-tied"), ()),
+            (None, Utf8PathBuf::from("a-pending"), ()),
+        ];
+
+        let order: Vec<String> = newest_first(keyed)
+            .into_iter()
+            .map(|(path, ())| path.to_string())
+            .collect();
+
+        assert_that!(order).is_equal_to(
+            [
+                "a-pending",
+                "z-pending",
+                "c-new",
+                "a-tied",
+                "b-tied",
+                "b-old",
+            ]
+            .map(String::from)
+            .to_vec(),
+        );
+    }
+
+    #[rstest]
+    #[case::a_changeset("repo/.changeset/fix-thing.md", true)]
+    #[case::the_readme("repo/.changeset/README.md", false)]
+    #[case::release_notes("repo/.changeset/notes/v1.0.0.md", false)]
+    #[case::not_markdown("repo/.changeset/fix-thing.txt", false)]
+    #[case::outside_the_directory("repo/docs/fix-thing.md", false)]
+    fn only_markdown_files_directly_in_the_directory_are_changesets(
+        #[case] path: &str,
+        #[case] expected: bool,
+    ) {
+        assert_that!(is_changeset(Utf8Path::new(path))).is_equal_to(expected);
+    }
+
+    #[test]
+    fn changesets_load_newest_first_by_the_commit_that_added_them() {
+        let repo = Repo::new();
+        repo.changeset("old", "Old");
+        repo.commit(1_000);
+        repo.changeset("new", "New");
+        repo.commit(2_000);
+        repo.changeset("pending", "Pending");
+
+        assert_that!(summaries(&repo.root))
+            .is_equal_to(["Pending", "New", "Old"].map(String::from).to_vec());
+    }
+
+    #[test]
+    fn check_fails_when_the_branch_adds_no_changeset() {
+        let repo = Repo::new();
+        repo.commit(1_000);
+        repo.mark_base();
+        repo.write("code.rs", "fn main() {}\n");
+        repo.commit(2_000);
+
+        let error = Check {
+            base: "main".to_string(),
+            all: false,
+        }
+        .run(&repo.root)
+        .unwrap_err();
+
+        assert_that!(error.to_string()).is_equal_to(
+            "This branch adds no changeset to .changeset/.\n\
+             Create one with `mise run add-changeset` (see .changeset/README.md).\n\
+             If the change isn't user-visible, add the `skip-changeset` label to the pull request."
+                .to_string(),
+        );
+    }
+
+    #[test]
+    fn check_validates_only_the_changesets_the_branch_adds() {
+        let repo = Repo::new();
+        // Already on the base branch, and invalid: not this branch's problem.
+        repo.write(".changeset/inherited.md", "not a changeset\n");
+        repo.commit(1_000);
+        repo.mark_base();
+        repo.changeset("added", "Added");
+        repo.commit(2_000);
+        let check = Check {
+            base: "main".to_string(),
+            all: false,
+        };
+
+        assert_that!(check.run(&repo.root)).is_ok();
+
+        repo.write(
+            ".changeset/broken.md",
+            "---\ncategory: fix\n---\n\nNo breaking field\n",
+        );
+        repo.commit(3_000);
+
+        assert_that!(check.run(&repo.root).unwrap_err().to_string())
+            .is_equal_to("1 invalid changeset(s)".to_string());
+    }
+
+    #[test]
+    fn release_adds_the_section_writes_the_notes_and_removes_the_changesets() {
+        let repo = Repo::new();
+        repo.write(
+            "CHANGELOG.md",
+            indoc! {"
+                # Changelog
+
+                # [Unreleased]
+
+                Unreleased changes are in `.changeset/`.
+
+                # [0.41.0] - 2026-07-09
+
+                ## 🐛 Fixes
+            "},
+        );
+        repo.changeset("first", "First fix");
+        repo.commit(1_000);
+        repo.changeset("second", "Second fix");
+        repo.commit(2_000);
+
+        Release {
+            version: "v1.2.3".to_string(),
+            date: Some("2030-01-01".to_string()),
+        }
+        .run(&repo.root)
+        .unwrap();
+
+        let notes = "## 🐛 Fixes\n\n- **Second fix**\n- **First fix**";
+        assert_that!(fs::read_to_string(repo.root.join("CHANGELOG.md")).unwrap()).is_equal_to(
+            indoc! {"
+                # Changelog
+
+                # [Unreleased]
+
+                Unreleased changes are in `.changeset/`.
+
+                # [1.2.3] - 2030-01-01
+
+                ## 🐛 Fixes
+
+                - **Second fix**
+                - **First fix**
+
+                # [0.41.0] - 2026-07-09
+
+                ## 🐛 Fixes
+            "}
+            .to_string(),
+        );
+        assert_that!(fs::read_to_string(repo.root.join(".changeset/notes/v1.2.3.md")).unwrap())
+            .is_equal_to(format!("{notes}\n"));
+        assert_that!(changeset_paths(&changeset_dir(&repo.root)).unwrap()).is_empty();
+    }
+
+    #[test]
+    fn release_refuses_when_there_are_no_changesets() {
+        let repo = Repo::new();
+        repo.write("CHANGELOG.md", "# [0.41.0] - 2026-07-09\n");
+        let release = Release {
+            version: "1.2.3".to_string(),
+            date: None,
+        };
+
+        let error = release.run(&repo.root).unwrap_err();
+
+        assert_that!(error.to_string()).is_equal_to(format!(
+            "there are no changesets in {} to release",
+            changeset_dir(&repo.root)
+        ));
+    }
 }
