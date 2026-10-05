@@ -165,12 +165,12 @@ mod never_download {
         assert_that!(activity).is_equal_to(OutboundActivity::default());
     }
 
-    /// The Rover 1.0 default, with nothing opted in to automatic downloads
-    /// and no `--skip-update`: an installed plugin runs with no socket opened
-    /// (FR77, FR53).
+    /// The Rover 1.0 default, with nothing setting
+    /// `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` and no `--skip-update`: an
+    /// installed plugin runs with no socket opened (FR77, FR53).
     #[test]
     #[ignore = "runs in the network-denied job"]
-    fn composing_with_nothing_opted_in_touches_no_socket() {
+    fn composing_with_nothing_set_touches_no_socket() {
         require_network_denied();
         let two_levels = TwoLevels::new();
         two_levels.seed_runnable_plugin(
@@ -194,11 +194,11 @@ mod never_download {
         assert_that!(activity).is_equal_to(OutboundActivity::default());
     }
 
-    /// Absent, the 1.0 default fails as a missing plugin before any network
-    /// call, rather than downloading it (FR77).
+    /// With `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD=false`, a missing plugin
+    /// fails before any network call, rather than being downloaded (FR77).
     #[test]
     #[ignore = "runs in the network-denied job"]
-    fn composing_without_the_plugin_with_nothing_opted_in_fails_without_a_socket() {
+    fn composing_without_the_plugin_with_downloads_turned_off_fails_without_a_socket() {
         require_network_denied();
         let two_levels = TwoLevels::new();
         write_config(&two_levels);
@@ -214,6 +214,7 @@ mod never_download {
             "json",
         ]);
         offline(&mut command);
+        command.env("APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD", "false");
 
         let (output, activity) = record_outbound(&mut command);
 
