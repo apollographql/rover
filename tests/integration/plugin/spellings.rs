@@ -222,3 +222,53 @@ fn a_federation_one_pin_in_the_manifest_is_refused_by_a_bare_install(#[case] pin
     assert_that!(output.status.success()).is_false();
     assert_that!(json["error"]["code"].as_str()).is_equal_to(Some("E064"));
 }
+
+/// A plugin failure names the plugin and the version that was asked for as fields of the error,
+/// so a script never has to parse them out of its message, and `data` still says that no plugin
+/// was used.
+#[rstest]
+#[case::downloads_disabled(
+    &["plugin", "install", "router@2", "--no-download"],
+    "E058",
+    "router",
+    "2"
+)]
+#[case::exact_version(
+    &["plugin", "install", "supergraph@=2.9.9", "--no-download"],
+    "E058",
+    "supergraph",
+    "=2.9.9"
+)]
+fn a_plugin_failure_names_the_plugin_and_the_requested_version(
+    #[case] args: &[&str],
+    #[case] code: &str,
+    #[case] plugin: &str,
+    #[case] requested: &str,
+) {
+    let home = tempfile::tempdir().unwrap();
+    let output = Command::cargo_bin("rover")
+        .unwrap()
+        .args(args)
+        .args([
+            "--skip-update-check",
+            "--telemetry-disabled",
+            "--format",
+            "json",
+        ])
+        .env("APOLLO_HOME", home.path())
+        .env("NO_COLOR", "1")
+        .output()
+        .unwrap();
+
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|err| {
+        panic!(
+            "stdout isn't JSON ({err})\nstderr: {}",
+            String::from_utf8_lossy(&output.stderr)
+        )
+    });
+    assert_that!(output.status.success()).is_false();
+    assert_that!(json["error"]["code"].as_str()).is_equal_to(Some(code));
+    assert_that!(json["error"]["plugin"].as_str()).is_equal_to(Some(plugin));
+    assert_that!(json["error"]["requested_version"].as_str()).is_equal_to(Some(requested));
+    assert_that!(json["data"]["plugins"].clone()).is_equal_to(serde_json::json!([]));
+}

@@ -160,6 +160,8 @@ fn a_locked_release_the_registry_withdrew_fails_rather_than_install_another(two_
                         longer available from the plugin registry. The newest available 2.x is \
                         v2.9.5.",
             "code": "E051",
+            "plugin": "supergraph",
+            "requested_version": "=2.9.3",
         }),
         1,
         1,
@@ -189,6 +191,8 @@ fn a_locked_release_the_manifest_no_longer_allows_fails_before_any_download(two_
                 dir.join("rover.yaml")
             ),
             "code": "E052",
+            "plugin": "supergraph",
+            "requested_version": "=2.9.4",
         }),
         0,
         0,

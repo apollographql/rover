@@ -1069,6 +1069,8 @@ mod tests {
             "message": "Couldn't resolve a release of the `supergraph` plugin matching `=2.9.9` from the plugin registry.",
             "causes": ["Bad Status code: 404 Not Found"],
             "code": "E048",
+            "plugin": "supergraph",
+            "requested_version": "=2.9.9",
         })
     )]
     #[case::download(
@@ -1077,6 +1079,8 @@ mod tests {
             "message": "Couldn't download the `router` plugin v2.1.0.",
             "causes": ["Request timed out"],
             "code": "E049",
+            "plugin": "router",
+            "requested_version": "2",
         })
     )]
     #[case::installation(
@@ -1085,6 +1089,8 @@ mod tests {
             "message": "Couldn't install the `apollo-mcp-server` plugin v1.0.0 into `/home/me/.rover/bin`.",
             "causes": ["Permission denied (os error 13)"],
             "code": "E050",
+            "plugin": "apollo-mcp-server",
+            "requested_version": "latest",
         })
     )]
     #[case::no_longer_served(
@@ -1092,6 +1098,8 @@ mod tests {
         serde_json::json!({
             "message": "The `supergraph` plugin v2.9.3, requested by `rover plugin install`, is no longer available from the plugin registry.",
             "code": "E051",
+            "plugin": "supergraph",
+            "requested_version": "=2.9.3",
         })
     )]
     #[case::malformed_manifest(
@@ -1133,6 +1141,8 @@ mod tests {
         serde_json::json!({
             "message": "Rover needs a `supergraph` plugin v2.x, but none is installed in `/home/me/.rover/bin` and downloads are disabled by `--skip-update`.",
             "code": "E058",
+            "plugin": "supergraph",
+            "requested_version": "2",
         })
     )]
     #[case::downloads_not_opted_in(
@@ -1144,6 +1154,8 @@ mod tests {
         serde_json::json!({
             "message": "Rover needs a `supergraph` plugin v2.x, but none is installed.",
             "code": "E058",
+            "plugin": "supergraph",
+            "requested_version": "2",
         })
     )]
     fn each_failure_is_reported_under_its_own_code_in_json(
