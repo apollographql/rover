@@ -6,6 +6,7 @@ use anyhow::anyhow;
 use binstall::Installer;
 use camino::{Utf8Path, Utf8PathBuf};
 use clap::Parser;
+use rover_print::{print::Print, style::StyledText};
 use serde::Serialize;
 
 use self::{
@@ -184,6 +185,15 @@ impl PluginInstall {
                 return Err(err);
             }
         };
+
+        // A download has already reported itself; anything else would otherwise succeed in
+        // silence, which reads as though nothing happened.
+        let stderr = rover_print::print::stderr::default();
+        for plugin in &installed {
+            if let Some(message) = plugin.install_confirmation() {
+                stderr.print(&StyledText::plain(message));
+            }
+        }
 
         Ok(RoverOutput::CliOutput(Box::new(PluginInstallOutput {
             plugins: installed,
