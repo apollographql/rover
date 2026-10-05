@@ -102,3 +102,57 @@ fn validate_is_user_key(key: &str) -> Result<(), AuthenticationError> {
 fn test_type_safe_key_validation(#[case] key: &str, #[case] expected: Option<AuthenticationError>) {
     assert_that!(validate_is_user_key(key).err()).is_equal_to(expected);
 }
+
+// WHO `rover init` WILL RUN AS
+
+fn credential(api_key: &str, origin: houston::CredentialOrigin) -> houston::Credential {
+    houston::Credential {
+        api_key: api_key.to_string(),
+        origin,
+        expires_at: None,
+    }
+}
+
+#[rstest]
+#[case::user_key_from_the_environment("user:me:secret", houston::CredentialOrigin::EnvVar, true)]
+#[case::user_key_from_a_profile(
+    "user:me:secret",
+    houston::CredentialOrigin::ConfigFile("default".to_string()),
+    true
+)]
+#[case::graph_key("service:graph:secret", houston::CredentialOrigin::EnvVar, false)]
+#[case::malformed_key("notakey", houston::CredentialOrigin::EnvVar, false)]
+// A `rover auth login` token isn't shaped like a key at all, and used to count as none.
+#[case::oauth_login(
+    "an-access-token",
+    houston::CredentialOrigin::OauthAuthorizationPkce("default".to_string()),
+    true
+)]
+#[case::client_credentials(
+    "an-access-token",
+    houston::CredentialOrigin::OauthClientCredentials,
+    false
+)]
+fn only_a_persons_credential_can_run_init(
+    #[case] api_key: &str,
+    #[case] origin: houston::CredentialOrigin,
+    #[case] expected: bool,
+) {
+    let credential = credential(api_key, origin);
+
+    assert_that!(crate::command::init::transitions::is_user_credential(
+        &credential
+    ))
+    .is_equal_to(expected);
+}
+
+#[test]
+fn having_no_terminal_to_ask_on_says_what_to_do_instead() {
+    let error = auth_error_to_rover_error(AuthenticationError::NotInteractive);
+    let rendered = format!("{error:?}");
+
+    assert!(rendered.contains("no terminal"));
+    assert!(rendered.contains("rover auth login"));
+    assert!(rendered.contains("APOLLO_KEY"));
+    assert!(!rendered.contains("This isn't your fault"));
+}

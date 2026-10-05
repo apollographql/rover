@@ -17,6 +17,8 @@ pub enum AuthenticationError {
     NoCredentialsFound,
     /// When authentication fails even after the user has manually entered an API key
     SecondChanceAuthFailure,
+    /// When there is no credential and no terminal to ask for one on
+    NotInteractive,
 }
 
 impl fmt::Display for AuthenticationError {
@@ -36,6 +38,12 @@ impl fmt::Display for AuthenticationError {
             }
             AuthenticationError::SecondChanceAuthFailure => {
                 write!(f, "Failed to authenticate with the provided API key")
+            }
+            AuthenticationError::NotInteractive => {
+                write!(
+                    f,
+                    "No credentials found, and there is no terminal to ask for one"
+                )
             }
         }
     }

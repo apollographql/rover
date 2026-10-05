@@ -2,7 +2,7 @@ use clap::Parser;
 use config::Profile;
 use dialoguer::{Password, theme::ColorfulTheme};
 use houston::{self as config, ApiKey, ApiKeyActor, MalformedApiKey};
-use rover_std::{hyperlink, successln};
+use rover_std::hyperlink;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -83,10 +83,9 @@ impl ProjectAuthenticationOpt {
                 }
 
                 match client_config.get_authenticated_client(profile) {
-                    Ok(_) => {
-                        successln!("Successfully saved your API key.");
-                        Ok(())
-                    }
+                    // Saved, not yet accepted: the caller confirms it with the registry and
+                    // says so, or removes it.
+                    Ok(_) => Ok(()),
                     Err(e) => {
                         // If authentication fails, remove the key
                         profile_handle.set_api_key("").map_err(|e| {

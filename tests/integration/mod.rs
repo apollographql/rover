@@ -10,6 +10,7 @@ mod explain;
 mod graph;
 mod help;
 mod info;
+mod init;
 mod installers;
 mod output;
 mod plugin;
