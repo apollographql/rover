@@ -159,6 +159,7 @@ fn resolve_string_setting(
     let raw_env = rover.get_env_var(env_key)?;
 
     if let Some(value) = flag_or_env {
+        let value = rover.validate_explicit_value(name, value)?;
         // Flag beats environment when both are supplied and differ; when
         // they're equal it's genuinely ambiguous which one clap actually
         // used to resolve this value, and reporting `Environment` in that
@@ -1115,6 +1116,33 @@ mod tests {
     fn shown(rover: &Rover) -> serde_json::Value {
         let output = Show {}.run(rover, &rover.get_profile_opt()).unwrap();
         serde_json::to_value(&output.settings).unwrap()
+    }
+
+    /// An invalid `APOLLO_GRAPH_REF` in the environment is the winning
+    /// tier, so `config show` fails on it the way it does on a stored one.
+    #[test]
+    fn an_invalid_environment_graph_ref_fails_show() {
+        let home = config_home(&[]);
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let mut rover = parse_with_env_locked(
+            NO_REGISTRY_OR_TELEMETRY_ENV,
+            &[
+                PKG_NAME,
+                "--config-home",
+                home_path.as_str(),
+                "config",
+                "show",
+            ],
+        );
+        rover
+            .insert_env_var(RoverEnvKey::GraphRef, "bad!!")
+            .unwrap();
+
+        let error = Show {}
+            .run(&rover, &rover.get_profile_opt())
+            .expect_err("an invalid environment graph ref should fail `config show`");
+
+        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
     }
 
     /// AC: every one of the six source literals, with each loser reported
