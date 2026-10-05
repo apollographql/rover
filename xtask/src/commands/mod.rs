@@ -1,9 +1,11 @@
+pub(crate) use changeset::ChangesetCommand;
 pub(crate) use dist::Dist;
 pub(crate) use package::Package;
 pub(crate) use prep::Prep;
 pub(crate) use publish_npm::PublishNpm;
 pub(crate) use register_oauth_client::RegisterOauthClient;
 
+pub(crate) mod changeset;
 pub(crate) mod dist;
 pub(crate) mod package;
 pub(crate) mod prep;

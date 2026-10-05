@@ -13,6 +13,14 @@ node = "24.21.0"
 description = "Run the same checks as CI"
 depends = ["clippy", "format-check", "test"]
 
+[tasks.add-changeset]
+description = "Add a changeset describing a user-visible change (see .changeset/README.md)"
+run = "cargo xtask changeset add"
+
+[tasks.check-changeset]
+description = "Check the changesets this branch adds (usage: mise run check-changeset -- --base <branch>)"
+run = "cargo xtask changeset check"
+
 [tasks.prep]
 description = "Prepare a release: regenerate template schemas/queries and bump the npm installer version"
 run = "cargo xtask prep"

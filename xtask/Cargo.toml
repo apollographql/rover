@@ -11,9 +11,11 @@ assert_fs = { workspace = true }
 anyhow = { workspace = true }
 base64 = { workspace = true }
 camino = { workspace = true }
+chrono = { workspace = true }
 cargo_metadata = { workspace = true }
 clap = { workspace = true, features = ["color", "derive", "env"] }
 console = { workspace = true }
+dialoguer = { workspace = true }
 http = { workspace = true }
 flate2 = { workspace = true }
 lazy_static = { workspace = true }
@@ -27,6 +29,7 @@ rover-auth = { workspace = true }
 rover-http = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+serde_yaml = { workspace = true }
 shell-candy = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }
@@ -35,6 +38,11 @@ tower = { workspace = true }
 url = { workspace = true }
 which = { workspace = true }
 zip = { workspace = true }
+
+[dev-dependencies]
+indoc = { workspace = true }
+rstest = { workspace = true }
+speculoos = { workspace = true }
 
 [lints]
 workspace = true
