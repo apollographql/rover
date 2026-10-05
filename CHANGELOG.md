@@ -301,6 +301,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   `rover graph check`, `rover subgraph check` and `publish --check` turned any `--query-percentage-threshold` below `100` into `0`, so the threshold silently did nothing, and rejected decimals. `--query-percentage-threshold 25` now sends `0.25`, and values like `0.5` are accepted.
 
+- **`rover graph publish` and `rover subgraph publish` no longer offer `--background` - @dotdat fixes ROVER-495**
+
+  Both listed `--background` in `--help` through the shared check options, but never read it, so `publish --check` always waited for the check, as it must: the check decides whether the publish happens. The flag now belongs to `rover graph check` and `rover subgraph check` alone, and passing it to a publish is an argument error rather than a silent no-op.
+
 - **`rover --help` opens with Rover's own description again - @dotdat**
 
   `rover --help` and `rover help` printed an internal note about the `--oauth-*` flags where Rover's description and getting-started steps belong, in every build since OAuth stopped being an optional feature. `rover -h` was unaffected.

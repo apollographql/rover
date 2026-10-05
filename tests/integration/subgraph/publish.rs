@@ -275,3 +275,36 @@ fn subgraph_publish_prints_launch_cli_copy_when_no_downstream_launches_were_trig
         "no report should have been printed: {stderr}"
     );
 }
+
+/// `--check` gates the publish on the check's result, so there is nothing for `--background`
+/// (start the check and don't wait for it) to mean here. Only `subgraph check` offers it.
+#[test]
+fn background_is_not_a_publish_option() {
+    let output = Command::cargo_bin("rover")
+        .unwrap()
+        .args([
+            "subgraph",
+            "publish",
+            "my-graph@current",
+            "--check",
+            "--background",
+        ])
+        .args(["--name", "products", "--schema", "-"])
+        .args(["--routing-url", "http://localhost:4001"])
+        .output()
+        .unwrap();
+
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("unexpected argument '--background'"));
+}
+
+#[test]
+fn background_is_still_a_check_option() {
+    let output = Command::cargo_bin("rover")
+        .unwrap()
+        .args(["subgraph", "check", "--help"])
+        .output()
+        .unwrap();
+
+    assert!(String::from_utf8_lossy(&output.stdout).contains("--background"));
+}
