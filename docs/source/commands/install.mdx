@@ -1,13 +1,12 @@
 ---
 title: Rover install Command
-subtitle: Install Rover or official plugins
-description: Use the rover install command to reinstall Rover or to download and install officially supported plugins such as the supergraph binary, Router, and Apollo MCP Server.
+subtitle: Install or upgrade Rover
+description: Use the rover install command to reinstall or upgrade the Rover binary. To install plugins such as the supergraph binary, Router, and Apollo MCP Server, use rover plugin install.
 ---
 
-The `rover install` command enables you to:
+The `rover install` command reinstalls or upgrades the Rover binary.
 
-- Reinstall or upgrade the Rover binary
-- Install officially supported plugins that Rover uses for composition and local development
+To install the plugins Rover uses for composition and local development, use [`rover plugin install`](/rover/commands/plugin).
 
 ## Install Rover
 
@@ -27,65 +26,18 @@ To install Rover for the first time, [use the official installation methods](/ro
 
 ## Install plugins
 
-Use `rover install --plugin <name>@<version>` to download and install an officially supported plugin. Plugins are installed alongside the Rover binary and are used by commands such as [`rover dev`](/rover/commands/dev) and supergraph composition.
+`rover install --plugin <NAME>@<VERSION>` still works, but it's deprecated. Use [`rover plugin install`](/rover/commands/plugin) instead. The deprecated form prints a warning naming the replacement:
 
-### Supported plugins
-
-| Plugin | Description | Version format | Example |
-| ------ | ----------- | -------------- | ------- |
-| `supergraph` | Federation supergraph composition binary | `latest-2` or exact `=X.Y.Z` | `supergraph@latest-2`, `supergraph@=2.8.0` |
-| `router` | Apollo Router (1.x and 2.x) | `latest`, `1`, `2`, or exact `=X.Y.Z` | `router@latest`, `router@1`, `router@2`, `router@=1.0.0`, `router@=2.0.0` |
-| `apollo-mcp-server` | Apollo MCP Server | `latest` or exact `vX.Y.Z` / `=X.Y.Z` | `apollo-mcp-server@latest`, `apollo-mcp-server@v1.0.0` |
-
-### Examples
-
-Install the latest supergraph plugin:
-
-```bash
-rover install --plugin supergraph@latest-2
+```
+warning: `rover install --plugin` is deprecated. Use `rover plugin install supergraph@=2.9.3` instead.
 ```
 
-Install the latest Router 2.x:
-
-```bash
-rover install --plugin router@2
-```
-
-Install a pinned version of the Router (1.x):
-
-```bash
-rover install --plugin router@=1.0.0
-```
-
-Install the Apollo MCP Server (used with `rover dev` for MCP):
-
-```bash
-rover install --plugin apollo-mcp-server@latest
-```
-
-### Accept the ELv2 license
-
-Some plugins require accepting the [ELv2 license](https://go.apollo.dev/elv2). Rover prompts you to accept the license before continuing.
-
-To accept the license without prompting, use the `--elv2-license accept` flag. This is useful when using this command in a CI environment.
-
-```bash
-rover install --plugin supergraph@latest-2 --elv2-license accept
-```
-
-You can also set the environment variable `APOLLO_ELV2_LICENSE=accept` to accept the license automatically.
-
-```bash
-export APOLLO_ELV2_LICENSE=accept
-rover install --plugin router@latest
-```
-
-### Options
+## Options
 
 | Option | Description |
 | ------ | ----------- |
-| `-f`, `--force` | Overwrite any existing binary or plugin without prompting for confirmation. |
-| `--plugin <PLUGIN>` | Download and install an officially supported plugin. |
-| `--elv2-license <ELV2_LICENSE_ACCEPTED>` | Accept the ELv2 license without prompting. Expected value: `accept`. Can also be set using the `APOLLO_ELV2_LICENSE` environment variable. |
+| `-f`, `--force` | Overwrite any existing binary without prompting for confirmation. |
+| `--plugin <PLUGIN>` | Deprecated. Use [`rover plugin install`](/rover/commands/plugin) instead. |
+| `--elv2-license <ELV2_LICENSE_ACCEPTED>` | Accept the ELv2 license without prompting, when installing a plugin with the deprecated `--plugin` option. Expected value: `accept`. Can also be set using the `APOLLO_ELV2_LICENSE` environment variable. |
 
 Other common Rover options (e.g. `--log`, `--format`, `--client-timeout`) also apply. Run `rover install --help` for the full list.

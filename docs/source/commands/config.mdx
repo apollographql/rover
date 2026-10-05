@@ -4,7 +4,7 @@ subtitle: Create and manage configuration profiles
 description: Create and manage configuration profiles, or different GraphOS identities, with the rover config set of commands.
 ---
 
-Rover enables you to create multiple _configuration profiles_, each of which corresponds to a different GraphOS identity. Each configuration profile has an associated [API key](/graphos/platform/access-management/api-keys), which determines its permissions. You manage your configuration profiles with the `rover config` set of commands.
+Rover enables you to create multiple _configuration profiles_. A profile can hold a credential, which determines its GraphOS identity and permissions: an OAuth login from [`rover auth login`](/rover/commands/auth) or a personal [API key](/graphos/platform/access-management/api-keys) from [`rover config auth`](#config-auth). A profile can also hold [settings](#managing-settings), with or without a credential. You manage your configuration profiles with the `rover config` set of commands. To learn where profiles are stored, see [Where Rover stores configuration](/rover/configuring#where-rover-stores-configuration).
 
 ## Displaying configuration profiles
 
@@ -15,39 +15,63 @@ The `config list` command lists all of your stored configuration profiles:
 ```
 rover config list
 
-Profiles:
-
+staging
 default
-sso
 ```
+
+This includes settings-only profiles created by [`config set`](#config-set). If there are none, it prints `No profiles found.`
 
 ### `config whoami`
 
-The `config whoami` command displays the details of your current active configuration profile:
+The `config whoami` command checks the credential Rover would use against GraphOS and displays its identity:
 
 ```
 rover config whoami
 
+note: `rover config whoami` is being replaced by `rover auth whoami` - consider switching over.
 Checking identity of your API key against the registry.
-Key Type: USER
-User ID: gh.StephenBarlow
-Origin: --profile default
-API Key: user************************************abcd
+note: OAuth authentication is now available - consider running `rover auth login` instead of a Personal API Key.
+┌──────────┬─────────────────────────────┐
+│ Key Type ┆ User                        │
+├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ User ID  ┆ gh.example-user             │
+├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Origin   ┆ --profile default           │
+├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ API Key  ┆ user*******************-key │
+└──────────┴─────────────────────────────┘
+```
+
+`Key Type` is `User`, `Graph`, or `Service Account`. A graph API key shows `Graph ID` and `Graph Title` rows instead of `User ID`. `Origin` shows where the credential came from: `$APOLLO_KEY`, `$APOLLO_CLIENT_ID`, `--profile <name> (OAuth)`, or `--profile <name>`. See [Which credential Rover uses](/rover/configuring#which-credential-rover-uses). The OAuth note appears only when the credential is an API key. `rover auth whoami` reports the same identity and also covers OAuth logins in detail.
+
+If the profile holds settings but no credential, and no credential is set in the environment, `config whoami` and every other command that needs a credential fail:
+
+```
+error[E055]: Profile `staging` has settings but no credential. Run `rover auth login --profile staging`, or set `APOLLO_KEY` in the environment.
 ```
 
 ## Creating configuration profiles
 
 ### `config auth`
 
-You create a new configuration profile with the `config auth` command:
+The `config auth` command stores a personal API key on a configuration profile, creating the profile if it doesn't exist. For local development, [`rover auth login`](/rover/commands/auth) is recommended instead, and `config auth` says so before it prompts for the key:
 
 ```
 rover config auth
 
+warning: OAuth authentication is now available - consider running `rover auth login` instead of storing a Personal API Key.
 Go to https://go.apollo.dev/r/auth and create a new Personal API Key.
 Copy the key and paste it into the prompt below.
 >
 ```
+
+After you paste the key, Rover stores it in your operating system's credential store and confirms:
+
+```
+Successfully saved API key. Consider running `rover config whoami` to verify your API authentication.
+```
+
+The key replaces any credential already on the profile, including an OAuth login. The profile's settings are kept.
 
 By default, your configuration profile is saved with the name `default`. You can specify a different name with the `--profile` option:
 
@@ -57,11 +81,11 @@ rover config auth --profile sso
 
 ## Managing settings
 
-A configuration profile can also store non-secret settings alongside its API key, such as the registry URL or request timeouts. See [Settings in a profile](/rover/configuring#settings-in-a-profile) for which settings can be stored and how they rank against flags, environment variables, and the [project file](/rover/configuring#project-settings).
+A configuration profile can also store non-secret settings, with or without a credential, such as the registry URL or request timeouts. See [Settings in a profile](/rover/configuring#settings-in-a-profile) for which settings can be stored and how they rank against flags, environment variables, and the [project file](/rover/configuring#project-settings).
 
 ### `config show`
 
-The `config show` command reports every setting's effective value and which source supplied it: `flag`, `environment`, `profile (explicit)` for a profile named with `--profile`, `project file`, `profile (default)`, or `built-in default`. Run it inside a project to include the project's `rover.yaml`:
+The `config show` command reports every setting's effective value and which source supplied it: `flag`, `environment`, `profile (explicit)` for a profile named with `--profile`, `project file`, `profile (default)`, or `built-in default`. Run it inside a project to include the project's `rover.yaml`. In this example, the `staging` profile sets the registry URL, the project's `rover.yaml` sets the checks timeout (and a registry URL that the profile outranks), and `APOLLO_TELEMETRY_DISABLED` is set in the environment:
 
 ```
 rover config show --profile staging
@@ -69,29 +93,74 @@ rover config show --profile staging
 Profile: staging (explicit)
 Credential: none
 
-Setting                        Value                                  Source
-APOLLO_REGISTRY_URL            https://registry.staging.example.com   profile (explicit)
-APOLLO_TELEMETRY_URL           https://rover.apollo.dev/telemetry     built-in default
-APOLLO_TELEMETRY_DISABLED      false                                  built-in default
-APOLLO_CHECKS_TIMEOUT_SECONDS  600                                    project file
-APOLLO_CLIENT_TIMEOUT          30                                     built-in default
-APOLLO_ROVER_DOWNLOAD_HOST     https://rover.apollo.dev               built-in default
-APOLLO_TEMPLATES_API           https://rover.apollo.dev/templates     built-in default
-APOLLO_GRAPH_REF               none                                   built-in default
+┌───────────────────────────────────────┬────────────────────────────────────────────────────────┬────────────────────┐
+│ Setting                               ┆ Value                                                  ┆ Source             │
+╞═══════════════════════════════════════╪════════════════════════════════════════════════════════╪════════════════════╡
+│ APOLLO_REGISTRY_URL                   ┆ https://registry.staging.example.com                   ┆ profile (explicit) │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ APOLLO_TELEMETRY_URL                  ┆ https://rover.apollo.dev/telemetry                     ┆ built-in default   │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ APOLLO_TELEMETRY_DISABLED             ┆ true                                                   ┆ environment        │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ APOLLO_CHECKS_TIMEOUT_SECONDS         ┆ 600                                                    ┆ project file       │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ APOLLO_CLIENT_TIMEOUT                 ┆ 30                                                     ┆ built-in default   │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ APOLLO_ROVER_DOWNLOAD_HOST            ┆ https://rover.apollo.dev                               ┆ built-in default   │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ APOLLO_TEMPLATES_API                  ┆ https://rover.apollo.dev/templates                     ┆ built-in default   │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ APOLLO_GRAPH_REF                      ┆ none                                                   ┆ built-in default   │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD ┆ false                                                  ┆ built-in default   │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ APOLLO_OAUTH_AUTHORIZATION_URL        ┆ https://auth.apollographql.com/oauth2/authorize        ┆ built-in default   │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ APOLLO_OAUTH_TOKEN_URL                ┆ https://auth.apollographql.com/oauth2/token            ┆ built-in default   │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ APOLLO_OAUTH_DEVICE_AUTHORIZATION_URL ┆ https://auth.apollographql.com/oauth2/device/authorize ┆ built-in default   │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ APOLLO_OAUTH_REVOCATION_URL           ┆ https://auth.apollographql.com/oauth2/revoke           ┆ built-in default   │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ APOLLO_OAUTH_WHOAMI_URL               ┆ https://auth.apollographql.com/oauth2/userinfo         ┆ built-in default   │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ APOLLO_OAUTH_CLIENT_ID                ┆ 52SYxOlIEM8U5BjKeIv88ClPBSBMq4K06LWB9HtM5EY            ┆ built-in default   │
+└───────────────────────────────────────┴────────────────────────────────────────────────────────┴────────────────────┘
 ```
 
-`config show` never prints an API key or other credential value, only whether one is present and where it came from. It doesn't create a profile or a configuration directory that isn't already there.
+The `Credential` line reads `none`, `present (environment)`, or `present (profile)`. `config show` never prints an API key or other credential value, only whether one is present and where it came from. It doesn't create a profile or store any credential or setting.
 
-Pass `--format json` for a machine-readable version. Each setting also lists, under `overridden`, every lower-precedence source that set it too, highest first:
+Pass `--format json` for a machine-readable version. The `data` object has these fields:
+
+- `profile`: the name of the profile in use.
+- `profile_selection`: `explicit` if you named the profile with `--profile`, otherwise `default`.
+- `credential`: an object with `present` (`true` or `false`) and `origin` (`environment`, `profile`, or `null`).
+- `settings`: one entry per setting, in the same order as the table. Each entry has `name`, `value` (`null` when the setting has no value), `source`, and `overridden`, which lists every lower-precedence source that set it too, highest first.
 
 ```json
 {
-  "name": "APOLLO_REGISTRY_URL",
-  "value": "https://registry.staging.example.com",
-  "source": "explicit_profile",
-  "overridden": [
-    { "source": "project_file", "value": "https://registry.example.com" }
-  ]
+  "json_version": "1",
+  "data": {
+    "profile": "staging",
+    "profile_selection": "explicit",
+    "credential": {
+      "present": false,
+      "origin": null
+    },
+    "settings": [
+      {
+        "name": "APOLLO_REGISTRY_URL",
+        "value": "https://registry.staging.example.com",
+        "source": "explicit_profile",
+        "overridden": [
+          { "source": "project_file", "value": "https://registry.example.com" }
+        ]
+      },
+      ...
+    ],
+    "success": true
+  },
+  "error": null
 }
 ```
 
@@ -107,7 +176,42 @@ rover config set APOLLO_REGISTRY_URL https://registry.staging.example.com --prof
 Set `APOLLO_REGISTRY_URL` to `https://registry.staging.example.com` in profile `staging`.
 ```
 
-`<SETTING>` is the setting's environment variable name, spelled exactly, such as `APOLLO_REGISTRY_URL`. The value is validated before anything is stored. For example, an invalid URL is rejected rather than saved. If the named profile doesn't already exist, `config set` creates it without a credential. A later command that needs that profile's credential will tell you it's missing and how to add one.
+`<SETTING>` is the setting's environment variable name, spelled exactly, such as `APOLLO_REGISTRY_URL`. The value is validated before anything is stored. For example, a URL that doesn't use `http` or `https` is rejected rather than saved:
+
+```
+rover config set APOLLO_REGISTRY_URL ftp://registry.example.com --profile staging
+
+error[E054]: `ftp://registry.example.com` isn't a valid URL. Rover only accepts `http`/`https` URLs for this setting.
+```
+
+Only the settings marked in the **Profile** column of the [environment variables table](/rover/configuring#variables) can be stored. `config set` and `config unset` refuse any other name and say why. For example:
+
+```
+rover config set APOLLO_LOG_LEVEL debug --profile staging
+
+error: invalid value 'APOLLO_LOG_LEVEL' for '<SETTING>': `APOLLO_LOG_LEVEL` can't be stored in a profile. It's a property of you and your terminal rather than an environment. Pass `--log`, or set `APOLLO_LOG_LEVEL` in the environment.
+
+For more information, try '--help'.
+```
+
+Credentials such as `APOLLO_KEY` can't be stored with `config set` either. Use [`rover auth login`](/rover/commands/auth) or [`config auth`](#config-auth).
+
+If the named profile doesn't already exist, `config set` creates it without a credential. A later command that needs that profile's credential fails with error `E055`, which tells you how to add one; see [`config whoami`](#config-whoami).
+
+With `--format json`, `config set` reports the setting, the value it stored, and the profile:
+
+```json
+{
+  "json_version": "1",
+  "data": {
+    "setting": "APOLLO_REGISTRY_URL",
+    "value": "https://registry.staging.example.com",
+    "profile": "staging",
+    "success": true
+  },
+  "error": null
+}
+```
 
 ### `config unset`
 
@@ -127,11 +231,13 @@ rover config unset APOLLO_CHECKS_TIMEOUT_SECONDS --profile staging
 `APOLLO_CHECKS_TIMEOUT_SECONDS` isn't set in profile `staging`. Nothing to remove.
 ```
 
+With `--format json`, `config unset` reports `setting`, `profile`, and `removed`, which is `false` when there was nothing to remove.
+
 ## Deleting configuration profiles
 
 ### `config delete`
 
-The `config delete` command deletes a single configuration profile, specified by its name:
+The `config delete` command deletes a single configuration profile, specified by its name, including its stored credential and settings:
 
 ```
 rover config delete sso
@@ -141,7 +247,7 @@ Successfully deleted profile "sso"
 
 ### `config clear`
 
-The `config clear` command deletes all of your stored configuration profiles:
+The `config clear` command deletes all of your stored configuration profiles, including their credentials and settings:
 
 ```
 rover config clear

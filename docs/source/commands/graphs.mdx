@@ -105,7 +105,16 @@ rover graph publish my-graph@my-variant --schema ./schema.graphql
 
 The argument `my-graph@my-variant` in the example above specifies the ID of the GraphOS graph you're publishing to, along with which [variant](/graphos/graphs/#variants) you're publishing to.
 
-If the graph exists in GraphOS but the variant doesn't, a new variant is be created on publish.
+If the graph exists in GraphOS but the variant doesn't, a new variant is created on publish.
+
+To attach a message to this publish in the GraphOS Studio changelog, pass `--changelog-message`:
+
+```shell
+rover graph publish my-graph@my-variant --schema ./schema.graphql \
+  --changelog-message "Add the Product.reviews field"
+```
+
+After publishing, Rover waits for the launch the publish triggers to finish. See [Waiting for launches](#waiting-for-launches).
 
 ### Providing the schema
 
@@ -150,9 +159,73 @@ With `--check`, both steps happen in one command:
 rover graph publish my-graph@current --schema ./schema.graphql --check
 ```
 
-If all checks pass, Rover publishes the schema. If any check fails, Rover prints the check output and exits without publishing.
+If all checks pass, Rover publishes the schema and then [waits for the launches it triggers](#waiting-for-launches). If any check fails, Rover prints the check output and exits without publishing.
 
-For details on configuring checks (time range, operation thresholds, linting rules), see the [`graph check`](#graph-check) section.
+For details on configuring checks (time range, operation thresholds, linting rules), see the [`graph check`](#graph-check) section. The `--query-count-threshold`, `--query-percentage-threshold`, and `--validation-period` options override the check configuration for the checks that `--check` runs, as they do for `graph check`.
+
+#### Waiting for launches
+
+When a publish changes the schema, it triggers a launch on the variant, and the launch can trigger launches on downstream [contract variants](/graphos/delivery/contracts/). Rover waits for the triggered launch and every downstream contract-variant launch to finish before it exits. The wait is bounded by `--checks-timeout` (or the `APOLLO_CHECKS_TIMEOUT_SECONDS` environment variable), which defaults to 300 seconds. If the wait times out, the schema is already published and the launch may still finish in GraphOS.
+
+If the publish triggered downstream launches, Rover reports them on `stderr`:
+
+```
+Triggered downstream launches for 2 contract variants: mobile, partner-api.
+View launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-1
+```
+
+When it prints this report, Rover first prints this note:
+
+```
+Note: a future version of `rover graph publish` will include this report in its stdout output. If you need to reliably parse just the schema hash, use `--format json` and read `.data.api_schema_hash`.
+```
+
+If the triggered launch or any downstream launch fails, Rover reports which one failed and exits with error [`E047`](/rover/errors#e047):
+
+```
+The publish succeeded, but downstream contract launches failed: mobile, partner-api.
+View launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-1
+```
+
+The schema is still published. With `--format json`, `data` keeps the full publish response alongside the `E047` error.
+
+With `--format json`, `data` includes the launch results:
+
+- `launch_url`: the Studio URL of the triggered launch, or `null` if the publish triggered none
+- `launch_status`: the launch's final status, such as `COMPLETED` or `FAILED`, or `null`
+- `launch_superseded`: `true` if a later publish to the same variant superseded the launch
+- `downstream_launches`: one entry per triggered contract-variant launch, with `graph_id`, `variant_name`, `status`, `superseded`, and `url`
+
+```json
+{
+  "json_version": "1",
+  "data": {
+    "api_schema_hash": "123456",
+    "field_changes": { "additions": 0, "removals": 0, "edits": 0 },
+    "type_changes": { "additions": 0, "removals": 0, "edits": 0 },
+    "total_type_count": 1,
+    "launch_url": "https://studio.apollographql.com/graph/my-graph/launches/launch-1",
+    "launch_status": "COMPLETED",
+    "launch_superseded": false,
+    "downstream_launches": [
+      {
+        "graph_id": "my-graph",
+        "variant_name": "mobile",
+        "status": "FAILED",
+        "superseded": false,
+        "url": "https://studio.apollographql.com/graph/my-graph/launches/launch-2"
+      }
+    ],
+    "success": false
+  },
+  "error": {
+    "message": "The publish to 'my-graph@current' succeeded, but a triggered launch did not complete successfully. See the launch report above for details.",
+    "code": "E047"
+  }
+}
+```
+
+For how this differs from earlier versions of Rover, see [Upgrading to Rover 1.0](/rover/upgrading-to-1#publish-waits-for-launches).
 
 ## Validating schema changes
 
@@ -177,6 +250,66 @@ As shown, arguments and options are similar to [`graph publish`](#graph-publish)
 To configure the behavior of schema checks (such as the time range of past operations to check against), see the [documentation for schema checks](/graphos/delivery/check-configurations/#using-apollo-studio-recommended).
 
 If you don't want to wait for the check to complete, you can run the command with the `--background` flag. You can then look up the check's result in GraphOS Studio on the Checks tab.
+
+#### Check output
+
+Rover prints a section for each check task that ran, such as `Operation Check [PASSED]:`. The Operation Check section appears even when the check found no schema changes.
+
+If your graph has [contract variants](/graphos/delivery/contracts/), the output ends with a Downstream Check section that summarizes the contract variants checked:
+
+```
+Downstream Check [PASSED]:
+Checked 2 contract variants, all passed.
+View downstream check details at: https://studio.apollographql.com/graph/my-graph/checks/downstream
+```
+
+The summary line is one of:
+
+- `No contract variants configured for this graph.`
+- `Checked N contract variants, all passed.`
+- `Checked N contract variants.` (when not every contract variant passed)
+
+A contract variant can be configured to block its source variant's checks. If a blocking contract variant's check fails, the summary names it and `graph check` fails with error [`E043`](/rover/errors#e043):
+
+```
+Downstream Check [FAILED]:
+The downstream check task has encountered check failures for at least this blocking downstream variant: mobile.
+View downstream check details at: https://studio.apollographql.com/graph/my-graph/checks/downstream
+```
+
+A failed check on a non-blocking contract variant appears in the output but doesn't fail the command.
+
+With `--format json`, check output uses `json_version` `"3"`. The `downstream` task lists each contract variant in `variants`, with `graph_id`, `variant_name`, `blocking`, `fails_upstream_workflow`, and `status`:
+
+```json
+{
+  "json_version": "3",
+  "data": {
+    "tasks": {
+      "downstream": {
+        "task_status": "FAILED",
+        "target_url": "https://studio.apollographql.com/graph/my-graph/checks/downstream",
+        "variants": [
+          {
+            "graph_id": "my-graph",
+            "variant_name": "mobile",
+            "blocking": true,
+            "fails_upstream_workflow": null,
+            "status": "FAILED"
+          }
+        ]
+      }
+    },
+    "success": false
+  },
+  "error": {
+    "message": "The changes in the schema you proposed caused downstream checks to fail.",
+    "code": "E043"
+  }
+}
+```
+
+For what changed from `json_version` `"2"`, see [Upgrading to Rover 1.0](/rover/upgrading-to-1#check-json-output-is-version-3).
 
 #### Running checks in CI
 
