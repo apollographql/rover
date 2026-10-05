@@ -13,6 +13,7 @@ use crate::{
     RoverError, RoverErrorSuggestion, RoverResult,
     federation::reject_federation_one,
     plugin::{
+        deprecation::DeprecationWarnings,
         error::{DownloadControl, PluginFailure, RequestOrigin},
         version::{PluginName, VersionRequest},
     },
@@ -204,6 +205,20 @@ impl FromStr for Plugin {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        let plugin = Self::parse(s)?;
+        // FR4: a legacy version spelling still parses, but says what replaces
+        // it. Only once the whole argument is known to be valid, so a typo
+        // gets its own error and not also a deprecation notice.
+        if let Some((_, version)) = s.to_lowercase().split_once('@') {
+            DeprecationWarnings::process()
+                .warn_once(&rover_print::print::stderr::default(), version);
+        }
+        Ok(plugin)
+    }
+}
+
+impl Plugin {
+    fn parse(s: &str) -> std::result::Result<Self, anyhow::Error> {
         let lowercase = s.to_lowercase();
         let splits: Vec<String> = lowercase.split('@').map(|x| x.to_string()).collect();
         if splits.len() == 2 {
