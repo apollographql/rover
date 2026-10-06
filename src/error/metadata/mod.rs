@@ -323,7 +323,8 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 ),
                 RoverClientError::PreviewTimeoutError { .. }
                 | RoverClientError::PreviewResultUnavailable { .. } => (None, None),
-                RoverClientError::LaunchTimeoutError { url } => (
+                RoverClientError::LaunchTimeoutError { url }
+                | RoverClientError::PublishLaunchTimeout { url, .. } => (
                     Some(RoverErrorSuggestion::IncreaseChecksTimeout { url: url.clone() }),
                     Some(RoverErrorCode::E065),
                 ),
@@ -592,5 +593,20 @@ mod tests {
         assert_that!(error.code()).is_equal_to(Some(RoverErrorCode::E065));
         assert_that!(error.message())
             .is_equal_to("Timed out waiting for the launch to complete.".to_string());
+    }
+
+    /// The publish commands' timeout carries the publish response, but is the same E065.
+    #[test]
+    fn a_publish_that_outlasts_the_launch_wait_is_e065_and_keeps_its_response() {
+        let publish_response = serde_json::json!({ "api_schema_hash": "123456" });
+        let error = RoverError::new(RoverClientError::PublishLaunchTimeout {
+            url: None,
+            publish_response: publish_response.clone(),
+        });
+
+        assert_that!(error.code()).is_equal_to(Some(RoverErrorCode::E065));
+        assert_that!(error.message())
+            .is_equal_to("Timed out waiting for the launch to complete.".to_string());
+        assert_that!(error.get_internal_data_json()).is_equal_to(publish_response);
     }
 }
