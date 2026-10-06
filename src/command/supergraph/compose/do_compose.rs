@@ -60,7 +60,7 @@ pub struct SupergraphComposeOpts {
 
     /// The version of Apollo Federation to use for composition. If no version is supplied, Rover
     /// will automatically determine the version from the supergraph config
-    #[arg(long = "federation-version")]
+    #[arg(long = "federation-version", value_parser = crate::federation::parse_federation_version)]
     pub federation_version: Option<FederationVersion>,
 }
 

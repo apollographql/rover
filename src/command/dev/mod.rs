@@ -95,7 +95,7 @@ pub struct SupergraphOpts {
     graph_ref: Option<GraphRef>,
 
     /// The version of Apollo Federation to use for composition
-    #[arg(long = "federation-version")]
+    #[arg(long = "federation-version", value_parser = crate::federation::parse_federation_version)]
     federation_version: Option<FederationVersion>,
 
     /// The path to an offline enterprise license file.
