@@ -297,3 +297,95 @@ fn background_is_not_a_publish_option() {
     assert_eq!(output.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&output.stderr).contains("unexpected argument '--background'"));
 }
+
+/// A failed `--check` stops the publish with the check commands' E043, and `--format json`
+/// reports the check result as `data` (`json_version` "3", the check's shape), rather than an
+/// uncoded error with `data: null`.
+#[test]
+#[serial]
+fn subgraph_publish_check_failure_is_e043_with_the_check_result() {
+    let server = MockServer::start();
+    // Not asserted: whether the check asks is an implementation detail.
+    server.mock(|when, then| {
+        when.method(POST).body_includes("IsFederatedGraph");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(r#"{"data":{"graph":{"variant":{"subgraphs":[{"name":"my-subgraph"}]}}}}"#);
+    });
+    let submission_mock = server.mock(|when, then| {
+        when.method(POST).body_includes("SubgraphCheckMutation");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(
+                r#"{"data":{"graph":{"variant":{"submitSubgraphCheckAsync":{
+                    "__typename":"CheckRequestSuccess",
+                    "targetURL":"https://studio.apollographql.com/graph/my-graph/checks/1",
+                    "workflowID":"workflow-1"
+                }}}}}"#,
+            );
+    });
+    let status_mock = server.mock(|when, then| {
+        when.method(POST)
+            .body_includes("SubgraphCheckWorkflowStatusQuery");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(r#"{"data":{"graph":{"checkWorkflow":{"status":"FAILED","tasks":[]}}}}"#);
+    });
+    let fetch_mock = server.mock(|when, then| {
+        when.method(POST)
+            .body_includes("SubgraphCheckWorkflowQuery");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(
+                r#"{"data":{"graph":{"checkWorkflow":{
+            "status":"FAILED",
+            "tasks":[{
+                "__typename":"DownstreamCheckTask",
+                "status":"FAILED",
+                "targetURL":"https://studio.apollographql.com/graph/my-graph/checks/downstream",
+                "results":[{
+                    "__typename":"DownstreamCheckResult",
+                    "blocking":true,
+                    "downstreamGraphID":"my-graph",
+                    "downstreamVariantName":"mobile",
+                    "downstreamWorkflow":{"status":"FAILED"},
+                    "failsUpstreamWorkflow":true
+                }]
+            }]
+        }}}}"#,
+            );
+    });
+    let publish_mock = server.mock(|when, then| {
+        when.method(POST).body_includes("SubgraphPublishMutation");
+        then.status(500);
+    });
+
+    let temp = tempfile::tempdir().unwrap();
+    let schema = temp.path().join("schema.graphql");
+    fs::write(&schema, "type Query { hello: String }").unwrap();
+
+    let output = Command::cargo_bin("rover")
+        .unwrap()
+        .env("APOLLO_KEY", "testkey")
+        .env("APOLLO_REGISTRY_URL", server.base_url())
+        .args(["subgraph", "publish", "my-graph@current", "--check"])
+        .arg("--schema")
+        .arg(&schema)
+        .args(["--name", "my-subgraph", "--no-url"])
+        .args(["--format", "json"])
+        .output()
+        .unwrap();
+
+    submission_mock.assert();
+    status_mock.assert();
+    fetch_mock.assert();
+    publish_mock.assert_calls(0);
+
+    assert!(
+        !output.status.success(),
+        "expected a nonzero exit code; stdout: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_json_snapshot!(json);
+}

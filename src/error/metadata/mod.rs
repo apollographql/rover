@@ -201,6 +201,10 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 RoverClientError::CheckWorkflowFailure {
                     graph_ref: _,
                     check_response: _,
+                }
+                | RoverClientError::PublishCheckFailure {
+                    graph_ref: _,
+                    check_response: _,
                 } => (
                     Some(RoverErrorSuggestion::FixCheckFailures),
                     Some(RoverErrorCode::E043),
