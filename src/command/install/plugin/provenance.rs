@@ -65,6 +65,23 @@ impl PluginProvenance {
         }
     }
 
+    /// What `rover plugin install` says when it finishes with this plugin without downloading
+    /// anything, so that a successful install never ends in silence. `None` for a download: the
+    /// installer has already said where it put it.
+    pub fn install_confirmation(&self) -> Option<String> {
+        match self.source {
+            PluginSource::Downloaded => None,
+            PluginSource::Installed => Some(format!(
+                "the '{}' plugin v{} is already installed at {}",
+                self.name, self.version, self.path
+            )),
+            PluginSource::Fallback => Some(format!(
+                "couldn't reach the plugin registry, so the '{}' plugin v{} already installed at {} was used",
+                self.name, self.version, self.path
+            )),
+        }
+    }
+
     /// A heap copy, in the form the error types carry.
     ///
     /// Boxed because an inline `PluginProvenance` pushes `CompositionError` and
@@ -149,6 +166,29 @@ mod tests {
     )]
     fn display_renders_the_fr54_line(#[case] source: PluginSource, #[case] expected: &str) {
         assert_that!(provenance(source).to_string()).is_equal_to(expected.to_string());
+    }
+
+    #[rstest]
+    // The installer has already said where it put a download.
+    #[case::downloaded(PluginSource::Downloaded, None)]
+    #[case::installed(
+        PluginSource::Installed,
+        Some(
+            "the 'supergraph' plugin v2.9.3 is already installed at /home/me/.rover/bin/supergraph-v2.9.3"
+        )
+    )]
+    #[case::fallback(
+        PluginSource::Fallback,
+        Some(
+            "couldn't reach the plugin registry, so the 'supergraph' plugin v2.9.3 already installed at /home/me/.rover/bin/supergraph-v2.9.3 was used"
+        )
+    )]
+    fn an_install_that_downloads_nothing_still_says_what_it_found(
+        #[case] source: PluginSource,
+        #[case] expected: Option<&str>,
+    ) {
+        assert_that!(provenance(source).install_confirmation())
+            .is_equal_to(expected.map(str::to_string));
     }
 
     #[test]
