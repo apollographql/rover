@@ -65,7 +65,7 @@ The supergraph plugin is licensed under ELv2. To accept the license without an i
 
 If your graph has [contract variants](/graphos/delivery/contracts/), decide how your pipeline should treat them:
 
-- **Checks.** By default, `rover graph check`, `rover subgraph check`, and `publish --check` pass or fail as GraphOS's overall result for the check does. Pass `--include-contract-checks` to also fail when a blocking contract variant's own check has failed.
+- **Checks.** By default, `rover graph check`, `rover subgraph check`, and `publish --check` pass or fail with the overall GraphOS result for the check. Pass `--include-contract-checks` to also fail when a blocking contract variant's own check has failed.
 - **Publishes.** `rover graph publish` and `rover subgraph publish` wait for the launches they trigger, up to `--checks-timeout` (300 seconds by default). A failed downstream contract-variant launch prints a warning by default, and fails the job with `E047` with `--include-contract-checks`. A failed launch of the variant itself always fails with `E047`, and a launch that doesn't finish in time fails with `E065`.
 
 ```bash
@@ -73,7 +73,7 @@ rover subgraph publish "$APOLLO_GRAPH_REF" --name products --schema ./schema.gra
   --check --include-contract-checks
 ```
 
-`E047` and `E065` mean the schema was published. Don't retry the publish; check the launch in GraphOS Studio. For details, see [Waiting for launches](/rover/commands/subgraphs#waiting-for-launches).
+`E047` and `E065` mean the schema was published. Don't retry the publish; check your launch in GraphOS Studio. For details, see [Waiting for launches](/rover/commands/subgraphs#waiting-for-launches).
 
 ## Choosing an integration method
 

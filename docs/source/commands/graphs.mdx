@@ -268,7 +268,7 @@ To configure the behavior of schema checks (such as the time range of past opera
 
 If you don't want to wait for the check to complete, you can run the command with the `--background` flag. You can then look up the check's result in GraphOS Studio on the Checks tab.
 
-If your graph has [contract variants](/graphos/delivery/contracts/), pass `--include-contract-checks` to also fail the check when a blocking contract variant's own check has failed, even if GraphOS's overall result for the check says it passed. See [Check output](#check-output).
+If your graph has [contract variants](/graphos/delivery/contracts/), pass `--include-contract-checks` to also fail the check when a blocking contract variant's own check has failed, even if the overall GraphOS result for the check says it passed. See [Check output](#check-output).
 
 #### Check output
 
@@ -288,7 +288,7 @@ The summary line is one of:
 - `Checked N contract variants, all passed.`
 - `Checked N contract variants.` (when not every contract variant passed)
 
-A contract variant can be configured to block its source variant's checks. If a blocking contract variant's check fails, the summary names it. By default, `graph check` passes or fails as GraphOS's overall result for the check does, and fails with error [`E043`](/rover/errors#e043) when that result is a failure. Pass `--include-contract-checks` to fail with `E043` whenever a blocking contract variant's own check has failed, even if GraphOS's overall result says the check passed:
+A contract variant can be configured to block its source variant's checks. If a blocking contract variant's check fails, the summary names it. By default, `graph check` passes or fails with the overall GraphOS result for the check, and fails with error [`E043`](/rover/errors#e043) when that result is a failure. Pass `--include-contract-checks` to fail with `E043` whenever a blocking contract variant's own check has failed, even if the overall GraphOS result says the check passed:
 
 ```
 Downstream Check [FAILED]:
@@ -298,7 +298,7 @@ View downstream check details at: https://studio.apollographql.com/graph/my-grap
 
 A failed check on a non-blocking contract variant appears in the output but doesn't fail the command.
 
-Without `--include-contract-checks`, a blocking contract variant's failed check can appear under a passing `Downstream Check [PASSED]:` heading, when GraphOS's overall result is a pass. The command then exits successfully.
+Without `--include-contract-checks`, a blocking contract variant's failed check can appear under a passing `Downstream Check [PASSED]:` heading, when the overall GraphOS result is a pass. The command then exits successfully.
 
 With `--format json`, check output uses `json_version` `"3"`. The `downstream` task lists each contract variant in `variants`, with `graph_id`, `variant_name`, `blocking`, `fails_upstream_workflow`, and `status`:
 

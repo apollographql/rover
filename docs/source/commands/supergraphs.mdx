@@ -215,7 +215,7 @@ When `supergraph.yaml` and `rover.yaml` both set a version and they disagree, Ro
 warning: `supergraph.yaml` sets `federation_version: =2.9.3`, overriding the `supergraph` version declared in `rover.yaml`.
 ```
 
-The command composes with Federation 2, implemented by the [`@apollo/composition`](https://www.npmjs.com/package/@apollo/composition) library, or with Federation 3 when you set a Federation 3 version, such as `federation_version: =3.0.0-preview.1` or `--federation-version 3`. Federation 3 is under the same ELv2 license.
+The command composes with Federation 2, provided by the [`@apollo/composition`](https://www.npmjs.com/package/@apollo/composition) library, or with Federation 3 when you set a Federation 3 version, such as `federation_version: =3.0.0-preview.1` or `--federation-version 3`. Federation 3 is under the same ELv2 license.
 
 <Note>
 
@@ -227,7 +227,7 @@ The command composes with Federation 2, implemented by the [`@apollo/composition
 
 #### Automatic updates
 
-Unless you've [turned automatic downloads off](/rover/commands/plugin#automatic-downloads), when you don't specify an exact `federation_version`, Rover asks the Apollo plugin registry at `https://rover.apollo.dev` (or the host set by [`APOLLO_ROVER_DOWNLOAD_HOST`](/rover/configuring#supported-environment-variables)) for the latest matching composition version each time it runs, so a new release is picked up as soon as it is released.
+Unless you've [turned automatic downloads off](/rover/commands/plugin#automatic-downloads), when you don't specify an exact `federation_version`, Rover asks the Apollo plugin registry at `https://rover.apollo.dev` (or the host set by [`APOLLO_ROVER_DOWNLOAD_HOST`](/rover/configuring#supported-environment-variables)) for the latest matching composition version each time it runs, so a new release so you pick up a new release as soon as it's available.
 
 With automatic downloads turned off, a floating version such as `2` uses the newest matching release that's already installed.
 

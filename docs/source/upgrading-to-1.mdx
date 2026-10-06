@@ -1,7 +1,7 @@
 ---
 title: Upgrading to Rover 1.0
 subtitle: What changes when you move from Rover 0.x to 1.0
-description: Learn which Rover 1.0 changes affect existing 0.x workflows, including the warning on automatic plugin downloads, version 3 check JSON, the opt-in for contract checks, publish launch polling, keychain credential storage, and the removal of rover cloud and Federation 1.
+description: Learn which Rover 1.0 changes affect existing 0.x workflows, including the warning on automatic plugin downloads, version 3 check JSON, the opt-in for contract checks, publish launch polling, keychain credential storage, and the removal of `rover cloud` and Federation 1.
 ---
 
 Rover 1.0 includes a few breaking changes. Most 0.x workflows keep working unchanged, but check this page before you upgrade, especially in CI.
@@ -16,7 +16,7 @@ To install Rover 1.0, follow [Installing Rover](/rover/getting-started). To upgr
 | [Check JSON output is version 3](#check-json-output-is-version-3) | Scripts that parse `rover subgraph check` or `rover graph check` with `--format json` | Read `downstream.variants` instead of `downstream.blocking_variants`, and expect `json_version: "3"` |
 | [Contract checks count only with `--include-contract-checks`](#contract-checks-count-only-with---include-contract-checks) | Anyone whose graph has contract variants | Nothing, to keep 0.x behavior. Pass `--include-contract-checks` to fail on a contract variant's own failed check or launch |
 | [Publish waits for launches](#publish-waits-for-launches) | Anyone running `rover graph publish` or `rover subgraph publish` | Allow for the extra wait, and handle `E047` and `E065` |
-| [`--background` on publish is deprecated](#--background-on-publish-is-deprecated) | Scripts that pass `--background` to `rover graph publish` or `rover subgraph publish` | Remove it. It has no effect on a publish |
+| [`--background` on publish is deprecated](#--background-on-publish-is-deprecated) | Scripts that pass `--background` to `rover graph publish` or `rover subgraph publish` | Remove the flag. It has no effect on a publish |
 | [`rover cloud` is removed](#rover-cloud-is-removed) | Anyone using `rover cloud config fetch`, `update`, or `validate` | Manage cloud router configuration in GraphOS Studio |
 | [Federation 1 is removed](#federation-1-is-removed) | Anyone composing with, or installing, a Federation 1 version | Migrate your subgraphs to Federation 2 |
 | [`rover install --plugin` is deprecated](#rover-install---plugin-is-deprecated) | Scripts that run `rover install --plugin` | Switch to `rover plugin install` |
@@ -103,7 +103,7 @@ Before, the `downstream` task in 0.x output (`json_version` `"2"`):
 }
 ```
 
-After, the full 1.0 output of a `rover subgraph check` that a blocking contract variant fails, when GraphOS's overall result for the check is also a failure:
+After, the full 1.0 output of a `rover subgraph check` that a blocking contract variant fails, when the overall GraphOS result for the check is also a failure:
 
 ```json
 {
@@ -158,9 +158,9 @@ rover subgraph check my-graph@current --name products --schema products.graphql 
 
 ## Contract checks count only with `--include-contract-checks`
 
-**What changed:** by default, `rover graph check`, `rover subgraph check`, and `publish --check` pass or fail as GraphOS's overall result for the check does, as they did in 0.x. The contract variants' checks are still reported, in text and in `--format json`. Pass `--include-contract-checks` to also fail the command when a blocking contract variant's own check has failed, even if GraphOS's overall result says the check passed. The command then exits non-zero with [E043](/rover/errors#e043).
+**What changed:** by default, `rover graph check`, `rover subgraph check`, and `publish --check` pass or fail with the overall GraphOS result for the check, as they did in 0.x. The contract variants' checks are still reported, in text and in `--format json`. Pass `--include-contract-checks` to also fail the command when a blocking contract variant's own check has failed, even if the overall GraphOS result says the check passed. The command then exits non-zero with [E043](/rover/errors#e043).
 
-`--include-contract-checks` also applies to the launches that `rover graph publish` and `rover subgraph publish` wait for. By default, a failed downstream contract-variant launch prints a warning, and the command succeeds. With the flag, it fails with [E047](/rover/errors#e047). See [Publish waits for launches](#publish-waits-for-launches).
+`--include-contract-checks` also applies to the launches that `rover graph publish` and `rover subgraph publish` wait for. By default, a failed downstream contract-variant launch prints a warning, and the command succeeds. With the flag, it fails with [E047](/rover/errors#e047). For details, see [Publish waits for launches](#publish-waits-for-launches).
 
 **How to tell you're affected:** your graph has contract variants. Without the flag, a blocking contract variant's failed check can show up in a check that passes:
 
@@ -296,7 +296,7 @@ For more information, try '--help'.
 error[E064]: Federation 1 is no longer supported by Rover. Migrate your subgraphs to Federation 2 by adding `@link` directives (https://www.apollographql.com/docs/graphos/schema-design/federated-schemas/reference/moving-to-federation-2#opt-in-to-federation-2), then remove any Federation 1 pin from your configuration.
 ```
 
-With `--format json`, `error.code` is `"E064"`. See [E064](/rover/errors#e064).
+With `--format json`, `error.code` is `E064`. See [E064](/rover/errors#e064).
 
 Rover rejects these pins:
 

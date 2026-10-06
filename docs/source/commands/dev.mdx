@@ -175,7 +175,7 @@ rover dev \
   --supergraph-config federation_override.yaml
 ```
 
-You can also override a variant's federation version by passing the `--federation-version` option. This argument accepts fully qualified [federation versions](https://github.com/apollographql/federation/releases), prefixed with an equals sign (`=`), for example '=2.9.3' or '=3.0.0-preview.1'. Alternatively, you can use `2` or `3` (without an equals sign) for the latest release of Federation 2 or Federation 3. A Federation 1 version is refused with [`E064`](/rover/errors#e064).
+Override a variant's federation version by passing the `--federation-version` option. This argument accepts fully qualified [federation versions](https://github.com/apollographql/federation/releases), prefixed with an equals sign (`=`), for example '=2.9.3' or '=3.0.0-preview.1'. Alternatively, use `2` or `3` (without an equals sign) for the latest release of Federation 2 or Federation 3. Rover refuses a Federation 1 version with [`E064`](/rover/errors#e064).
 
 ```bash showLineNumbers=false
 rover dev \
@@ -264,7 +264,7 @@ A `rover.yaml` in your project, or the global one, can [declare](/rover/commands
 - Router: Use the `--router-version` flag or set the `APOLLO_ROVER_DEV_ROUTER_VERSION` environment variable. Both take an exact version without the `=` prefix (e.g., `--router-version 2.17.0`).
 - Composition: Use the `--federation-version` flag, or the `--composition-version` flag or `APOLLO_ROVER_DEV_COMPOSITION_VERSION` environment variable (e.g., `--federation-version '=2.9.3'` or `APOLLO_ROVER_DEV_COMPOSITION_VERSION=2.9.3`). `--federation-version` takes the `supergraph.yaml` spelling, so an exact version needs the `=` prefix. `--composition-version` and its environment variable take an exact version without the prefix. An invalid value, such as `=2.9.3` or `2`, stops `rover dev` before it starts:
 
-  ```
+  ```text
   `=2.9.3` is not a supported composition version. Use an exact version, such as `2.9.0`, with no leading `=`
   ```
 
