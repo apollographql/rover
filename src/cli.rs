@@ -173,7 +173,7 @@ pub struct Rover {
     )]
     checks_timeout: Option<u64>,
 
-    /// Override the host plugin binaries (the `router` and `supergraph` composition plugins) are downloaded from.
+    /// Override the host plugin binaries (`router`, `supergraph`, and `apollo-mcp-server`) are downloaded from.
     #[arg(
         long = "download-host",
         global = true,
@@ -221,7 +221,7 @@ pub struct Rover {
     ///
     /// Set the `APOLLO_ROVER_SKIP_UPDATE` environment variable (to `1` or `true`)
     /// to disable all of Rover's auto-updating at once — both this self-update
-    /// check and the `supergraph`/`router` plugin auto-updates (`--skip-update`).
+    /// check and the plugin auto-updates (`--skip-update`).
     #[arg(long = "skip-update-check", global = true)]
     skip_update_check: bool,
 
