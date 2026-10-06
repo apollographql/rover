@@ -614,7 +614,7 @@ mod tests {
 
         profile.delete_credential().unwrap();
 
-        assert_that!(Profile::list(&config)).is_ok_containing(Vec::<String>::new());
+        assert_that!(Profile::list(&config)).is_ok().is_empty();
     }
 
     // FR37: a known profile (it has stored settings) with no credential of
