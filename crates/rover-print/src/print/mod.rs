@@ -85,6 +85,34 @@ fn is_apollo_no_color_set() -> bool {
     )
 }
 
+/// The environment variable that suppresses progress output on stderr, the
+/// same way the `--quiet` flag does.
+pub const QUIET_ENV: &str = "APOLLO_ROVER_QUIET";
+
+/// Whether progress output on stderr is suppressed via [`QUIET_ENV`].
+///
+/// Read on every print rather than cached at startup: `--quiet` sets the
+/// variable, so a caller that sets it directly (a CI image, a test) gets the
+/// same behaviour without going through the CLI.
+pub fn quiet() -> bool {
+    !matches!(
+        std::env::var(QUIET_ENV).as_deref(),
+        Err(..) | Ok("") | Ok("0") | Ok("false") | Ok("False") | Ok("FALSE")
+    )
+}
+
+/// Suppress progress output on stderr, as `rover --quiet` does.
+///
+/// # Safety
+///
+/// Sets a process-wide environment variable, so it has the same requirement as
+/// [`std::env::set_var`]: call it before spawning the threads that print.
+pub unsafe fn set_quiet() {
+    // SAFETY: the caller guarantees no other thread reads the environment
+    // concurrently, which is what `std::env::set_var` requires.
+    unsafe { std::env::set_var(QUIET_ENV, "1") };
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::{Arc, Mutex};
@@ -152,6 +180,39 @@ mod tests {
     #[sealed_test(env = [("APOLLO_NO_COLOR", "anything-else")])]
     fn apollo_no_color_is_true_for_arbitrary_value() {
         assert_that!(&is_apollo_no_color_set()).is_true();
+    }
+
+    // As with `APOLLO_NO_COLOR`, `quiet()` reads a process-global env var, so
+    // each case runs in its own process to keep the cases independent.
+
+    #[sealed_test]
+    fn quiet_is_false_when_unset() {
+        unsafe { std::env::remove_var(QUIET_ENV) };
+
+        assert_that!(&quiet()).is_false();
+    }
+
+    #[rstest]
+    #[case::empty("")]
+    #[case::zero("0")]
+    #[case::false_lowercase("false")]
+    #[case::false_titlecase("False")]
+    #[case::false_uppercase("FALSE")]
+    fn quiet_is_false_for_falsy_values(#[case] value: &str) {
+        unsafe { std::env::set_var(QUIET_ENV, value) };
+
+        assert_that!(&quiet()).is_false();
+    }
+
+    #[rstest]
+    #[case::one("1")]
+    #[case::true_lowercase("true")]
+    #[case::true_uppercase("TRUE")]
+    #[case::any_other_value("yes please")]
+    fn quiet_is_true_for_truthy_values(#[case] value: &str) {
+        unsafe { std::env::set_var(QUIET_ENV, value) };
+
+        assert_that!(&quiet()).is_true();
     }
 
     // Prefix helpers route through `paint` (→ `render`) for the prefix and

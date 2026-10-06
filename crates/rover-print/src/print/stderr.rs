@@ -49,10 +49,16 @@ where
     P: Print,
 {
     fn print(&self, message: &StyledText) {
+        if crate::print::quiet() {
+            return;
+        }
         self.0.print(message)
     }
 
     fn print_line(&self, segments: &[StyledText]) {
+        if crate::print::quiet() {
+            return;
+        }
         self.0.print_line(segments)
     }
 
@@ -65,4 +71,45 @@ where
 /// plus Apollo's `APOLLO_NO_COLOR` opt-out.
 fn detect_color_settings() -> bool {
     console::colors_enabled_stderr() && !crate::print::is_apollo_no_color_set()
+}
+
+#[cfg(test)]
+mod quiet_tests {
+    use sealed_test::prelude::*;
+    use speculoos::prelude::*;
+
+    use super::*;
+    use crate::print::{PrintExt, QUIET_ENV, testing::TerminalCapture};
+
+    // A recorder stands in for the terminal, so the assertion is on what would
+    // have been written. Each case gets its own process because `quiet()` reads
+    // a process-global env var.
+
+    #[sealed_test]
+    fn progress_output_is_written_without_quiet() {
+        unsafe { std::env::remove_var(QUIET_ENV) };
+        let printer = Stderr(TerminalCapture::new(false));
+
+        printer.infoln("a thing happened");
+
+        assert_that!(&printer.0.lines()).has_length(1);
+    }
+
+    #[sealed_test(env = [("APOLLO_ROVER_QUIET", "1")])]
+    fn quiet_suppresses_progress_output() {
+        let printer = Stderr(TerminalCapture::new(false));
+
+        printer.infoln("a thing happened");
+        printer.print_line(&[StyledText::plain("a line built from segments")]);
+
+        assert_that!(&printer.0.lines()).is_empty();
+    }
+
+    #[sealed_test(env = [("APOLLO_ROVER_QUIET", "1")])]
+    fn quiet_still_renders_so_lines_can_be_built() {
+        let printer = Stderr(TerminalCapture::new(false));
+
+        assert_that!(&printer.render(&StyledText::plain("hello world")))
+            .is_equal_to("hello world".to_string());
+    }
 }

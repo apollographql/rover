@@ -114,6 +114,14 @@ pub struct Rover {
     #[serde(serialize_with = "option_from_display")]
     log_level: Option<Level>,
 
+    /// Suppress progress messages printed to `stderr`.
+    ///
+    /// Errors still reach `stderr`; only progress and informational lines are
+    /// silenced, which keeps `npx`/CI logs free of them. The
+    /// `APOLLO_ROVER_QUIET` environment variable does the same without a flag.
+    #[arg(long = "quiet", short = 'q', global = true)]
+    quiet: bool,
+
     /// Name of configuration profile to use
     // `Option` rather than defaulted here, so `--profile default` typed
     // literally can be told apart from omitting the flag.
@@ -284,6 +292,12 @@ impl Rover {
         timber::init(self.log_level);
         tracing::trace!(command_structure = ?self);
         self.output_opts.set_no_color();
+        if self.quiet {
+            // SAFETY: nothing has printed yet, and every command runs on the
+            // runtime this function owns, so no other thread is reading the
+            // environment while it is set.
+            unsafe { rover_print::print::set_quiet() };
+        }
 
         // attempt to create a new `Session` to capture anonymous usage data
         let rover_output = match Session::new(self) {
@@ -1951,6 +1965,40 @@ mod tests {
         plugin::{discovery::ManifestDirs, manifest::MANIFEST_FILE},
         utils::{client::ClientTimeout, env::RoverEnvKey},
     };
+
+    #[test]
+    fn quiet_defaults_to_off() {
+        let rover = Rover::parse_from([PKG_NAME, "config", "list"]);
+
+        assert_that!(&rover.quiet).is_false();
+    }
+
+    #[test]
+    fn quiet_is_accepted_on_either_side_of_the_subcommand() {
+        // `global = true`, so it can go where an `npx` invocation can put it.
+        let before = Rover::parse_from([PKG_NAME, "--quiet", "config", "list"]);
+        let after = Rover::parse_from([PKG_NAME, "config", "list", "-q"]);
+
+        assert_that!(&before.quiet).is_true();
+        assert_that!(&after.quiet).is_true();
+    }
+
+    #[test]
+    fn quiet_coexists_with_the_connector_command_that_defines_its_own() {
+        // `connector analyze` carries a `--quiet` of its own, passed to the
+        // supergraph binary it shells out to. The global flag must not stop it
+        // parsing, and both are on for the run.
+        let rover = Rover::parse_from([
+            PKG_NAME,
+            "connector",
+            "analyze",
+            "curl",
+            "http://example.com",
+            "--quiet",
+        ]);
+
+        assert_that!(&rover.quiet).is_true();
+    }
 
     #[test]
     fn checks_timeout_defaults_to_five_minutes() {
