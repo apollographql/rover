@@ -28,6 +28,9 @@ pub struct CheckConfigOpts {
     ///
     /// Without this, the command succeeds or fails as Studio's overall result for the check does,
     /// and the contract variants are still reported.
+    ///
+    /// On `graph publish` and `subgraph publish`, it also makes a failed downstream
+    /// contract-variant launch fail the command. Without it, that's reported as a warning.
     #[arg(long)]
     pub include_contract_checks: bool,
 }

@@ -349,7 +349,7 @@ impl RoverOutput {
                 // it has its own link, and `launch_cli_copy` is
                 // Studio-authored copy that also includes the launch URL --
                 // printing both repeats it.
-                if !PublishLaunchesOutput(publish_response).reports_launches()
+                if !PublishLaunchesOutput::new(publish_response).reports_launches()
                     && let Some(launch_cli_copy) = &publish_response.launch_cli_copy
                 {
                     stderrln!("{}", launch_cli_copy)?;

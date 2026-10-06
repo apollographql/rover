@@ -142,7 +142,8 @@ impl Publish {
         )
         .await?;
 
-        let launches_output = PublishLaunchesOutput(&publish_response);
+        let launches_output = PublishLaunchesOutput::new(&publish_response)
+            .include_contract_checks(self.check_config.include_contract_checks);
         let launches_text = launches_output.text();
         if !launches_text.is_empty() {
             stderr.print(&StyledText::plain(

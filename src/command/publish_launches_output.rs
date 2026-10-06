@@ -72,17 +72,43 @@ impl PublishLaunches for SubgraphPublishResponse {
 /// the command's own `RoverOutput`, so each command's existing stdout
 /// contract is unaffected. `exit_code()` decides whether a triggered launch
 /// failure should fail the command.
+///
+/// A failed launch of the published variant itself always fails the command.
+/// A failed downstream contract-variant launch only does with
+/// `--include-contract-checks`, the same opt-in that makes a blocking contract
+/// variant's check fail `publish --check`; without it, it's reported as a
+/// warning, so a 0.x pipeline that publishes doesn't start failing over a
+/// contract variant's launch.
 #[derive(Debug)]
-pub(crate) struct PublishLaunchesOutput<'a, T>(pub &'a T);
+pub(crate) struct PublishLaunchesOutput<'a, T> {
+    response: &'a T,
+    include_contract_checks: bool,
+}
 
-impl<T: PublishLaunches> PublishLaunchesOutput<'_, T> {
+impl<'a, T: PublishLaunches> PublishLaunchesOutput<'a, T> {
+    pub(crate) const fn new(response: &'a T) -> Self {
+        Self {
+            response,
+            include_contract_checks: false,
+        }
+    }
+
+    pub(crate) const fn include_contract_checks(mut self, include_contract_checks: bool) -> Self {
+        self.include_contract_checks = include_contract_checks;
+        self
+    }
+
+    fn source_launch_failed(&self) -> bool {
+        self.response.launch_status() == Some(LaunchStatus::FAILED)
+    }
+
     fn has_blocking_failure(&self) -> bool {
-        self.0.launch_status() == Some(LaunchStatus::FAILED)
-            || self.failed_downstream_launches().next().is_some()
+        self.source_launch_failed()
+            || (self.include_contract_checks && self.failed_downstream_launches().next().is_some())
     }
 
     fn failed_downstream_launches(&self) -> impl Iterator<Item = &DownstreamLaunch> {
-        self.0
+        self.response
             .downstream_launches()
             .iter()
             .filter(|launch| launch.status == LaunchStatus::FAILED)
@@ -94,7 +120,39 @@ impl<T: PublishLaunches> PublishLaunchesOutput<'_, T> {
     /// whether `launch_cli_copy` (Studio-authored copy that also mentions
     /// the launch URL) would repeat a link this report already printed.
     pub(crate) fn reports_launches(&self) -> bool {
-        self.has_blocking_failure() || !self.0.downstream_launches().is_empty()
+        self.source_launch_failed() || !self.response.downstream_launches().is_empty()
+    }
+
+    /// "a downstream contract launch failed: mobile", or `None` when none failed.
+    fn failed_downstream_detail(&self) -> Option<String> {
+        let failed_variants = self
+            .failed_downstream_launches()
+            .map(|launch| launch.variant_name.as_str())
+            .collect::<Vec<_>>();
+        if failed_variants.is_empty() {
+            return None;
+        }
+        let subject = if failed_variants.len() == 1 {
+            "a downstream contract launch"
+        } else {
+            "downstream contract launches"
+        };
+        Some(format!(
+            "{subject} failed: {}",
+            Style::Variant.paint(failed_variants.join(", "))
+        ))
+    }
+
+    /// The source launch's own URL, falling back to a failed downstream
+    /// launch's. The mutation's `launchUrl` and the polled launch status are
+    /// independently nullable, so a failed launch can exist with no source
+    /// URL; a downstream launch's URL is always hand-built and populated.
+    fn failure_url(&self) -> Option<&str> {
+        self.response.launch_url().or_else(|| {
+            self.failed_downstream_launches()
+                .next()
+                .map(|launch| launch.url.as_str())
+        })
     }
 }
 
@@ -104,59 +162,45 @@ impl<T: PublishLaunches + std::fmt::Debug + Sync> CliOutput for PublishLaunchesO
     }
 
     fn text(&self) -> String {
+        let downstream_detail = self.failed_downstream_detail();
         if self.has_blocking_failure() {
-            let source_failed = self.0.launch_status() == Some(LaunchStatus::FAILED);
-            let failed_variants = self
-                .failed_downstream_launches()
-                .map(|launch| launch.variant_name.as_str())
-                .collect::<Vec<_>>();
             // Both can be true at once (the source launch itself failed *and*
             // a downstream launch failed) -- report whichever apply, instead
             // of letting one silently eclipse the other.
             let mut details = Vec::new();
-            if source_failed {
+            if self.source_launch_failed() {
                 details.push("the launch itself failed".to_string());
             }
-            if !failed_variants.is_empty() {
-                let subject = if failed_variants.len() == 1 {
-                    "a downstream contract launch"
-                } else {
-                    "downstream contract launches"
-                };
-                details.push(format!(
-                    "{subject} failed: {}",
-                    Style::Variant.paint(failed_variants.join(", "))
-                ));
-            }
+            details.extend(downstream_detail);
             let detail = details.join(", and ");
-            // Prefer the source launch's own URL; the mutation's `launchUrl`
-            // and the polled launch status are independently nullable, so a
-            // failed launch can exist with no source URL -- fall back to a
-            // failed downstream launch's URL, which is always hand-built and
-            // populated.
-            let url = self.0.launch_url().or_else(|| {
-                self.failed_downstream_launches()
-                    .next()
-                    .map(|launch| launch.url.as_str())
-            });
-            match url {
+            match self.failure_url() {
                 Some(url) => format!(
                     "The publish succeeded, but {detail}.\nView launch details at: {}",
                     hyperlink(url)
                 ),
                 None => format!("The publish succeeded, but {detail}."),
             }
-        } else if !self.0.downstream_launches().is_empty() {
+        } else if let Some(detail) = downstream_detail {
+            // Only reachable without `--include-contract-checks`: with it, a
+            // failed downstream launch is a blocking failure above.
+            let warning = format!(
+                "Warning: The publish succeeded, but {detail}. Pass --include-contract-checks to make this fail the command."
+            );
+            match self.failure_url() {
+                Some(url) => format!("{warning}\nView launch details at: {}", hyperlink(url)),
+                None => warning,
+            }
+        } else if !self.response.downstream_launches().is_empty() {
             // Every `DownstreamLaunch` always has a populated `url`, so
             // falling back to the first one when the source launch's own
             // `launchUrl` is null (independently nullable from this success
             // path existing at all) always yields a real link.
             let url = self
-                .0
+                .response
                 .launch_url()
-                .unwrap_or_else(|| self.0.downstream_launches()[0].url.as_str());
+                .unwrap_or_else(|| self.response.downstream_launches()[0].url.as_str());
             let variants = self
-                .0
+                .response
                 .downstream_launches()
                 .iter()
                 .map(|launch| launch.variant_name.as_str())
@@ -166,7 +210,7 @@ impl<T: PublishLaunches + std::fmt::Debug + Sync> CliOutput for PublishLaunchesO
                 "Triggered downstream launches for {}: {}.\nView launch details at: {}",
                 pluralize(
                     "contract variant",
-                    self.0.downstream_launches().len() as isize,
+                    self.response.downstream_launches().len() as isize,
                     true
                 ),
                 Style::Variant.paint(variants),
@@ -187,10 +231,10 @@ impl<T: PublishLaunches + std::fmt::Debug + Sync> CliOutput for PublishLaunchesO
     /// isn't required to implement `Serialize` here, only `PublishLaunches`.
     fn json(&self) -> Result<serde_json::Value, serde_json::Error> {
         serde_json::to_value(serde_json::json!({
-            "launch_url": self.0.launch_url(),
-            "launch_status": self.0.launch_status(),
-            "launch_superseded": self.0.launch_superseded(),
-            "downstream_launches": self.0.downstream_launches(),
+            "launch_url": self.response.launch_url(),
+            "launch_status": self.response.launch_status(),
+            "launch_superseded": self.response.launch_superseded(),
+            "downstream_launches": self.response.downstream_launches(),
         }))
     }
 }
@@ -274,7 +318,7 @@ mod tests {
     #[test]
     fn no_launch_reports_nothing() {
         let response = response(None, None, Vec::new());
-        let output = PublishLaunchesOutput(&response);
+        let output = PublishLaunchesOutput::new(&response);
 
         assert_that!(output.text()).is_equal_to(String::new());
         assert_that!(output.exit_code()).is_equal_to(0);
@@ -287,7 +331,7 @@ mod tests {
             Some(LaunchStatus::COMPLETED),
             Vec::new(),
         );
-        let output = PublishLaunchesOutput(&response);
+        let output = PublishLaunchesOutput::new(&response);
 
         assert_that!(output.text()).is_equal_to(String::new());
         assert_that!(output.exit_code()).is_equal_to(0);
@@ -303,7 +347,7 @@ mod tests {
                 downstream("partner-api", LaunchStatus::COMPLETED),
             ],
         );
-        let output = PublishLaunchesOutput(&response);
+        let output = PublishLaunchesOutput::new(&response);
 
         let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
         assert_that!(text).is_equal_to(
@@ -319,7 +363,7 @@ mod tests {
             Some(LaunchStatus::FAILED),
             Vec::new(),
         );
-        let output = PublishLaunchesOutput(&response);
+        let output = PublishLaunchesOutput::new(&response);
 
         let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
         assert_that!(text).is_equal_to(
@@ -329,7 +373,7 @@ mod tests {
     }
 
     #[test]
-    fn a_failed_downstream_launch_fails_with_nonzero_exit_code() {
+    fn a_failed_downstream_launch_fails_with_nonzero_exit_code_with_include_contract_checks() {
         let response = response(
             Some("https://studio.apollographql.com/graph/my-graph/launches/launch-1"),
             Some(LaunchStatus::COMPLETED),
@@ -338,11 +382,56 @@ mod tests {
                 downstream("partner-api", LaunchStatus::FAILED),
             ],
         );
-        let output = PublishLaunchesOutput(&response);
+        let output = PublishLaunchesOutput::new(&response).include_contract_checks(true);
 
         let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
         assert_that!(text).is_equal_to(
             "The publish succeeded, but a downstream contract launch failed: partner-api.\nView launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-1".to_string(),
+        );
+        assert_that!(output.exit_code()).is_equal_to(1);
+    }
+
+    /// Without `--include-contract-checks`, a failed contract-variant launch is
+    /// a warning: the publish itself succeeded, and 0.x didn't fail on it.
+    #[test]
+    fn a_failed_downstream_launch_is_a_warning_without_include_contract_checks() {
+        let response = response(
+            Some("https://studio.apollographql.com/graph/my-graph/launches/launch-1"),
+            Some(LaunchStatus::COMPLETED),
+            vec![
+                downstream("mobile", LaunchStatus::COMPLETED),
+                downstream("partner-api", LaunchStatus::FAILED),
+            ],
+        );
+        let output = PublishLaunchesOutput::new(&response);
+
+        let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
+        assert_that!(text).is_equal_to(
+            "Warning: The publish succeeded, but a downstream contract launch failed: partner-api. Pass --include-contract-checks to make this fail the command.\nView launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-1".to_string(),
+        );
+        assert_that!(output.exit_code()).is_equal_to(0);
+        assert_that!(output.reports_launches()).is_true();
+    }
+
+    /// The flag only covers contract variants: the published variant's own
+    /// failed launch fails the command either way.
+    #[rstest]
+    #[case::without_include_contract_checks(false)]
+    #[case::with_include_contract_checks(true)]
+    fn a_failed_source_launch_fails_whether_or_not_contract_checks_are_included(
+        #[case] include_contract_checks: bool,
+    ) {
+        let response = response(
+            Some("https://studio.apollographql.com/graph/my-graph/launches/launch-1"),
+            Some(LaunchStatus::FAILED),
+            vec![downstream("partner-api", LaunchStatus::COMPLETED)],
+        );
+        let output =
+            PublishLaunchesOutput::new(&response).include_contract_checks(include_contract_checks);
+
+        let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
+        assert_that!(text).is_equal_to(
+            "The publish succeeded, but the launch itself failed.\nView launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-1".to_string(),
         );
         assert_that!(output.exit_code()).is_equal_to(1);
     }
@@ -357,7 +446,7 @@ mod tests {
                 downstream("partner-api", LaunchStatus::FAILED),
             ],
         );
-        let output = PublishLaunchesOutput(&response);
+        let output = PublishLaunchesOutput::new(&response).include_contract_checks(true);
 
         let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
         assert_that!(text).is_equal_to(
@@ -373,7 +462,7 @@ mod tests {
     #[test]
     fn a_failed_source_launch_with_no_launch_url_still_reports_and_fails() {
         let response = response(None, Some(LaunchStatus::FAILED), Vec::new());
-        let output = PublishLaunchesOutput(&response);
+        let output = PublishLaunchesOutput::new(&response);
 
         let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
         assert_that!(text)
@@ -391,7 +480,7 @@ mod tests {
             Some(LaunchStatus::COMPLETED),
             vec![downstream("partner-api", LaunchStatus::FAILED)],
         );
-        let output = PublishLaunchesOutput(&response);
+        let output = PublishLaunchesOutput::new(&response).include_contract_checks(true);
 
         let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
         assert_that!(text).is_equal_to(
@@ -410,7 +499,7 @@ mod tests {
             Some(status),
             Vec::new(),
         );
-        assert_that!(PublishLaunchesOutput(&response).exit_code()).is_equal_to(expected);
+        assert_that!(PublishLaunchesOutput::new(&response).exit_code()).is_equal_to(expected);
     }
 
     #[rstest]
@@ -436,7 +525,7 @@ mod tests {
             launch_status,
             downstream_launches,
         );
-        let output = PublishLaunchesOutput(&response);
+        let output = PublishLaunchesOutput::new(&response);
 
         assert_that!(output.reports_launches()).is_equal_to(expected);
         assert_that!(output.text().is_empty()).is_equal_to(!expected);
@@ -449,7 +538,7 @@ mod tests {
             Some(LaunchStatus::COMPLETED),
             vec![downstream("mobile", LaunchStatus::COMPLETED)],
         );
-        let json = PublishLaunchesOutput(&response).json().unwrap();
+        let json = PublishLaunchesOutput::new(&response).json().unwrap();
 
         assert_that!(json).is_equal_to(serde_json::json!({
             "launch_url": "https://studio.apollographql.com/graph/my-graph/launches/launch-1",
@@ -478,7 +567,7 @@ mod tests {
             true,
             Vec::new(),
         );
-        let output = PublishLaunchesOutput(&response);
+        let output = PublishLaunchesOutput::new(&response);
 
         assert_that!(output.exit_code()).is_equal_to(0);
         assert_that!(output.json().unwrap()).is_equal_to(serde_json::json!({
@@ -501,7 +590,7 @@ mod tests {
                 true,
             )],
         );
-        let output = PublishLaunchesOutput(&response);
+        let output = PublishLaunchesOutput::new(&response);
 
         assert_that!(output.exit_code()).is_equal_to(0);
         assert_that!(output.json().unwrap()).is_equal_to(serde_json::json!({
@@ -532,7 +621,7 @@ mod tests {
             Some(LaunchStatus::COMPLETED),
             vec![downstream("mobile", LaunchStatus::COMPLETED)],
         );
-        let output = PublishLaunchesOutput(&response);
+        let output = PublishLaunchesOutput::new(&response);
 
         let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
         assert_that!(text).is_equal_to(
@@ -550,7 +639,7 @@ mod tests {
             Some(LaunchStatus::FAILED),
             vec![downstream("partner-api", LaunchStatus::FAILED)],
         );
-        let output = PublishLaunchesOutput(&response);
+        let output = PublishLaunchesOutput::new(&response);
 
         let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
         assert_that!(text).is_equal_to(

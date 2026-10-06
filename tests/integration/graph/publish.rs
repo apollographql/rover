@@ -133,8 +133,8 @@ fn graph_publish_reports_triggered_downstream_launches_in_json() {
     assert_json_snapshot!(json);
 }
 
-/// Verifies that `rover graph publish` exits non-zero and reports which
-/// contract variant's downstream launch failed, even though the schema
+/// Verifies that `rover graph publish --include-contract-checks` exits non-zero and reports
+/// which contract variant's downstream launch failed, even though the schema
 /// publish itself succeeded -- the outcome is carried as data on
 /// `GraphPublishResponse`, not as an `Err` from `publish::run`, and
 /// `PublishLaunchesOutput` (used inline by `Publish::run`) is what turns a
@@ -142,7 +142,10 @@ fn graph_publish_reports_triggered_downstream_launches_in_json() {
 #[test]
 #[serial]
 fn graph_publish_fails_when_a_downstream_launch_fails() {
-    let output = run_graph_publish(LAUNCH_STATUS_WITH_FAILED_DOWNSTREAM_LAUNCH_RESPONSE, &[]);
+    let output = run_graph_publish(
+        LAUNCH_STATUS_WITH_FAILED_DOWNSTREAM_LAUNCH_RESPONSE,
+        &["--include-contract-checks"],
+    );
 
     assert!(
         !output.status.success(),
@@ -165,7 +168,7 @@ fn graph_publish_fails_when_a_downstream_launch_fails() {
 fn graph_publish_json_includes_data_and_error_code_when_a_downstream_launch_fails() {
     let output = run_graph_publish(
         LAUNCH_STATUS_WITH_FAILED_DOWNSTREAM_LAUNCH_RESPONSE,
-        &["--format", "json"],
+        &["--format", "json", "--include-contract-checks"],
     );
 
     assert!(
@@ -197,4 +200,47 @@ fn background_is_not_a_publish_option() {
 
     assert_eq!(output.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&output.stderr).contains("unexpected argument '--background'"));
+}
+
+/// Without `--include-contract-checks`, a failed downstream contract-variant launch is a warning,
+/// not a failure: the schema was published, and 0.x didn't fail on a contract variant's launch.
+#[test]
+#[serial]
+fn graph_publish_warns_when_a_downstream_launch_fails_without_include_contract_checks() {
+    let output = run_graph_publish(LAUNCH_STATUS_WITH_FAILED_DOWNSTREAM_LAUNCH_RESPONSE, &[]);
+
+    assert!(
+        output.status.success(),
+        "expected a zero exit code; stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains(
+            "Warning: The publish succeeded, but a downstream contract launch failed: mobile. Pass --include-contract-checks to make this fail the command."
+        ),
+        "stderr did not contain the expected warning: {stderr}"
+    );
+}
+
+/// Same scenario as above with `--format json`: no `error`, and the failed launch is still in
+/// `data.downstream_launches`.
+#[test]
+#[serial]
+fn graph_publish_json_reports_a_failed_downstream_launch_without_an_error_without_include_contract_checks()
+ {
+    let output = run_graph_publish(
+        LAUNCH_STATUS_WITH_FAILED_DOWNSTREAM_LAUNCH_RESPONSE,
+        &["--format", "json"],
+    );
+
+    assert!(
+        output.status.success(),
+        "expected a zero exit code; stdout: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_json_snapshot!(json);
 }
