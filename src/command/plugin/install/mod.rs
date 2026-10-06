@@ -86,9 +86,6 @@ impl PluginInstall {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
     ) -> RoverResult<RoverOutput> {
-        if let Some(plugin) = &self.plugin {
-            plugin.reject_unsupported()?;
-        }
         let project_manifest = self.project_manifest(override_install_path.as_deref())?;
         let make_installer = || -> RoverResult<Installer> {
             let mut rover_installer =
@@ -146,6 +143,11 @@ impl PluginInstall {
             .iter()
             .map(|(request, _)| Plugin::from_request(request.plugin, &request.request))
             .collect::<Result<Vec<_>, _>>()?;
+        // Whatever the requests came from: the argument, the manifest, or the lockfile. Before
+        // the license prompt, so nothing is asked for or downloaded on the way to refusing.
+        for plugin in &plugins {
+            plugin.reject_unsupported()?;
+        }
         if plugins.iter().any(Plugin::requires_elv2_license) {
             self.elv2_license_accepter
                 .require_elv2_license(&client_config)?;
