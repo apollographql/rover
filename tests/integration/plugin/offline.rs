@@ -294,6 +294,8 @@ fn skip_update_fails_by_name_for_a_plugin_that_is_not_installed(
             missing_from_either(&two_levels, control),
         ],
         "code": "E058",
+        "plugin": "supergraph",
+        "requested_version": "=2.9.3",
     }));
 }
 
@@ -363,6 +365,8 @@ fn a_standing_opt_in_never_overrides_skip_update(
             missing_from_either(&two_levels, named),
         ],
         "code": "E058",
+        "plugin": "supergraph",
+        "requested_version": "=2.9.3",
     }));
 }
 

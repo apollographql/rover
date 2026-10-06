@@ -66,6 +66,15 @@ impl Serialize for RoverError {
         }
 
         data.serialize_field("code", &self.metadata.code)?;
+
+        // FR87: a plugin failure names the plugin and what was asked of it as fields, so a
+        // script never has to parse them out of `message`.
+        if let Some(failure) = self.plugin_failure()
+            && let (Some(plugin), Some(requested)) = (failure.plugin(), failure.requested())
+        {
+            data.serialize_field("plugin", &plugin.to_string())?;
+            data.serialize_field("requested_version", &requested.to_string())?;
+        }
         data.end()
     }
 }
@@ -196,6 +205,13 @@ impl RoverError {
             {
                 return json!({ "plugins": [] });
             }
+        }
+
+        // A plugin that failed to resolve is not one a run used (FR57), so the failure
+        // reports none; its identity is in the error (FR87). The array is still there, so a
+        // consumer can tell "no plugin was used" from "this Rover predates the field".
+        if self.plugin_failure().is_some() {
+            return json!({ "plugins": [] });
         }
 
         // FR67: `data` carries every client on a partial failure, so a runbook can read which to

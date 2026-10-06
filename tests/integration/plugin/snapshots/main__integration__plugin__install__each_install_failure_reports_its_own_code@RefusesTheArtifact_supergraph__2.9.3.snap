@@ -5,6 +5,7 @@ expression: json
 {
   "json_version": "1",
   "data": {
+    "plugins": [],
     "success": false
   },
   "error": {
@@ -12,6 +13,8 @@ expression: json
     "causes": [
       "Bad Status code: 403 Forbidden"
     ],
-    "code": "E049"
+    "code": "E049",
+    "plugin": "supergraph",
+    "requested_version": "=2.9.3"
   }
 }

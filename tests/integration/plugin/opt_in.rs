@@ -160,11 +160,13 @@ fn used(levels: &TwoLevels, source: &str) -> Value {
 
 /// The `error` a run reports for a `supergraph` plugin it couldn't obtain,
 /// saying `why`.
-fn not_obtained(why: String) -> Value {
+fn not_obtained(why: String, requested: &str) -> Value {
     json!({
         "message": "Error when updating Federation Version",
         "causes": ["Couldn't obtain the `supergraph` plugin", why],
         "code": "E058",
+        "plugin": "supergraph",
+        "requested_version": requested,
     })
 }
 
@@ -197,11 +199,11 @@ fn the_opt_in_decides_whether_a_missing_plugin_is_downloaded(
             two_levels.bin_dir(Level::Project),
             two_levels.bin_dir(Level::Global),
         );
-        (json!([]), Some(not_obtained(searched)), 0)
+        (json!([]), Some(not_obtained(searched, "=2.9.3")), 0)
     } else if opt_in == OptIn::Nothing {
         let missing =
             "Rover needs the `supergraph` plugin v2.9.3, which isn't installed.".to_string();
-        (json!([]), Some(not_obtained(missing)), 0)
+        (json!([]), Some(not_obtained(missing, "=2.9.3")), 0)
     } else {
         (used(&two_levels, "downloaded"), None, 1)
     };
@@ -304,7 +306,7 @@ fn the_opt_in_follows_the_settings_chain(
     } else {
         let missing =
             "Rover needs the `supergraph` plugin v2.9.3, which isn't installed.".to_string();
-        (json!([]), Some(not_obtained(missing)), 0)
+        (json!([]), Some(not_obtained(missing, "=2.9.3")), 0)
     };
     let reported_error = (run.json["error"]["code"] == "E058").then(|| run.json["error"].clone());
     assert_that!((
@@ -420,7 +422,7 @@ fn without_an_opt_in_a_floating_request_takes_what_is_installed(
         (used(&two_levels, "installed"), None)
     } else {
         let missing = "Rover needs a `supergraph` plugin v2.x, but none is installed.".to_string();
-        (json!([]), Some(not_obtained(missing)))
+        (json!([]), Some(not_obtained(missing, "2")))
     };
     let reported_error = (run.json["error"]["code"] == "E058").then(|| run.json["error"].clone());
     assert_that!((

@@ -5,6 +5,7 @@ expression: json
 {
   "json_version": "1",
   "data": {
+    "plugins": [],
     "success": false
   },
   "error": {
@@ -13,6 +14,8 @@ expression: json
       "Couldn't unpack the downloaded plugin archive",
       "invalid gzip header"
     ],
-    "code": "E050"
+    "code": "E050",
+    "plugin": "supergraph",
+    "requested_version": "=2.9.3"
   }
 }
