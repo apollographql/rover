@@ -124,21 +124,11 @@ APOLLO_CLIENT_ID=<CLIENT_ID>
 APOLLO_CLIENT_SECRET=<CLIENT_SECRET>
 ```
 
-Rover exchanges them for an access token on each run. If `APOLLO_KEY` is also set, it takes precedence.
+<Caution>
 
-If only one of the two is set, Rover stops before making any request:
+If `APOLLO_KEY` is also set, it takes precedence.
 
-```
-error: APOLLO_CLIENT_ID is set but APOLLO_CLIENT_SECRET is not; both are required to authenticate with client credentials
-```
-
-If GraphOS rejects the pair, for example because the secret is wrong, expired, or was rotated away, the exchange fails and Rover reports the error GraphOS returns:
-
-```
-error: failed to exchange client credentials for an access token: invalid_client: Client authentication failed
-```
-
-Because the exchange happens on every command, a pair that stops working fails the next command that needs a credential. Neither failure has an error code, so with `--format json`, `error.code` is `null`.
+</Caution>
 
 #### Example: setting up CI with a pair
 
