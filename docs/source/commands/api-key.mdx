@@ -64,9 +64,9 @@ rover api-key create <ORGANIZATION_ID> client-credentials <NAME> --graph-id <GRA
 
 `--secret-lifetime-days` sets how long the secret stays valid. If you omit it, GraphOS uses its own default.
 
-Rover prints the new pair's client ID and secret to stdout, so CI setup can capture them, along with its name, graphs, and when the secret expires:
+Rover prints the new pair's client ID and secret to `stdout`, so CI setup can capture them, along with its name, graphs, and when the secret expires:
 
-```
+```terminal showLineNumbers=false
 ┌───────────────────┬──────────────────────┐
 │ Client ID         ┆ c_8f2a               │
 ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
@@ -80,9 +80,9 @@ Rover prints the new pair's client ID and secret to stdout, so CI setup can capt
 └───────────────────┴──────────────────────┘
 ```
 
-On stderr, Rover adds a reminder:
+On `stderr`, Rover adds a reminder:
 
-```
+```terminal showLineNumbers=false
 Save this secret now. Rover can't show it again.
 ```
 
@@ -244,7 +244,7 @@ With `--format json`, the output reports the cursor as `client_credentials_next_
 
 When more pairs remain, the text output ends with a note, and `client_credentials_next_after` holds the same cursor in place of `null`:
 
-```
+```terminal showLineNumbers=false
 More client-credential pairs are available. Resume with `--after <CURSOR>`.
 ```
  `--limit` and `--after` apply only to client-credential pairs. API keys are always listed in full.
@@ -278,7 +278,7 @@ Every previous secret for `<NAME>` keeps working until <TIMESTAMP>.
 
 The `stdout` text output is:
 
-```
+```terminal showLineNumbers=false
 ┌───────────────────┬──────────────────────┐
 │ Client ID         ┆ c_8f2a               │
 ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
