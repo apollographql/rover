@@ -87,7 +87,7 @@ expression: "serde_json::json!({\n    \"explicit_profile\": explicit, \"default_
     },
     {
       "name": "APOLLO_OAUTH_DEVICE_AUTHORIZATION_URL",
-      "value": "https://auth.apollographql.com/oauth2/device/authorize",
+      "value": "https://auth.apollographql.com/oauth2/device_authorization",
       "source": "builtin",
       "overridden": []
     },
@@ -105,7 +105,7 @@ expression: "serde_json::json!({\n    \"explicit_profile\": explicit, \"default_
     },
     {
       "name": "APOLLO_OAUTH_CLIENT_ID",
-      "value": "52SYxOlIEM8U5BjKeIv88ClPBSBMq4K06LWB9HtM5EY",
+      "value": "UOsTLIgQb6eFevYcnQewoCDJZagFswCfESvr1hdIU8w",
       "source": "builtin",
       "overridden": []
     }
@@ -189,7 +189,7 @@ expression: "serde_json::json!({\n    \"explicit_profile\": explicit, \"default_
     },
     {
       "name": "APOLLO_OAUTH_DEVICE_AUTHORIZATION_URL",
-      "value": "https://auth.apollographql.com/oauth2/device/authorize",
+      "value": "https://auth.apollographql.com/oauth2/device_authorization",
       "source": "builtin",
       "overridden": []
     },
@@ -207,7 +207,7 @@ expression: "serde_json::json!({\n    \"explicit_profile\": explicit, \"default_
     },
     {
       "name": "APOLLO_OAUTH_CLIENT_ID",
-      "value": "52SYxOlIEM8U5BjKeIv88ClPBSBMq4K06LWB9HtM5EY",
+      "value": "UOsTLIgQb6eFevYcnQewoCDJZagFswCfESvr1hdIU8w",
       "source": "builtin",
       "overridden": []
     }

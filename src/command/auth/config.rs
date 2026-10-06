@@ -98,7 +98,7 @@ mod tests {
         let config = OauthConfig::default();
 
         assert_that!(config.device_authorization_url.as_str())
-            .is_equal_to("https://auth.apollographql.com/oauth2/device/authorize");
+            .is_equal_to("https://auth.apollographql.com/oauth2/device_authorization");
     }
 
     #[test]
@@ -106,7 +106,7 @@ mod tests {
         let config = OauthConfig::default();
 
         assert_that!(config.client_id)
-            .is_equal_to("52SYxOlIEM8U5BjKeIv88ClPBSBMq4K06LWB9HtM5EY".to_string());
+            .is_equal_to("UOsTLIgQb6eFevYcnQewoCDJZagFswCfESvr1hdIU8w".to_string());
     }
 
     #[test]

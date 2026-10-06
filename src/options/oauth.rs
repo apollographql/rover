@@ -16,15 +16,19 @@ pub(crate) static DEFAULT_REVOCATION_URL: LazyLock<Url> =
 pub(crate) static DEFAULT_WHOAMI_URL: LazyLock<Url> =
     LazyLock::new(|| url!("https://auth.apollographql.com/oauth2/userinfo"));
 pub(crate) static DEFAULT_DEVICE_AUTHORIZATION_URL: LazyLock<Url> =
-    LazyLock::new(|| url!("https://auth.apollographql.com/oauth2/device/authorize"));
+    LazyLock::new(|| url!("https://auth.apollographql.com/oauth2/device_authorization"));
 
 // Static client ID registered for `rover auth login` against the production
 // Identity server, via `cargo xtask register-oauth-client --env prod`
 // (ROVER-391, per the #proj-oauth decision to use one static, per-environment
-// client_id rather than dynamic per-install registration). To test against a
-// different environment, override with --oauth-client-id - see
+// client_id rather than dynamic per-install registration). Re-registered
+// once the registration asked for the device-code grant too: the first
+// client, registered for `authorization_code` alone, is refused at the device
+// authorization endpoint with `unsupported_grant_type`, and a registered
+// client's grant types can't be changed. To test against a different
+// environment, override with --oauth-client-id - see
 // ROVER_OAUTH_CLIENT_ID_STAGING in .zshrc for the staging equivalent.
-pub(crate) const DEFAULT_CLIENT_ID: &str = "52SYxOlIEM8U5BjKeIv88ClPBSBMq4K06LWB9HtM5EY";
+pub(crate) const DEFAULT_CLIENT_ID: &str = "UOsTLIgQb6eFevYcnQewoCDJZagFswCfESvr1hdIU8w";
 
 // Top-level `rover` flags for overriding `rover auth login`'s OAuth server
 // endpoints and client ID.

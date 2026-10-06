@@ -24,7 +24,7 @@ mod state;
 #[derive(thiserror::Error, Debug)]
 pub enum DeviceAuthorizationFlowError {
     /// The device authorization endpoint rejected the device code request.
-    #[error("Failed to request a device code")]
+    #[error("Failed to request a device code: {0}")]
     DeviceCodeRequest(#[source] Box<dyn std::error::Error>),
     /// The user denied the authorization request.
     #[error("The authorization request was denied")]
@@ -34,7 +34,7 @@ pub enum DeviceAuthorizationFlowError {
     ExpiredToken,
     /// Polling the token endpoint failed for any other reason (a transport
     /// failure, or another server error).
-    #[error("Failed to obtain an access token")]
+    #[error("Failed to obtain an access token: {0}")]
     AccessTokenPoll(#[source] Box<dyn std::error::Error>),
 }
 
@@ -51,23 +51,30 @@ where
 impl DeviceAuthorizationFlow<state::DeviceAuthorizationFlowInit> {
     #[builder]
     /// Creates a new [`DeviceAuthorizationFlow`] in its initial state.
+    ///
+    /// `verification_url` is the page the user is sent to to enter their
+    /// code. It's printed in place of the server's `verification_uri`, which
+    /// can name a page that doesn't handle the code: Apollo's Identity server
+    /// returns a Studio URL, while the page that works is on the auth host.
     pub const fn new(
         client_id: String,
         device_authorization_url: Url,
         token_url: Url,
+        verification_url: Url,
     ) -> DeviceAuthorizationFlow<state::DeviceAuthorizationFlowInit> {
         DeviceAuthorizationFlow {
             state: state::DeviceAuthorizationFlowInit {
                 client_id,
                 device_authorization_url,
                 token_url,
+                verification_url,
             },
         }
     }
 
     /// Requests a device code and user code from the device authorization
-    /// endpoint, then prints the verification URL and code the user must
-    /// visit. Unlike the PKCE flow, no browser is opened here - that's the
+    /// endpoint, then prints the verification URL the user must visit and the
+    /// code to enter there. Unlike the PKCE flow, no browser is opened here - that's the
     /// whole point of `--no-browser`, the user is expected to complete
     /// verification from any browser/device they choose.
     pub async fn request_device_code<S, B, P>(
@@ -102,22 +109,13 @@ impl DeviceAuthorizationFlow<state::DeviceAuthorizationFlowInit> {
 
         stderr.print_line(&[
             StyledText::plain("To finish logging in, visit "),
-            StyledText::new(
-                Style::Link,
-                device_auth_response.verification_uri().to_string(),
-            ),
+            StyledText::new(Style::Link, self.state.verification_url.to_string()),
             StyledText::plain(" and enter the code: "),
             StyledText::new(
                 Style::Command,
                 device_auth_response.user_code().secret().clone(),
             ),
         ]);
-        if let Some(complete_uri) = device_auth_response.verification_uri_complete() {
-            stderr.print_line(&[
-                StyledText::plain("Or open this URL directly: "),
-                StyledText::new(Style::Link, complete_uri.secret().clone()),
-            ]);
-        }
 
         Ok(DeviceAuthorizationFlow {
             state: state::DeviceAuthorizationFlowWithDeviceCode {
@@ -204,6 +202,10 @@ mod tests {
         Url::parse("https://example.com/device/authorize").unwrap()
     }
 
+    fn verification_url() -> Url {
+        Url::parse("https://example.com/device").unwrap()
+    }
+
     #[fixture]
     fn token_url() -> Url {
         Url::parse("https://example.com/token").unwrap()
@@ -218,8 +220,9 @@ mod tests {
         serde_json::json!({
             "device_code": "the-device-code",
             "user_code": "ABCD-EFGH",
-            "verification_uri": "https://example.com/device",
-            "verification_uri_complete": "https://example.com/device?user_code=ABCD-EFGH",
+            // Deliberately not `verification_url()`: Rover prints its own.
+            "verification_uri": "https://studio.example.com/device",
+            "verification_uri_complete": "https://studio.example.com/device?user_code=ABCD-EFGH",
             "expires_in": 600,
             "interval": 1
         })
@@ -239,7 +242,7 @@ mod tests {
     #[rstest]
     #[tokio::test]
     #[timeout(Duration::from_secs(5))]
-    async fn request_device_code_prints_the_verification_url_and_code(
+    async fn request_device_code_prints_its_own_verification_url_and_the_code(
         client_id: String,
         device_authorization_url: Url,
         token_url: Url,
@@ -248,6 +251,7 @@ mod tests {
             .client_id(client_id.clone())
             .device_authorization_url(device_authorization_url.clone())
             .token_url(token_url)
+            .verification_url(verification_url())
             .build();
 
         let mut http_service = MockHttpService::new();
@@ -284,16 +288,6 @@ mod tests {
                     && command.is_some_and(|s| s.text() == "ABCD-EFGH")
             })
             .returning(|_| ());
-        mock_print
-            .expect_print_line()
-            .times(1)
-            .withf(|segments| {
-                segments.iter().any(|s| {
-                    s.style() == &Style::Link
-                        && s.text() == "https://example.com/device?user_code=ABCD-EFGH"
-                })
-            })
-            .returning(|_| ());
 
         let result = flow
             .request_device_code(
@@ -320,6 +314,7 @@ mod tests {
             .client_id(client_id)
             .device_authorization_url(device_authorization_url)
             .token_url(token_url)
+            .verification_url(verification_url())
             .build();
 
         let mut http_service = MockHttpService::new();
@@ -343,6 +338,45 @@ mod tests {
             .matches(|err| matches!(err, DeviceAuthorizationFlowError::DeviceCodeRequest(_)));
     }
 
+    /// The server's own `error`/`error_description` is what tells the user (and us) why the
+    /// request was refused, so the error message must carry it, not just "Failed to request a
+    /// device code".
+    #[rstest]
+    #[tokio::test]
+    #[timeout(Duration::from_secs(5))]
+    async fn request_device_code_reports_the_servers_error(
+        client_id: String,
+        device_authorization_url: Url,
+        token_url: Url,
+    ) {
+        let flow = DeviceAuthorizationFlow::builder()
+            .client_id(client_id)
+            .device_authorization_url(device_authorization_url)
+            .token_url(token_url)
+            .verification_url(verification_url())
+            .build();
+
+        let mut http_service = MockHttpService::new();
+        http_service.expect_call().times(1).returning(|_| {
+            let response = http::Response::builder()
+                .status(http::StatusCode::BAD_REQUEST)
+                .body(Full::new(Bytes::from_static(
+                    b"{\"error\":\"unsupported_grant_type\",\"error_description\":\"Unsupported grant type\"}",
+                )))
+                .unwrap();
+            futures::future::ready(Ok(response))
+        });
+        let mock_print = MockPrint::new();
+
+        let error = flow
+            .request_device_code(Vec::new(), http_service, &mock_print)
+            .await
+            .unwrap_err();
+
+        assert_that!(error.to_string()).is_equal_to("Failed to request a device code: Server returned error response: unsupported_grant_type: Unsupported grant type"
+                .to_string());
+    }
+
     #[rstest]
     #[tokio::test]
     #[timeout(Duration::from_secs(5))]
@@ -355,6 +389,7 @@ mod tests {
             .client_id(client_id)
             .device_authorization_url(device_authorization_url)
             .token_url(token_url)
+            .verification_url(verification_url())
             .build();
 
         let mut http_service = MockHttpService::new();
@@ -386,6 +421,7 @@ mod tests {
             .client_id(client_id)
             .device_authorization_url(device_authorization_url)
             .token_url(token_url.clone())
+            .verification_url(verification_url())
             .build();
 
         let mut device_code_service = MockHttpService::new();
@@ -457,6 +493,7 @@ mod tests {
             .client_id(client_id)
             .device_authorization_url(device_authorization_url)
             .token_url(token_url)
+            .verification_url(verification_url())
             .build();
 
         let mut device_code_service = MockHttpService::new();
@@ -504,6 +541,7 @@ mod tests {
             .client_id(client_id)
             .device_authorization_url(device_authorization_url)
             .token_url(token_url)
+            .verification_url(verification_url())
             .build();
 
         let mut device_code_service = MockHttpService::new();
@@ -551,6 +589,7 @@ mod tests {
             .client_id(client_id)
             .device_authorization_url(device_authorization_url)
             .token_url(token_url)
+            .verification_url(verification_url())
             .build();
 
         let mut device_code_service = MockHttpService::new();
