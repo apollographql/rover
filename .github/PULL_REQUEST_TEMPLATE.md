@@ -25,6 +25,11 @@ Here are some important details to follow:
         when submitting a pull request.  Make sure existing tests still pass, and add
         tests for all new behavior.
 
+* 📝 Changeset
+        Add a file to `.changeset/` describing any user-visible change: run
+        `mise run add-changeset`, and see `.changeset/README.md`. A maintainer
+        adds the `skip-changeset` label when a change doesn't need one.
+
 * ✏️ Explain your pull request
         Describe the big picture of your changes here to communicate to what
         your pull request is meant to accomplish. Provide 🔗 links 🔗 to
@@ -40,4 +45,3 @@ avoid disappointment.
 
 -->
 
-- [ ] A CHANGELOG.md entry is not needed for this PR

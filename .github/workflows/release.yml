@@ -321,12 +321,22 @@ jobs:
           PRERELEASE_FLAG: ${{ steps.params.outputs.is_prerelease == 'true' && '--prerelease' || '' }}
           EXTRA: ${{ steps.params.outputs.extra }}
         run: |
+          # The release's notes, written by `cargo xtask changeset release` in
+          # the release pull request. A tag without them, such as a release
+          # candidate, gets a placeholder to fill in by hand.
+          NOTES_FILE=".changeset/notes/${TAG}.md"
+          if [ -f "$NOTES_FILE" ]; then
+            CHANGELOG_NOTES="$(cat "$NOTES_FILE")"
+          else
+            CHANGELOG_NOTES='<!-- changelog -->'
+          fi
           gh release create "$TAG" \
             $PRERELEASE_FLAG \
             --title "$TAG" \
             $EXTRA \
-            --notes '<!-- changelog -->
-          ---
+            --notes "${CHANGELOG_NOTES}
+
+          "'---
           This release was automatically created by [GitHub Actions](./.github/workflows/release.yml).
 
           If you would like to verify that the binary you have downloaded was built from the source code in this repository, you can compute a checksum of the zipped tarball and compare it to the checksums that are included as release artifacts.
