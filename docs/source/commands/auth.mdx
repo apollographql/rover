@@ -162,7 +162,7 @@ rover auth grants revoke --org <ORGANIZATION_ID> --user <USER_ID> --all
 
 This revokes the user's grants under:
 
-- Rover's own OAuth client. That covers every `rover auth login` the user has done, with or without `--no-browser`, **in every organization**, not just this one.
+- Rover's own OAuth client. That covers every `rover auth login` the user has done.
 - Every [client-credential pair](/rover/commands/api-key#client-credential-pairs) registered in the organization.
 
 `--org`, `--user`, and `--all` are all required. There's no way to revoke every grant in an organization at once.
