@@ -73,7 +73,15 @@ pub struct Publish {
     /// A message to associate with this publish in the Studio changelog
     #[arg(long, value_name = "MESSAGE")]
     changelog_message: Option<String>,
+
+    /// Deprecated, and hidden from `--help`: `--background` has moved to `rover subgraph check`.
+    /// 0.x accepted it here without reading it, so it's still accepted, with a warning, rather
+    /// than failing scripts that pass it.
+    #[arg(long, hide = true)]
+    background: bool,
 }
+
+const BACKGROUND_DEPRECATION_WARNING: &str = "Warning: `--background` has moved to `rover subgraph check --background`, and will be removed from `rover subgraph publish` in a future version. It has no effect here: `publish --check` always waits for the check, because the check decides whether the publish happens.";
 
 impl Publish {
     pub async fn run(
@@ -84,6 +92,12 @@ impl Publish {
         profile: &ProfileOpt,
         stderr: &impl Print,
     ) -> RoverResult<RoverOutput> {
+        if self.background {
+            stderr.print(&StyledText::plain(
+                BACKGROUND_DEPRECATION_WARNING.to_string(),
+            ));
+        }
+
         let client = client_config.get_authenticated_client(profile)?;
 
         let (url, schema) = if self.schema.is_using_example_schema() {
