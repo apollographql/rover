@@ -12,7 +12,7 @@ mod no_dev;
 #[cfg(feature = "composition-js")]
 mod router;
 
-use std::net::IpAddr;
+use std::{net::IpAddr, str::FromStr};
 
 use clap::Parser;
 use derive_getters::Getters;
@@ -122,9 +122,27 @@ pub struct SupergraphOpts {
     // https://www.apollographql.com/docs/router/federation-version-support/#support-table
     #[arg(
         long = "composition-version",
-        env = "APOLLO_ROVER_DEV_COMPOSITION_VERSION"
+        env = "APOLLO_ROVER_DEV_COMPOSITION_VERSION",
+        value_parser = parse_composition_version
     )]
     pub(crate) composition_version: Option<String>,
+}
+
+/// Checks a `--composition-version` (or `APOLLO_ROVER_DEV_COMPOSITION_VERSION`) value when the
+/// command line is parsed, so a bad one fails the command before anything starts.
+///
+/// The value is an exact version like `2.9.0`, written without a leading `=`: `rover dev` adds
+/// the `=` that `supergraph.yaml` and `--federation-version` use when it builds the federation
+/// version from it. A value that already starts with one is rejected, because it would become
+/// the invalid `==2.9.0`.
+fn parse_composition_version(input: &str) -> Result<String, String> {
+    FederationVersion::from_str(&format!("={input}"))
+        .map(|_| input.to_string())
+        .map_err(|_| {
+            format!(
+                "`{input}` is not a supported composition version. Use an exact version, such as `2.9.0`, with no leading `=`"
+            )
+        })
 }
 
 #[cfg(test)]
@@ -192,5 +210,45 @@ mod tests {
         .unwrap();
         assert_that!(opts.supergraph_opts.composition_version)
             .is_equal_to(Some("2.7.0".to_string()));
+    }
+
+    // An invalid version fails the command when it is parsed, from the flag or from the
+    // environment, instead of being reported and then ignored once `rover dev` has started.
+    #[rstest::rstest]
+    #[case::leading_equals("=2.15.2")]
+    #[case::bare_major("2")]
+    #[case::major_minor("2.9")]
+    #[case::not_a_version("banana")]
+    #[case::empty("")]
+    fn an_invalid_composition_version_fails_the_flag(#[case] version: &str) {
+        let error =
+            temp_env::with_var("APOLLO_ROVER_DEV_COMPOSITION_VERSION", None::<&str>, || {
+                DevOpts::try_parse_from(["dev", "--composition-version", version])
+            })
+            .unwrap_err();
+
+        assert_that!(error.to_string().contains(&format!(
+            "`{version}` is not a supported composition version. Use an exact version, such as `2.9.0`, with no leading `=`"
+        )))
+        .named(&error.to_string())
+        .is_true();
+    }
+
+    #[test]
+    fn an_invalid_composition_version_fails_the_environment_variable() {
+        let error = temp_env::with_var(
+            "APOLLO_ROVER_DEV_COMPOSITION_VERSION",
+            Some("=2.15.2"),
+            || DevOpts::try_parse_from(["dev"]),
+        )
+        .unwrap_err();
+
+        assert_that!(
+            error
+                .to_string()
+                .contains("is not a supported composition version")
+        )
+        .named(&error.to_string())
+        .is_true();
     }
 }
