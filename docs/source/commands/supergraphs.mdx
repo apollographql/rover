@@ -163,7 +163,7 @@ For more on passing values via `stdout`, see [Using `stdout`](../conventions#usi
 
 ### Federation 2 ELv2 license
 
-The first time you use Federation 2 (or Federation 3) composition on a particular machine, Rover prompts you to accept the terms and conditions of the [ELv2 license](https://www.apollographql.com/docs/resources/elastic-license-v2-faq/). On future invocations, Rover remembers that you already accepted the license and doesn't prompt you again (even if you update Rover).
+The first time you use Federation 2 composition on a particular machine, Rover prompts you to accept the terms and conditions of the [ELv2 license](https://www.apollographql.com/docs/resources/elastic-license-v2-faq/). On future invocations, Rover remembers that you already accepted the license and doesn't prompt you again (even if you update Rover).
 
 <Note>
 
@@ -215,7 +215,7 @@ When `supergraph.yaml` and `rover.yaml` both set a version and they disagree, Ro
 warning: `supergraph.yaml` sets `federation_version: =2.9.3`, overriding the `supergraph` version declared in `rover.yaml`.
 ```
 
-The command composes with Federation 2, provided by the [`@apollo/composition`](https://www.npmjs.com/package/@apollo/composition) library, or with Federation 3 when you set a Federation 3 version, such as `federation_version: =3.0.0-preview.1` or `--federation-version 3`. Federation 3 is under the same ELv2 license.
+The command composes with Federation 2, provided by the [`@apollo/composition`](https://www.npmjs.com/package/@apollo/composition) library.
 
 <Note>
 

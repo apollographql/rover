@@ -175,7 +175,7 @@ rover dev \
   --supergraph-config federation_override.yaml
 ```
 
-Override a variant's federation version by passing the `--federation-version` option. This argument accepts fully qualified [federation versions](https://github.com/apollographql/federation/releases), prefixed with an equals sign (`=`), for example '=2.9.3' or '=3.0.0-preview.1'. Alternatively, use `2` or `3` (without an equals sign) for the latest release of Federation 2 or Federation 3. Rover refuses a Federation 1 version with [`E064`](/rover/errors#e064).
+Override a variant's federation version by passing the `--federation-version` option. This argument accepts fully qualified [federation versions](https://github.com/apollographql/federation/releases), prefixed with an equals sign (`=`), for example '=2.9.3'. Alternatively, use `2` (without an equals sign) for the latest release of Federation 2. Rover refuses a Federation 1 version with [`E064`](/rover/errors#e064).
 
 ```bash showLineNumbers=false
 rover dev \
@@ -226,7 +226,7 @@ This means you should:
 
 ## Federation 2 ELv2 license
 
-The first time you use Federation 2 (or Federation 3) composition on a particular machine, Rover prompts you to accept the terms and conditions of the [ELv2 license](/resources/elastic-license-v2-faq/). On future invocations, Rover remembers that you already accepted the license and doesn't prompt you again (even if you update Rover).
+The first time you use Federation 2 composition on a particular machine, Rover prompts you to accept the terms and conditions of the [ELv2 license](/resources/elastic-license-v2-faq/). On future invocations, Rover remembers that you already accepted the license and doesn't prompt you again (even if you update Rover).
 
 ## Plugins
 

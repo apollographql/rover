@@ -34,13 +34,13 @@ Each plugin accepts these version forms:
 
 | Form | Meaning | Accepted by | Example |
 | ---- | ------- | ----------- | ------- |
-| A major version | The newest release within that major version | `supergraph` (`2`, `3`), `router` (`1`, `2`, `3`) | `router@2` |
+| A major version | The newest release within that major version | `supergraph` (`2`), `router` (`1`, `2`) | `router@2` |
 | `latest` | The newest release. For `router`, the newest 2.x release | `router`, `apollo-mcp-server` | `apollo-mcp-server@latest` |
 | `=X.Y.Z` | Exactly that release | every plugin | `supergraph@=2.9.3` |
 
 `supergraph@latest` isn't accepted. Use a major version, such as `supergraph@2`.
 
-Federation 3 versions of the `supergraph` and `router` plugins, such as `supergraph@3`, `supergraph@=3.0.0-preview.1`, and `router@3`, are accepted under the same [ELv2 license](#accepting-the-elv2-license) as Federation 2. Federation 1 versions of `supergraph` are refused with [`E064`](/rover/errors#e064).
+Federation 1 versions of `supergraph` are refused with [`E064`](/rover/errors#e064).
 
 The older spellings `latest-N` (for a major version) and `vX.Y.Z` (for an exact version) still work, but print a deprecation warning naming the current spelling:
 
