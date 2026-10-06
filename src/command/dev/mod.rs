@@ -129,9 +129,12 @@ pub struct SupergraphOpts {
 }
 
 /// Checks a `--composition-version` (or `APOLLO_ROVER_DEV_COMPOSITION_VERSION`) value when the
-/// command line is parsed, so a bad one fails the command before anything starts. It is an exact
-/// version like `2.9.0`; the `=` that `supergraph.yaml` and `--federation-version` use is added
-/// for it, so writing one here makes it `==2.9.0`.
+/// command line is parsed, so a bad one fails the command before anything starts.
+///
+/// The value is an exact version like `2.9.0`, written without a leading `=`: `rover dev` adds
+/// the `=` that `supergraph.yaml` and `--federation-version` use when it builds the federation
+/// version from it. A value that already starts with one is rejected, because it would become
+/// the invalid `==2.9.0`.
 fn parse_composition_version(input: &str) -> Result<String, String> {
     FederationVersion::from_str(&format!("={input}"))
         .map(|_| input.to_string())
