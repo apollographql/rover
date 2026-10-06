@@ -66,10 +66,14 @@ The `auth whoami` command shows which identity the current profile authenticates
 rover auth whoami
 ```
 
-What it shows depends on the credential:
+What it shows depends on the credential. For an API key or a client-credential pair, Rover looks the credential up in GraphOS, the same way `rover config whoami` does. With `--format json`, every field listed for a credential is always present in `data`, and a value that doesn't apply is `null`.
 
-- For an OAuth login, the output shows `Name`, `Email`, `User ID`, `Origin`, `Grant Type`, and the masked `Access Token`. With `--format json`, these are `name`, `email`, `user_id`, `origin`, `grant_type`, and `access_token`.
-- For an API key or a client-credential pair, Rover looks the credential up in GraphOS, the same way `rover config whoami` does. The output shows `Key Type`, `Graph ID` and `Graph Title` (for a graph key), `User ID` (for a personal key), `Origin`, `Grant Type` (for a pair only), and the masked `API Key`. With `--format json`, these are `key_type`, `graph_id`, `graph_title`, `user_id`, `origin`, `grant_type`, and `api_key`.
+| Credential | Text output rows | `--format json` fields |
+| --- | --- | --- |
+| OAuth login (`rover auth login`, with or without `--no-browser`) | `Name`, `Email`, `User ID`, `Origin`, `Grant Type`, and the masked `Access Token` | `name`, `email`, `user_id`, `origin`, `grant_type`, and `access_token` |
+| Personal API key (`Key Type` is `User`) | `Key Type`, `User ID`, `Origin`, and the masked `API Key` | `key_type`, `user_id`, `origin`, and `api_key`. `graph_id`, `graph_title`, and `grant_type` are `null`. |
+| Graph API key (`Key Type` is `Graph`) | `Key Type`, `Graph ID`, `Graph Title`, `Origin`, and the masked `API Key` | `key_type`, `graph_id`, `graph_title`, `origin`, and `api_key`. `user_id` and `grant_type` are `null`. |
+| Client-credential pair | `Key Type`, `User ID`, `Origin`, `Grant Type`, and the masked `API Key` | `key_type`, `user_id`, `origin`, `grant_type`, and `api_key`. `graph_id` and `graph_title` are `null`. |
 
 Whenever Rover authenticates with an OAuth credential, whether from a login or by exchanging a client-credential pair, the output includes a `Grant Type` row:
 
