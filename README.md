@@ -156,7 +156,7 @@ Options:
           [env: APOLLO_CHECKS_TIMEOUT_SECONDS=]
 
       --download-host <DOWNLOAD_HOST>
-          Override the host plugin binaries (the `router` and `supergraph` composition plugins) are downloaded from
+          Override the host plugin binaries (`router`, `supergraph`, and `apollo-mcp-server`) are downloaded from
 
           [env: APOLLO_ROVER_DOWNLOAD_HOST=]
 
@@ -201,7 +201,7 @@ Options:
       --skip-update-check
           Skip checking for newer versions of rover.
 
-          Set the `APOLLO_ROVER_SKIP_UPDATE` environment variable (to `1` or `true`) to disable all of Rover's auto-updating at once — both this self-update check and the `supergraph`/`router` plugin auto-updates (`--skip-update`).
+          Set the `APOLLO_ROVER_SKIP_UPDATE` environment variable (to `1` or `true`) to disable all of Rover's auto-updating at once — both this self-update check and the plugin auto-updates (`--skip-update`).
 
       --no-config-notices
           Suppress the notices Rover prints when a profile or the project file overrides a network destination, or when an environment variable overrides a value an explicitly selected profile or the project file also set.
@@ -214,7 +214,7 @@ Options:
           [env: APOLLO_OAUTH_AUTHORIZATION_URL=]
 
       --oauth-token-url <TOKEN_URL>
-          Override the OAuth token endpoint `rover auth login` uses
+          Override the OAuth token endpoint `rover auth login` and the client-credentials exchange (`APOLLO_CLIENT_ID`/`APOLLO_CLIENT_SECRET`) use
 
           [env: APOLLO_OAUTH_TOKEN_URL=]
 
