@@ -285,6 +285,17 @@ impl Profile {
         Ok(())
     }
 
+    /// Removes the profile's credential and nothing else, so that the settings stored with
+    /// `rover config set` outlive a logout (spec FR36). A profile left with no settings has
+    /// nothing worth keeping, and is deleted outright, as it always was.
+    pub fn delete_credential(&self) -> Result<(), HoustonProblem> {
+        delete_credential(&self.name, &self.config)?;
+        if self.settings()?.is_empty() {
+            self.delete()?;
+        }
+        Ok(())
+    }
+
     /// Lists profiles based on directories in `$APOLLO_CONFIG_HOME/profiles`
     pub fn list(config: &Config) -> Result<Vec<String>, HoustonProblem> {
         let profiles_dir = Profile::base_dir(config);
@@ -571,6 +582,39 @@ mod tests {
         profile.set_api_key("profile-key").unwrap();
 
         assert_that!(profile.oauth_grant_type()).is_ok().is_none();
+    }
+
+    // FR36: removing a credential leaves the profile's settings alone.
+    #[rstest]
+    #[serial]
+    fn delete_credential_keeps_the_settings(test_config: (Config, TempDir)) {
+        let (config, _tmp_home) = test_config;
+        let profile = Profile::new("keeps-settings", &config);
+        profile.set_api_key("profile-key").unwrap();
+        profile
+            .set_setting("APOLLO_REGISTRY_URL", "https://registry.example.com")
+            .unwrap();
+
+        profile.delete_credential().unwrap();
+
+        assert_that!(profile.get_setting("APOLLO_REGISTRY_URL"))
+            .is_ok_containing(Some("https://registry.example.com".to_string()));
+        assert_that!(profile.get_credential())
+            .is_err()
+            .matches(|e| matches!(e, HoustonProblem::NoCredential(_)));
+    }
+
+    // A profile with nothing left in it isn't kept as an empty husk in `list`.
+    #[rstest]
+    #[serial]
+    fn delete_credential_removes_a_profile_with_no_settings(test_config: (Config, TempDir)) {
+        let (config, _tmp_home) = test_config;
+        let profile = Profile::new("nothing-left", &config);
+        profile.set_api_key("profile-key").unwrap();
+
+        profile.delete_credential().unwrap();
+
+        assert_that!(Profile::list(&config)).is_ok().is_empty();
     }
 
     // FR37: a known profile (it has stored settings) with no credential of

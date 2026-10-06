@@ -138,7 +138,7 @@ async fn e2e_test_rover_auth_login_then_logout_happy_path() {
 
     let stderr = login_child.stderr.take().expect("stderr was not piped");
     let mut reader = BufReader::new(stderr);
-    let auth_url_pattern = Regex::new(r"visit this URL: (\S+)").unwrap();
+    let auth_url_pattern = Regex::new(r"Visit this URL to authenticate: (\S+)").unwrap();
     let open_url_line = read_until_matching(&mut reader, &auth_url_pattern);
     let auth_url_str = auth_url_pattern
         .captures(&open_url_line)
@@ -192,8 +192,8 @@ async fn e2e_test_rover_auth_login_then_logout_happy_path() {
         .stdout(predicate::str::contains("Successfully logged out"));
 
     // A second logout on the same profile should now fail - proving the
-    // credential (and the whole profile, per `Profile::delete`'s semantics)
-    // is actually gone, not just that the first logout command exited 0.
+    // credential (and, since it had no settings, the whole profile - see
+    // `Profile::delete_credential`) is actually gone, not just that the first logout command exited 0.
     // This was the only profile in this config home, so with none left at
     // all the error is `NoConfigProfiles`, not the "isn't logged in"
     // message (which only applies when a profile exists but isn't an OAuth

@@ -119,7 +119,8 @@ impl Logout {
             }
         }
 
-        Profile::new(profile_name, config).delete()?;
+        // Only the credential: settings stored on the profile are not part of being logged in.
+        Profile::new(profile_name, config).delete_credential()?;
 
         Ok(RoverOutput::MessageResponse {
             msg: format!("Successfully logged out of profile \"{profile_name}\"."),
@@ -229,6 +230,55 @@ mod tests {
             .get_oauth_session()
             .expect_err("expected the profile to be fully deleted");
         assert_that!(error).matches(|e| matches!(e, HoustonProblem::ProfileNotFound(_)));
+    }
+
+    // FR36: logging out changes the credential only. A setting stored with `rover config set`
+    // is not part of being logged in, and survives it.
+    #[tokio::test]
+    #[serial]
+    async fn revoke_and_delete_keeps_the_settings_stored_on_the_profile() {
+        let (config, _tmp_home) = test_config();
+        let profile_name = "revoke-and-delete-settings";
+        let profile = Profile::new(profile_name, &config);
+        profile
+            .set_oauth_tokens(
+                "access-token".to_string(),
+                Some("refresh-token".to_string()),
+                None,
+                OauthGrantType::AuthorizationCode,
+            )
+            .unwrap();
+        profile
+            .set_setting("APOLLO_REGISTRY_URL", "https://registry.example.com")
+            .unwrap();
+        let session = OAuthSession {
+            access_token: "access-token".to_string(),
+            refresh_token: Some("refresh-token".to_string()),
+        };
+
+        let mut http_service = MockHttpService::new();
+        expect_poll_ready!(http_service, 2);
+        http_service
+            .expect_call()
+            .times(2)
+            .returning(|_| futures::future::ready(Ok(empty_200())));
+        let revoke: RevokeTokenService<_> = RevokeToken::new(MockCloneService::new(http_service));
+
+        let result = Logout::revoke_and_delete(
+            profile_name,
+            &config,
+            &OauthConfig::default(),
+            &session,
+            revoke,
+        )
+        .await;
+
+        assert_that!(result).is_ok();
+        assert_that!(profile.get_setting("APOLLO_REGISTRY_URL"))
+            .is_ok_containing(Some("https://registry.example.com".to_string()));
+        assert_that!(profile.get_oauth_session())
+            .is_err()
+            .matches(|e| matches!(e, HoustonProblem::NoCredential(_)));
     }
 
     #[tokio::test]
