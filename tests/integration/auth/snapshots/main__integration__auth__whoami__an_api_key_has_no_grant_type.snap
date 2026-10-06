@@ -11,7 +11,7 @@ expression: "run_whoami(&server, command)"
     "user_id": "a-user-id",
     "origin": "$APOLLO_KEY",
     "grant_type": null,
-    "api_key": "an-a*****-key",
+    "api_key": "an-a********-key",
     "success": true
   },
   "error": null

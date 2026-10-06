@@ -69,7 +69,7 @@ fn client_credentials_are_exchanged_and_used_as_the_api_key() {
         ))
         .is_true();
 
-    // The snapshot pins the masked `api_key` to "exch**************oken" - proof
+    // The snapshot pins the masked `api_key` to "exch********oken" - proof
     // the *exchanged token*, not the client secret, became the credential - and
     // `origin` to "$APOLLO_CLIENT_ID", distinguishing it from a literal `APOLLO_KEY`
     // (see `CredentialOrigin::OauthClientCredentials`).
