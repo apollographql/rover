@@ -117,7 +117,7 @@ Find more about proxy server usage with Rover [here](./proxy)
 
 ## Introspection
 
-In the Apollo CLI, introspection of running services happens behind the scenes when you pass an `--endpoint` option to commands like `service:push`, `service:check`, and `service:download`. In Rover, you instead run the `graph introspect` command and pipe its result to the similar `graph/subgraph push` and `graph/subgraph check` commands.
+In the Apollo CLI, introspection of running services happens behind the scenes when you pass an `--endpoint` option to commands like `service:push`, `service:check`, and `service:download`. In Rover, you instead run the `graph introspect` command and pipe its result to the similar `graph/subgraph publish` and `graph/subgraph check` commands.
 
 This separation of steps makes Rover's use of introspection more flexible and transparent. In addition, separating introspection into its own step makes it more debuggable if you run into errors.
 
@@ -135,9 +135,9 @@ For more information on the differences between `graph`s, `subgraph`s, and `supe
 
 ### Globs
 
-The Apollo CLI uses globs extensively to support using multiple local files, and even automatic discovery of files in a directory tree. While this was helpful in certain cases, the globbing strategy in the Apollo CLI caused many issues. Rover intentionally leaves globs off of file specifiers for initial release.
+The Apollo CLI uses globs extensively to support using multiple local files, and even automatic discovery of files in a directory tree. While this was helpful in certain cases, the globbing strategy in the Apollo CLI caused many issues. Rover doesn't accept globs for schema files. Only `rover client check --include` and `--exclude`, and the similar options of `rover client extract` and `rover persisted-queries generate`, take glob patterns.
 
-As a workaround, you might be able to use `cat` to combine multiple files and pass them to Rover with [stdin](./conventions#io). See [this example](#pushing-subgraph-changes-with-a-config-file).
+For schema files, as a workaround, you might be able to use `cat` to combine multiple files and pass them to Rover with [stdin](./conventions#io). See [this example](#pushing-subgraph-changes-with-a-config-file).
 
 ### Machine-readable output
 
