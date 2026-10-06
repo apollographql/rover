@@ -273,7 +273,7 @@ A `rover.yaml` in your project, or the global one, can [declare](/rover/commands
 
 For each of these, the flag takes precedence over its environment variable.
 
-To make sure `rover dev` never downloads a plugin, whatever `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` is set to, pass `--skip-update` or set `APOLLO_ROVER_SKIP_UPDATE` to `1` or `true`. `rover dev` then uses the newest installed release that matches each version, and fails with [`E058`](/rover/errors#e058) if none is installed.
+To make sure `rover dev` never downloads a plugin, set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD=false`, pass `--skip-update`, or set `APOLLO_ROVER_SKIP_UPDATE` to `1` or `true`. `rover dev` then uses the newest installed release that matches each version, and fails with [`E058`](/rover/errors#e058) if none is installed.
 
 # Run your MCP server
 
