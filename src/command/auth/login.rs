@@ -117,10 +117,12 @@ impl Login {
         let stderr = rover_print::print::stderr::default();
 
         let tokens: OauthTokens = if self.no_browser {
+            let verification_url = device_verification_url(&oauth_config.device_authorization_url);
             let device_flow = DeviceAuthorizationFlow::builder()
                 .client_id(oauth_config.client_id)
                 .device_authorization_url(oauth_config.device_authorization_url)
                 .token_url(oauth_config.token_url)
+                .verification_url(verification_url)
                 .build();
             let device_code_service = ServiceBuilder::new()
                 .layer(RetryLayer::new(RetryPolicy::new(DEVICE_CODE_RETRY_PERIOD)))
@@ -129,7 +131,7 @@ impl Login {
             let device_flow = device_flow
                 .request_device_code(Vec::new(), device_code_service, &stderr)
                 .await
-                .map_err(|e| anyhow::anyhow!("failed to request a device code: {e}"))?;
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
 
             let token_poll_service = ServiceBuilder::new()
                 .layer(TimeoutLayer::new(TOKEN_POLL_ATTEMPT_TIMEOUT))
@@ -137,7 +139,7 @@ impl Login {
             device_flow
                 .poll_for_token(token_poll_service, None)
                 .await
-                .map_err(|e| anyhow::anyhow!("failed to obtain an access token: {e}"))?
+                .map_err(|e| anyhow::anyhow!("{e}"))?
         } else {
             let browser_opener = if self.no_open {
                 BrowserOpener::Noop(NoopOpenUrl::default())
@@ -205,11 +207,46 @@ const fn login_grant_type(no_browser: bool) -> OauthGrantType {
 // `login.rs` has no tests either; only the lower-level OAuth mechanics it
 // calls into are tested, which `rover-auth`'s own test suite already covers
 // exhaustively). What's tested here is the pure logic this file adds on top.
+/// The page where the user enters a device code: `/device` on the OAuth
+/// server's own host, e.g. `https://auth.apollographql.com/device`. Used in
+/// place of the server's `verification_uri`, which names a Studio page that
+/// doesn't take the code. Deriving it from the device authorization URL keeps
+/// it pointing at whichever Identity environment that URL names.
+fn device_verification_url(device_authorization_url: &Url) -> Url {
+    let mut url = device_authorization_url.clone();
+    url.set_path("/device");
+    url.set_query(None);
+    url.set_fragment(None);
+    url
+}
+
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
     use speculoos::prelude::*;
 
     use super::*;
+
+    #[rstest]
+    #[case::production(
+        "https://auth.apollographql.com/oauth2/device_authorization",
+        "https://auth.apollographql.com/device"
+    )]
+    #[case::staging(
+        "https://auth.staging.apollographql.com/oauth2/device_authorization",
+        "https://auth.staging.apollographql.com/device"
+    )]
+    #[case::with_a_port_and_query(
+        "http://localhost:8080/oauth2/device_authorization?x=1",
+        "http://localhost:8080/device"
+    )]
+    fn the_verification_url_is_device_on_the_oauth_host(
+        #[case] device_authorization_url: &str,
+        #[case] expected: &str,
+    ) {
+        let url = Url::parse(device_authorization_url).unwrap();
+        assert_that!(device_verification_url(&url).as_str()).is_equal_to(expected);
+    }
 
     #[test]
     fn expires_at_is_none_when_the_server_did_not_report_a_lifetime() {
