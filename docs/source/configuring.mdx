@@ -157,13 +157,13 @@ settings:
 Rover finds the file by looking for a `.rover/` directory in the current directory and then in each parent directory, stopping at your home directory, so it applies to commands run anywhere in the project. `rover plugin install --manifest-path <FILE>` uses the settings in the file it names instead. A setting in the file applies to everyone who runs Rover there, unless a flag, an environment variable, or a profile they name with `--profile` overrides it. See [How Rover chooses a setting's value](#how-rover-chooses-a-settings-value).
 
 - **Names.** A key is a setting's environment variable name, such as `APOLLO_REGISTRY_URL`, or that name in all lowercase, such as `apollo_registry_url`. The lowercase spelling is accepted in `rover.yaml` only. Using both spellings of the same setting in one file is an error (`E061`).
-- **Values.** A value has the setting's type: a URL, a whole number of seconds, a graph ref, or `true`/`false`. A URL must use `http` or `https`. A stored boolean is a real `true` or `false`. See [Boolean values](#boolean-values). An invalid URL, number, or boolean fails every command run in the project, including `rover config list`, with an error naming the file and the key:
+- **Values.** A value has the setting's type: a URL, a whole number of seconds, a graph ref, or `true`/`false`. A URL must use `http` or `https`. A stored boolean is a real `true` or `false`. For details, see [Boolean values](#boolean-values). An invalid URL or boolean, or an invalid `APOLLO_CLIENT_TIMEOUT`, fails every command run in the project, including `rover config list`, with an error naming the file and the key:
 
   ```
   error[E054]: `rover.yaml` sets `APOLLO_REGISTRY_URL` to `ftp://registry.example.com`, which isn't a valid URL. Rover only accepts `http`/`https` URLs for this setting.
   ```
 
-  An invalid graph ref fails the commands that read `APOLLO_GRAPH_REF`, such as `rover config show`, with the same error code. `rover config set` checks a graph ref before it stores one.
+  An invalid `APOLLO_CHECKS_TIMEOUT_SECONDS` fails the commands that read it, such as `rover config show` and the check commands, with the same error code. An invalid graph ref fails every command run in the project, including `rover config list`, with the same error code, and so does an invalid `APOLLO_GRAPH_REF` in the environment or a profile. `rover config set` checks a graph ref before it stores one.
 - **Which settings.** Only settings marked in the **Project** column of the [environment variables table](#variables) can be set here. Rover warns about any other key and ignores it, so a file written for a newer version of Rover doesn't break an older one.
 - **No credentials.** The file is meant to be committed, so Rover refuses to read a credential from it. `APOLLO_KEY`, `APOLLO_CLIENT_ID`, or `APOLLO_CLIENT_SECRET` under `settings:` fails every command in the project (`E060`). Set your credential in the environment or in a profile instead; see [Choosing a credential](#choosing-a-credential).
 - **Project only.** A `settings:` section in your user-level `rover.yaml` (`~/.rover/rover.yaml`, or `.rover/rover.yaml` under `APOLLO_HOME` if you've set it) is ignored with a warning. To store settings for yourself rather than for a project, use a [profile](#settings-in-a-profile).
@@ -204,7 +204,7 @@ Rover supports the following levels of logging, in descending order of severity:
 * `debug`
 * `trace`
 
-By default, Rover logs `error`, `warn`, and `info` messages. You can configure this behavior for a command by setting its minimum log level with the `--log` flag:
+By default, Rover doesn't log anything. To see log messages for a command, set your minimum log level with the `--log` flag (or the `APOLLO_LOG_LEVEL` environment variable):
 
 ```
 rover graph check my-graph@prod --schema ./schema.graphql --log debug
@@ -226,9 +226,7 @@ Every Rover command supports two options for configuring its output behavior:
 
 <Note>
 
-The `--format` option was added in Rover `v0.11.0`. Earlier versions of Rover use the `--output` option to set output format.
-
-Current versions of Rover still support using `--output` this way, but that support is deprecated and will be removed in a future release.
+The `--format` option was added in Rover v0.11.0. Earlier versions of Rover use the `--output` option to set output format. Rover 1.0 no longer supports that use: `--output json` writes the command's output to a file named `json`.
 
 </Note>
 
@@ -398,9 +396,7 @@ If the specified file already exists, Rover overwrites it.
 
 <Note>
 
-This functionality is available in Rover `v0.11.0` and later. In earlier versions of Rover, the `--output` option instead provides the functionality that's now provided by the [`--format` option](#json-output).
-
-Current versions of Rover still support using `--output` like `--format`, but that support is deprecated and will be removed in a future release.
+This functionality is available in Rover v0.11.0 and later. In earlier versions of Rover, the `--output` option instead provides the functionality that's now provided by the [`--format` option](#json-output). Rover 1.0 no longer supports using `--output` like `--format`.
 
 </Note>
 
@@ -484,7 +480,7 @@ You can configure most of Rover's behavior with an environment variable, and mos
 For each setting, Rover uses the first of these sources that supplies a value:
 
 1. A flag passed on the command line.
-2. The setting's environment variable. A variable that's set to an empty value still counts as set, except `APOLLO_HOME`: an empty `APOLLO_HOME` or `--rover-home ""` is treated as unset.
+2. The setting's environment variable. A variable that's set to an empty value still counts as set, except `APOLLO_HOME`, where an empty `APOLLO_HOME` or `--rover-home ""` is treated as unset, and `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` (for details, see [Boolean values](#boolean-values)).
 3. A profile named with `--profile`, including `--profile default` typed out.
 4. The project file: the `settings:` section of `rover.yaml` in your project's `.rover/` directory.
 5. The `default` profile, when `--profile` isn't passed.
@@ -504,6 +500,8 @@ A boolean environment variable is set by `1` or `true` (case-insensitive) and un
 
 - `APOLLO_TELEMETRY_DISABLED` disables telemetry when it's set to any value, including `false` or an empty value. Only leaving it unset keeps telemetry enabled.
 - `NO_COLOR` and `APOLLO_NO_COLOR` follow the cross-tool `NO_COLOR` convention: an empty value, `0`, and `false` count as unset, and anything else turns color off.
+
+`APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` has three states rather than two. `1` or `true` turns automatic downloads on, and `0` or `false` turns them off. Rover ignores any other value, such as `no`, `yes`, or an empty value, as if the variable were unset, so a profile, the project file, or the built-in default decides.
 
 A boolean stored in a profile or the project file is always a real `true` or `false`, whatever its environment variable's rule. So `APOLLO_TELEMETRY_DISABLED: false` in a profile or project file keeps telemetry enabled, even though `APOLLO_TELEMETRY_DISABLED=false` in the environment disables it.
 

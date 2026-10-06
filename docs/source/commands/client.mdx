@@ -87,13 +87,18 @@ Validated 3 operations (5 files scanned)
 
 ```json
 {
-  "client_check": {
-    "graph_ref": "my-graph@current",
-    "files_scanned": 5,
-    "operations_sent": 3,
-    "failures": [],
-    "validation_results": []
-  }
+  "json_version": "1",
+  "data": {
+    "client_check": {
+        "graph_ref": "my-graph@current",
+        "files_scanned": 5,
+        "operations_sent": 3,
+        "failures": [],
+        "validation_results": []
+    },
+    "success": true
+  },
+  "error": null
 }
 ```
 
@@ -126,23 +131,28 @@ GetUser: src/queries/user.graphql:4:1
 
 ```json
 {
-  "client_check": {
-    "graph_ref": "my-graph@current",
-    "files_scanned": 5,
-    "operations_sent": 3,
-    "failures": [],
-    "validation_results": [
-      {
-        "operation_name": "GetUser",
-        "type": "FAILURE",
-        "code": "FIELD_REMOVED",
-        "description": "Field \"legacyId\" was removed from type \"User\".",
-        "file": "src/queries/user.graphql",
-        "line": 4,
-        "column": 1
-      }
-    ]
-  }
+  "json_version": "1",
+  "data": {
+    "client_check": {
+        "graph_ref": "my-graph@current",
+        "files_scanned": 5,
+        "operations_sent": 3,
+        "failures": [],
+        "validation_results": [
+          {
+            "operation_name": "GetUser",
+            "type": "FAILURE",
+            "code": "INVALID_OPERATION",
+            "description": "Field \"legacyId\" was removed from type \"User\".",
+            "file": "src/queries/user.graphql",
+            "line": 4,
+            "column": 1
+          }
+        ]
+    },
+    "success": true
+  },
+  "error": null
 }
 ```
 
@@ -152,17 +162,18 @@ GetUser: src/queries/user.graphql:4:1
 
 #### Parse errors
 
-Files containing anonymous operations or invalid GraphQL syntax produce local parse errors. These are listed separately from schema validation results and always cause a non-zero exit.
+A file that contains an anonymous operation or invalid GraphQL syntax stops the command before any operation is validated, and the command exits non-zero:
 
 ```bash
 rover client check my-graph@current --include "src/**/*.graphql"
 ```
 
 ```
-Validated 2 operations (4 files scanned)
-Local parse errors:
-  src/queries/draft.graphql: Operation must have a name
+error: Failed to parse 1 .graphql file(s):
+/path/to/src/queries/draft.graphql: anonymous operations are not supported; all operations must have a name
 ```
+
+The `failures` list in the output is only for schema extensions that are incompatible with the graph's schema.
 
 ---
 
@@ -303,36 +314,41 @@ Wrote 7 documents to /path/to/graphql
 
 ```json
 {
-  "client_extract": {
-    "out_dir": "/path/to/graphql",
-    "source_files_processed": 12,
-    "source_files_with_graphql": 4,
-    "documents_extracted": 7,
-    "documents_skipped": 0,
-    "files": [
-      {
-        "source": "src/components/UserCard.ts",
-        "target": "graphql/src/components/UserCard.graphql",
-        "documents": 2
-      },
-      {
-        "source": "src/queries/user.ts",
-        "target": "graphql/src/queries/user.graphql",
-        "documents": 3
-      },
-      {
-        "source": "src/mutations/createPost.ts",
-        "target": "graphql/src/mutations/createPost.graphql",
-        "documents": 1
-      },
-      {
-        "source": "src/fragments/userFields.ts",
-        "target": "graphql/src/fragments/userFields.graphql",
-        "documents": 1
-      }
-    ],
-    "skipped": []
-  }
+  "json_version": "1",
+  "data": {
+    "client_extract": {
+        "out_dir": "/path/to/graphql",
+        "source_files_processed": 12,
+        "source_files_with_graphql": 4,
+        "documents_extracted": 7,
+        "documents_skipped": 0,
+        "files": [
+          {
+            "source": "/path/to/src/components/UserCard.ts",
+            "target": "/path/to/graphql/src/components/UserCard.graphql",
+            "documents": 2
+          },
+          {
+            "source": "/path/to/src/queries/user.ts",
+            "target": "/path/to/graphql/src/queries/user.graphql",
+            "documents": 3
+          },
+          {
+            "source": "/path/to/src/mutations/createPost.ts",
+            "target": "/path/to/graphql/src/mutations/createPost.graphql",
+            "documents": 1
+          },
+          {
+            "source": "/path/to/src/fragments/userFields.ts",
+            "target": "/path/to/graphql/src/fragments/userFields.graphql",
+            "documents": 1
+          }
+        ],
+        "skipped": []
+    },
+    "success": true
+  },
+  "error": null
 }
 ```
 
@@ -396,27 +412,32 @@ Skipped documents:
 
 ```json
 {
-  "client_extract": {
-    "out_dir": "/path/to/graphql",
-    "source_files_processed": 12,
-    "source_files_with_graphql": 4,
-    "documents_extracted": 6,
-    "documents_skipped": 1,
-    "files": [
-      {
-        "source": "src/components/UserCard.ts",
-        "target": "graphql/src/components/UserCard.graphql",
-        "documents": 2
-      }
-    ],
-    "skipped": [
-      {
-        "source": "/path/to/src/DynamicQuery.ts",
-        "line": 14,
-        "reason": "contains a template interpolation (${...}); only static strings can be extracted"
-      }
-    ]
-  }
+  "json_version": "1",
+  "data": {
+    "client_extract": {
+        "out_dir": "/path/to/graphql",
+        "source_files_processed": 12,
+        "source_files_with_graphql": 4,
+        "documents_extracted": 6,
+        "documents_skipped": 1,
+        "files": [
+          {
+            "source": "/path/to/src/components/UserCard.ts",
+            "target": "/path/to/graphql/src/components/UserCard.graphql",
+            "documents": 2
+          }
+        ],
+        "skipped": [
+          {
+            "source": "/path/to/src/DynamicQuery.ts",
+            "line": 14,
+            "reason": "contains a template interpolation (${...}); only static strings can be extracted"
+          }
+        ]
+    },
+    "success": true
+  },
+  "error": null
 }
 ```
 

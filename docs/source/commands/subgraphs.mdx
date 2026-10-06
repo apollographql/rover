@@ -329,6 +329,18 @@ Only take effect with `--check`. The minimum number of executions, or minimum pe
 <tr>
 <td>
 
+###### `--include-contract-checks`
+
+</td>
+<td>
+
+With `--check`, also fail the check when a blocking contract variant's own check has failed, as for [`subgraph check`](#subgraph-check). Also fails the publish, with error [`E047`](/rover/errors#e047), when a downstream contract-variant launch fails. Without it, a failed downstream launch only prints a warning. See [Waiting for launches](#waiting-for-launches).
+
+</td>
+</tr>
+<tr>
+<td>
+
 ###### `--changelog-message`
 
 </td>
@@ -373,13 +385,21 @@ rover subgraph publish my-graph@current --schema ./schema.graphql --name account
   --routing-url "https://my-running-subgraph.com/api" --check
 ```
 
-If all checks pass, Rover publishes the subgraph schema and then waits for the launches it triggers. For details, see [Waiting for launches](#waiting-for-launches). If any check fails, Rover prints the check output and exits without publishing.
+If all checks pass, Rover publishes the subgraph schema and then waits for the launches it triggers. For details, see [Waiting for launches](#waiting-for-launches). If any check fails, Rover prints the check output and exits without publishing. A failed check fails with error [`E043`](/rover/errors#e043), as it does for [`subgraph check`](#subgraph-check), with the message `Schema checks must pass before publishing. Fix the check failures above and try again.` With `--format json`, `data` is the check result, in the same shape as `subgraph check`'s, and `json_version` is `"3"`.
+
+`--include-contract-checks` applies to the check that `--check` runs, as it does for [`subgraph check`](#subgraph-check), and also to the [launches the publish waits for](#waiting-for-launches).
+
+`--background` doesn't apply to a publish, because `--check` always waits for the check: the check decides whether the publish happens. `subgraph publish` accepts `--background` for compatibility with earlier versions of Rover, ignores it, and warns:
+
+```
+Warning: `--background` has moved to `rover subgraph check --background`, and will be removed from `rover subgraph publish` in a future version. It has no effect here: `publish --check` always waits for the check, because the check decides whether the publish happens.
+```
 
 For details on configuring checks (time range, operation thresholds, linting rules), see the [`subgraph check`](#subgraph-check) section.
 
 #### Waiting for launches
 
-When a publish changes the supergraph schema, it triggers a launch on the variant, and the launch can trigger launches on downstream [contract variants](/graphos/delivery/contracts/). Rover waits for the triggered launch and every downstream contract-variant launch to finish before it exits. The wait is bounded by `--checks-timeout` (or the `APOLLO_CHECKS_TIMEOUT_SECONDS` environment variable), which defaults to 300 seconds. If the wait times out, the schema is already published and the launch may still finish in GraphOS.
+When a publish changes the supergraph schema, it triggers a launch on the variant, and the launch can trigger launches on downstream [contract variants](/graphos/delivery/contracts/). Rover waits for the triggered launch and every downstream contract-variant launch to finish before it exits. The wait is bounded by `--checks-timeout` (or the `APOLLO_CHECKS_TIMEOUT_SECONDS` environment variable), which defaults to 300 seconds. With `--check`, the check and the launch each get their own wait. If the launch wait times out, Rover fails with error [`E065`](/rover/errors#e065). The schema is already published and the launch may still finish in GraphOS. With `--format json`, `data` still includes the publish response, with `launch_status` `null`, because Rover stopped waiting before it learned the outcome.
 
 If the publish triggered downstream launches, Rover reports them on `stderr`:
 
@@ -388,7 +408,16 @@ Triggered downstream launches for 2 contract variants: mobile, partner-api.
 View launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-1
 ```
 
-If the triggered launch or any downstream launch fails, Rover reports which one failed and exits with error [`E047`](/rover/errors#e047):
+If a downstream contract-variant launch fails, Rover prints a warning and exits successfully:
+
+```
+Warning: The publish succeeded, but a downstream contract launch failed: mobile. Pass --include-contract-checks to make this fail the command.
+View launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-2
+```
+
+With `--format json`, the failed launch's `status` is `FAILED` in `downstream_launches`, and `error` is `null`.
+
+If the variant's own launch fails, or a downstream launch fails and you passed `--include-contract-checks`, Rover reports which one failed and exits with error [`E047`](/rover/errors#e047):
 
 ```
 The publish succeeded, but the launch itself failed.
@@ -537,6 +566,18 @@ To override the default check configuration for a single check run, see the [val
 
 </td>
 </tr>
+<tr>
+<td>
+
+###### `--include-contract-checks`
+
+</td>
+<td>
+
+**Optional.** Also fail the check when a blocking contract variant's own check has failed, even if the overall GraphOS result for the check says it passed. Without it, the command passes or fails with the overall GraphOS result. See [Check output](#check-output).
+
+</td>
+</tr>
 </tbody>
 </table>
 
@@ -602,7 +643,7 @@ The summary line is one of:
 - `Checked N contract variants, all passed.`
 - `Checked N contract variants.` (when not every contract variant passed)
 
-A contract variant can be configured to block its source variant's checks. If a blocking contract variant's check fails, the summary names it and `subgraph check` fails with error [`E043`](/rover/errors#e043):
+A contract variant can be configured to block its source variant's checks. If a blocking contract variant's check fails, the summary names it. By default, `subgraph check` passes or fails with the overall GraphOS result for the check, and fails with error [`E043`](/rover/errors#e043) when that result is a failure. Pass `--include-contract-checks` to fail with `E043` whenever a blocking contract variant's own check has failed, even if the overall GraphOS result says the check passed:
 
 ```
 Downstream Check [FAILED]:
@@ -611,6 +652,8 @@ View downstream check details at: https://studio.apollographql.com/graph/my-grap
 ```
 
 A failed check on a non-blocking contract variant appears in the output but doesn't fail the command.
+
+Without `--include-contract-checks`, a blocking contract variant's failed check can appear under a passing `Downstream Check [PASSED]:` heading, when the overall GraphOS result is a pass. The command then exits successfully.
 
 With `--format json`, check output uses `json_version` `"3"`. The `downstream` task lists each contract variant in `variants`, with `graph_id`, `variant_name`, `blocking`, `fails_upstream_workflow`, and `status`:
 

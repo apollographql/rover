@@ -25,7 +25,7 @@ The wizard walks you through a set of questions to help you choose the best opti
 
 #### Providing a personal API key
 
-`rover init` creates the graph using a personal API key. If Rover finds no credential for the profile, it asks you for one before the wizard starts:
+`rover init` creates the graph as you, so it needs a credential that belongs to a person: a personal API key, or a login with [`rover auth login`](/rover/commands/auth). If Rover finds no credential for your profile, it asks you for a personal API key before the wizard starts:
 
 ```terminal showLineNumbers=false
 No credentials found. Please go to https://go.apollo.dev/r/init and create a new Personal API key.
@@ -33,14 +33,21 @@ No credentials found. Please go to https://go.apollo.dev/r/init and create a new
 Copy the key and paste it into the prompt below.
 ```
 
-Rover checks the pasted key before saving it to the profile, then prints `Successfully saved your API key.` It rejects a key that isn't shaped like an API key:
+Rover saves the pasted key to your profile, checks it with GraphOS, then prints `Successfully saved your API key.` It rejects a key that isn't shaped like an API key:
 
 ```terminal showLineNumbers=false
 error: Invalid API key format
         Please get a valid key from https://go.apollo.dev/r/init and re-run `rover init`.
 ```
 
-It also rejects a graph API key, or any other key that isn't a personal API key, with `error: Invalid API key found`. The same error appears if the profile's existing credential, or `APOLLO_KEY`, is a graph API key. Rover then suggests unsetting `APOLLO_KEY` and running `rover init` again.
+It also rejects a graph API key, or any other key that isn't a personal API key, with `error: Invalid API key found`. The same error appears if the profile's existing credential, or `APOLLO_KEY`, is a graph API key. Rover then suggests unsetting `APOLLO_KEY` and running `rover init` again. If GraphOS refuses a pasted key, Rover removes it from the profile again and fails with `error: Invalid API key found`, so the key isn't left stored for later commands.
+
+Without a terminal to ask on, for example in CI or with input piped in, `rover init` can't prompt for a key and fails:
+
+```terminal showLineNumbers=false
+error: No credentials found, and `rover init` has no terminal to ask for one on
+        Run `rover auth login` to log in, or set the `APOLLO_KEY` environment variable to a Personal API Key, then run `rover init` again.
+```
 
 #### Options
 

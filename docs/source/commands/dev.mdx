@@ -175,7 +175,7 @@ rover dev \
   --supergraph-config federation_override.yaml
 ```
 
-You can also override a variant's federation version by passing the `--federation-version` option. This argument accepts fully qualified [federation versions](https://github.com/apollographql/federation/releases), prefixed with an equals sign (`=`), for example '=2.9.3'. Alternatively, you can use `2` (without an equals sign) for the latest release of Federation 2.
+Override a variant's federation version by passing the `--federation-version` option. This argument accepts fully qualified [federation versions](https://github.com/apollographql/federation/releases), prefixed with an equals sign (`=`), for example '=2.9.3' or '=3.0.0-preview.1'. Alternatively, use `2` or `3` (without an equals sign) for the latest release of Federation 2 or Federation 3. Rover refuses a Federation 1 version with [`E064`](/rover/errors#e064).
 
 ```bash showLineNumbers=false
 rover dev \
@@ -226,7 +226,7 @@ This means you should:
 
 ## Federation 2 ELv2 license
 
-The first time you use Federation 2 composition on a particular machine, Rover prompts you to accept the terms and conditions of the [ELv2 license](/resources/elastic-license-v2-faq/). On future invocations, Rover remembers that you already accepted the license and doesn't prompt you again (even if you update Rover).
+The first time you use Federation 2 (or Federation 3) composition on a particular machine, Rover prompts you to accept the terms and conditions of the [ELv2 license](/resources/elastic-license-v2-faq/). On future invocations, Rover remembers that you already accepted the license and doesn't prompt you again (even if you update Rover).
 
 ## Plugins
 
@@ -262,7 +262,13 @@ By default, `rover dev` uses these plugin versions:
 A `rover.yaml` in your project, or the global one, can [declare](/rover/commands/plugin#declaring-plugins-in-roveryaml) the `router` and `apollo-mcp-server` versions too. You can override any of these versions for one session:
 
 - Router: Use the `--router-version` flag or set the `APOLLO_ROVER_DEV_ROUTER_VERSION` environment variable. Both take an exact version without the `=` prefix (e.g., `--router-version 2.17.0`).
-- Composition: Use the `--federation-version` flag, or the `--composition-version` flag or `APOLLO_ROVER_DEV_COMPOSITION_VERSION` environment variable (e.g., `--federation-version '=2.9.3'` or `APOLLO_ROVER_DEV_COMPOSITION_VERSION=2.9.3`). `--federation-version` takes the `supergraph.yaml` spelling, so an exact version needs the `=` prefix. `--composition-version` and its environment variable take an exact version without the prefix. `--federation-version` takes precedence over both.
+- Composition: Use the `--federation-version` flag, or the `--composition-version` flag or `APOLLO_ROVER_DEV_COMPOSITION_VERSION` environment variable (e.g., `--federation-version '=2.9.3'` or `APOLLO_ROVER_DEV_COMPOSITION_VERSION=2.9.3`). `--federation-version` takes the `supergraph.yaml` spelling, so an exact version needs the `=` prefix. `--composition-version` and its environment variable take an exact version without the prefix. An invalid value, such as `=2.9.3` or `2`, stops `rover dev` before it starts:
+
+  ```text
+  `=2.9.3` is not a supported composition version. Use an exact version, such as `2.9.0`, with no leading `=`
+  ```
+
+  `--federation-version` takes precedence over both.
 - MCP Server: Use the `--mcp-version` flag or set the `APOLLO_ROVER_DEV_MCP_VERSION` environment variable. Both take `latest` or an exact version, with or without the `=` prefix (e.g., `--mcp-version 1.0.0` or `APOLLO_ROVER_DEV_MCP_VERSION=1.0.0`).
 
 For each of these, the flag takes precedence over its environment variable.

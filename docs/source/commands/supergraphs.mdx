@@ -163,7 +163,7 @@ For more on passing values via `stdout`, see [Using `stdout`](../conventions#usi
 
 ### Federation 2 ELv2 license
 
-The first time you use Federation 2 composition on a particular machine, Rover prompts you to accept the terms and conditions of the [ELv2 license](https://www.apollographql.com/docs/resources/elastic-license-v2-faq/). On future invocations, Rover remembers that you already accepted the license and doesn't prompt you again (even if you update Rover).
+The first time you use Federation 2 (or Federation 3) composition on a particular machine, Rover prompts you to accept the terms and conditions of the [ELv2 license](https://www.apollographql.com/docs/resources/elastic-license-v2-faq/). On future invocations, Rover remembers that you already accepted the license and doesn't prompt you again (even if you update Rover).
 
 <Note>
 
@@ -215,19 +215,19 @@ When `supergraph.yaml` and `rover.yaml` both set a version and they disagree, Ro
 warning: `supergraph.yaml` sets `federation_version: =2.9.3`, overriding the `supergraph` version declared in `rover.yaml`.
 ```
 
-The command composes with Federation 2, implemented by the [`@apollo/composition`](https://www.npmjs.com/package/@apollo/composition) library.
+The command composes with Federation 2, provided by the [`@apollo/composition`](https://www.npmjs.com/package/@apollo/composition) library, or with Federation 3 when you set a Federation 3 version, such as `federation_version: =3.0.0-preview.1` or `--federation-version 3`. Federation 3 is under the same ELv2 license.
 
 <Note>
 
 - The federation version you specify must not exceed the highest version supported by your router. Make sure to update your router before incrementing your `federation_version`. For details, see this [support table](/router/federation-version-support).
-- Federation 1 is no longer supported. Specifying `1`, `latest-1`, or an exact `=0.x.y` version fails with an error, and an exact `=1.x.y` version isn't accepted as a federation version. To migrate your subgraphs, see [Moving to Federation 2](/federation/federation-2/moving-to-federation-2).
+- Federation 1 is no longer supported. Specifying `1`, `latest-1`, `latest-0`, an exact `=0.x.y` version, or an exact `=1.x.y` version fails with a message that Federation 1 is no longer supported ([`E064`](/rover/errors#e064)). To migrate your subgraphs, see [Moving to Federation 2](/federation/federation-2/moving-to-federation-2).
 - If you don't pin an exact `federation_version`, Rover composes with the newest matching release and warns you. A new federation release can change your supergraph schema without your input, so pin an exact version for anything beyond local prototyping.
 
 </Note>
 
 #### Automatic updates
 
-Unless you've [turned automatic downloads off](/rover/commands/plugin#automatic-downloads), when you don't specify an exact `federation_version`, Rover asks the Apollo plugin registry at `https://rover.apollo.dev` (or the host set by [`APOLLO_ROVER_DOWNLOAD_HOST`](/rover/configuring#supported-environment-variables)) for the latest Federation 2 composition version each time it runs, so a new release is picked up as soon as it is released.
+Unless you've [turned automatic downloads off](/rover/commands/plugin#automatic-downloads), when you don't specify an exact `federation_version`, Rover asks the Apollo plugin registry at `https://rover.apollo.dev` (or the host set by [`APOLLO_ROVER_DOWNLOAD_HOST`](/rover/configuring#supported-environment-variables)) for the latest matching composition version each time it runs, so you pick up a new release as soon as it's available.
 
 With automatic downloads turned off, a floating version such as `2` uses the newest matching release that's already installed.
 

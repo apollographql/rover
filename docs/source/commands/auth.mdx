@@ -16,13 +16,17 @@ The `auth login` command opens your default browser so you can authorize Rover w
 rover auth login
 ```
 
-Rover prints the authorization URL to stderr, whether or not the browser opens:
+Rover opens your browser and prints the authorization URL to stderr, in case the browser doesn't open:
 
 ```
 Opening your browser to authenticate. If it doesn't open automatically, visit this URL: <URL>
 ```
 
-Pass `--no-open` to open the URL yourself.
+Pass `--no-open` to open the URL yourself. Rover then only prints the URL:
+
+```
+Visit this URL to authenticate: <URL>
+```
 
 Once you authorize the request, Rover saves the resulting credential to your `default` profile, or to the profile you name with `--profile`, and prints `Successfully logged in.`
 
@@ -82,7 +86,7 @@ The credential itself is masked. To show it in full, pass `--insecure-unmask-key
 
 ### `auth logout`
 
-The `auth logout` command revokes the current profile's OAuth tokens with GraphOS, then removes them from your machine:
+The `auth logout` command revokes the current profile's OAuth tokens with GraphOS, then removes them from your machine. Settings stored on the profile with [`rover config set`](/rover/commands/config) are kept. A profile left with no settings is removed entirely:
 
 ```
 rover auth logout
@@ -100,9 +104,10 @@ Rover then prints `Successfully logged out of profile "<NAME>".`
 
 ```
 error: profile "<NAME>" isn't logged in via `rover auth login`
+        If you're using a Personal API Key, run `rover config delete <NAME>` instead.
 ```
 
-To remove a personal API key, delete the profile with `rover config delete <NAME>`.
+On a profile that has settings but no credential, it fails with [`E055`](/rover/errors#e055), and with no profile of that name, with [`E021`](/rover/errors#e021).
 
 ## Revoking a user's grants
 
