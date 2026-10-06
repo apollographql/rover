@@ -281,4 +281,49 @@ rover supergraph config expand --config ./supergraph.yaml
 
 Rover prints the configuration with every reference expanded. This is useful for confirming that the correct environment variables and files are picked up before you compose. Pass `-` to `--config` to read the configuration from `stdin` instead of a file.
 
-By default the expanded configuration is printed as YAML. Add `--format json` to receive it under an `expanded_config` field instead.
+By default the expanded configuration is printed as YAML. For example, given this `supergraph.yaml`, with `PRODUCTS_ROUTING_URL` set to `https://products.example.com` and `PRODUCTS_AUTH_TOKEN` unset:
+
+```yaml title="supergraph.yaml"
+federation_version: =2.9.0
+subgraphs:
+  products:
+    routing_url: ${env.PRODUCTS_ROUTING_URL}
+    schema:
+      subgraph_url: ${env.PRODUCTS_ROUTING_URL}
+      introspection_headers:
+        Authorization: ${env.PRODUCTS_AUTH_TOKEN:-default-token}
+  users:
+    routing_url: http://localhost:4002
+    schema:
+      file: ./users.graphql
+```
+
+Rover prints:
+
+```
+federation_version: =2.9.0
+subgraphs:
+  products:
+    routing_url: https://products.example.com
+    schema:
+      subgraph_url: https://products.example.com
+      introspection_headers:
+        Authorization: default-token
+  users:
+    routing_url: http://localhost:4002
+    schema:
+      file: ./users.graphql
+```
+
+Add `--format json` to receive the same YAML, as a single string, in the `expanded_config` field of `data` instead:
+
+```json
+{
+  "json_version": "1",
+  "data": {
+    "expanded_config": "federation_version: =2.9.0\nsubgraphs:\n  products:\n    routing_url: https://products.example.com\n    schema:\n      subgraph_url: https://products.example.com\n      introspection_headers:\n        Authorization: default-token\n  users:\n    routing_url: http://localhost:4002\n    schema:\n      file: ./users.graphql\n",
+    "success": true
+  },
+  "error": null
+}
+```

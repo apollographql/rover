@@ -153,10 +153,96 @@ Pass `--format json` for a machine-readable version. The `data` object has these
         "value": "https://registry.staging.example.com",
         "source": "explicit_profile",
         "overridden": [
-          { "source": "project_file", "value": "https://registry.example.com" }
+          {
+            "source": "project_file",
+            "value": "https://registry.example.com"
+          }
         ]
       },
-      ...
+      {
+        "name": "APOLLO_TELEMETRY_URL",
+        "value": "https://rover.apollo.dev/telemetry",
+        "source": "builtin",
+        "overridden": []
+      },
+      {
+        "name": "APOLLO_TELEMETRY_DISABLED",
+        "value": "true",
+        "source": "environment",
+        "overridden": []
+      },
+      {
+        "name": "APOLLO_CHECKS_TIMEOUT_SECONDS",
+        "value": "600",
+        "source": "project_file",
+        "overridden": []
+      },
+      {
+        "name": "APOLLO_CLIENT_TIMEOUT",
+        "value": "30",
+        "source": "builtin",
+        "overridden": []
+      },
+      {
+        "name": "APOLLO_ROVER_DOWNLOAD_HOST",
+        "value": "https://rover.apollo.dev",
+        "source": "builtin",
+        "overridden": []
+      },
+      {
+        "name": "APOLLO_TEMPLATES_API",
+        "value": "https://rover.apollo.dev/templates",
+        "source": "builtin",
+        "overridden": []
+      },
+      {
+        "name": "APOLLO_GRAPH_REF",
+        "value": null,
+        "source": "builtin",
+        "overridden": []
+      },
+      {
+        "name": "APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD",
+        "value": "true",
+        "source": "builtin",
+        "overridden": []
+      },
+      {
+        "name": "APOLLO_OAUTH_AUTHORIZATION_URL",
+        "value": "https://auth.apollographql.com/oauth2/authorize",
+        "source": "builtin",
+        "overridden": []
+      },
+      {
+        "name": "APOLLO_OAUTH_TOKEN_URL",
+        "value": "https://auth.apollographql.com/oauth2/token",
+        "source": "builtin",
+        "overridden": []
+      },
+      {
+        "name": "APOLLO_OAUTH_DEVICE_AUTHORIZATION_URL",
+        "value": "https://auth.apollographql.com/oauth2/device_authorization",
+        "source": "builtin",
+        "overridden": []
+      },
+      {
+        "name": "APOLLO_OAUTH_REVOCATION_URL",
+        "value": "https://auth.apollographql.com/oauth2/revoke",
+        "source": "builtin",
+        "overridden": []
+      },
+      {
+        "name": "APOLLO_OAUTH_WHOAMI_URL",
+        "value": "https://auth.apollographql.com/oauth2/userinfo",
+        "source": "builtin",
+        "overridden": []
+      },
+      {
+        "name": "APOLLO_OAUTH_CLIENT_ID",
+        "value": "UOsTLIgQb6eFevYcnQewoCDJZagFswCfESvr1hdIU8w",
+        "source": "builtin",
+        "overridden": []
+      }
     ],
     "success": true
   },

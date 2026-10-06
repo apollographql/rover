@@ -80,6 +80,43 @@ Whenever Rover authenticates with an OAuth credential, whether from a login or b
 
 When you authenticate with an API key, there's no grant, so the row is omitted. With `--format json`, the same value is reported as `grant_type`: one of `"authorization_code"`, `"device_code"`, `"client_credentials"`, or `"unknown"`, or `null` for an API key.
 
+For example, when Rover authenticates with a client-credential pair, the text output includes the `Grant Type` row:
+
+```
+┌────────────┬────────────────────┐
+│ Key Type   ┆ User               │
+├╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ User ID    ┆ a-user-id          │
+├╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Origin     ┆ $APOLLO_CLIENT_ID  │
+├╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Grant Type ┆ Client credentials │
+├╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ API Key    ┆ exch********oken   │
+└────────────┴────────────────────┘
+```
+
+And the JSON output reports `grant_type` as `"client_credentials"`:
+
+```json
+{
+  "json_version": "1",
+  "data": {
+    "key_type": "User",
+    "graph_id": null,
+    "graph_title": null,
+    "user_id": "a-user-id",
+    "origin": "$APOLLO_CLIENT_ID",
+    "grant_type": "client_credentials",
+    "api_key": "exch********oken",
+    "success": true
+  },
+  "error": null
+}
+```
+
+With an API key in `APOLLO_KEY`, the text output has no `Grant Type` row, and `grant_type` is `null`.
+
 The credential itself is masked. To show it in full, pass `--insecure-unmask-key`. Use it with care, especially when sharing your screen.
 
 ## Logging out
@@ -150,6 +187,20 @@ If the user isn't a current member of the organization, Rover warns you and revo
 #### When revocation fails under some clients
 
 Rover tries every client, even after one fails, and reports the outcome under each. If any fail, the command exits with error `E063` and names each client to retry, with the error GraphOS returns. Run the same command again to retry. Revoking under a client where the user no longer holds a grant succeeds, so a retry only changes the clients that failed.
+
+In text output, Rover reports the outcome under each client in a table:
+
+```
+┌────────────────┬───────────┬─────────┐
+│ Client         ┆ Client ID ┆ Outcome │
+╞════════════════╪═══════════╪═════════╡
+│ Rover          ┆ rover     ┆ revoked │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
+│ ci-deploy      ┆ c_8f2a    ┆ revoked │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
+│ nightly-checks ┆ c_91be    ┆ failed  │
+└────────────────┴───────────┴─────────┘
+```
 
 With `--format json`, every client is reported in `data.clients`, so a script can see which ones failed without parsing the error message:
 

@@ -255,6 +255,39 @@ For more programmatic control over Rover's output, you can pass `--format json` 
 }
 ```
 
+For a concrete example, here is `rover auth whoami` for a user API key supplied through an environment variable. In the default plaintext format:
+
+```
+┌──────────┬──────────────────┐
+│ Key Type ┆ USER             │
+├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ User ID  ┆ user-123         │
+├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Origin   ┆ $APOLLO_KEY      │
+├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ API Key  ┆ user********LOLO │
+└──────────┴──────────────────┘
+```
+
+With `--format json`, the same output is the `data` object of the envelope (commands add `"success": true` to `data`):
+
+```json
+{
+  "json_version": "1",
+  "data": {
+    "key_type": "USER",
+    "graph_id": null,
+    "graph_title": null,
+    "user_id": "user-123",
+    "origin": "$APOLLO_KEY",
+    "grant_type": null,
+    "api_key": "user********LOLO",
+    "success": true
+  },
+  "error": null
+}
+```
+
 As shown in `error_example` above, some Rover errors have a `null` error `code`. Despite this, your scripts should match on particular errors based on their `code` instead of their `message` (`message` strings are subject to change without bumping `json_version`).
 
 If you frequently encounter un-coded errors, please [submit an issue](https://github.com/apollographql/rover/issues/new/choose).
