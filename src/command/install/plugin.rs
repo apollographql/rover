@@ -15,7 +15,7 @@ use crate::{
     plugin::{
         deprecation::DeprecationWarnings,
         error::{DownloadControl, PluginFailure, RequestOrigin},
-        version::{PluginName, VersionRequest},
+        version::{DeprecatedSpelling, PluginName, VersionRequest},
     },
     utils::client::StudioClientConfig,
 };
@@ -57,13 +57,17 @@ impl Plugin {
     pub fn request(&self) -> VersionRequest {
         match self {
             Self::Supergraph(
-                FederationVersion::ExactFedOne(v) | FederationVersion::ExactFedTwo(v),
+                FederationVersion::ExactFedOne(v)
+                | FederationVersion::ExactFedTwo(v)
+                | FederationVersion::ExactFedThree(v),
             )
             | Self::Router(RouterVersion::Exact(v))
             | Self::McpServer(mcp::Version::Exact(v)) => VersionRequest::Exact(v.clone()),
             Self::Supergraph(FederationVersion::LatestFedOne) => VersionRequest::Major(0),
             Self::Supergraph(FederationVersion::LatestFedTwo)
             | Self::Router(RouterVersion::LatestTwo) => VersionRequest::Major(2),
+            Self::Supergraph(FederationVersion::LatestFedThree)
+            | Self::Router(RouterVersion::LatestThree) => VersionRequest::Major(3),
             Self::Router(RouterVersion::LatestOne) => VersionRequest::Major(1),
             Self::McpServer(mcp::Version::Latest) => VersionRequest::Latest,
         }
@@ -81,7 +85,7 @@ impl Plugin {
 
     pub fn requires_elv2_license(&self) -> bool {
         match self {
-            Self::Supergraph(v) => v.get_major_version() == 2,
+            Self::Supergraph(v) => v.get_major_version() >= 2,
             Self::Router(_) => true,
             Self::McpServer(_) => true,
         }
@@ -185,7 +189,7 @@ impl Plugin {
                                     Err(no_prebuilt_binaries)
                                 }
                             }
-                            RouterVersion::LatestOne | RouterVersion::LatestTwo => Ok("aarch64-unknown-linux-gnu")
+                            RouterVersion::LatestOne | RouterVersion::LatestTwo | RouterVersion::LatestThree => Ok("aarch64-unknown-linux-gnu")
                         }
                     }
                     Self::McpServer(_) => Ok("aarch64-unknown-linux-gnu"),
@@ -239,7 +243,7 @@ impl Plugin {
                 let federation_version = FederationVersion::from_str(&plugin_version)
                     .with_context(|| {
                         format!(
-                            "Invalid version '{}' for 'supergraph' plugin. Must be 'latest-2' or an exact version preceded with an '='.",
+                            "Invalid version '{}' for 'supergraph' plugin. Must be 'latest-2', 'latest-3', or an exact version preceded with an '='.",
                             plugin_version
                         )
                     })?;
@@ -247,8 +251,14 @@ impl Plugin {
                 // its own code, rather than here as a bare argument-parsing failure.
                 Ok(Plugin::Supergraph(federation_version))
             } else if plugin_name == "router" {
-                let router_version = RouterVersion::from_str(&plugin_version).with_context({
-                    || format!("Invalid version '{}' for 'router' plugin. Must be 'latest', '1', '2', or an exact version preceded with '=' (e.g. =2.0.0 for 2.x).", plugin_version)
+                // The router parser has no `latest-N` of its own, but a legacy spelling has to be
+                // accepted for every plugin, so it is read as the modern form it stands for.
+                let modern = DeprecatedSpelling::of(&plugin_version).map_or_else(
+                    || plugin_version.clone(),
+                    |legacy| legacy.modern.to_string(),
+                );
+                let router_version = RouterVersion::from_str(&modern).with_context({
+                    || format!("Invalid version '{}' for 'router' plugin. Must be 'latest', '1', '2', '3', or an exact version preceded with '=' (e.g. =2.0.0 for 2.x).", plugin_version)
                 })?;
                 Ok(Plugin::Router(router_version))
             } else if plugin_name == "apollo-mcp-server" {
@@ -373,10 +383,16 @@ impl PluginInstaller {
                     self.find_or_install_latest_major(plugin, major_version)
                         .await
                 }
+                RouterVersion::LatestThree => {
+                    let major_version = 3;
+                    self.find_or_install_latest_major(plugin, major_version)
+                        .await
+                }
             },
             Plugin::Supergraph(version) => match version {
                 FederationVersion::ExactFedOne(version)
-                | FederationVersion::ExactFedTwo(version) => {
+                | FederationVersion::ExactFedTwo(version)
+                | FederationVersion::ExactFedThree(version) => {
                     let version = version.to_string();
                     self.find_or_install_exact(plugin, &version).await
                 }
@@ -389,6 +405,11 @@ impl PluginInstaller {
                 }
                 FederationVersion::LatestFedTwo => {
                     let major_version = 2;
+                    self.find_or_install_latest_major(plugin, major_version)
+                        .await
+                }
+                FederationVersion::LatestFedThree => {
+                    let major_version = 3;
                     self.find_or_install_latest_major(plugin, major_version)
                         .await
                 }
@@ -900,11 +921,16 @@ mod tests {
         // Federation 1 versions parse but are rejected below in `federation_one_is_rejected`)
         #[case::supergraph_latest_2("supergraph@latest-2")]
         #[case::supergraph_exact_fed2("supergraph@=2.8.0")]
+        #[case::supergraph_exact_fed3("supergraph@=3.0.0-preview.1")]
+        #[case::supergraph_latest_3("supergraph@latest-3")]
+        #[case::supergraph_3("supergraph@3")]
         // Valid router (RouterVersion accepts "1", "2", "latest", or =X.Y.Z for exact; 1.x and 2.x)
         #[case::router_latest("router@latest")]
         #[case::router_1("router@1")]
         #[case::router_2("router@2")]
         #[case::router_equals_1("router@=1.0.0")]
+        #[case::router_3("router@3")]
+        #[case::router_equals_3("router@=3.0.0")]
         // Valid apollo-mcp-server
         #[case::mcp_latest("apollo-mcp-server@latest")]
         #[case::mcp_v("apollo-mcp-server@v1.0.0")]
@@ -930,6 +956,45 @@ mod tests {
                 }
                 _ => {}
             }
+        }
+
+        /// Federation 3 installs like the other majors, and (like Federation 2) under the ELv2
+        /// license.
+        #[rstest::rstest]
+        #[case::exact("supergraph@=3.0.0-preview.1", VersionRequest::Exact(Version::parse("3.0.0-preview.1").unwrap()))]
+        #[case::latest("supergraph@latest-3", VersionRequest::Major(3))]
+        #[case::bare_major("supergraph@3", VersionRequest::Major(3))]
+        #[case::router("router@3", VersionRequest::Major(3))]
+        fn federation_three_parses_as_its_request(
+            #[case] input: &str,
+            #[case] expected: VersionRequest,
+        ) {
+            let plugin = Plugin::from_str(input).expect("should parse");
+
+            assert_that!(plugin.request()).is_equal_to(expected);
+            assert_that!(plugin.requires_elv2_license()).is_true();
+        }
+
+        /// A legacy `latest-N` spelling is accepted for the router as it is for the supergraph,
+        /// though the router parser has no such spelling of its own.
+        #[rstest::rstest]
+        #[case("supergraph@latest-3", VersionRequest::Major(3))]
+        #[case("router@latest-3", VersionRequest::Major(3))]
+        #[case("router@latest-2", VersionRequest::Major(2))]
+        #[case("router@latest-1", VersionRequest::Major(1))]
+        fn a_latest_n_spelling_is_accepted_for_the_router_too(
+            #[case] input: &str,
+            #[case] expected: VersionRequest,
+        ) {
+            let plugin = Plugin::from_str(input).expect("should parse");
+
+            assert_that!(plugin.request()).is_equal_to(expected);
+        }
+
+        #[test]
+        fn the_router_has_no_federation_one_track() {
+            // `latest-0` is a Federation 1 spelling; there is no router 0.
+            assert_that!(Plugin::from_str("router@latest-0")).is_err();
         }
 
         #[test]

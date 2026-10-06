@@ -38,7 +38,7 @@ pub(crate) fn parse_federation_version(input: &str) -> Result<FederationVersion,
         Ok(version) => Ok(version),
         Err(_) if is_federation_one_exact_pin(input) => Err(FederationOneUnsupported.to_string()),
         Err(_) => Err(format!(
-            "Specified version `{input}` is not supported. You can specify '2', or a fully qualified version prefixed with an '=', like: =2.0.0"
+            "Specified version `{input}` is not supported. You can specify '2', '3', or a fully qualified version prefixed with an '=', like: =2.0.0"
         )),
     }
 }
@@ -148,6 +148,16 @@ mod tests {
     #[case::not_a_version("banana", false)]
     fn only_an_exact_pin_below_federation_two_counts(#[case] input: &str, #[case] expected: bool) {
         assert_that!(super::is_federation_one_exact_pin(input)).is_equal_to(expected);
+    }
+
+    /// Federation 3 is a version the flag accepts, like Federation 2.
+    #[rstest::rstest]
+    #[case("=3.0.0-preview.1", FederationVersion::ExactFedThree("3.0.0-preview.1".parse().unwrap()))]
+    #[case("3", FederationVersion::LatestFedThree)]
+    #[case("latest-3", FederationVersion::LatestFedThree)]
+    #[case("2", FederationVersion::LatestFedTwo)]
+    fn the_flag_accepts_federation_three(#[case] input: &str, #[case] expected: FederationVersion) {
+        assert_that!(super::parse_federation_version(input)).is_equal_to(Ok(expected));
     }
 
     #[test]
