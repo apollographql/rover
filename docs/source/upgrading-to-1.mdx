@@ -81,6 +81,26 @@ For details, see [Installing into a project](/rover/commands/plugin#installing-i
 
 **What changed:** `rover subgraph check` and `rover graph check` with `--format json` now report `"json_version": "3"` (0.x reported `"2"`) in output that carries a check result. When either command fails before Rover has a check result, for example with no credential ([E020](/rover/errors#e020)) or when the check times out, the output reports `"1"`, as every other command does.
 
+Before, in 0.x:
+
+```json
+{
+  "json_version": "2",
+  "data": { ... },
+  "error": null
+}
+```
+
+After, in 1.0:
+
+```json
+{
+  "json_version": "3",
+  "data": { ... },
+  "error": null
+}
+```
+
 In the `downstream` task, the `blocking_variants` list of variant names is replaced by `variants`, which has one entry per contract variant:
 
 | Field | Description |
@@ -154,6 +174,13 @@ rover subgraph check my-graph@current --name products --schema products.graphql 
 
 - **Text output always shows the downstream summary.** Whenever a downstream task ran, the `Downstream Check` section prints even when nothing is blocking: `No contract variants configured for this graph.`, `Checked N contract variants, all passed.`, or `Checked N contract variants.`
 - **Text output always shows build and operation checks.** `Build Check [PASSED]` and `Operation Check [PASSED]` sections now print even when there are no schema changes or operation warnings.
+
+  For example, a check with no schema changes now prints:
+
+  ```
+  Build Check [PASSED]:
+  There were no changes detected in the composed schema.
+  ```
 - **A failed `--check` on publish is `E043`.** When `rover graph publish --check` or `rover subgraph publish --check` stops because the check failed, it fails with [`E043`](/rover/errors#e043), as the check commands do. In 0.x it had no error code. With `--format json`, `data` is the check result, in the check commands' shape, and `json_version` is `"3"`. The message is still `Schema checks must pass before publishing. Fix the check failures above and try again.`
 
 ## Contract checks count only with `--include-contract-checks`
@@ -169,6 +196,36 @@ Downstream Check [PASSED]:
 The downstream check task has encountered check failures for at least this blocking downstream variant: mobile.
 View downstream check details at: https://studio.apollographql.com/graph/my-graph/checks/downstream
 ```
+
+With `--format json`, the same check reports the failed variant, but `success` is `true` and `error` is `null`:
+
+```json
+{
+  "json_version": "3",
+  "data": {
+    "core_schema_modified": false,
+    "tasks": {
+      "downstream": {
+        "task_status": "PASSED",
+        "target_url": "https://studio.apollographql.com/graph/my-graph/checks/downstream",
+        "variants": [
+          {
+            "graph_id": "my-graph",
+            "variant_name": "mobile",
+            "blocking": true,
+            "fails_upstream_workflow": null,
+            "status": "FAILED"
+          }
+        ]
+      }
+    },
+    "success": true
+  },
+  "error": null
+}
+```
+
+With `--include-contract-checks`, the same check fails with [E043](/rover/errors#e043) instead. The text output shows `Downstream Check [FAILED]:` with the same message, and the JSON is the failing output shown in [Check JSON output is version 3](#check-json-output-is-version-3), with `"success": false` and `"code": "E043"`.
 
 **What to do:** nothing, to keep the 0.x behavior. To have CI fail whenever a blocking contract variant's check or a downstream contract launch fails, add `--include-contract-checks` to your `check` and `publish` commands:
 
@@ -204,7 +261,27 @@ Warning: The publish succeeded, but a downstream contract launch failed: mobile.
 View launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-2
 ```
 
-With `--format json`, the failed launch's `status` is `FAILED` in `downstream_launches`, `success` is `true`, and `error` is `null`.
+With `--format json`, the failed launch's `status` is `FAILED` in `downstream_launches`, `success` is `true`, and `error` is `null`. The other `data` fields are as in the `E047` example below.
+
+```json
+{
+  "json_version": "1",
+  "data": {
+    "launch_status": "COMPLETED",
+    "downstream_launches": [
+      {
+        "graph_id": "my-graph",
+        "variant_name": "mobile",
+        "status": "FAILED",
+        "superseded": false,
+        "url": "https://studio.apollographql.com/graph/my-graph/launches/launch-2"
+      }
+    ],
+    "success": true
+  },
+  "error": null
+}
+```
 
 If the launch of the variant you published to fails, or a downstream contract-variant launch fails and you passed `--include-contract-checks`, the command exits non-zero with [E047](/rover/errors#e047), for example:
 
@@ -351,6 +428,41 @@ When no credential store is available, for example on headless Linux or in CI, R
 ## `rover connector test` fails when tests fail
 
 **What changed:** when the connector test suite fails, `rover connector test` now exits non-zero, and `--format json` reports `"success": false`. In 0.x it exited `0` and reported `"success": true` even when tests failed.
+
+The test runner writes its results straight to the terminal, so Rover's own text output adds nothing. With `--format json`, a failing suite now reports the failure in `error`, and `data` carries the plugin Rover used with `"success": false`:
+
+```json
+{
+  "json_version": "1",
+  "data": {
+    "plugins": [
+      {
+        "name": "supergraph",
+        "version": "2.9.3",
+        "source": "downloaded",
+        "level": "global",
+        "path": "/plugins/supergraph-v2.9.3"
+      }
+    ],
+    "success": false
+  },
+  "error": {
+    "message": "`/plugins/supergraph-v2.9.3` exited with errors.\nStdout: \nStderr: ",
+    "code": null
+  }
+}
+```
+
+In 0.x, the same failing run exited `0` and reported:
+
+```json
+{
+  "data": {
+    "output": "",
+    "success": true
+  }
+}
+```
 
 **What to do:** if your CI ran `rover connector test` without checking its result, expect the step to fail when tests fail, and fix the failing tests.
 

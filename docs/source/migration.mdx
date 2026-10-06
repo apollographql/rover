@@ -137,7 +137,7 @@ For more information on the differences between `graph`s, `subgraph`s, and `supe
 
 The Apollo CLI uses globs extensively to support using multiple local files, and even automatic discovery of files in a directory tree. While this was helpful in certain cases, the globbing strategy in the Apollo CLI caused many issues. Rover doesn't accept globs for schema files. Only `rover client check --include` and `--exclude`, and the similar options of `rover client extract` and `rover persisted-queries generate`, take glob patterns.
 
-For schema files, use `cat` to combine multiple files and pass them to Rover with [stdin](./conventions#io). See [this example](#pushing-subgraph-changes-with-a-config-file).
+For schema files, use `cat` (or `awk 1`) to combine multiple files and pass them to Rover with [stdin](./conventions#io). See [this example](#pushing-subgraph-changes-with-a-config-file).
 
 ### Machine-readable output
 

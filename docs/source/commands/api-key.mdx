@@ -64,7 +64,52 @@ rover api-key create <ORGANIZATION_ID> client-credentials <NAME> --graph-id <GRA
 
 `--secret-lifetime-days` sets how long the secret stays valid. If you omit it, GraphOS uses its own default.
 
-Rover prints the new pair's client ID and secret to stdout, so CI setup can capture them, along with its name, graphs, and when the secret expires. With `--format json`, the same values are reported as `client_id`, `client_secret`, `secret_expires_at`, `name`, `graphs`, and `scopes`.
+Rover prints the new pair's client ID and secret to `stdout`, so CI setup can capture them, along with its name, graphs, and when the secret expires:
+
+```terminal showLineNumbers=false
+┌───────────────────┬──────────────────────┐
+│ Client ID         ┆ c_8f2a               │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Client Secret     ┆ s_super-secret       │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Name              ┆ ci-deploy            │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Graphs            ┆ inventory, checkout  │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Secret Expires At ┆ 2028-09-25T16:00:00Z │
+└───────────────────┴──────────────────────┘
+```
+
+On `stderr`, Rover adds a reminder:
+
+```terminal showLineNumbers=false
+Save this secret now. Rover can't show it again.
+```
+
+With `--format json`, the same values are reported in the `data` object. `id` repeats `client_id`, and `scopes` lists the scopes the pair holds:
+
+```json
+{
+  "json_version": "1",
+  "data": {
+    "key_type": "ClientCredentials",
+    "id": "c_8f2a",
+    "client_id": "c_8f2a",
+    "client_secret": "s_super-secret",
+    "secret_expires_at": "2028-09-25T16:00:00Z",
+    "name": "ci-deploy",
+    "graphs": [
+      "inventory",
+      "checkout"
+    ],
+    "scopes": [
+      "rover:cli"
+    ],
+    "success": true
+  },
+  "error": null
+}
+```
 
 <Caution>
 
@@ -156,7 +201,53 @@ If Rover can't fetch the pairs, for example because the request timed out or Gra
 rover api-key list <ORGANIZATION_ID> --type client-credentials --limit 50 --after <CURSOR>
 ```
 
-With `--format json`, the output reports the cursor as `client_credentials_next_after`. It's `null` once every pair has been listed. `--limit` and `--after` apply only to client-credential pairs. API keys are always listed in full.
+With `--format json`, the output reports the cursor as `client_credentials_next_after`. It's `null` once every pair has been listed, as in this output:
+
+```json
+{
+  "json_version": "1",
+  "data": {
+    "keys": [
+      {
+        "created_at": "2026-01-04T12:00:00Z",
+        "expires_at": null,
+        "id": "key-123",
+        "name": "router-prod",
+        "key_type": "Operator"
+      }
+    ],
+    "client_credentials": [
+      {
+        "key_type": "ClientCredentials",
+        "id": "c_8f2a",
+        "client_id": "c_8f2a",
+        "name": "ci-deploy",
+        "graphs": [
+          "inventory"
+        ],
+        "scopes": [
+          "rover:cli"
+        ],
+        "created_at": "2026-09-25T16:00:00Z",
+        "created_by": {
+          "id": "user-123",
+          "type": "user"
+        }
+      }
+    ],
+    "client_credentials_next_after": null,
+    "success": true
+  },
+  "error": null
+}
+```
+
+When more pairs remain, the text output ends with a note, and `client_credentials_next_after` holds the same cursor in place of `null`:
+
+```terminal showLineNumbers=false
+More client-credential pairs are available. Resume with `--after <CURSOR>`.
+```
+ `--limit` and `--after` apply only to client-credential pairs. API keys are always listed in full.
 
 ## Rotating client-credential pairs
 
@@ -185,7 +276,38 @@ Every previous secret for `<NAME>` keeps working until <TIMESTAMP>.
 
 `<NAME>` is the pair's name, or its client ID if it has none.
 
-With `--format json`, the output includes `key_type` (`"ClientCredentials"`), `client_id`, `client_secret`, `secret_expires_at`, `grace_period_days`, and `previous_secrets_expire_at`.
+The `stdout` text output is:
+
+```terminal showLineNumbers=false
+┌───────────────────┬──────────────────────┐
+│ Client ID         ┆ c_8f2a               │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Client Secret     ┆ s_new-secret         │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Secret Expires At ┆ 2028-09-25T16:00:00Z │
+└───────────────────┴──────────────────────┘
+```
+
+With `--format json`, the output is:
+
+```json
+{
+  "json_version": "1",
+  "data": {
+    "key_type": "ClientCredentials",
+    "id": "c_8f2a",
+    "client_id": "c_8f2a",
+    "client_secret": "s_new-secret",
+    "secret_expires_at": "2028-09-25T16:00:00Z",
+    "grace_period_days": 1,
+    "previous_secrets_expire_at": "2026-09-25T16:00:00Z",
+    "success": true
+  },
+  "error": null
+}
+```
+
+`grace_period_days` and `previous_secrets_expire_at` describe the grace period you passed.
 
 If the request fails in a way that leaves the outcome unclear, such as a timeout, Rover can't tell whether the secret was rotated and suggests checking with `rover api-key list <ORGANIZATION_ID>`. It never prints a secret in that case.
 

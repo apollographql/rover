@@ -368,7 +368,28 @@ With `--format json`, `data.plugins` lists each plugin the command installed or 
 | `level` | `project` or `global`. |
 | `path` | Where the plugin binary is. |
 
-`rover supergraph compose --format json` reports the plugin it used in the same `data.plugins` field.
+`rover supergraph compose --format json` reports the plugin it used in the same `data.plugins` field, next to the composed schema (`core_schema`) and any `hints`. For example:
+
+```json
+{
+  "json_version": "1",
+  "data": {
+    "core_schema": "schema @link(url: \"https://specs.apollo.dev/link/v1.0\") ...",
+    "hints": [],
+    "plugins": [
+      {
+        "name": "supergraph",
+        "version": "2.9.3",
+        "source": "downloaded",
+        "level": "global",
+        "path": "/home/me/.rover/bin/supergraph-v2.9.3"
+      }
+    ],
+    "success": true
+  },
+  "error": null
+}
+```
 
 ### Errors
 
