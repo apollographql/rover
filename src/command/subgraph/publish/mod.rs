@@ -187,9 +187,11 @@ impl Publish {
                         Style::Failure,
                         "Schema check failed — no changes were published to the graph registry.",
                     ));
-                    return Err(RoverError::new(anyhow!(
-                        "Schema checks must pass before publishing. Fix the check failures above and try again."
-                    )));
+                    return Err(RoverClientError::PublishCheckFailure {
+                        graph_ref: self.graph.graph_ref.clone(),
+                        check_response,
+                    }
+                    .into());
                 }
                 Err(e) => {
                     stderr.print(&StyledText::new(

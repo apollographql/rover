@@ -308,6 +308,19 @@ pub enum RoverClientError {
         check_response: Box<CheckWorkflowResponse>,
     },
 
+    /// `graph publish --check`/`subgraph publish --check` didn't publish,
+    /// because the check failed. Carries the check result, like
+    /// [`RoverClientError::CheckWorkflowFailure`], so `--format json` reports
+    /// it as `data`; the publish commands print the check's text report
+    /// themselves, before this error.
+    #[error(
+        "Schema checks must pass before publishing. Fix the check failures above and try again."
+    )]
+    PublishCheckFailure {
+        graph_ref: GraphRef,
+        check_response: Box<CheckWorkflowResponse>,
+    },
+
     /// This error occurs when `graph publish`/`subgraph publish` succeeded,
     /// but a launch it triggered (or one of the downstream contract-variant
     /// launches it triggered) did not complete successfully. `publish_response`

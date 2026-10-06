@@ -228,6 +228,10 @@ impl RoverError {
             Some(RoverClientError::CheckWorkflowFailure {
                 graph_ref: _,
                 check_response,
+            })
+            | Some(RoverClientError::PublishCheckFailure {
+                graph_ref: _,
+                check_response,
             }) => check_response.get_json(),
             Some(RoverClientError::LintFailures { lint_response }) => lint_response.get_json(),
             Some(RoverClientError::PublishLaunchFailure {
@@ -275,6 +279,10 @@ impl RoverError {
     pub(crate) fn get_json_version(&self) -> JsonVersion {
         match &self.error.downcast_ref::<RoverClientError>() {
             Some(RoverClientError::CheckWorkflowFailure {
+                graph_ref: _,
+                check_response: _,
+            })
+            | Some(RoverClientError::PublishCheckFailure {
                 graph_ref: _,
                 check_response: _,
             }) => JsonVersion::Three,
