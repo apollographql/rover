@@ -21,6 +21,11 @@ pub struct CheckWorkflowInput {
     pub graph_ref: GraphRef,
     pub workflow_id: String,
     pub checks_timeout_seconds: u64,
+    /// Whether the checks of contract variants count towards the outcome: a blocking contract
+    /// variant whose own check has failed fails this check, even when the workflow's overall
+    /// status says it passed. Off, the outcome is the workflow's status as Studio reports it,
+    /// and the contract variants are reported as they are.
+    pub include_contract_checks: bool,
 }
 
 impl From<CheckWorkflowInput> for QueryVariables {

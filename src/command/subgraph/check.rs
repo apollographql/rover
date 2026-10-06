@@ -78,6 +78,7 @@ impl Check {
                     graph_ref: self.graph.graph_ref.clone(),
                     workflow_id: workflow_res.workflow_id,
                     checks_timeout_seconds,
+                    include_contract_checks: self.config.include_contract_checks,
                 },
                 self.subgraph.subgraph_name.clone(),
                 &client,

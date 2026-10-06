@@ -21,6 +21,15 @@ pub struct CheckConfigOpts {
     /// Size of the time window with which to validate schema against (i.e "24h" or "1w 2d 5h")
     #[arg(long)]
     pub validation_period: Option<ValidationPeriod>,
+
+    /// Include the checks of contract variants in whether this check passes, so that it fails
+    /// when a blocking contract variant's own check has failed, even if Studio's overall result
+    /// for the check says it passed
+    ///
+    /// Without this, the command succeeds or fails as Studio's overall result for the check does,
+    /// and the contract variants are still reported.
+    #[arg(long)]
+    pub include_contract_checks: bool,
 }
 
 fn parse_query_count_threshold(threshold: &str) -> Result<i64, io::Error> {

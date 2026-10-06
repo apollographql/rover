@@ -24,7 +24,7 @@ const STATUS_POLL_RESPONSE: &str = r#"{"data":{"graph":{"checkWorkflow":{
 /// and status-poll responses common to every case, stubs the full workflow-fetch
 /// response with `workflow_fetch_response`, and runs the real `rover graph check`
 /// binary against it. Returns whether the command succeeded and its parsed JSON output.
-fn run_graph_check(workflow_fetch_response: &str) -> (bool, Value) {
+fn run_graph_check(workflow_fetch_response: &str, extra_args: &[&str]) -> (bool, Value) {
     let server = MockServer::start();
 
     let submission_mock = server.mock(|when, then| {
@@ -62,6 +62,7 @@ fn run_graph_check(workflow_fetch_response: &str) -> (bool, Value) {
         .arg(&schema)
         .arg("--format")
         .arg("json")
+        .args(extra_args)
         .output()
         .unwrap();
 
@@ -101,9 +102,43 @@ fn graph_check_fails_on_blocking_downstream_contract_failure() {
                 }]
             }]
         }}}}"#,
+        &["--include-contract-checks"],
     );
 
     assert!(!success, "expected a nonzero exit code; json: {json}");
+    assert_json_snapshot!(json);
+}
+
+/// Without `--include-contract-checks` the command goes by Studio's overall result for
+/// the check, so a failed blocking contract variant is reported (with the status Studio gave the
+/// downstream task) and does not fail it.
+#[test]
+#[serial]
+fn graph_check_ignores_a_blocking_contract_failure_unless_contract_checks_are_included() {
+    let (success, json) = run_graph_check(
+        r#"{"data":{"graph":{"checkWorkflow":{
+            "status":"PASSED",
+            "tasks":[{
+                "__typename":"DownstreamCheckTask",
+                "status":"PASSED",
+                "targetURL":"https://studio.apollographql.com/graph/my-graph/checks/downstream",
+                "results":[{
+                    "__typename":"DownstreamCheckResult",
+                    "blocking":true,
+                    "downstreamGraphID":"my-graph",
+                    "downstreamVariantName":"mobile",
+                    "downstreamWorkflow":{"status":"FAILED"},
+                    "failsUpstreamWorkflow":null
+                }]
+            }]
+        }}}}"#,
+        &[],
+    );
+
+    assert!(
+        success,
+        "expected the workflow status to decide; json: {json}"
+    );
     assert_json_snapshot!(json);
 }
 
@@ -133,6 +168,7 @@ fn graph_check_succeeds_despite_non_blocking_task_status_failure() {
                 }]
             }]
         }}}}"#,
+        &[],
     );
 
     assert!(success, "expected a zero exit code; json: {json}");
