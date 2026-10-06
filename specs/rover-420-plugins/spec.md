@@ -292,16 +292,19 @@ The duplication this implies is accepted. `rover plugin install` is not a prereq
 - **FR73**: The plugin binary layout and naming under an install root must be unchanged from today, so a pre-seeded container image, a Lambda layer, or a hand-copied binary keeps working. The project install root uses the same layout as the global one.
 - **FR74**: FR26's project-then-global lookup order is not a breaking change and ships with Phase 2: a user with no project keeps resolving globally, and a user with a project gains a root that is empty until they install into it.
 - **FR75**: FR23's install-target default is likewise not a breaking change, because Rover never creates a project root on its own (FR22, FR25). An existing user, an existing CI job, and an existing Dockerfile all have no `.rover/` in scope, so `rover plugin install` keeps targeting the global root exactly as it does today. Project-local installs reach only users who deliberately opted in by running `rover plugin install --manifest-path` or authoring a `.rover/rover.yaml`.
-- **FR76**: FR77 is the only breaking change in this spec, and it lands at 1.0. Every other requirement must ship without breaking an existing invocation.
+- **FR76**: No requirement in this spec breaks an existing invocation at 1.0. FR77 announces that a future version of Rover will stop downloading plugins automatically; until then, every requirement must ship without breaking an existing invocation.
 
 ### 3.14 Rover 1.0 (R11)
 
-- **FR77**: At Rover 1.0, a plugin-using command that needs a plugin present at neither level must stop and tell the user how to install it, rather than downloading it.
+- **FR77**: At Rover 1.0, a plugin-using command that needs a plugin present at neither level must download it, as before 1.0, unless `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` is `false` (FR78). When nothing sets that setting, the command must print a warning on stderr for each plugin it downloads that way, naming the plugin and version and stating that a future version of Rover will not install plugins automatically. Only setting `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`, to either value, stops the warning; `--no-config-notices` and every other control leave it in place. When the setting is `false`, the command must stop with E058 and tell the user how to install the plugin, rather than downloading it.
 
-  Required text:
-  > Rover needs the `supergraph` plugin v2.9.3, which isn't installed. Run `rover plugin install supergraph@=2.9.3`, or set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true` under `settings:` in `rover.yaml` to let Rover download plugins on demand.
+  Required warning text:
+  > Warning: Rover downloaded the `supergraph` plugin v2.9.3 because `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` isn't set. A future version of Rover will not install plugins automatically. Install plugins ahead of time with `rover plugin install supergraph@=2.9.3`, or set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` to `true` to keep downloading them or `false` to stop now.
 
-- **FR78**: Opt-in is the setting `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`, defined by the profile-configuration spec (ROVER-451, §3.16) and resolved by its chain: the environment variable (`1` or `true`), then a profile named with `--profile`, then the project manifest's `settings:` section, then the default profile. The manifest has no other opt-in key, and a user-level manifest can't opt in. With the opt-in in force, pre-1.0 on-demand behavior applies. The name says *automatic* because it governs only downloads a command performs on its own; an explicit `rover plugin install` is never automatic and is never gated by it (FR80).
+  Required text when the setting is `false`:
+  > Rover needs the `supergraph` plugin v2.9.3, but it isn't installed in `<project>/.rover/bin` or `<home>/.rover/bin` and downloads are disabled by `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`. Run `rover plugin install supergraph@=2.9.3` to install it ahead of time, or set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` to `true` to let Rover download it.
+
+- **FR78**: Automatic downloads are governed by the setting `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`, defined by the profile-configuration spec (ROVER-451, §3.16) and resolved by its chain: the environment variable (`1`/`true` or `0`/`false`), then a profile named with `--profile`, then the project manifest's `settings:` section, then the default profile, then its built-in default of `true`. The manifest has no other key for it, and a user-level manifest can't set it. `true`, whether set or by default, allows pre-1.0 on-demand behavior; `false` turns it off. The name says *automatic* because it governs only downloads a command performs on its own; an explicit `rover plugin install` is never automatic and is never gated by it (FR80).
 - **FR79**: Per-invocation controls outrank the standing opt-in. When the opt-in is in force and `--skip-update` or `--no-download` is also in force, the never-download behavior wins and the command fails per FR51. A standing declaration may permit a download; it may never compel one.
 - **FR80**: `rover plugin install` is unaffected by FR77 and FR78: it is the explicit install step and continues to download unless FR48 forbids it.
 
@@ -468,8 +471,8 @@ Given a path that does not exist, when `rover supergraph compose --manifest-path
 **Unconfigured user is unaffected**
 Given no manifest, no lockfile, and no new flags or environment variables, when any plugin-using command runs, then behavior is identical to today except that the FR54 provenance line is printed.
 
-**Rover 1.0 opt-in download**
-Given Rover 1.0, no opt-in, and `supergraph` v2.9.3 installed at neither level, when `rover supergraph compose` runs, then nothing is downloaded and the FR77 text is printed. Given `settings: { APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true }` in the project manifest, or `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD=true` in the environment, when the same command runs, then the plugin is downloaded as it is pre-1.0.
+**Rover 1.0 automatic downloads**
+Given Rover 1.0, nothing setting `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`, and `supergraph` v2.9.3 installed at neither level, when `rover supergraph compose` runs, then the plugin is downloaded and the FR77 warning is printed, even with `--no-config-notices`. Given `settings: { APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true }` in the project manifest, or `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD=true` in the environment, when the same command runs, then the plugin is downloaded and no warning is printed. Given the setting is `false` in either place, then nothing is downloaded and the FR77 text for a `false` setting is printed.
 
 **A standing opt-in never overrides a per-invocation control**
 Given Rover 1.0 and `settings: { APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true }` in the project manifest, when `rover supergraph compose --skip-update` runs and the plugin is installed at neither level, then nothing is downloaded and the command fails with the never-download error code.

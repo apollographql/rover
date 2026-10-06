@@ -234,7 +234,7 @@ where
                                 let install_res =
                                     InstallSupergraph::new(fed_version, federation_updater_config.studio_client_config.clone())
                                         .requested_by(Some(RequestOrigin::SupergraphConfig(supergraph_config.origin_path().clone())))
-                                        .install(None, federation_updater_config.elv2_licence_accepter, federation_updater_config.skip_update)
+                                        .install(federation_updater_config.override_install_path.clone(), federation_updater_config.elv2_licence_accepter, federation_updater_config.skip_update)
                                         .await;
                                 match install_res {
                                     Ok(supergraph_binary) => {
@@ -695,6 +695,7 @@ mod tests {
                 elv2_license_accepted: Some(true),
             },
             skip_update: false,
+            override_install_path: None,
         };
 
         let composition_handler = CompositionWatcher::builder()

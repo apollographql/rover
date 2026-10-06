@@ -107,6 +107,10 @@ pub struct FederationUpdaterConfig {
     pub(crate) studio_client_config: StudioClientConfig,
     pub(crate) elv2_licence_accepter: LicenseAccepter,
     pub(crate) skip_update: bool,
+    /// Where the session installs and looks for plugins (`APOLLO_HOME` /
+    /// `--rover-home`), so a mid-session version change uses the same place
+    /// the session started with.
+    pub(crate) override_install_path: Option<Utf8PathBuf>,
 }
 
 #[derive(Getters, Debug, Clone, Eq, PartialEq)]

@@ -208,7 +208,7 @@ impl SettingName {
             SettingName::DownloadHost => Some(DEFAULT_DOWNLOAD_HOST.to_string()),
             SettingName::TemplatesApi => Some(DEFAULT_TEMPLATES_API.to_string()),
             SettingName::GraphRef => None,
-            SettingName::AllowAutomaticDownload => Some("false".to_string()),
+            SettingName::AllowAutomaticDownload => Some("true".to_string()),
             SettingName::OauthAuthorizationUrl => Some(DEFAULT_AUTHORIZATION_URL.to_string()),
             SettingName::OauthTokenUrl => Some(DEFAULT_TOKEN_URL.to_string()),
             SettingName::OauthDeviceAuthorizationUrl => {

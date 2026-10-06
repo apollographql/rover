@@ -175,6 +175,7 @@ impl Dev {
                 studio_client_config: client_config.clone(),
                 elv2_licence_accepter: elv2_license_accepter,
                 skip_update,
+                override_install_path: override_install_path.clone(),
             }),
         };
 

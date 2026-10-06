@@ -67,7 +67,7 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
   | `APOLLO_ROVER_DEV_COMPOSITION_VERSION` | `--composition-version` | `dev` | version | plugin default | | | |
   | `APOLLO_ROVER_DEV_MCP_VERSION` | `--mcp-version` | `dev` | version | plugin default | | | |
   | `APOLLO_ROVER_NO_CONFIG_NOTICES` | `--no-config-notices` | global | boolean | off | | | |
-  | `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` | — (see FR106) | — | boolean | off | ● | ● | |
+  | `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` | — (see FR106) | — | boolean | on | ● | ● | |
 
   ● Profile = profile-eligible (§3.6). ● Project = project-eligible (§3.10). ● Net = network-destination setting (§3.9).
 
@@ -371,11 +371,11 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(A1.3)`.
 
 ### 3.16 Automatic plugin downloads (B2, ROVER-420)
 
-The plugin system (ROVER-420) stops a plugin-using command from downloading a plugin it needs unless something opts in to automatic downloads. The opt-in is this setting, and nothing else: no manifest carries a separate opt-in key, so the opt-in follows the same chain, storage, and inspection rules as every other setting.
+The plugin system (ROVER-420) lets a plugin-using command download a plugin it needs unless this setting turns automatic downloads off, and warns on each such download when nothing sets it. The setting is the only control of its kind: no manifest carries a separate key, so it follows the same chain, storage, and inspection rules as every other setting.
 
 - **FR106**: `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` is a boolean setting that decides whether a plugin-using command may download a plugin it needs and doesn't have. It governs only automatic downloads: an explicit `rover plugin install` is never automatic and is not affected by it, and a per-invocation control that forbids downloading still wins over a stored `true` (the plugin system's FR79). It is profile-eligible and project-eligible, and FR25's chain governs it. It has no flag, an exception to FR8 like `APOLLO_GRAPH_REF` (FR6): a download asked for in one invocation already has its own verb, so the setting describes only an environment's standing policy, and its chain starts at the environment variable.
-- **FR107**: The environment variable follows FR20, which for this boolean governs over FR28's presence rule: `1` or `true` (case-insensitive) opts in, and `0`, `false`, an empty value, or absence leave it unset, so the next tier decides. The environment variable can therefore opt in but never opt out. Opting out is done by storing `false` in a profile or the project file. A stored value is a typed boolean (FR24).
-- **FR108**: The opt-in is read only as this setting. A project manifest opts in through its `settings:` section; a key outside `settings:` that resembles it is not an opt-in. A user-level manifest can't opt in at all: its `settings:` section stays ignored with FR76's warning, and a machine-wide opt-in belongs in a profile or the environment.
+- **FR107**: The environment variable follows FR20, which for this boolean governs over FR28's presence rule: `1` or `true` (case-insensitive) opts in, `0` or `false` opts out, and an empty value, any other value, or absence leave it unset, so the next tier decides. The environment variable can therefore opt in or out. When no tier sets it, the built-in default is `true`. A stored value is a typed boolean (FR24).
+- **FR108**: The setting is read only as this setting. A project manifest sets it through its `settings:` section; a key outside `settings:` that resembles it sets nothing. A user-level manifest can't set it at all: its `settings:` section stays ignored with FR76's warning, and a machine-wide value belongs in a profile or the environment.
 - **FR109**: The setting is not a network destination, so FR59(b) never applies to it. FR59(a) applies as for any other setting. A stored value that isn't a boolean fails as FR83 and FR84 require, naming its source.
 
 ---
@@ -464,13 +464,13 @@ Given profile `staging` sets `APOLLO_GRAPH_REF`, when `rover dev --profile stagi
 Given any configuration containing no project file, when a Rover build with the Part A chain and a Rover build with the full chain resolve the same invocation, then every setting's value and source agree.
 
 **Automatic downloads follow the settings chain**
-Given a project file with `settings: { APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true }`, when a plugin-using command needs a plugin that isn't installed, then the download is allowed, and `rover config show --format json` reports the setting with source `project_file`. Given additionally `--profile ci`, where profile `ci` stores `false`, then the download is not allowed. Given instead a default profile storing `true` and no project file, then the download is allowed, with source `default_profile`. With nothing configured, the download is not allowed and the source is `builtin`.
+Given a project file with `settings: { APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true }`, when a plugin-using command needs a plugin that isn't installed, then the download is allowed, and `rover config show --format json` reports the setting with source `project_file`. Given additionally `--profile ci`, where profile `ci` stores `false`, then the download is not allowed. Given instead a default profile storing `true` and no project file, then the download is allowed, with source `default_profile`. With nothing configured, the download is allowed with the plugin system's FR77 warning, and the value is `true` with source `builtin`.
 
-**The environment variable only opts in**
-Given `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD=false` in the environment and a project file storing `true`, when a plugin-using command needs a plugin that isn't installed, then the download is allowed. Given `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD=true` and a project file storing `false`, then the download is allowed.
+**The environment variable opts in or out**
+Given `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD=false` in the environment and a project file storing `true`, when a plugin-using command needs a plugin that isn't installed, then the download is not allowed. Given `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD=true` and a project file storing `false`, then the download is allowed.
 
-**No opt-in outside `settings:`**
-Given a project manifest with `allow_automatic_download: true` at its top level and no `settings:` entry, when a plugin-using command needs a plugin that isn't installed, then the download is not allowed. Given a user-level manifest with `settings: { APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: true }`, then the FR76 warning is printed and the download is not allowed.
+**Nothing outside `settings:` sets it**
+Given a project manifest with `allow_automatic_download: false` at its top level and no `settings:` entry, when a plugin-using command needs a plugin that isn't installed, then the download is allowed, with the plugin system's FR77 warning. Given a user-level manifest with `settings: { APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: false }`, then the FR76 warning is printed and the download is still allowed.
 ---
 
 ## 5. Non-goals
