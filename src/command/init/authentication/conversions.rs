@@ -58,6 +58,17 @@ pub fn auth_error_to_rover_error(error: AuthenticationError) -> RoverError {
             ));
             RoverError::new(anyhow!(message)).with_suggestion(suggestion)
         }
+        AuthenticationError::NotInteractive => {
+            let message =
+                "No credentials found, and `rover init` has no terminal to ask for one on";
+            let suggestion = RoverErrorSuggestion::Adhoc(format!(
+                "Run {} to log in, or set the {} environment variable to a Personal API Key, then run {} again.",
+                Style::Command.paint("rover auth login"),
+                Style::Command.paint("APOLLO_KEY"),
+                Style::Command.paint("rover init")
+            ));
+            RoverError::new(anyhow!(message)).with_suggestion(suggestion)
+        }
         AuthenticationError::SecondChanceAuthFailure => {
             let message = "Failed to authenticate with the provided API key";
             let suggestion = RoverErrorSuggestion::Adhoc(format!(

@@ -1,13 +1,16 @@
-use std::{collections::HashMap, env, fs::read_dir, path::PathBuf};
+use std::{collections::HashMap, env, fs::read_dir, io::IsTerminal, path::PathBuf};
 
 use anyhow::anyhow;
 use camino::Utf8PathBuf;
-use houston::{ApiKeyActor, Profile};
+use houston::{ApiKeyActor, CredentialOrigin, Profile};
 use rover_client::{
     RoverClientError,
-    operations::init::{create_graph::*, memberships},
+    operations::{
+        config::who_am_i,
+        init::{create_graph::*, memberships},
+    },
 };
-use rover_std::{Spinner, Style, errln};
+use rover_std::{Spinner, Style, errln, successln};
 use rover_studio::types::GraphRef;
 
 use crate::{
@@ -71,12 +74,22 @@ impl UserAuthenticated {
                 Ok(Welcome::new())
             }
             Err(_) => {
+                // The prompt would fail on its own, with a system error that says nothing
+                // useful about what to do instead.
+                if !std::io::stdin().is_terminal() {
+                    return Err(auth_error_to_rover_error(
+                        AuthenticationError::NotInteractive,
+                    ));
+                }
                 match ProjectAuthenticationOpt::default().prompt_for_api_key(client_config, profile)
                 {
                     Ok(_) => {
                         // Try to authenticate again with the new credentials
                         match client_config.get_authenticated_client(profile) {
-                            Ok(_) => Ok(Welcome::new()),
+                            Ok(client) => {
+                                confirm_pasted_key(&client, client_config, profile).await?;
+                                Ok(Welcome::new())
+                            }
                             Err(_) => Err(auth_error_to_rover_error(
                                 AuthenticationError::SecondChanceAuthFailure,
                             )),
@@ -96,11 +109,59 @@ impl UserAuthenticated {
         let credential =
             Profile::new(&profile.profile_name, &client_config.config).get_credential()?;
 
-        Ok(matches!(
-            credential.api_key(),
-            Some(Ok(key)) if key.actor() == ApiKeyActor::User
-        ))
+        Ok(is_user_credential(&credential))
     }
+}
+
+/// Whether `credential` belongs to a person, as `rover init` needs (it asks for the
+/// organizations that person belongs to).
+///
+/// A `rover auth login` credential is an OAuth token, which has no key shape to check
+/// (`api_key()` is `None` for it) and is always a person's. A client-credentials token is a
+/// service account's, and isn't.
+pub(crate) fn is_user_credential(credential: &houston::Credential) -> bool {
+    match credential.api_key() {
+        Some(key) => matches!(key, Ok(key) if key.actor() == ApiKeyActor::User),
+        None => matches!(
+            credential.origin,
+            CredentialOrigin::OauthAuthorizationPkce(_)
+        ),
+    }
+}
+
+/// Asks the registry whether the key just pasted and saved works, and takes it back out of the
+/// profile if the registry refuses it, so a bad paste isn't left stored for every later command
+/// to trip over. Any other failure (the network, say) says nothing about the key, so it stays.
+async fn confirm_pasted_key(
+    client: &rover_client::blocking::StudioClient,
+    client_config: &StudioClientConfig,
+    profile: &ProfileOpt,
+) -> RoverResult<()> {
+    match who_am_i::run(client).await {
+        Ok(_) => {
+            successln!("Successfully saved your API key.");
+            Ok(())
+        }
+        Err(RoverClientError::InvalidKey | RoverClientError::MalformedKey) => {
+            discard_pasted_key(client_config, profile)
+        }
+        Err(RoverClientError::GraphQl { msg }) if msg.contains("Unauthorized") => {
+            discard_pasted_key(client_config, profile)
+        }
+        Err(other) => Err(other.into()),
+    }
+}
+
+/// Removes the pasted key from the profile and reports that the registry refused it.
+fn discard_pasted_key(client_config: &StudioClientConfig, profile: &ProfileOpt) -> RoverResult<()> {
+    Profile::new(&profile.profile_name, &client_config.config)
+        .set_api_key("")
+        .map_err(|e| auth_error_to_rover_error(AuthenticationError::SystemError(e.to_string())))?;
+    Err(auth_error_to_rover_error(
+        AuthenticationError::AuthenticationFailed(
+            "the registry did not recognize the pasted API key".to_string(),
+        ),
+    ))
 }
 
 /// PROMPT UX:
