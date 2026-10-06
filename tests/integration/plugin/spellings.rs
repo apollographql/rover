@@ -146,3 +146,79 @@ fn help(#[case] command: &[&str]) {
         assert_snapshot!(own);
     });
 }
+
+/// Federation 1 is refused with its own error code, so a script can match on it, whichever
+/// spelling asks for it and whichever command carries the request.
+#[rstest]
+#[case::plugin_install_bare(&["plugin", "install", "supergraph@1"])]
+#[case::plugin_install_latest(&["plugin", "install", "supergraph@latest-1"])]
+#[case::plugin_install_exact(&["plugin", "install", "supergraph@=0.36.0"])]
+#[case::deprecated_alias(&["install", "--plugin", "supergraph@latest-0"])]
+fn federation_one_is_refused_with_an_error_code(#[case] args: &[&str]) {
+    let output = Command::cargo_bin("rover")
+        .unwrap()
+        .args(args)
+        .args([
+            "--skip-update-check",
+            "--telemetry-disabled",
+            "--format",
+            "json",
+        ])
+        .env("NO_COLOR", "1")
+        .output()
+        .unwrap();
+
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|err| {
+        panic!(
+            "stdout isn't JSON ({err})\nstderr: {}",
+            String::from_utf8_lossy(&output.stderr)
+        )
+    });
+    assert_that!(output.status.success()).is_false();
+    assert_that!(json["error"]["code"].as_str()).is_equal_to(Some("E064"));
+}
+
+/// A bare `rover plugin install` installs what the manifest declares, and refuses Federation 1
+/// there as it does for a version given as an argument, before anything is downloaded: the
+/// download host is unreachable, so a download attempt would fail as E049 instead.
+#[rstest]
+#[case::bare_one("1")]
+#[case::latest_one("latest-1")]
+#[case::bare_zero("0")]
+#[case::exact_zero("=0.36.0")]
+fn a_federation_one_pin_in_the_manifest_is_refused_by_a_bare_install(#[case] pin: &str) {
+    let home = tempfile::tempdir().unwrap();
+    let project = tempfile::tempdir().unwrap();
+    let manifest = project.path().join("rover.yaml");
+    std::fs::write(&manifest, format!("plugins:\n  supergraph: \"{pin}\"\n")).unwrap();
+
+    let output = Command::cargo_bin("rover")
+        .unwrap()
+        .args(["plugin", "install", "--manifest-path"])
+        .arg(&manifest)
+        .args([
+            "--download-host",
+            "http://127.0.0.1:9",
+            "--client-timeout",
+            "2",
+        ])
+        .args([
+            "--skip-update-check",
+            "--telemetry-disabled",
+            "--format",
+            "json",
+        ])
+        .env("APOLLO_HOME", home.path())
+        .env("NO_COLOR", "1")
+        .output()
+        .unwrap();
+
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|err| {
+        panic!(
+            "stdout isn't JSON ({err})\nstderr: {}",
+            String::from_utf8_lossy(&output.stderr)
+        )
+    });
+    assert_that!(output.status.success()).is_false();
+    assert_that!(json["error"]["code"].as_str()).is_equal_to(Some("E064"));
+}

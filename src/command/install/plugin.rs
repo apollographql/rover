@@ -69,6 +69,16 @@ impl Plugin {
         }
     }
 
+    /// Refuses a request for Federation 1, which Rover no longer installs.
+    pub(crate) fn reject_unsupported(
+        &self,
+    ) -> Result<(), crate::federation::FederationOneUnsupported> {
+        match self {
+            Self::Supergraph(version) => reject_federation_one(version),
+            Self::Router(_) | Self::McpServer(_) => Ok(()),
+        }
+    }
+
     pub fn requires_elv2_license(&self) -> bool {
         match self {
             Self::Supergraph(v) => v.get_major_version() == 2,
@@ -233,7 +243,8 @@ impl Plugin {
                             plugin_version
                         )
                     })?;
-                reject_federation_one(&federation_version)?;
+                // Federation 1 is refused when the install runs, as a `RoverError` with
+                // its own code, rather than here as a bare argument-parsing failure.
                 Ok(Plugin::Supergraph(federation_version))
             } else if plugin_name == "router" {
                 let router_version = RouterVersion::from_str(&plugin_version).with_context({
@@ -968,11 +979,13 @@ mod tests {
         #[rstest::rstest]
         #[case::latest_0("supergraph@latest-0")]
         #[case::exact("supergraph@=0.36.0")]
+        #[case::latest_1("supergraph@latest-1")]
+        #[case::bare_1("supergraph@1")]
         fn federation_one_is_rejected(#[case] input: &str) {
             use crate::federation::FederationOneUnsupported;
 
-            let err = Plugin::from_str(input).unwrap_err();
-            assert_that!(err.to_string()).is_equal_to(FederationOneUnsupported.to_string());
+            let plugin = Plugin::from_str(input).expect("the argument itself parses");
+            assert_that!(plugin.reject_unsupported()).is_equal_to(Err(FederationOneUnsupported));
         }
     }
 

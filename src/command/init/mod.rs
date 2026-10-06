@@ -9,7 +9,7 @@ mod helpers;
 #[cfg(feature = "composition-js")]
 mod mcp;
 #[cfg(feature = "composition-js")]
-mod operations;
+pub(crate) mod operations;
 #[cfg(feature = "composition-js")]
 pub mod options;
 #[cfg(feature = "composition-js")]
