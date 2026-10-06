@@ -154,7 +154,7 @@ rover subgraph check my-graph@current --name products --schema products.graphql 
 
 - **Text output always shows the downstream summary.** Whenever a downstream task ran, the `Downstream Check` section prints even when nothing is blocking: `No contract variants configured for this graph.`, `Checked N contract variants, all passed.`, or `Checked N contract variants.`
 - **Text output always shows build and operation checks.** `Build Check [PASSED]` and `Operation Check [PASSED]` sections now print even when there are no schema changes or operation warnings.
-- **A failed `--check` on publish has no error code.** When `rover graph publish --check` or `rover subgraph publish --check` stops because the check failed, it fails with `Schema checks must pass before publishing. Fix the check failures above and try again.`, and with `--format json` its `error.code` is `null`. It isn't `E043`.
+- **A failed `--check` on publish is `E043`.** When `rover graph publish --check` or `rover subgraph publish --check` stops because the check failed, it fails with [`E043`](/rover/errors#e043), as the check commands do. In 0.x it had no error code. With `--format json`, `data` is the check result, in the check commands' shape, and `json_version` is `"3"`. The message is still `Schema checks must pass before publishing. Fix the check failures above and try again.`
 
 ## Contract checks count only with `--include-contract-checks`
 
@@ -186,7 +186,7 @@ error[E065]: Timed out waiting for the launch to complete.
         You can try increasing the timeout value by setting APOLLO_CHECKS_TIMEOUT_SECONDS to a higher value in your env. The default value is 300 seconds. You can also view the live check progress by visiting https://studio.apollographql.com/graph/my-graph/launches/launch-1.
 ```
 
-The schema is still published. Unlike `E047`, with `--format json`, `data` doesn't include the publish response.
+The schema is still published. With `--format json`, `data` keeps the publish response, as it does for `E047`, with `launch_status` `null`, because Rover stopped waiting before it learned the outcome.
 
 When the publish triggers downstream launches, Rover lists them on stderr, for example:
 
@@ -201,7 +201,7 @@ If a downstream contract-variant launch fails, Rover prints a warning, and the c
 
 ```
 Warning: The publish succeeded, but a downstream contract launch failed: mobile. Pass --include-contract-checks to make this fail the command.
-View launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-1
+View launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-2
 ```
 
 With `--format json`, the failed launch's `status` is `FAILED` in `downstream_launches`, `success` is `true`, and `error` is `null`.
@@ -210,7 +210,7 @@ If the launch of the variant you published to fails, or a downstream contract-va
 
 ```
 The publish succeeded, but a downstream contract launch failed: mobile.
-View launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-1
+View launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-2
 ```
 
 The schema is still published. With `--format json`, `data` keeps the full publish response alongside the error:

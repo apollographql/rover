@@ -159,7 +159,7 @@ With `--check`, both steps happen in one command:
 rover graph publish my-graph@current --schema ./schema.graphql --check
 ```
 
-If all checks pass, Rover publishes the schema and then [waits for the launches it triggers](#waiting-for-launches). If any check fails, Rover prints the check output and exits without publishing. The error for a failed check, `Schema checks must pass before publishing. Fix the check failures above and try again.`, has no error code.
+If all checks pass, Rover publishes the schema and then [waits for the launches it triggers](#waiting-for-launches). If any check fails, Rover prints the check output and exits without publishing. A failed check fails with error [`E043`](/rover/errors#e043), as it does for [`graph check`](#graph-check), with the message `Schema checks must pass before publishing. Fix the check failures above and try again.` With `--format json`, `data` is the check result, in the same shape as `graph check`'s, and `json_version` is `"3"`.
 
 `--include-contract-checks` applies to the check that `--check` runs, as it does for [`graph check`](#graph-check), and also to the [launches the publish waits for](#waiting-for-launches).
 
@@ -173,7 +173,7 @@ For details on configuring checks (time range, operation thresholds, and linting
 
 #### Waiting for launches
 
-When a publish changes the schema, it triggers a launch on the variant, and the launch can trigger launches on downstream [contract variants](/graphos/delivery/contracts/). Rover waits for the triggered launch and every downstream contract-variant launch to finish before it exits. The wait is bounded by `--checks-timeout` (or the `APOLLO_CHECKS_TIMEOUT_SECONDS` environment variable), which defaults to 300 seconds. With `--check`, the check and the launch each get their own wait. If the launch wait times out, Rover fails with error [`E065`](/rover/errors#e065). The schema is already published and the launch may still finish in GraphOS. With `--format json`, `data` doesn't include the publish response for `E065`.
+When a publish changes the schema, it triggers a launch on the variant, and the launch can trigger launches on downstream [contract variants](/graphos/delivery/contracts/). Rover waits for the triggered launch and every downstream contract-variant launch to finish before it exits. The wait is bounded by `--checks-timeout` (or the `APOLLO_CHECKS_TIMEOUT_SECONDS` environment variable), which defaults to 300 seconds. With `--check`, the check and the launch each get their own wait. If the launch wait times out, Rover fails with error [`E065`](/rover/errors#e065). The schema is already published and the launch may still finish in GraphOS. With `--format json`, `data` still includes the publish response, with `launch_status` `null`, because Rover stopped waiting before it learned the outcome.
 
 If the publish triggered downstream launches, Rover reports them on `stderr`:
 
@@ -192,7 +192,7 @@ If a downstream contract-variant launch fails, Rover prints a warning and exits 
 
 ```
 Warning: The publish succeeded, but a downstream contract launch failed: mobile. Pass --include-contract-checks to make this fail the command.
-View launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-1
+View launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-2
 ```
 
 With `--format json`, the failed launch's `status` is `FAILED` in `downstream_launches`, and `error` is `null`.
@@ -201,7 +201,7 @@ If the variant's own launch fails, or a downstream launch fails and you passed `
 
 ```
 The publish succeeded, but downstream contract launches failed: mobile, partner-api.
-View launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-1
+View launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-2
 ```
 
 The schema is still published. With `--format json`, `data` keeps the full publish response alongside the `E047` error.
