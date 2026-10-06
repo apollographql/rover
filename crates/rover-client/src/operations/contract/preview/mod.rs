@@ -157,7 +157,9 @@ pub async fn run(
 ) -> Result<PreviewJobResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
     let start_service = contract_preview_start_service(client)?;
-    let started = start(input, start_service).await?;
+    let started = start(input, start_service)
+        .await
+        .map_err(|err| client.refine_rejected_credential_error(err))?;
     let status_input = ContractPreviewStatusInput {
         graph_ref,
         build_id: started.build_id,
