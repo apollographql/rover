@@ -326,7 +326,7 @@ mod tests {
         Sensitive::ApiKey {
             api_key: "user:gh.foo:djru4788dhsg3657fhLOLO".to_string(),
         },
-        "user**************************LOLO"
+        "user********LOLO"
     )]
     #[case::oauth(
         Sensitive::OAuth {
@@ -335,7 +335,7 @@ mod tests {
             expires_at: Some(1_700_000_000),
             grant_type: Some(OauthGrantType::AuthorizationCode),
         },
-        "user**************************LOLO"
+        "user********LOLO"
     )]
     fn display_masks_the_underlying_secret(#[case] sensitive: Sensitive, #[case] expected: &str) {
         assert_that!(sensitive.to_string()).is_equal_to(expected.to_string());

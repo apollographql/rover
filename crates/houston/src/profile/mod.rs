@@ -325,21 +325,26 @@ pub(crate) fn delete_credential(name: &str, config: &Config) -> Result<(), Houst
     Sensitive::delete(name, config)
 }
 
-/// Masks all but the first 4 and last 4 chars of a key with a set number of *
-/// valid keys are all at least 22 chars.
-// We don't care if invalid keys
-// are printed, so we don't need to worry about strings 8 chars or less,
-// which this fn would just print back out
+/// Masks all but the first 4 and last 4 characters of a key with a fixed
+/// number of `*`, so the masked form is the same width whatever the key's
+/// length: a 2,000-character OAuth access token masks as compactly as an API
+/// key. A key of 8 characters or fewer is masked entirely, since showing its
+/// ends would show all of it; an empty key stays empty, so the mask never
+/// suggests a credential that isn't there.
 pub fn mask_key(key: &str) -> String {
-    let mut masked_key = "".to_string();
-    for (i, char) in key.chars().enumerate() {
-        if i <= 3 || i >= key.len() - 4 {
-            masked_key.push(char);
-        } else {
-            masked_key.push('*');
-        }
+    const VISIBLE: usize = 4;
+    const MASK: &str = "********";
+
+    let chars: Vec<char> = key.chars().collect();
+    if chars.is_empty() {
+        return String::new();
     }
-    masked_key
+    if chars.len() <= VISIBLE * 2 {
+        return MASK.to_string();
+    }
+    let head: String = chars[..VISIBLE].iter().collect();
+    let tail: String = chars[chars.len() - VISIBLE..].iter().collect();
+    format!("{head}{MASK}{tail}")
 }
 
 #[cfg(test)]
@@ -394,49 +399,40 @@ mod tests {
         (config, tmp_home)
     }
 
+    #[rstest]
+    #[case::user_key("user:gh.foo:djru4788dhsg3657fhLOLO", "user********LOLO")]
+    #[case::long_user_key(
+        "user:veryveryveryveryveryveryveryveryveryveryveryverylong",
+        "user********long"
+    )]
+    #[case::graph_key("service:foo:djru4788dhsg3657fhLOLO", "serv********LOLO")]
+    #[case::nonsense("some nonsense", "some********ense")]
+    #[case::just_over_the_ends("123456789", "1234********6789")]
+    #[case::multibyte("ключ-апи-секрет-ок", "ключ********т-ок")]
+    fn it_masks_all_but_the_ends_with_a_fixed_width(#[case] input: &str, #[case] expected: &str) {
+        assert_that!(mask_key(input)).is_equal_to(expected.to_string());
+    }
+
+    /// An OAuth access token is a JWT of a couple of thousand characters; its masked form
+    /// must be no wider than an API key's, or `auth whoami`'s table becomes unreadable.
     #[test]
-    fn it_can_mask_user_key() {
-        let input = "user:gh.foo:djru4788dhsg3657fhLOLO";
-        assert_eq!(
-            mask_key(input),
-            "user**************************LOLO".to_string()
-        );
+    fn it_masks_a_long_access_token_compactly() {
+        let token = format!("eyJr{}Qw8A", "x".repeat(2_000));
+        assert_that!(mask_key(&token)).is_equal_to("eyJr********Qw8A".to_string());
+    }
+
+    #[rstest]
+    #[case::one_char("a")]
+    #[case::three_chars("abc")]
+    #[case::short("short")]
+    #[case::eight_chars("12345678")]
+    fn it_masks_a_key_of_eight_characters_or_fewer_entirely(#[case] input: &str) {
+        assert_that!(mask_key(input)).is_equal_to("********".to_string());
     }
 
     #[test]
-    fn it_can_mask_long_user_key() {
-        let input = "user:veryveryveryveryveryveryveryveryveryveryveryverylong";
-        assert_eq!(
-            mask_key(input),
-            "user*************************************************long".to_string()
-        );
-    }
-
-    #[test]
-    fn it_can_mask_graph_key() {
-        let input = "service:foo:djru4788dhsg3657fhLOLO";
-        assert_eq!(
-            mask_key(input),
-            "serv**************************LOLO".to_string()
-        );
-    }
-
-    #[test]
-    fn it_can_mask_nonsense() {
-        let input = "some nonsense";
-        assert_eq!(mask_key(input), "some*****ense".to_string());
-    }
-
-    #[test]
-    fn it_can_mask_nothing() {
-        let input = "";
-        assert_eq!(mask_key(input), "".to_string());
-    }
-
-    #[test]
-    fn it_can_mask_short() {
-        let input = "short";
-        assert_eq!(mask_key(input), "short".to_string());
+    fn it_leaves_an_empty_key_empty() {
+        assert_that!(mask_key("")).is_equal_to(String::new());
     }
 
     // The `APOLLO_KEY` env var must win even when a profile has a stored OAuth token.
