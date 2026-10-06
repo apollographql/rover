@@ -28,6 +28,8 @@ jobs:
           persist-credentials: false
       - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
         with:
+          # Save caches from main only: other PRs can't reuse a PR's cache, and it evicts main's (10 GB repo limit).
+          cache_save: ${{ github.ref == 'refs/heads/main' }}
           install: false
         env:
           CARGO_NET_RETRY: "5"
@@ -50,6 +52,8 @@ jobs:
     - name: Install nightly@nightly toolchain
       uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
       with:
+        # Save caches from main only: other PRs can't reuse a PR's cache, and it evicts main's (10 GB repo limit).
+        cache-save-if: ${{ github.ref == 'refs/heads/main' }}
         toolchain: nightly
         components: rustfmt
     - name: Format
@@ -66,6 +70,8 @@ jobs:
     - name: Install stable@stable toolchain
       uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
       with:
+        # Save caches from main only: other PRs can't reuse a PR's cache, and it evicts main's (10 GB repo limit).
+        cache-save-if: ${{ github.ref == 'refs/heads/main' }}
         components: clippy
     - name: Run Clippy
       run: cargo clippy --locked --workspace --all-features --all-targets
@@ -86,6 +92,8 @@ jobs:
     - name: Install stable@stable toolchain
       uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
       with:
+        # Save caches from main only: other PRs can't reuse a PR's cache, and it evicts main's (10 GB repo limit).
+        cache-save-if: ${{ github.ref == 'refs/heads/main' }}
         build-warnings: warn
     - name: Check
       run: cargo check --locked --workspace --no-default-features
@@ -117,6 +125,9 @@ jobs:
         with:
           persist-credentials: false
       - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+        with:
+          # Save caches from main only: other PRs can't reuse a PR's cache, and it evicts main's (10 GB repo limit).
+          cache_save: ${{ github.ref == 'refs/heads/main' }}
         env:
           CARGO_NET_RETRY: "5"
       - uses: ./.github/actions/download-artifact-with-retry
@@ -154,10 +165,15 @@ jobs:
         with:
           persist-credentials: false
       - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+        with:
+          # Save caches from main only: other PRs can't reuse a PR's cache, and it evicts main's (10 GB repo limit).
+          cache_save: ${{ github.ref == 'refs/heads/main' }}
         env:
           CARGO_NET_RETRY: "5"
       - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
         with:
+          # Save caches from main only: other PRs can't reuse a PR's cache, and it evicts main's (10 GB repo limit).
+          cache-save-if: ${{ github.ref == 'refs/heads/main' }}
           # This is how we test with musl linux. We check the glibc version in the `check_minimal_glibc` job
           target: ${{ matrix.runner == 'ubuntu-latest' && 'x86_64-unknown-linux-musl' || '' }}
       - if: ${{ matrix.runner == 'ubuntu-latest' }}
@@ -180,6 +196,9 @@ jobs:
         with:
           persist-credentials: false
       - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
+        with:
+          # Save caches from main only: other PRs can't reuse a PR's cache, and it evicts main's (10 GB repo limit).
+          cache-save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Install strace
         run: sudo apt-get install --yes --no-install-recommends strace
       - name: Build rover and the network-denied tests
@@ -232,8 +251,13 @@ jobs:
     - name: Fix git ownership
       run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
     - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
+      with:
+        # Save caches from main only: other PRs can't reuse a PR's cache, and it evicts main's (10 GB repo limit).
+        cache-save-if: ${{ github.ref == 'refs/heads/main' }}
     - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
       with:
+        # Save caches from main only: other PRs can't reuse a PR's cache, and it evicts main's (10 GB repo limit).
+        cache_save: ${{ github.ref == 'refs/heads/main' }}
         install: false
       env:
         CARGO_NET_RETRY: "5"

@@ -32,6 +32,9 @@ jobs:
         with:
           persist-credentials: false
       - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+        with:
+          # Save caches from main only: other PRs can't reuse a PR's cache, and it evicts main's (10 GB repo limit).
+          cache_save: ${{ github.ref == 'refs/heads/main' }}
       - name: Check links
         uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
         # lychee reads GITHUB_TOKEN to check github.com links authenticated. Unauthenticated,
