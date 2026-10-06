@@ -3,10 +3,10 @@ use std::time::Duration;
 use assert_cmd::cargo::cargo_bin_cmd;
 use predicates::prelude::predicate;
 
-/// With no `supergraph` plugin installed and no opt-in to download one, `rover dev` can never
-/// compose, so it fails the way `rover supergraph compose` does, with E058 and the guidance
-/// to install the plugin or opt in. It used to print "Error occurred when composing supergraph"
-/// with no code, and carry on waiting.
+/// With no `supergraph` plugin installed and downloads turned off, `rover dev` can never compose,
+/// so it fails the way `rover supergraph compose` does, with E058 and the guidance to install
+/// the plugin. It used to print "Error occurred when composing supergraph" with no code, and
+/// carry on waiting.
 #[test]
 fn dev_without_the_supergraph_plugin_fails_with_e058() {
     let home = tempfile::tempdir().unwrap();
@@ -23,7 +23,7 @@ fn dev_without_the_supergraph_plugin_fails_with_e058() {
         .env("APOLLO_HOME", home.path())
         .arg("--config-home")
         .arg(config_home.path())
-        .env_remove("APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD")
+        .env("APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD", "false")
         .env_remove("APOLLO_ELV2_LICENSE")
         .env("NO_COLOR", "1")
         .args(["dev", "--supergraph-config", "supergraph.yaml"])
