@@ -64,7 +64,7 @@ rover api-key create <ORGANIZATION_ID> client-credentials <NAME> --graph-id <GRA
 
 `--secret-lifetime-days` sets how long the secret stays valid. If you omit it, GraphOS uses its own default.
 
-Rover prints the new pair's client ID and secret to stdout, so CI setup can capture them, along with its name, graphs, and when the secret expires. With `--format json`, the same values are reported as `client_id`, `client_secret`, `secret_expires_at`, `name`, `graphs`, and `scopes`.
+Rover prints the new pair's client ID and secret to stdout, so CI setup can capture them, along with its name, graphs, and when the secret expires. With `--format json`, the same values are reported as `key_type` (`"ClientCredentials"`), `id`, `client_id`, `client_secret`, `secret_expires_at`, `name`, `graphs`, and `scopes`.
 
 <Caution>
 

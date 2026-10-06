@@ -74,7 +74,7 @@ Unlike a standard introspection query, the result of `rover subgraph introspect`
 
 #### Watching for schema changes
 
-If you pass `--watch` to `rover subgraph introspect`, Rover introspects your subgraph every second. Whenever the returned schema differs from the previously returned schema, Rover outputs the updated schema. This is most useful when combined with the `--output <OUTPUT_FILE>` argument which will write the introspection response out to a file whenever its contents change.
+If you pass `--watch` to `rover subgraph introspect`, Rover introspects your subgraph continuously. Whenever the returned schema differs from the previously returned schema, Rover outputs the updated schema. This is most useful when combined with the `--output <OUTPUT_FILE>` argument which will write the introspection response out to a file whenever its contents change.
 
 #### Including headers
 
@@ -238,7 +238,7 @@ Every subgraph name **must**:
 
 The URL that your supergraph uses to communicate with the subgraph in a [managed federation architecture](/federation/managed-federation/overview/).
 
-**Required** the first time you publish a particular subgraph. If your subgraph isn't deployed yet, or if you aren't using managed federation, you can pass an empty string. Passing an empty string requires you to set the `--allow-invalid-routing-url` flag.
+**Required** the first time you publish a particular subgraph. If your subgraph isn't deployed yet, or if you aren't using managed federation, you can pass an empty string. In a non-interactive environment, passing an empty string requires you to set the `--allow-invalid-routing-url` flag.
 
 **Optional** after your first publish. Provide only if you need to change the subgraph's routing URL.
 
@@ -270,7 +270,7 @@ This option has no effect if you publish to a non-monolithic variant.
 
 <td>
 
-By default, `rover subgraph publish` will fail if an unparsable routing URL is associated with a subgraph. If you need to disable this warning and allow the invalid URL to be published anyway, you can pass this option.
+By default, when an unparsable routing URL is associated with a subgraph, `rover subgraph publish` asks you to confirm in a terminal and fails in a non-interactive environment. If you need to disable this check and allow the invalid URL to be published anyway, you can pass this option.
 
 </td>
 </tr>
