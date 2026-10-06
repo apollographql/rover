@@ -143,16 +143,18 @@ impl<'a, T: PublishLaunches> PublishLaunchesOutput<'a, T> {
         ))
     }
 
-    /// The source launch's own URL, falling back to a failed downstream
-    /// launch's. The mutation's `launchUrl` and the polled launch status are
-    /// independently nullable, so a failed launch can exist with no source
-    /// URL; a downstream launch's URL is always hand-built and populated.
+    /// The launch to send the reader to: the source launch when it's the one
+    /// that failed, otherwise the first failed downstream launch. A
+    /// downstream launch's URL is always hand-built and populated; the
+    /// source's comes from the mutation's independently nullable `launchUrl`.
     fn failure_url(&self) -> Option<&str> {
-        self.response.launch_url().or_else(|| {
+        if self.source_launch_failed() {
+            self.response.launch_url()
+        } else {
             self.failed_downstream_launches()
                 .next()
                 .map(|launch| launch.url.as_str())
-        })
+        }
     }
 }
 
@@ -386,7 +388,7 @@ mod tests {
 
         let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
         assert_that!(text).is_equal_to(
-            "The publish succeeded, but a downstream contract launch failed: partner-api.\nView launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-1".to_string(),
+            "The publish succeeded, but a downstream contract launch failed: partner-api.\nView launch details at: https://studio.apollographql.com/graph/my-graph/launches/partner-api".to_string(),
         );
         assert_that!(output.exit_code()).is_equal_to(1);
     }
@@ -407,7 +409,7 @@ mod tests {
 
         let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
         assert_that!(text).is_equal_to(
-            "Warning: The publish succeeded, but a downstream contract launch failed: partner-api. Pass --include-contract-checks to make this fail the command.\nView launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-1".to_string(),
+            "Warning: The publish succeeded, but a downstream contract launch failed: partner-api. Pass --include-contract-checks to make this fail the command.\nView launch details at: https://studio.apollographql.com/graph/my-graph/launches/partner-api".to_string(),
         );
         assert_that!(output.exit_code()).is_equal_to(0);
         assert_that!(output.reports_launches()).is_true();
@@ -450,7 +452,7 @@ mod tests {
 
         let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
         assert_that!(text).is_equal_to(
-            "The publish succeeded, but downstream contract launches failed: mobile, partner-api.\nView launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-1".to_string(),
+            "The publish succeeded, but downstream contract launches failed: mobile, partner-api.\nView launch details at: https://studio.apollographql.com/graph/my-graph/launches/mobile".to_string(),
         );
     }
 
@@ -470,11 +472,10 @@ mod tests {
         assert_that!(output.exit_code()).is_equal_to(1);
     }
 
-    /// Same as above, but for a failed downstream launch -- falls back to
-    /// that launch's own (always-populated) URL instead of omitting the
-    /// link line entirely.
+    /// A failed downstream launch links to itself, not the source launch, so a
+    /// missing source `launchUrl` doesn't matter.
     #[test]
-    fn a_failed_downstream_launch_with_no_source_launch_url_falls_back_to_its_own_url() {
+    fn a_failed_downstream_launch_links_to_itself_even_with_no_source_launch_url() {
         let response = response(
             None,
             Some(LaunchStatus::COMPLETED),
