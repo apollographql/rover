@@ -118,13 +118,13 @@ impl<T: PublishLaunches + std::fmt::Debug + Sync> CliOutput for PublishLaunchesO
                 details.push("the launch itself failed".to_string());
             }
             if !failed_variants.is_empty() {
+                let subject = if failed_variants.len() == 1 {
+                    "a downstream contract launch"
+                } else {
+                    "downstream contract launches"
+                };
                 details.push(format!(
-                    "{} failed: {}",
-                    pluralize(
-                        "downstream contract launch",
-                        failed_variants.len() as isize,
-                        false
-                    ),
+                    "{subject} failed: {}",
                     Style::Variant.paint(failed_variants.join(", "))
                 ));
             }
@@ -342,7 +342,7 @@ mod tests {
 
         let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
         assert_that!(text).is_equal_to(
-            "The publish succeeded, but downstream contract launch failed: partner-api.\nView launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-1".to_string(),
+            "The publish succeeded, but a downstream contract launch failed: partner-api.\nView launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-1".to_string(),
         );
         assert_that!(output.exit_code()).is_equal_to(1);
     }
@@ -395,7 +395,7 @@ mod tests {
 
         let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
         assert_that!(text).is_equal_to(
-            "The publish succeeded, but downstream contract launch failed: partner-api.\nView launch details at: https://studio.apollographql.com/graph/my-graph/launches/partner-api".to_string(),
+            "The publish succeeded, but a downstream contract launch failed: partner-api.\nView launch details at: https://studio.apollographql.com/graph/my-graph/launches/partner-api".to_string(),
         );
         assert_that!(output.exit_code()).is_equal_to(1);
     }
@@ -554,7 +554,7 @@ mod tests {
 
         let text = temp_env::with_var("NO_COLOR", Some("1"), || output.text());
         assert_that!(text).is_equal_to(
-            "The publish succeeded, but the launch itself failed, and downstream contract launch failed: partner-api.\nView launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-1".to_string(),
+            "The publish succeeded, but the launch itself failed, and a downstream contract launch failed: partner-api.\nView launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-1".to_string(),
         );
         assert_that!(output.exit_code()).is_equal_to(1);
     }
