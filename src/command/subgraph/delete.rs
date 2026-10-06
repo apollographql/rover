@@ -35,16 +35,16 @@ impl Delete {
         profile: &ProfileOpt,
     ) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(profile)?;
-        eprintln!(
-            "Checking for build errors resulting from deleting subgraph {} from {} using credentials from the {} profile.",
-            Style::Link.paint(&self.subgraph.subgraph_name),
-            Style::Link.paint(self.graph.graph_ref.to_string()),
-            Style::Command.paint(&profile.profile_name)
-        );
 
         // this is probably the normal path -- preview a subgraph delete
         // and make the user confirm it manually.
         if !self.confirm {
+            eprintln!(
+                "Checking for build errors resulting from deleting subgraph {} from {} using credentials from the {} profile.",
+                Style::Link.paint(&self.subgraph.subgraph_name),
+                Style::Link.paint(self.graph.graph_ref.to_string()),
+                Style::Command.paint(&profile.profile_name)
+            );
             let delete_check_response = delete::check(
                 SubgraphDeleteInput {
                     graph_ref: self.graph.graph_ref.clone(),
