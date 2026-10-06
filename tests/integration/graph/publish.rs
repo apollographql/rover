@@ -179,22 +179,37 @@ fn graph_publish_json_includes_data_and_error_code_when_a_downstream_launch_fail
 }
 
 /// `--check` gates the publish on the check's result, so there is nothing for `--background`
-/// (start the check and don't wait for it) to mean here. Only `graph check` offers it.
+/// (start the check and don't wait for it) to mean here; it belongs to `graph check`. 0.x
+/// accepted it here anyway, so it's still accepted, with a warning that it has moved, and the
+/// publish goes ahead as usual.
 #[test]
-fn background_is_not_a_publish_option() {
+#[serial]
+fn background_is_accepted_with_a_deprecation_warning() {
+    let output = run_graph_publish(LAUNCH_STATUS_RESPONSE, &["--background"]);
+
+    assert!(
+        output.status.success(),
+        "expected a zero exit code; stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains(
+            "Warning: `--background` has moved to `rover graph check --background`, and will be removed from `rover graph publish` in a future version. It has no effect here: `publish --check` always waits for the check, because the check decides whether the publish happens."
+        ),
+        "stderr did not contain the deprecation warning: {stderr}"
+    );
+}
+
+/// Deprecated, so it isn't offered in `--help`.
+#[test]
+fn background_is_not_listed_in_publish_help() {
     let output = Command::cargo_bin("rover")
         .unwrap()
-        .args([
-            "graph",
-            "publish",
-            "my-graph@current",
-            "--check",
-            "--background",
-        ])
-        .args(["--schema", "-"])
+        .args(["graph", "publish", "--help"])
         .output()
         .unwrap();
 
-    assert_eq!(output.status.code(), Some(2));
-    assert!(String::from_utf8_lossy(&output.stderr).contains("unexpected argument '--background'"));
+    assert!(output.status.success());
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("--background"));
 }
