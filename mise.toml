@@ -5,7 +5,7 @@ idiomatic_version_file_enable_tools = ["rust"]
 # Installed first so the `cargo:` tools below are fetched as prebuilt binaries
 # (mise's `cargo.binstall` setting) instead of compiled from source, which took
 # 5-13 minutes in every CI job that sets up mise.
-"aqua:cargo-bins/cargo-binstall" = "1.25.1"
+"aqua:cargo-bins/cargo-binstall" = "1.25.2"
 "cargo:lychee" = "0.24.2"
 node = "24.21.0"
 "npm:npm" = "12.2.0"
