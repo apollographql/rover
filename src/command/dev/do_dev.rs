@@ -215,6 +215,15 @@ impl Dev {
                     });
                     eprintln!("{error_to_output}")
                 }
+                // Not a mistake in a subgraph that editing it will fix, which is all the loop
+                // waits for: no plugin to compose with. Failing here, as `rover supergraph
+                // compose` does, reports it with its own code and the way to install or opt in,
+                // rather than a plain message above a session that can never start.
+                Some(CompositionEvent::Error(
+                    err @ CompositionError::InstallSupergraphBinaryError { .. },
+                )) => {
+                    return Err(RoverError::new(err));
+                }
                 Some(CompositionEvent::Error(err)) => {
                     errln!(
                         "Error occurred when composing supergraph\n{}",
