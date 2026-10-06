@@ -37,7 +37,7 @@ The examples on this page use `APOLLO_KEY`. To use a pair instead, expose `APOLL
 
 ## Composing a supergraph in CI
 
-Rover doesn't download plugins on demand by default. A command that needs a plugin, such as `rover supergraph compose` or `rover dev`, fails with error `E058` if the plugin isn't installed. The Docker image doesn't include any plugins, so install them as a step in your pipeline. Choose one of these approaches:
+A command that needs a plugin, such as `rover supergraph compose` or `rover dev`, downloads it if it isn't installed, and warns that a future version of Rover will stop downloading plugins automatically. The Docker image doesn't include any plugins, so install them as a step in your pipeline to make the job reproducible and ready for that change. Choose one of these approaches:
 
 - **Install from your project's lockfile.** Commit `.rover/rover.yaml` and `.rover/plugin-versions.lock` to your repository (but not `.rover/bin/`), then install exactly the recorded releases before composing:
 
@@ -55,7 +55,9 @@ Rover doesn't download plugins on demand by default. A command that needs a plug
   rover supergraph compose --config ./supergraph.yaml
   ```
 
-- **Opt in to automatic downloads.** Set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD=true` in the job's environment, and Rover downloads a missing plugin when a command needs it. For details, see [Automatic downloads](/rover/commands/plugin#automatic-downloads).
+- **Keep downloading automatically.** Set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD=true` in the job's environment, and Rover downloads a missing plugin when a command needs it, without the warning. For details, see [Automatic downloads](/rover/commands/plugin#automatic-downloads).
+
+To make sure a job never downloads a plugin, set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD=false`. A missing plugin then fails the job with error `E058`.
 
 The supergraph plugin is licensed under ELv2. To accept the license without an interactive prompt, pass `--elv2-license accept` or set `APOLLO_ELV2_LICENSE=accept` in the environment.
 
