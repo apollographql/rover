@@ -286,6 +286,20 @@ mod tests {
             ..RoverManifest::default()
         }
     )]
+    #[case::latest_three_parses_as_its_modern_form(
+        indoc! {r#"
+            plugins:
+              supergraph: latest-3
+              router: latest-3
+        "#},
+        RoverManifest {
+            plugins: declarations(&[
+                (PluginName::Supergraph, VersionRequest::Major(3), "latest-3"),
+                (PluginName::Router, VersionRequest::Major(3), "latest-3"),
+            ]),
+            ..RoverManifest::default()
+        }
+    )]
     #[case::one_plugin(
         indoc! {r#"
             plugins:

@@ -15,7 +15,7 @@ use crate::{
     plugin::{
         deprecation::DeprecationWarnings,
         error::{DownloadControl, PluginFailure, RequestOrigin},
-        version::{PluginName, VersionRequest},
+        version::{DeprecatedSpelling, PluginName, VersionRequest},
     },
     utils::client::StudioClientConfig,
 };
@@ -251,8 +251,14 @@ impl Plugin {
                 // its own code, rather than here as a bare argument-parsing failure.
                 Ok(Plugin::Supergraph(federation_version))
             } else if plugin_name == "router" {
-                let router_version = RouterVersion::from_str(&plugin_version).with_context({
-                    || format!("Invalid version '{}' for 'router' plugin. Must be 'latest', '1', '2', or an exact version preceded with '=' (e.g. =2.0.0 for 2.x).", plugin_version)
+                // The router parser has no `latest-N` of its own, but a legacy spelling has to be
+                // accepted for every plugin, so it is read as the modern form it stands for.
+                let modern = DeprecatedSpelling::of(&plugin_version).map_or_else(
+                    || plugin_version.clone(),
+                    |legacy| legacy.modern.to_string(),
+                );
+                let router_version = RouterVersion::from_str(&modern).with_context({
+                    || format!("Invalid version '{}' for 'router' plugin. Must be 'latest', '1', '2', '3', or an exact version preceded with '=' (e.g. =2.0.0 for 2.x).", plugin_version)
                 })?;
                 Ok(Plugin::Router(router_version))
             } else if plugin_name == "apollo-mcp-server" {
@@ -967,6 +973,28 @@ mod tests {
 
             assert_that!(plugin.request()).is_equal_to(expected);
             assert_that!(plugin.requires_elv2_license()).is_true();
+        }
+
+        /// A legacy `latest-N` spelling is accepted for the router as it is for the supergraph,
+        /// though the router parser has no such spelling of its own.
+        #[rstest::rstest]
+        #[case("supergraph@latest-3", VersionRequest::Major(3))]
+        #[case("router@latest-3", VersionRequest::Major(3))]
+        #[case("router@latest-2", VersionRequest::Major(2))]
+        #[case("router@latest-1", VersionRequest::Major(1))]
+        fn a_latest_n_spelling_is_accepted_for_the_router_too(
+            #[case] input: &str,
+            #[case] expected: VersionRequest,
+        ) {
+            let plugin = Plugin::from_str(input).expect("should parse");
+
+            assert_that!(plugin.request()).is_equal_to(expected);
+        }
+
+        #[test]
+        fn the_router_has_no_federation_one_track() {
+            // `latest-0` is a Federation 1 spelling; there is no router 0.
+            assert_that!(Plugin::from_str("router@latest-0")).is_err();
         }
 
         #[test]

@@ -65,14 +65,14 @@ fn a_federation_one_pin_on_the_flag_is_refused(#[case] pin: &str) {
 }
 
 #[rstest]
-#[case::another_major("=3.0.0")]
+#[case::another_major("=4.0.0")]
 #[case::not_a_version("banana")]
 fn an_unsupported_flag_value_no_longer_offers_one(#[case] value: &str) {
     let (code, stderr) = compose("2", &["--federation-version", value]);
 
     assert_that!(code).is_equal_to(Some(2));
     assert_that!(stderr.contains(&format!(
-        "Specified version `{value}` is not supported. You can specify '2', or a fully qualified version prefixed with an '=', like: =2.0.0"
+        "Specified version `{value}` is not supported. You can specify '2', '3', or a fully qualified version prefixed with an '=', like: =2.0.0"
     )))
     .named(&stderr)
     .is_true();

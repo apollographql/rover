@@ -71,7 +71,7 @@ impl FromStr for PluginName {
 /// range, and which release they mean depends on when they are resolved.
 /// [`Self::Exact`] names one release and needs no resolution.
 ///
-/// The legacy spellings (`latest-0`, `latest-1`, `latest-2`, `vX.Y.Z`) parse
+/// The legacy spellings (`latest-0`, `latest-1`, `latest-2`, `latest-3`, `vX.Y.Z`) parse
 /// into the same variants as their modern equivalents, so nothing downstream
 /// of parsing can tell which spelling was used. Use [`DeprecatedSpelling::of`]
 /// where that matters, which is the FR4 warning and nowhere else.
@@ -199,6 +199,7 @@ fn legacy_equivalent(value: &str) -> Option<VersionRequest> {
         "latest-0" => Some(VersionRequest::Major(0)),
         "latest-1" => Some(VersionRequest::Major(1)),
         "latest-2" => Some(VersionRequest::Major(2)),
+        "latest-3" => Some(VersionRequest::Major(3)),
         _ => value
             .strip_prefix('v')
             .and_then(|exact| Version::parse(exact).ok())
@@ -367,6 +368,7 @@ mod tests {
     #[case("latest-0", VersionRequest::Major(0))]
     #[case("latest-1", VersionRequest::Major(1))]
     #[case("latest-2", VersionRequest::Major(2))]
+    #[case("latest-3", VersionRequest::Major(3))]
     #[case("v2.9.0", VersionRequest::Exact(Version::new(2, 9, 0)))]
     #[case("v0.36.0", VersionRequest::Exact(Version::new(0, 36, 0)))]
     #[case(
@@ -400,6 +402,10 @@ mod tests {
     #[case(
         "latest-2",
         "`latest-2` is a deprecated version format. Use `2` instead."
+    )]
+    #[case(
+        "latest-3",
+        "`latest-3` is a deprecated version format. Use `3` instead."
     )]
     #[case(
         "v1.2.3",
