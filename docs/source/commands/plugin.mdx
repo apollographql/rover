@@ -28,13 +28,25 @@ rover plugin install router@2
 rover plugin install apollo-mcp-server@latest
 ```
 
-Every plugin accepts the same version forms:
+### Plugin versions
 
-| Form | Meaning | Example |
-| ---- | ------- | ------- |
-| `latest` | The newest release of the plugin | `apollo-mcp-server@latest` |
-| A major version | The newest release within that major version | `router@2` |
-| `=X.Y.Z` | Exactly that release | `supergraph@=2.9.3` |
+Each plugin accepts these version forms:
+
+| Form | Meaning | Accepted by | Example |
+| ---- | ------- | ----------- | ------- |
+| A major version | The newest release within that major version | `supergraph` (`2`, `3`), `router` (`1`, `2`, `3`) | `router@2` |
+| `latest` | The newest release. For `router`, the newest 2.x release | `router`, `apollo-mcp-server` | `apollo-mcp-server@latest` |
+| `=X.Y.Z` | Exactly that release | every plugin | `supergraph@=2.9.3` |
+
+`supergraph@latest` isn't accepted. Use a major version, such as `supergraph@2`.
+
+Federation 3 versions of the `supergraph` and `router` plugins, such as `supergraph@3`, `supergraph@=3.0.0-preview.1`, and `router@3`, are accepted under the same [ELv2 license](#accepting-the-elv2-license) as Federation 2. Federation 1 versions of `supergraph` are refused with [`E064`](/rover/errors#e064).
+
+The older spellings `latest-N` (for a major version) and `vX.Y.Z` (for an exact version) still work, but print a deprecation warning naming the current spelling:
+
+```
+warning: `latest-2` is a deprecated version format. Use `2` instead.
+```
 
 Pin an exact version for anything you want to be reproducible. A floating version (`latest` or a major) is resolved against the Apollo plugin registry when you install, and the result is recorded in the [lockfile](#the-plugin-lockfile).
 
@@ -129,7 +141,7 @@ error: the argument '--manifest-path <FILE>' cannot be used with '--global'
 Rover also refuses the command if you set `APOLLO_ROVER_GLOBAL`:
 
 ```
-Error: `--manifest-path` names a project to install into, but `APOLLO_ROVER_GLOBAL` asks for a global install.
+error: `--manifest-path` names a project to install into, but `APOLLO_ROVER_GLOBAL` asks for a global install.
         Unset `APOLLO_ROVER_GLOBAL` to install into the project, or drop `--manifest-path` to install globally.
 ```
 
@@ -319,7 +331,13 @@ downloading the 'supergraph' plugin from https://rover.apollo.dev/tar/supergraph
 the 'supergraph' plugin was successfully installed to /home/me/.rover/bin/supergraph-v2.9.3
 ```
 
-Installing a plugin that's already installed at the target level prints nothing and exits successfully. Pass `--force` to reinstall it.
+Installing a plugin that's already installed at the target level downloads nothing, says where it found the plugin, and exits successfully:
+
+```
+the 'supergraph' plugin v2.9.3 is already installed at /home/me/.rover/bin/supergraph-v2.9.3
+```
+
+Pass `--force` to reinstall it.
 
 With `--format json`, `data.plugins` lists each plugin the command installed or found:
 
@@ -354,6 +372,26 @@ With `--format json`, `data.plugins` lists each plugin the command installed or 
 
 ### Errors
 
+With `--format json`, a failure about a particular plugin (`E048` to `E052`, and `E058`) also names the plugin and the version requested in `error.plugin` and `error.requested_version`, and `data.plugins` is an empty list:
+
+```json
+{
+  "json_version": "1",
+  "data": {
+    "plugins": [],
+    "success": false
+  },
+  "error": {
+    "message": "...",
+    "code": "E048",
+    "plugin": "router",
+    "requested_version": "=2.9.9"
+  }
+}
+```
+
+A failure about a manifest or lockfile rather than a plugin doesn't carry `plugin` or `requested_version`.
+
 | Code | When it occurs |
 | ---- | -------------- |
 | [`E048`](/rover/errors#e048) | Rover couldn't resolve which release a version request means. |
@@ -362,3 +400,4 @@ With `--format json`, `data.plugins` lists each plugin the command installed or 
 | [`E051`](/rover/errors#e051) | The requested exact release is no longer served by the plugin registry. |
 | [`E052`](/rover/errors#e052) | A `rover.yaml` or lockfile can't be used, or the two disagree. |
 | [`E058`](/rover/errors#e058) | A plugin isn't installed and downloads are disabled. |
+| [`E064`](/rover/errors#e064) | A Federation 1 version of the `supergraph` plugin was requested. Rover no longer supports Federation 1. |
