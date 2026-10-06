@@ -168,7 +168,7 @@ This error occurs when trying to run a command that needs to use a configuration
 
 This is likely because you haven't set up a configuration profile yet or your `APOLLO_KEY` has been removed.
 
-Run `rover config auth` to set up a new configuration profile or check out Rover's [configuration docs](https://go.apollo.dev/r/configuring) for more on how to set up and use Rover.
+Run `rover auth login` to sign in with OAuth, or `rover config auth` to store a Personal API Key in a new configuration profile. In CI, set `APOLLO_KEY` to an API key, or `APOLLO_CLIENT_ID` and `APOLLO_CLIENT_SECRET` to a client-credential pair. You can also check out Rover's [configuration docs](https://go.apollo.dev/r/configuring) for more on how to set up and use Rover.
 
 ### E021
 
@@ -201,7 +201,7 @@ This error occurs when Rover tries to load a configuration profile that has been
 
 If you modified a configuration file by hand, double check to make sure your formatting is appropriate.
 
-If you did not intentionally modify a configuration profile, you may need to delete the profile and re-create it with `rover config delete --profile <NAME>` and `rover config auth --profile <NAME>`.
+If you did not intentionally modify a configuration profile, you may need to delete the profile and re-create it with `rover config delete <NAME>` and `rover config auth --profile <NAME>`.
 
 If this error persists, please [open an issue](https://github.com/apollographql/rover/issues/new?body=Error%20E025%0A%0ADescribe%20your%20issue%20or%20question%20here&labels=triage) and let us know.
 
@@ -411,6 +411,8 @@ This error occurs when a setting's value fails its type's syntactic check - for 
 
 Run `rover config set <SETTING> <value> --profile <name>` with a corrected value. If the invalid value is already stored on a profile, this also fixes the profile so other commands that read it stop failing.
 
+If the invalid value came from the environment (`APOLLO_GRAPH_REF` is the one environment variable checked this way), unset it or export a corrected value. If it came from `rover.yaml`, edit the `settings:` section.
+
 
 ### E055
 
@@ -435,9 +437,9 @@ This error occurs when `rover api-key rotate <ORGANIZATION_ID> <CLIENT_ID>` is g
 
 ### E058
 
-This error occurs when Rover needs a plugin that isn't installed, and downloads are disabled. `--no-download` (or `APOLLO_ROVER_NO_DOWNLOAD`) disables them for `rover plugin install`, and `--skip-update` (or `APOLLO_ROVER_SKIP_UPDATE`) disables them for the commands that install plugins as they run, such as `rover supergraph compose` and `rover dev`. Those commands also never download a plugin unless you opt in, with the `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` setting: in the environment, on a profile, or under `settings:` in the project's `rover.yaml`. Rover fails before it contacts the plugin registry, rather than downloading the plugin anyway or using a different version.
+This error occurs when Rover needs a plugin that isn't installed, and downloads are disabled. `--no-download` (or `APOLLO_ROVER_NO_DOWNLOAD`) disables them for `rover plugin install`, and `--skip-update` (or `APOLLO_ROVER_SKIP_UPDATE`) disables them for the commands that install plugins as they run, such as `rover supergraph compose` and `rover dev`. Those commands also don't download a plugin when the `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` setting is `false`: in the environment, on a profile, or under `settings:` in the project's `rover.yaml`. Rover fails before it contacts the plugin registry, rather than downloading the plugin anyway or using a different version.
 
-The error names the plugin and the version it needed. When a flag or environment variable disabled downloads, it also names every directory Rover looked in and that control. Install the plugin ahead of time with `rover plugin install`, or re-run without the control that disabled downloads. If nothing opted in to downloads, install the plugin with `rover plugin install`, or opt in. Opting in doesn't override `--skip-update` or `--no-download`.
+The error names the plugin and the version it needed, every directory Rover looked in, and the control that disabled downloads. Install the plugin ahead of time with `rover plugin install`, or lift that control: re-run without the flag, unset the environment variable, or set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` to `true`. Setting it to `true` doesn't override `--skip-update` or `--no-download`.
 
 
 ### E059
@@ -475,5 +477,19 @@ This error occurs when `rover auth grants revoke --org <ORGANIZATION_ID> --user 
 Run the same command again to retry. Revoking under a client where the user no longer holds a grant succeeds, so a retry only changes the clients that failed.
 
 A client the Platform API refused for lack of permission fails again on every retry until you're granted the organization's grant-management permission.
+
+
+### E064
+
+This error occurs when a command asks for Federation 1: a `federation_version` of `1`, `latest-0`, `latest-1` or `=0.x` in `supergraph.yaml`, `rover plugin install supergraph@1` (or `@latest-1`, `@=0.x`), or a Federation 1 template in `rover init`. Rover no longer composes, installs, or builds against Federation 1.
+
+Migrate your subgraphs to Federation 2 by adding `@link` directives that opt each one in (see [moving to Federation 2](https://www.apollographql.com/docs/graphos/schema-design/federated-schemas/reference/moving-to-federation-2#opt-in-to-federation-2)), then remove the Federation 1 pin from your configuration, or set it to `2`.
+
+
+### E065
+
+This error occurs when `rover graph publish` or `rover subgraph publish` published a schema, but the launch it started (and any downstream contract launches) hadn't finished by the time Rover stopped waiting for it. The publish itself went through.
+
+Rover waits for 300 seconds by default. Set `APOLLO_CHECKS_TIMEOUT_SECONDS` (or pass `--checks-timeout`) to a higher value to wait longer, or open the launch in GraphOS Studio, whose link Rover prints, to follow its progress there.
 
 
