@@ -415,6 +415,18 @@ pub enum RoverClientError {
     #[error("Timed out waiting for the launch to complete.")]
     LaunchTimeoutError { url: Option<String> },
 
+    /// `graph publish`/`subgraph publish` stopped waiting for the launch it
+    /// triggered. Like [`RoverClientError::PublishLaunchFailure`], the publish
+    /// itself already succeeded, so this carries the publish response
+    /// (pre-serialized, for the same reason) for `--format json` to report as
+    /// `data`, instead of discarding it. `launch_status` in it is `null`:
+    /// Rover stopped waiting before it learned the outcome.
+    #[error("Timed out waiting for the launch to complete.")]
+    PublishLaunchTimeout {
+        url: Option<String>,
+        publish_response: serde_json::Value,
+    },
+
     #[error(
         "A check workflow status was reported but it was not specified as a pass or a failure."
     )]

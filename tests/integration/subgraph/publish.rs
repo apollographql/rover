@@ -62,6 +62,15 @@ const LAUNCH_STATUS_NO_DOWNSTREAM_RESPONSE: &str = r#"{"data":{"graph":{"variant
     "downstreamLaunches":[]
 }}}}}"#;
 
+const LAUNCH_STATUS_STILL_RUNNING_RESPONSE: &str = r#"{"data":{"graph":{"variant":{"launch":{
+    "id":"launch-1",
+    "graphId":"my-graph",
+    "graphVariant":"current",
+    "status":"LAUNCH_INITIATED",
+    "supersededAt":null,
+    "downstreamLaunches":[]
+}}}}}"#;
+
 /// Runs `rover subgraph publish` against a mock Studio server stubbing the
 /// publish mutation (returning `publish_response`) and the launch status
 /// poll query (returning `launch_status_response`), with the given extra
@@ -296,4 +305,27 @@ fn background_is_not_a_publish_option() {
 
     assert_eq!(output.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&output.stderr).contains("unexpected argument '--background'"));
+}
+
+/// When Rover stops waiting for the launch (E065), the schema was still published, so
+/// `--format json` keeps the publish response in `data`, as it does for a failed launch (E047),
+/// with `launch_status: null` since Rover never learned the outcome.
+#[test]
+#[serial]
+fn subgraph_publish_json_keeps_the_publish_response_when_the_launch_wait_times_out() {
+    let output = run_subgraph_publish(
+        PUBLISH_WITH_LAUNCH_RESPONSE,
+        LAUNCH_STATUS_STILL_RUNNING_RESPONSE,
+        &["--format", "json", "--checks-timeout", "0"],
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "expected exit code 1; stdout: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_json_snapshot!(json);
 }

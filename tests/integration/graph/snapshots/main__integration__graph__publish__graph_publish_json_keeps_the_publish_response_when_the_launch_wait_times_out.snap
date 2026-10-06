@@ -1,0 +1,30 @@
+---
+source: tests/integration/graph/publish.rs
+expression: json
+---
+{
+  "json_version": "1",
+  "data": {
+    "api_schema_hash": "123456",
+    "field_changes": {
+      "additions": 0,
+      "removals": 0,
+      "edits": 0
+    },
+    "type_changes": {
+      "additions": 0,
+      "removals": 0,
+      "edits": 0
+    },
+    "total_type_count": 1,
+    "launch_url": "https://studio.apollographql.com/graph/my-graph/launches/launch-1",
+    "launch_status": null,
+    "launch_superseded": false,
+    "downstream_launches": [],
+    "success": false
+  },
+  "error": {
+    "message": "Timed out waiting for the launch to complete.",
+    "code": "E065"
+  }
+}

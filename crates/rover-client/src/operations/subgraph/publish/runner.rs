@@ -127,8 +127,19 @@ pub async fn run(
         downstream_launches,
     } = match (maybe_launch_id, launch_poll_timeout_seconds) {
         (Some(launch_id), Some(timeout_seconds)) => {
-            let snapshot = poll_launch(&graph_ref, &launch_id, client, timeout_seconds).await?;
-            LaunchesReport::new(snapshot)
+            match poll_launch(&graph_ref, &launch_id, client, timeout_seconds).await {
+                Ok(snapshot) => LaunchesReport::new(snapshot),
+                // The publish succeeded; keep its response for the caller to
+                // report, as a failed launch does.
+                Err(RoverClientError::LaunchTimeoutError { url }) => {
+                    let response = build_response(publish_response, None, false, Vec::new());
+                    return Err(RoverClientError::PublishLaunchTimeout {
+                        url,
+                        publish_response: serde_json::json!(response),
+                    });
+                }
+                Err(err) => return Err(err),
+            }
         }
         _ => LaunchesReport {
             launch_status: None,

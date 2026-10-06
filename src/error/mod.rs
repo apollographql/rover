@@ -233,6 +233,10 @@ impl RoverError {
             Some(RoverClientError::PublishLaunchFailure {
                 graph_ref: _,
                 publish_response,
+            })
+            | Some(RoverClientError::PublishLaunchTimeout {
+                url: _,
+                publish_response,
             }) => publish_response.clone(),
             // FR17: `keys: None` omits `data.keys` entirely, matching FR11's own
             // omission-vs-null rule for the success path, rather than reporting a `null` keys
