@@ -97,7 +97,7 @@ Unreleased changes are in [`.changeset/`](.changeset/), one file per change. Run
 
 - **Profiles can now store `APOLLO_REGISTRY_URL`, `APOLLO_TELEMETRY_URL`, and `APOLLO_TELEMETRY_DISABLED`; new `rover config set`/`unset` verbs - @dotdat**
 
-  `rover config set <SETTING> <VALUE> [--profile]` stores one of these settings on a profile, validating the value syntactically before storing anything, and creating a settings-only profile with no credential if it doesn't already exist. `rover config unset <SETTING> [--profile]` removes a stored setting; unsetting one that isn't stored is a no-op, not an error. Precedence is now, for these three settings: explicit flag > environment variable > the active profile > built-in default - a value stored on a profile takes effect only when neither the flag nor the environment variable supplies one. The OAuth endpoint settings (`--oauth-*`) aren't part of this group yet. Run `rover config show` to see each setting's effective value and source. A value that fails its type's syntactic check now carries a stable `error.code` (`E054`) in `--format json`, alongside the existing message.
+  `rover config set <SETTING> <VALUE> [--profile]` stores one of these settings on a profile, validating the value syntactically before storing anything, and creating a settings-only profile with no credential if it doesn't already exist. `rover config unset <SETTING> [--profile]` removes a stored setting; unsetting one that isn't stored is a no-op, not an error. Precedence is now, for these three settings: explicit flag > environment variable > the active profile > built-in default - a value stored on a profile takes effect only when neither the flag nor the environment variable supplies one. Run `rover config show` to see each setting's effective value and source. A value that fails its type's syntactic check now carries a stable `error.code` (`E054`) in `--format json`, alongside the existing message.
 
 - **Rover prints a notice when a profile setting redirects a network destination, or an environment variable silently overrides one - @dotdat**
 
@@ -245,7 +245,7 @@ Unreleased changes are in [`.changeset/`](.changeset/), one file per change. Run
 
 - **`config show` reports a setting with no built-in default as `none` (text) or `null` (JSON), not the string `"none"` - @dotdat**
 
-  `rover config show`'s `value` field is now `null` in `--format json` for a setting that falls all the way through to the builtin tier with no default of its own (currently only `APOLLO_GRAPH_REF`, once its own profile tier lands), rather than the literal string `"none"` - which is itself a valid value for some settings, so a script could no longer tell an unset setting apart from a real one that happened to be set to that string. Text output is unaffected, still rendering `none`.
+  `rover config show`'s `value` field is now `null` in `--format json` for a setting that falls all the way through to the builtin tier with no default of its own (currently only `APOLLO_GRAPH_REF`), rather than the literal string `"none"` - which is itself a valid value for some settings, so a script could no longer tell an unset setting apart from a real one that happened to be set to that string. Text output is unaffected, still rendering `none`.
 
 - **Profiles can now store `APOLLO_CHECKS_TIMEOUT_SECONDS` - @dotdat**
 
@@ -261,7 +261,7 @@ Unreleased changes are in [`.changeset/`](.changeset/), one file per change. Run
 
 - **`rover.yaml`'s JSON schema documents the `settings:` section - @dotdat**
 
-  The project manifest's `settings:` section is read separately from `plugins:`, so a problem in one section never refuses the other. That holds even for a repeated key under `plugins:`. Once project settings are wired up, these cases print a warning and apply nothing, instead of failing the command:
+  The project manifest's `settings:` section is read separately from `plugins:`, so a problem in one section never refuses the other. That holds even for a repeated key under `plugins:`. These cases print a warning and apply nothing, instead of failing the command:
 
   - a `settings:` section in the user-level `rover.yaml`, whose warning points at `rover config set`
   - a project manifest Rover can't read or parse at all
@@ -273,7 +273,9 @@ Unreleased changes are in [`.changeset/`](.changeset/), one file per change. Run
 
   - an unrecognized key
   - a `settings:` section in the user-level `rover.yaml`
-  - a project manifest Rover can't read or parse No setting's value is applied from the file yet. Outside a project, nothing changes.
+  - a project manifest Rover can't read or parse
+
+  Outside a project, nothing changes.
 
 - **Project-file settings take effect, between an explicit profile and the default profile - @dotdat**
 
@@ -482,7 +484,7 @@ Unreleased changes are in [`.changeset/`](.changeset/), one file per change. Run
 
 - **`rover graph publish`/`subgraph publish --format json` keep the publish response when a triggered launch fails - @dotdat**
 
-  A failed launch or downstream contract-variant launch used to make either command return a bare error, discarding the whole response — `--format json` reported `"data": null` with no `error.code` to match on, even though the schema publish itself had succeeded. Both now surface this as `RoverClientError::PublishLaunchFailure` (`E047`), so `data` still carries the full publish response (`api_schema_hash`, `launch_status`, `launch_superseded`, `downstream_launches`, and so on) alongside the coded error.
+  When a launch fails, the schema publish itself has still succeeded. A failed launch of the published variant, or, with `--include-contract-checks`, a failed downstream contract-variant launch, makes either command fail with `E047`, and `--format json` keeps the full publish response in `data` (`api_schema_hash`, `launch_status`, `launch_superseded`, `downstream_launches`, and so on) alongside the coded error, instead of reporting `"data": null` with no `error.code`.
 
 - **`rover connector test` now exits non-zero and reports `success: false` when the suite fails - @benjamn**
 
@@ -560,15 +562,15 @@ Unreleased changes are in [`.changeset/`](.changeset/), one file per change. Run
 
 - **Add a `rover-client` operation to look up one client-credential pair by its client ID - @dotdat**
 
-  `pair_get::GetOAuthClient` looks up a single pair via `Organization.oauthClient`, reporting the Platform API's deliberately uninformative `null` (no such pair, no permission, or not enrolled) as `None` - the "not a pair, or can't tell" signal `rover api-key delete`/`rename` need to fall back to treating an ID as an API key. An HTTP 403 on the lookup is reported as `PairPermissionDenied`, which callers treat as "can't tell" too: `studio_graphql_service_with_attempt_timeout`, whose only callers are the pair reads, now classifies 403s the way `studio_graphql_service_with_timeout` already does. Also fixes `pair_delete` so a permission denial from `deleteOAuthClient` is reported as `E053`, matching `pair_create`. Not yet consumed by any command - foundation for rover-431's pair-aware `delete`/`rename`.
+  `pair_get::GetOAuthClient` looks up a single pair via `Organization.oauthClient`, reporting the Platform API's deliberately uninformative `null` (no such pair, no permission, or not enrolled) as `None` - the "not a pair, or can't tell" signal `rover api-key delete`/`rename` need to fall back to treating an ID as an API key. An HTTP 403 on the lookup is reported as `PairPermissionDenied`, which callers treat as "can't tell" too: `studio_graphql_service_with_attempt_timeout`, whose only callers are the pair reads, now classifies 403s the way `studio_graphql_service_with_timeout` already does. Also fixes `pair_delete` so a permission denial from `deleteOAuthClient` is reported as `E053`, matching `pair_create`. `rover api-key delete` and `rename` use it to tell a pair's client ID from an API key's ID.
 
 - **Add a non-retrying, timeout-bounded Studio GraphQL service constructor - @dotdat**
 
-  `StudioClient` gains `studio_graphql_service_with_timeout`, a sibling to `studio_graphql_service` that swaps its ambient retry layer for a single per-attempt timeout - for a non-idempotent mutation where a retry could double the effect of a request the server already committed. Also adds `RoverClientError::PairPermissionDenied` (error code `E053`) and wires the new `PermissionDeniedLayer` into `studio_graphql_service_with_timeout` only, so a permission-denied response is classified for the operations that use it without changing behavior for `studio_graphql_service`'s existing callers. Not yet consumed by any command - foundation for rover-431's client-credential pair management.
+  `StudioClient` gains `studio_graphql_service_with_timeout`, a sibling to `studio_graphql_service` that swaps its ambient retry layer for a single per-attempt timeout - for a non-idempotent mutation where a retry could double the effect of a request the server already committed. Also adds `RoverClientError::PairPermissionDenied` (error code `E053`) and wires the new `PermissionDeniedLayer` into `studio_graphql_service_with_timeout` only, so a permission-denied response is classified for the operations that use it without changing behavior for `studio_graphql_service`'s existing callers. `rover api-key create`, `rotate`, and `delete` use it for client-credential pairs.
 
 - **Classify an HTTP 403 from Apollo Studio as a distinct permission-denied error - @dotdat**
 
-  `rover-studio` gains a `PermissionDeniedLayer`, mirroring the existing `RejectedCredentialLayer` for the previously-unclassified case where a credential authenticates fine but isn't permitted to do something. Not yet wired into any command's service stack - foundation for rover-431's client-credential pair management.
+  `rover-studio` gains a `PermissionDeniedLayer`, mirroring the existing `RejectedCredentialLayer` for the previously-unclassified case where a credential authenticates fine but isn't permitted to do something. The client-credential pair commands use it.
 
 - **Stop baking "N operation(s)" text into a `rover-client` type - @dotdat**
 
@@ -588,7 +590,7 @@ Unreleased changes are in [`.changeset/`](.changeset/), one file per change. Run
 
 - **Add an RFC 8628 OAuth device authorization grant implementation to `rover-auth` - @dotdat**
 
-  Adds `DeviceAuthorizationFlow` to `rover-auth`'s oauth2 module: requesting a device code, and polling the token endpoint until the user approves the request from another device. Not yet wired up to any command; a follow-up PR adds `rover auth login --no-browser`.
+  Adds `DeviceAuthorizationFlow` to `rover-auth`'s oauth2 module: requesting a device code, and polling the token endpoint until the user approves the request from another device. `rover auth login --no-browser` uses it.
 
 - **Replace GitHub reqwest client with apollo-http-client - @SharkBaitDLS**
 
@@ -606,11 +608,11 @@ Unreleased changes are in [`.changeset/`](.changeset/), one file per change. Run
 
 - **Add OAuth token storage to the credential model - @dotdat**
 
-  A profile's stored credential can now be an OAuth access token (with an optional refresh token and expiry), alongside the existing Personal API Key, in the same OS-native secret store added above. Requests made with an OAuth credential now send `Authorization: Bearer <token>` instead of `x-api-key`. This is internal plumbing — see `rover auth login` below for the command that now writes one.
+  A profile's stored credential can now be an OAuth access token (with an optional refresh token and expiry), alongside the existing Personal API Key, in the same OS-native secret store added above. Requests made with an OAuth credential now send `Authorization: Bearer <token>` instead of `x-api-key`. This is internal plumbing — see `rover auth login` above for the command that writes one.
 
 - **Add `rover-client` operations to create/rotate/delete client-credential pairs - @dotdat**
 
-  Three new operations for the Platform API's `createOAuthClient`/`rotateOAuthClientSecret`/`deleteOAuthClient` mutations, alongside the already-added pair-listing operation. Not yet wired up to any command; a follow-up PR adds the `client-credentials` create type, a `rotate` verb, and delete/rename support to `rover api-key`.
+  Three new operations for the Platform API's `createOAuthClient`/`rotateOAuthClientSecret`/`deleteOAuthClient` mutations, alongside the already-added pair-listing operation. `rover api-key create`'s `client-credentials` type, `rover api-key rotate`, and `rover api-key delete` use them.
 
 # [0.41.0] - 2026-07-09
 
