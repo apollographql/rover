@@ -195,15 +195,15 @@ Rover tries every client, even after one fails, and reports the outcome under ea
 In text output, Rover reports the outcome under each client in a table:
 
 ```terminal showLineNumbers=false
-┌────────────────┬───────────┬─────────┐
-│ Client         ┆ Client ID ┆ Outcome │
-╞════════════════╪═══════════╪═════════╡
-│ Rover          ┆ rover     ┆ revoked │
-├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
-│ ci-deploy      ┆ c_8f2a    ┆ revoked │
-├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
-│ nightly-checks ┆ c_91be    ┆ failed  │
-└────────────────┴───────────┴─────────┘
+┌────────────────┬───────────────────┬─────────┐
+│ Client         ┆ Client ID         ┆ Outcome │
+╞════════════════╪═══════════════════╪═════════╡
+│ Rover          ┆ <ROVER_CLIENT_ID> ┆ revoked │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
+│ ci-deploy      ┆ c_8f2a            ┆ revoked │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
+│ nightly-checks ┆ c_91be            ┆ failed  │
+└────────────────┴───────────────────┴─────────┘
 ```
 
 With `--format json`, every client is reported in `data.clients`, so a script can see which ones failed without parsing the error message:
@@ -216,20 +216,21 @@ With `--format json`, every client is reported in `data.clients`, so a script ca
     "user_id": "user-123",
     "user_is_member": true,
     "clients": [
-      { "client_id": "rover", "name": "Rover", "kind": "rover", "outcome": "revoked", "error": null },
-      { "client_id": "c_8f2a", "name": "ci-deploy", "kind": "client_credentials", "outcome": "failed", "error": "<the error GraphOS returned>" }
+      { "client_id": "<ROVER_CLIENT_ID>", "name": "Rover", "kind": "rover", "outcome": "revoked", "error": null },
+      { "client_id": "c_8f2a", "name": "ci-deploy", "kind": "client_credentials", "outcome": "revoked", "error": null },
+      { "client_id": "c_91be", "name": "nightly-checks", "kind": "client_credentials", "outcome": "failed", "error": "<the error GraphOS returned>" }
     ],
     "cancelled": false,
     "success": false
   },
   "error": {
-    "message": "Revocation failed under 1 of 2 OAuth clients.",
+    "message": "Revocation failed under 1 of 3 OAuth clients.",
     "code": "E063"
   }
 }
 ```
 
-`user_is_member` is `null` when Rover couldn't determine whether the user is a member.
+`<ROVER_CLIENT_ID>` stands for the client ID `rover auth login` uses: Rover's built-in client, or `APOLLO_OAUTH_CLIENT_ID` if you set it. `user_is_member` is `null` when Rover couldn't determine whether the user is a member.
 
 <Note>
 
