@@ -109,7 +109,7 @@ Pull requests (PRs) should only be opened after discussion and consensus has bee
 * Include a helpful description. It is important to provide context to reviewers that show _how_ your PR addresses an issue and any questions you still have unanswered, or portions of the code you think deserve some extra attention.
 * If your work is still in-progress and you're opening a PR to get early feedback, let us know by opening it as a draft PR and adding `wip:` prefix in the PR title.
 * Add tests for any logic changes in your code, especially if you are fixing a bug. Your PR should have no failing tests before merging. Please let us know if you need help writing tests, there are still some portions of the Rover codebase that do not have established testing patterns.
-* Add a changelog entry in [CHANGELOG.md](https://github.com/apollographql/rover/blob/main/CHANGELOG.md) under the `Unreleased` heading, following the pattern of previous entries.
+* Add a changeset to [`.changeset/`](https://github.com/apollographql/rover/blob/main/.changeset/README.md) describing any user-visible change: run `mise run add-changeset`, or write the file by hand. Don't edit `CHANGELOG.md`: its release sections are generated from the changesets when a release is cut. A maintainer adds the `skip-changeset` label to a PR that doesn't need one.
 
 ### Architecture
 
