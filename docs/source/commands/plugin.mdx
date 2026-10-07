@@ -35,10 +35,10 @@ Each plugin accepts these version forms:
 | Form | Meaning | Accepted by | Example |
 | ---- | ------- | ----------- | ------- |
 | A major version | The newest release within that major version | `supergraph` (`2`), `router` (`1`, `2`) | `router@2` |
-| `latest` | The newest release. For `router`, the newest 2.x release | `router`, `apollo-mcp-server` | `apollo-mcp-server@latest` |
+| `latest` | The newest release. For `router`, and for `supergraph` in `rover.yaml`, the newest 2.x release | `router`, `apollo-mcp-server`, and `supergraph` in `rover.yaml` only | `apollo-mcp-server@latest` |
 | `=X.Y.Z` | Exactly that release | every plugin | `supergraph@=2.9.3` |
 
-`supergraph@latest` isn't accepted. Use a major version, such as `supergraph@2`.
+On the command line, `supergraph@latest` isn't accepted. Use a major version, such as `supergraph@2`. In [`rover.yaml`](#declaring-plugins-in-roveryaml), `supergraph: latest` is accepted and means the newest 2.x release, but a major version such as `2` says the same thing more plainly.
 
 Federation 1 versions of `supergraph` are refused with [`E064`](/rover/errors#e064).
 
@@ -68,7 +68,7 @@ Other common Rover options (for example `--format`, `--log`, and `--client-timeo
 
 ### Accepting the ELv2 license
 
-The `supergraph` and `router` plugins are licensed under the [ELv2 license](https://www.apollographql.com/docs/resources/elastic-license-v2-faq/). The first time you install one on a machine, Rover asks you to accept the license. Rover remembers your answer.
+The `supergraph`, `router`, and `apollo-mcp-server` plugins are licensed under the [ELv2 license](https://www.apollographql.com/docs/resources/elastic-license-v2-faq/). The first time you install one on a machine, Rover asks you to accept the license. Rover remembers your answer.
 
 CI systems can't answer the prompt, so accept the license with `--elv2-license accept` or `APOLLO_ELV2_LICENSE=accept`:
 
@@ -76,12 +76,14 @@ CI systems can't answer the prompt, so accept the license with `--elv2-license a
 rover plugin install supergraph@=2.9.3 --elv2-license accept
 ```
 
-Otherwise the command fails:
+Otherwise the command fails. In CI, where the `CI` environment variable is set, the message is:
 
 ```
 error: This command requires that you accept the terms of the ELv2 license.
-        Before running this command again, you need to either set `APOLLO_ELV2_LICENSE=accept` as an environment variable, or pass the `--elv2-license=accept` argument. You will only need to do this once on this machine.
+        Before running this command again, you need to either set `APOLLO_ELV2_LICENSE=accept` as an environment variable, or pass the `--elv2-license=accept` argument.
 ```
+
+Outside CI, the message adds: `You will only need to do this once on this machine.`
 
 ## Where plugins are installed
 

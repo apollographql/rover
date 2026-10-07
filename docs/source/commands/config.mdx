@@ -15,6 +15,8 @@ The `config list` command lists all of your stored configuration profiles:
 ```
 rover config list
 
+Profiles:
+
 staging
 default
 ```
@@ -280,7 +282,7 @@ error: invalid value 'APOLLO_LOG_LEVEL' for '<SETTING>': `APOLLO_LOG_LEVEL` can'
 For more information, try '--help'.
 ```
 
-Credentials such as `APOLLO_KEY` can't be stored with `config set` either. Use [`rover auth login`](/rover/commands/auth) or [`config auth`](#config-auth).
+Credentials such as `APOLLO_KEY` can't be stored with `config set` either. Rover refuses them as names it doesn't recognize, for example "`APOLLO_KEY` isn't a Rover setting". To store a credential, use [`rover auth login`](/rover/commands/auth) or [`config auth`](#config-auth).
 
 If the named profile doesn't already exist, `config set` creates it without a credential. A later command that needs that profile's credential fails with error `E055`, which tells you how to add one; see [`config whoami`](#config-whoami).
 

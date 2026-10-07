@@ -405,7 +405,7 @@ $ rover plugin install supergraph@latest-2
 warning: `latest-2` is a deprecated version format. Use `2` instead.
 ```
 
-**What to do:** write a major version as `2` instead of `latest-2`, and an exact version as `=2.9.3` instead of `v2.9.3`. Don't switch to `supergraph@latest`: the `supergraph` plugin doesn't accept `latest`. For the forms each plugin accepts, see [Plugin versions](/rover/commands/plugin#plugin-versions).
+**What to do:** write a major version as `2` instead of `latest-2`, and an exact version as `=2.9.3` instead of `v2.9.3`. Don't switch to `supergraph@latest`: the command line doesn't accept `latest` for the `supergraph` plugin. (In `rover.yaml`, `supergraph: latest` is accepted and means the newest 2.x release.) For the forms each plugin accepts, see [Plugin versions](/rover/commands/plugin#plugin-versions).
 
 ## Credentials are stored in the OS keychain
 

@@ -267,6 +267,8 @@ The launch fields are:
 - `launch_superseded`: `true` if a later publish to the same variant superseded the launch
 - `downstream_launches`: one entry per triggered contract-variant launch, with `graph_id`, `variant_name`, `status`, `superseded`, and `url`
 
+With `--include-contract-checks`, a failed downstream contract-variant launch fails the publish with `E047`, and `data` keeps the full publish response:
+
 ```json
 {
   "json_version": "1",
