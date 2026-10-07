@@ -45,7 +45,7 @@ The generated manifest uses the Apollo persisted query manifest format. Each ent
   "version": 1,
   "operations": [
     {
-      "id": "e5c9c9f2d1a0a9f4f6b6a1e2d3c4b5a6978869504132a1b2c3d4e5f60718293a",
+      "id": "3a48466dcc1d7e1cc4f819f46b633a4675acb088e0a65f8113f5fba2cdf259fe",
       "name": "GetProduct",
       "type": "query",
       "body": "query GetProduct($id: ID!) {\n  product(id: $id) {\n    id\n    name\n  }\n}"
@@ -94,6 +94,40 @@ rover persisted-queries generate \
 Without `--manifest-path`, the `data` field contains the full manifest instead of the path and count.
 
 The generate command doesn't write `clientName` values into the manifest. To associate every generated operation with a client name, use `persisted-queries publish --for-client-name`.
+
+#### Preserving operation comments
+
+<MinVersionBadge version="Rover v1.0.0" />
+
+By default, Rover drops comments when it normalizes an operation's body. Pass `--preserve-comments` to keep the contiguous comment block directly above each operation in that operation's `body`. Comments elsewhere in a document, such as inside the operation or separated from it by a blank line, are still dropped.
+
+Given this operation file:
+
+```graphql
+# Fetches the current user
+# for the profile page
+query Me {
+  # inner comment
+  me { id name }
+}
+```
+
+`rover persisted-queries generate --preserve-comments` generates this entry:
+
+```json
+{
+  "id": "7595ac314829543bbdbfdbf760e1470e3cb1522471ce86d7034c393ac43e5a18",
+  "name": "Me",
+  "type": "query",
+  "body": "# Fetches the current user\n# for the profile page\nquery Me {\n  me {\n    id\n    name\n  }\n}"
+}
+```
+
+<Caution>
+
+Because an operation's `id` is the hash of its `body`, `--preserve-comments` changes the ID of every operation that has a comment above it. Every client that generates a manifest for the same graph must use the same setting. Manifests generated without the flag are unchanged.
+
+</Caution>
 
 ## Publish a PQM
 

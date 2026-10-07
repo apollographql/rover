@@ -74,7 +74,7 @@ Unlike a standard introspection query, the result of `rover subgraph introspect`
 
 #### Watching for schema changes
 
-If you pass `--watch` to `rover subgraph introspect`, Rover introspects your subgraph every second. Whenever the returned schema differs from the previously returned schema, Rover outputs the updated schema. This is most useful when combined with the `--output <OUTPUT_FILE>` argument which will write the introspection response out to a file whenever its contents change.
+If you pass `--watch` to `rover subgraph introspect`, Rover introspects your subgraph continuously. Whenever the returned schema differs from the previously returned schema, Rover outputs the updated schema. This is most useful when combined with the `--output <OUTPUT_FILE>` argument which will write the introspection response out to a file whenever its contents change.
 
 #### Including headers
 
@@ -238,7 +238,7 @@ Every subgraph name **must**:
 
 The URL that your supergraph uses to communicate with the subgraph in a [managed federation architecture](/federation/managed-federation/overview/).
 
-**Required** the first time you publish a particular subgraph. If your subgraph isn't deployed yet, or if you aren't using managed federation, you can pass an empty string. Passing an empty string requires you to set the `--allow-invalid-routing-url` flag.
+**Required** the first time you publish a particular subgraph. If your subgraph isn't deployed yet, or if you aren't using managed federation, you can pass an empty string. In a non-interactive environment, passing an empty string requires you to set the `--allow-invalid-routing-url` flag.
 
 **Optional** after your first publish. Provide only if you need to change the subgraph's routing URL.
 
@@ -270,20 +270,7 @@ This option has no effect if you publish to a non-monolithic variant.
 
 <td>
 
-By default, `rover subgraph publish` will fail if an unparsable routing URL is associated with a subgraph. If you need to disable this warning and allow the invalid URL to be published anyway, you can pass this option.
-
-</td>
-</tr>
-<tr>
-<td>
-
-###### `--check`
-
-</td>
-
-<td>
-
-Pass this to run all configured checks for subgraph before publishing. If any check fails the subgraph publish will not continue and an error will be displayed instead.
+By default, when a routing URL isn't a valid `http` or `https` URL, `rover subgraph publish` asks you to confirm in a terminal and fails in a non-interactive environment. To skip this check for the URL you pass with `--routing-url` and publish it anyway, pass this option. A routing URL Rover fetches from GraphOS, because you didn't pass `--routing-url`, is always checked.
 
 </td>
 </tr>
@@ -296,7 +283,7 @@ Pass this to run all configured checks for subgraph before publishing. If any ch
 
 <td>
 
-This is shorthand for `--routing-url "" --allow-invalid-routing-url`. **It will override any existing routing URL for the subgraph.**
+This is shorthand for `--routing-url "" --allow-invalid-routing-url`. **This flag overrides any existing routing URL for the subgraph.**
 
 </td>
 </tr>
@@ -309,7 +296,58 @@ This is shorthand for `--routing-url "" --allow-invalid-routing-url`. **It will 
 
 <td>
 
-Run all configured checks before publishing. If any checks fail, the publish is aborted and no schema changes are pushed. Equivalent to running `rover subgraph check` with the same arguments before publishing.
+Run all configured checks before publishing. If any checks fail, Rover aborts the publish and pushes no schema changes. Equivalent to running `rover subgraph check` with the same arguments before publishing. See [Running checks before publishing](#running-checks-before-publishing).
+
+</td>
+</tr>
+<tr>
+<td>
+
+###### `--validation-period`
+
+</td>
+
+<td>
+
+Only takes effect with `--check`. The time range of past operations to check against, overriding the variant's check configuration. See [Validation period](#validation-period).
+
+</td>
+</tr>
+<tr>
+<td>
+
+###### `--query-count-threshold`, `--query-percentage-threshold`
+
+</td>
+
+<td>
+
+Only take effect with `--check`. The minimum number of executions, or minimum percentage of total request volume, an operation must have to count in the check. See [Threshold values](#threshold-values).
+
+</td>
+</tr>
+<tr>
+<td>
+
+###### `--include-contract-checks`
+
+</td>
+<td>
+
+With `--check`, also fail the check when a blocking contract variant's own check has failed, as for [`subgraph check`](#subgraph-check). Also fails the publish, with error [`E047`](/rover/errors#e047), when a downstream contract-variant launch fails. Without it, a failed downstream launch only prints a warning. See [Waiting for launches](#waiting-for-launches).
+
+</td>
+</tr>
+<tr>
+<td>
+
+###### `--changelog-message`
+
+</td>
+
+<td>
+
+A message to associate with this publish in the GraphOS Studio changelog.
 
 </td>
 </tr>
@@ -347,9 +385,85 @@ rover subgraph publish my-graph@current --schema ./schema.graphql --name account
   --routing-url "https://my-running-subgraph.com/api" --check
 ```
 
-If all checks pass, Rover publishes the subgraph schema. If any check fails, Rover prints the check output and exits without publishing.
+If all checks pass, Rover publishes the subgraph schema and then waits for the launches it triggers. For details, see [Waiting for launches](#waiting-for-launches). If any check fails, Rover prints the check output and exits without publishing. A failed check fails with error [`E043`](/rover/errors#e043), as it does for [`subgraph check`](#subgraph-check), with the message `Schema checks must pass before publishing. Fix the check failures above and try again.` With `--format json`, `data` is the check result, in the same shape as `subgraph check`'s, and `json_version` is `"3"`.
+
+`--include-contract-checks` applies to the check that `--check` runs, as it does for [`subgraph check`](#subgraph-check), and also to the [launches the publish waits for](#waiting-for-launches).
+
+`--background` doesn't apply to a publish, because `--check` always waits for the check: the check decides whether the publish happens. `subgraph publish` accepts `--background` for compatibility with earlier versions of Rover, ignores it, and warns:
+
+```
+Warning: `--background` has moved to `rover subgraph check --background`, and will be removed from `rover subgraph publish` in a future version. It has no effect here: `publish --check` always waits for the check, because the check decides whether the publish happens.
+```
 
 For details on configuring checks (time range, operation thresholds, linting rules), see the [`subgraph check`](#subgraph-check) section.
+
+#### Waiting for launches
+
+When a publish changes the supergraph schema, it triggers a launch on the variant, and the launch can trigger launches on downstream [contract variants](/graphos/delivery/contracts/). Rover waits for the triggered launch and every downstream contract-variant launch to finish before it exits. The wait is bounded by `--checks-timeout` (or the `APOLLO_CHECKS_TIMEOUT_SECONDS` environment variable), which defaults to 300 seconds. With `--check`, the check and the launch each get their own wait. If the launch wait times out, Rover fails with error [`E065`](/rover/errors#e065). The schema is already published and the launch may still finish in GraphOS. With `--format json`, `data` still includes the publish response, with `launch_status` `null`, because Rover stopped waiting before it learned the outcome.
+
+If the publish triggered downstream launches, Rover reports them on `stderr`:
+
+```
+Triggered downstream launches for 2 contract variants: mobile, partner-api.
+View launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-1
+```
+
+If a downstream contract-variant launch fails, Rover prints a warning and exits successfully:
+
+```
+Warning: The publish succeeded, but a downstream contract launch failed: mobile. Pass --include-contract-checks to make this fail the command.
+View launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-2
+```
+
+With `--format json`, the failed launch's `status` is `FAILED` in `downstream_launches`, and `error` is `null`.
+
+If the variant's own launch fails, or a downstream launch fails and you passed `--include-contract-checks`, Rover reports which one failed and exits with error [`E047`](/rover/errors#e047):
+
+```
+The publish succeeded, but the launch itself failed.
+View launch details at: https://studio.apollographql.com/graph/my-graph/launches/launch-1
+```
+
+The subgraph schema is still published. With `--format json`, `data` keeps the full publish response alongside the `E047` error.
+
+With `--format json`, `data` includes the launch results. For example, a publish that triggered a launch and one downstream contract-variant launch, both completed:
+
+```json
+{
+  "json_version": "1",
+  "data": {
+    "api_schema_hash": "123456",
+    "supergraph_was_updated": true,
+    "subgraph_was_created": false,
+    "subgraph_was_updated": true,
+    "launch_url": "https://studio.apollographql.com/graph/my-graph/launches/launch-1",
+    "launch_cli_copy": null,
+    "launch_status": "COMPLETED",
+    "launch_superseded": false,
+    "downstream_launches": [
+      {
+        "graph_id": "my-graph",
+        "variant_name": "mobile",
+        "status": "COMPLETED",
+        "superseded": false,
+        "url": "https://studio.apollographql.com/graph/my-graph/launches/launch-2"
+      }
+    ],
+    "success": true
+  },
+  "error": null
+}
+```
+
+The launch fields are:
+
+- `launch_url`: the Studio URL of the triggered launch, or `null` if the publish triggered none
+- `launch_cli_copy`: GraphOS's description of the launch, or `null`
+- `launch_status`: the launch's final status, such as `COMPLETED` or `FAILED`, or `null`
+- `launch_superseded`: `true` if a later publish to the same variant superseded the launch
+- `downstream_launches`: one entry per triggered contract-variant launch, with `graph_id`, `variant_name`, `status`, `superseded`, and `url`
+
+For how this differs from earlier versions of Rover, see [Upgrading to Rover 1.0](/rover/upgrading-to-1#publish-waits-for-launches).
 
 #### Creating variants
 
@@ -454,6 +568,18 @@ To override the default check configuration for a single check run, see the [val
 
 </td>
 </tr>
+<tr>
+<td>
+
+###### `--include-contract-checks`
+
+</td>
+<td>
+
+**Optional.** Also fail the check when a blocking contract variant's own check has failed, even if the overall GraphOS result for the check says it passed. Without it, the command passes or fails with the overall GraphOS result. See [Check output](#check-output).
+
+</td>
+</tr>
 </tbody>
 </table>
 
@@ -500,6 +626,69 @@ rover subgraph check my-graph@my-variant \
   --query-count-threshold=5 \
   --query-percentage-threshold=3
 ```
+
+#### Check output
+
+Rover prints a section for each check task that ran, such as `Build Check [PASSED]:` and `Operation Check [PASSED]:`. The Build Check and Operation Check sections appear even when the check found no schema changes.
+
+If your graph has [contract variants](/graphos/delivery/contracts/), the output ends with a Downstream Check section that summarizes the contract variants checked:
+
+```
+Downstream Check [PASSED]:
+Checked 2 contract variants, all passed.
+View downstream check details at: https://studio.apollographql.com/graph/my-graph/checks/downstream
+```
+
+The summary line is one of:
+
+- `No contract variants configured for this graph.`
+- `Checked N contract variants, all passed.`
+- `Checked N contract variants.` (when not every contract variant passed)
+
+A contract variant can be configured to block its source variant's checks. If a blocking contract variant's check fails, the summary names it. By default, `subgraph check` passes or fails with the overall GraphOS result for the check, and fails with error [`E043`](/rover/errors#e043) when that result is a failure. Pass `--include-contract-checks` to fail with `E043` whenever a blocking contract variant's own check has failed, even if the overall GraphOS result says the check passed:
+
+```
+Downstream Check [FAILED]:
+The downstream check task has encountered check failures for at least this blocking downstream variant: mobile.
+View downstream check details at: https://studio.apollographql.com/graph/my-graph/checks/downstream
+```
+
+A failed check on a non-blocking contract variant appears in the output but doesn't fail the command.
+
+Without `--include-contract-checks`, a blocking contract variant's failed check can appear under a passing `Downstream Check [PASSED]:` heading, when the overall GraphOS result is a pass. The command then exits successfully.
+
+With `--format json`, check output uses `json_version` `"3"`. The `downstream` task lists each contract variant in `variants`, with `graph_id`, `variant_name`, `blocking`, `fails_upstream_workflow`, and `status`:
+
+```json
+{
+  "json_version": "3",
+  "data": {
+    "core_schema_modified": false,
+    "tasks": {
+      "downstream": {
+        "task_status": "FAILED",
+        "target_url": "https://studio.apollographql.com/graph/my-graph/checks/downstream",
+        "variants": [
+          {
+            "graph_id": "my-graph",
+            "variant_name": "mobile",
+            "blocking": true,
+            "fails_upstream_workflow": null,
+            "status": "FAILED"
+          }
+        ]
+      }
+    },
+    "success": false
+  },
+  "error": {
+    "message": "The changes in the schema you proposed caused downstream checks to fail.",
+    "code": "E043"
+  }
+}
+```
+
+For what changed from `json_version` `"2"`, see [Upgrading to Rover 1.0](/rover/upgrading-to-1#check-json-output-is-version-3).
 
 ### `subgraph lint`
 
@@ -573,6 +762,201 @@ By default, this command flags all violations in your local schema.
 </tbody>
 </table>
 
+## Previewing a graph
+
+### `subgraph preview`
+
+<AuthNotice />
+
+Always preview your supergraph schema before publishing subgraph changes to ensure successful composition without affecting your production graph.
+
+Run the `subgraph preview` command:
+
+```bash
+rover subgraph preview my-graph@my-variant
+```
+
+The argument `my-graph@my-variant` in the preceding example is a [graph ref](../conventions/#graph-refs) that specifies the ID of the graph and [variant](/graphos/graphs/#variants) whose subgraphs you want to use for the preview.
+
+By default, `subgraph preview` composes the variant's subgraphs exactly as they're currently published. Use `--subgraph-changes` to preview the effect of hypothetical subgraph changes first (see [Previewing subgraph changes](#previewing-subgraph-changes) below). You can also provide the `--include-tag`/`--exclude-tag`/`--hide-unreachable-types` options to preview a contract filter on top of composition.
+
+Preview builds run asynchronously on GraphOS. By default, Rover starts the build and polls its status until it completes, then prints the resulting schema. For details, see [Running previews asynchronously](#running-previews-asynchronously).
+
+#### Options
+
+<table class="field-table">
+<thead>
+<tr>
+<th>Name</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+###### `--subgraph-changes`
+
+</td>
+<td>
+
+Optional. The path to a YAML file describing hypothetical changes to one or more subgraphs to apply before composing. You can also provide `-`, in which case the command reads the file from `stdin`. For details, see [previewing subgraph changes](#previewing-subgraph-changes).
+
+</td>
+</tr>
+<tr>
+<td>
+
+###### `--include-tag`
+
+</td>
+<td>
+
+Optional. A tag name to include when filtering. To include multiple tag names, specify `--include-tag` multiple times. For details, see [contract filters](/graphos/delivery/contracts/#contract-filters).
+
+```bash
+--include-tag foo --include-tag bar
+```
+
+Omit all of `--include-tag`/`--exclude-tag`/`--hide-unreachable-types` (and their `--no-*` counterparts) to preview composition only, with no filtering applied. If you provide any one of them, you must configure all three.
+
+</td>
+</tr>
+<tr>
+<td>
+
+###### `--no-include-tags`
+
+</td>
+<td>
+
+Sets an empty include list for the previewed contract schema. To use a non-empty list, use `--include-tag` instead. For details, see [contract filters](/graphos/delivery/contracts/#contract-filters).
+
+</td>
+</tr>
+<tr>
+<td>
+
+###### `--exclude-tag` option
+
+</td>
+<td>
+
+Specify a tag name to [exclude tag names](/graphos/delivery/contracts/#contract-filters) when filtering. To exclude multiple tag names, use `--exclude-tag` multiple times:
+
+```bash
+--exclude-tag foo --exclude-tag bar
+```
+
+Use `--no-exclude-tags` to specify an empty exclude list.
+
+</td>
+</tr>
+<tr>
+<td>
+
+###### `--no-exclude-tags` option
+
+</td>
+<td>
+
+Specify an empty [exclude list](/graphos/delivery/contracts/#contract-filters) for your previewed contract schema. Use `--exclude-tag` to specify a non-empty list.
+
+</td>
+</tr>
+<tr>
+<td>
+
+###### `--hide-unreachable-types` option
+
+</td>
+<td>
+
+Automatically [hides](/graphos/delivery/contracts/#contract-filters) types that can never be reached in operations on your previewed contract schema.
+
+</td>
+</tr>
+<tr>
+<td>
+
+###### `--no-hide-unreachable-types`
+
+</td>
+<td>
+
+Disables the automatic hiding of types that can never be reached in operations on your previewed contract schema.
+
+</td>
+</tr>
+<tr>
+<td>
+
+###### `--async`
+
+</td>
+<td>
+
+Optional. If provided, Rover starts the preview build and immediately returns with a build ID, instead of waiting for it to complete. Use `--build-id` to check on the build's status later.
+
+</td>
+</tr>
+<tr>
+<td>
+
+###### `--build-id`
+
+</td>
+<td>
+
+Optional. Check the status of a previously started preview build a single time, instead of starting a new one. Don't combine with `--subgraph-changes`, `--async`, or the include/exclude/hide-unreachable-types options preceding.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+#### Previewing subgraph changes
+
+Use `--subgraph-changes` to preview what composition produces if you change or remove one or more subgraphs first, without publishing those changes. Provide a YAML file with a `subgraphs` map keyed by subgraph name:
+
+```yaml title="changes.yaml"
+subgraphs:
+  foo:
+    routing_url: https://example.com  # optional; omit to keep the existing URL
+    schema:
+      file: ./foo.graphql              # or `sdl: "type Query { ... }"` inline
+  bar:
+    remove: true
+```
+
+```bash
+rover subgraph preview my-graph@my-variant --subgraph-changes ./changes.yaml
+```
+
+Each subgraph entry can set:
+
+- `routing_url`: a hypothetical new routing URL for the subgraph. Omit to keep the subgraph's currently published URL.
+- `schema`: a hypothetical new schema for the subgraph, either `file: <path>` (a local `.graphql`/`.gql` file) or `sdl: "<inline SDL>"`. Omit to keep the subgraph's currently published schema.
+- `remove: true`: Preview composition as if the subgraph had been removed. Don't combine with `routing_url` or `schema`.
+
+Every subgraph entry must set at least one of `routing_url`, `schema`, or `remove: true`. Subgraphs you don't mention in the file compose exactly as they're currently published.
+
+#### Running previews asynchronously
+
+For long-running preview builds, use `--async` to start the build and return a build ID immediately. This approach helps large schemas avoid local timeouts.
+
+```bash
+rover subgraph preview my-graph@my-variant --subgraph-changes ./changes.yaml --async
+```
+
+Check the build status later with `--build-id`:
+
+```bash
+rover subgraph preview my-graph@my-variant --build-id <BUILD_ID>
+```
+
+By default (without `--async`), Rover polls the build's status until it completes or [`APOLLO_CHECKS_TIMEOUT_SECONDS`](../configuring/#supported-environment-variables) passes. If Rover times out, your build may still complete in the background. Check your build's status later with `--build-id`.
+
 ## Deleting a subgraph
 
 ### `subgraph delete`
@@ -586,8 +970,8 @@ You can delete a single subgraph from a federated variant by running `rover subg
 rover subgraph delete my-graph@my-variant --name subgraph-to-delete
 ```
 
-This command prompts you for confirmation because the action is irreversible. You can bypass confirmation by passing the `--confirm` flag.
+Before deleting, Rover previews the deletion: it composes the variant without the subgraph and prints any build errors the deletion would cause, without changing anything. It then prompts you for confirmation because the action is irreversible. The preview polls until composition finishes or `APOLLO_CHECKS_TIMEOUT_SECONDS` passes.
 
-This command fails with an error if any other subgraph references types that originate in this subgraph.
+Pass `--confirm` to skip both the preview and the confirmation prompt.
 
 To delete an entire federated graph instead of a single subgraph, see [Deleting a variant](./graphs/#deleting-a-variant).

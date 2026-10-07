@@ -19,13 +19,13 @@ It's also helpful to [install](./getting-started) and [configure](./configuring)
 
 Rover's approach to [configuration](./configuring) is much more explicit and less abstracted than the Apollo CLI. Most configuration options in Rover are specified as flags on a particular command, rather than in a config file.
 
-The only config files that Rover uses are hidden config files created by the `config auth` command, along with a YAML file that's specifically for the [`supergraph compose`](./commands/supergraphs#yaml-configuration-file) command.
+Rover keeps your credentials in your operating system's credential store, and stores per-user settings on [configuration profiles](./configuring#configuration-profiles). A project can commit shared settings, such as a registry URL or timeouts, and the plugins it uses in a [`.rover/rover.yaml`](./configuring#project-settings) file. The [`supergraph compose`](./commands/supergraphs#yaml-configuration-file) command also reads its own YAML file. See [Where Rover stores configuration](./configuring#where-rover-stores-configuration).
 
 ### Authenticating with Studio
 
-The Apollo CLI authenticates with GraphOS Studio by reading an environment variable to determine the API key to use. With Rover, the recommended way to set API keys is with the `config auth` command. This command is interactive, however, so you can still use an [environment variable](./configuring#with-an-environment-variable) in your CI/CD environment.
+The Apollo CLI authenticates with GraphOS Studio by reading an environment variable to determine the API key to use. With Rover, the recommended way to authenticate on your own machine is `rover auth login`, which signs you in with OAuth. You can also store a personal API key with `rover config auth`. Both are interactive, so in your CI/CD environment you can still use an [environment variable](./configuring#with-an-environment-variable), as with the Apollo CLI. See [Choosing a credential](./configuring#choosing-a-credential).
 
-If you aren't sure where your API key is being read from or you're experiencing issues with your key, you can use the `config whoami` command to debug.
+If you aren't sure which credential Rover is using or you're experiencing issues with it, run `rover auth whoami` to debug.
 
 ### Replacing `apollo.config.js`
 
@@ -117,7 +117,7 @@ Find more about proxy server usage with Rover [here](./proxy)
 
 ## Introspection
 
-In the Apollo CLI, introspection of running services happens behind the scenes when you pass an `--endpoint` option to commands like `service:push`, `service:check`, and `service:download`. In Rover, you instead run the `graph introspect` command and pipe its result to the similar `graph/subgraph push` and `graph/subgraph check` commands.
+In the Apollo CLI, introspection of running services happens automatically when you pass an `--endpoint` option to commands like `service:push`, `service:check`, and `service:download`. In Rover, you instead run the `graph introspect` command and pipe its result to the similar `graph/subgraph publish` and `graph/subgraph check` commands.
 
 This separation of steps makes Rover's use of introspection more flexible and transparent. In addition, separating introspection into its own step makes it more debuggable if you run into errors.
 
@@ -135,9 +135,9 @@ For more information on the differences between `graph`s, `subgraph`s, and `supe
 
 ### Globs
 
-The Apollo CLI uses globs extensively to support using multiple local files, and even automatic discovery of files in a directory tree. While this was helpful in certain cases, the globbing strategy in the Apollo CLI caused many issues. Rover intentionally leaves globs off of file specifiers for initial release.
+The Apollo CLI uses globs extensively to support using multiple local files, and even automatic discovery of files in a directory tree. While this was helpful in certain cases, the globbing strategy in the Apollo CLI caused many issues. Rover doesn't accept globs for schema files. Only `rover client check --include` and `--exclude`, and the similar options of `rover client extract` and `rover persisted-queries generate`, take glob patterns.
 
-As a workaround, you might be able to use `cat` to combine multiple files and pass them to Rover with [stdin](./conventions#io). See [this example](#pushing-subgraph-changes-with-a-config-file).
+For schema files, use `cat` (or `awk 1`) to combine multiple files and pass them to Rover with [stdin](./conventions#io). See [this example](#pushing-subgraph-changes-with-a-config-file).
 
 ### Machine-readable output
 
@@ -149,7 +149,7 @@ An example script for converting output from `rover {sub}graph check my-graph --
 
 <Note>
 
-these examples assume an environment variable or config file has been set up to authenticate the Apollo CLI, and the `rover config auth` command has been run to authenticate Rover.
+these examples assume you have set up an environment variable or config file to authenticate the Apollo CLI, and you have authenticated Rover with `rover auth login`, `rover config auth`, or `APOLLO_KEY`.
 
 </Note>
 

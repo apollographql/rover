@@ -35,7 +35,7 @@ graph_id@variant_name
 
 **For example:** `docs-example-graph@staging`
 
-All Rover commands that interact with GraphOS require a graph ref as their first positional argument.
+Most Rover commands that interact with GraphOS require a graph ref as their first positional argument. The exceptions are commands that don't act on a single graph variant: `rover api-key` commands take an organization ID instead, and `rover auth` commands and `rover config whoami` take no graph ref.
 
 ## I/O
 

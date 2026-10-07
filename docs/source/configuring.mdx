@@ -6,43 +6,57 @@ description: Configure Rover CLI for interaction with GraphOS. Learn to authenti
 
 ## Authenticating with GraphOS
 
-### 1. Obtain an API key
+All Rover commands that communicate with [GraphOS](/graphos/) need a credential. Which one to use depends on where Rover runs.
 
-All Rover commands that communicate with [GraphOS](/graphos/) require an API key. GraphOS supports graph, subgraph, and personal API keys.
+### Choosing a credential
 
-- On your local development machine, use a personal API key.
-- In shared environments like CI, use a graph or subgraph API key.
+| Credential | How you provide it | Use it for |
+|------------|--------------------|------------|
+| OAuth login | [`rover auth login`](/rover/commands/auth) signs you in through your browser, or with a device code when you pass `--no-browser`. Rover stores the login on a [configuration profile](#configuration-profiles). | Local development (recommended) |
+| Personal API key | [`rover config auth`](#via-the-auth-command) prompts for the key and stores it on a configuration profile. | Local development |
+| Graph or subgraph API key | The [`APOLLO_KEY`](#with-an-environment-variable) environment variable. | CI and other shared environments |
+| Client-credential pair | The `APOLLO_CLIENT_ID` and `APOLLO_CLIENT_SECRET` environment variables. Rover exchanges the pair for a short-lived access token on each run. For details, see [Client-credential pairs](/rover/commands/api-key#client-credential-pairs). | CI and other shared environments |
 
 [Learn how to obtain an API key.](/graphos/platform/access-management/api-keys)
 
-### 2. Provide the API key to Rover
+### Which credential Rover uses
 
-You can provide your API key to Rover either via a [Rover command](#via-the-auth-command) (recommended for local development) or by setting an [environment variable](#with-an-environment-variable) (recommended for automation and CI).
+When more than one credential is available, Rover uses the first of these:
 
-<Note>
+1. `APOLLO_KEY`, if it's set.
+2. The access token from exchanging `APOLLO_CLIENT_ID` and `APOLLO_CLIENT_SECRET`, if both are set. Setting only one of them is an error.
+3. The credential stored on the profile in use: an OAuth login or a personal API key. A profile holds one credential at a time, so `rover auth login` replaces a personal API key stored on that profile, and `rover config auth` replaces an OAuth login.
 
-If you provide an API key via both methods, the environment variable takes precedence.
+To see which credential a command uses, run `rover auth whoami` or `rover config whoami`. Their `Origin` row reads `$APOLLO_KEY`, `$APOLLO_CLIENT_ID`, `--profile <name> (OAuth)` for an OAuth login, or `--profile <name>` for a personal API key. `rover config show` reports only whether a credential is present and whether it came from the `environment` or the `profile`.
 
-</Note>
+This order is separate from [how Rover chooses a setting's value](#how-rover-chooses-a-settings-value). Credentials never come from the [project file](#project-settings).
 
-#### Via the `auth` command
+### Via the `auth` command
 
-You can provide your API key to Rover by running the following command:
+To store a personal API key on a profile, run:
 
 ```shell
 rover config auth
 ```
 
-This method is recommended for local development. If you have more than one API key you want to use with Rover, you can assign those keys to different [configuration profiles](#configuration-profiles).
+Rover first suggests `rover auth login` instead, then prompts for the key:
 
-The `auth` command is interactive to prevent your API key from appearing in your terminal command history. Because it's interactive, we recommend using an [environment variable](#with-an-environment-variable) in automated environments such as CI.
+```
+warning: OAuth authentication is now available - consider running `rover auth login` instead of storing a Personal API Key.
+Go to https://go.apollo.dev/r/auth and create a new Personal API Key.
+Copy the key and paste it into the prompt below.
+>
+```
 
+If you have more than one API key you want to use with Rover, store each on a different [configuration profile](#configuration-profiles) with `--profile`.
 
-#### With an environment variable
+`rover config auth` is interactive to keep your API key out of your terminal command history. Because it's interactive, use an [environment variable](#with-an-environment-variable) in automated environments such as CI.
 
+### With an environment variable
 
-You can provide your API key to Rover by setting it as the value of the `APOLLO_KEY` environment variable.
-See all [supported environment variables](#supported-environment-variables).
+Provide a graph, subgraph, or personal API key by setting it as the value of the `APOLLO_KEY` environment variable. In CI, you can instead set `APOLLO_CLIENT_ID` and `APOLLO_CLIENT_SECRET` to a [client-credential pair](/rover/commands/api-key#client-credential-pairs).
+
+An environment variable credential takes precedence over one stored on a profile. See [Which credential Rover uses](#which-credential-rover-uses) and all [supported environment variables](#supported-environment-variables).
 
 <ExpansionPanel title="Need help setting environment variables?">
 
@@ -99,7 +113,7 @@ See all [supported environment variables](#supported-environment-variables).
 
 ## Configuration profiles
 
-You can create multiple _configuration profiles_ in Rover. Each configuration profile has its own associated API key, so you can use different configuration profiles when interacting with different graphs.
+You can create multiple configuration profiles in Rover. A profile can hold a credential (an OAuth login from `rover auth login` or a personal API key from `rover config auth`), [settings](#settings-in-a-profile), or both, so you can use different profiles when interacting with different graphs or GraphOS environments. A profile created by `rover config set` holds only settings until you add a credential to it.
 
 To specify which configuration profile to use for a particular command, use the `--profile` flag:
 
@@ -107,7 +121,19 @@ To specify which configuration profile to use for a particular command, use the 
 rover graph check my-company@prod --profile work
 ```
 
+`--profile` is accepted by every `rover` command, not only ones that talk to GraphOS.
+
 If you don't specify a configuration profile for a command, Rover uses the default profile (named `default`).
+
+### Settings in a profile
+
+A profile can also store non-secret settings, with or without a credential, so a profile pointed at a different GraphOS environment can carry its own registry URL, timeouts, and so on. Every setting marked in the **Profile** column of the [environment variables table](#variables) can be stored this way, with [`rover config set`](./commands/config#config-set):
+
+```shell
+rover config set APOLLO_REGISTRY_URL https://registry.staging.example.com --profile staging
+```
+
+A profile you name with `--profile` outranks the [project file](#project-settings), which outranks the `default` profile. Flags and environment variables outrank all three. For the full order, see [How Rover chooses a setting's value](#how-rover-chooses-a-settings-value), and run `rover config show` to see which source supplied each setting.
 
 To view all commands for working with configuration profiles, run the following command:
 
@@ -116,6 +142,57 @@ rover config --help
 ```
 
 [Learn more about `rover config` commands](./commands/config/).
+
+## Project settings
+
+Your project can carry its own settings, so everyone working in the same repository uses the same registry, timeouts, and plugin download host without configuring each machine. Add a `settings:` section to a `rover.yaml` file in a `.rover/` directory at your project's root:
+
+```yaml title=".rover/rover.yaml"
+settings:
+  APOLLO_REGISTRY_URL: https://registry.example.com
+  APOLLO_ROVER_DOWNLOAD_HOST: https://mirror.example.com
+  APOLLO_CHECKS_TIMEOUT_SECONDS: 600
+```
+
+Rover finds the file by looking for a `.rover/` directory in the current directory and then in each parent directory, stopping at your home directory, so it applies to commands run anywhere in the project. `rover plugin install --manifest-path <FILE>` uses the settings in the file it names instead. A setting in the file applies to everyone who runs Rover there, unless a flag, an environment variable, or a profile they name with `--profile` overrides it. See [How Rover chooses a setting's value](#how-rover-chooses-a-settings-value).
+
+- **Names.** A key is a setting's environment variable name, such as `APOLLO_REGISTRY_URL`, or that name in all lowercase, such as `apollo_registry_url`. The lowercase spelling is accepted in `rover.yaml` only. Using both spellings of the same setting in one file is an error (`E061`).
+- **Values.** A value has the setting's type: a URL, a whole number of seconds, a graph ref, or `true`/`false`. A URL must use `http` or `https`. A stored boolean is a real `true` or `false`. For details, see [Boolean values](#boolean-values). An invalid URL or boolean, or an invalid `APOLLO_CLIENT_TIMEOUT`, fails every command run in the project, including `rover config list`, with an error naming the file and the key:
+
+  ```
+  error[E054]: `rover.yaml` sets `APOLLO_REGISTRY_URL` to `ftp://registry.example.com`, which isn't a valid URL. Rover only accepts `http`/`https` URLs for this setting.
+  ```
+
+  An invalid `APOLLO_CHECKS_TIMEOUT_SECONDS` fails the commands that read it, such as `rover config show` and the check commands, with the same error code. An invalid graph ref fails every command run in the project, including `rover config list`, with the same error code, and so does an invalid `APOLLO_GRAPH_REF` in the environment or a profile. `rover config set` checks a graph ref before it stores one.
+- **Which settings.** Only settings marked in the **Project** column of the [environment variables table](#variables) can be set here. Rover warns about any other key and ignores it, so a file written for a newer version of Rover doesn't break an older one.
+- **No credentials.** The file is meant to be committed, so Rover refuses to read a credential from it. `APOLLO_KEY`, `APOLLO_CLIENT_ID`, or `APOLLO_CLIENT_SECRET` under `settings:` fails every command in the project (`E060`). Set your credential in the environment or in a profile instead; see [Choosing a credential](#choosing-a-credential).
+- **Project only.** A `settings:` section in your user-level `rover.yaml` (`~/.rover/rover.yaml`, or `.rover/rover.yaml` under `APOLLO_HOME` if you've set it) is ignored with a warning. To store settings for yourself rather than for a project, use a [profile](#settings-in-a-profile).
+
+If Rover can't read or parse the project's `rover.yaml`, it prints a warning and applies none of its settings. The command still runs.
+
+## Configuration notices
+
+When a setting's value sends Rover somewhere you might not expect, Rover prints a one-line note to `stderr` the first time it uses that setting. This happens when:
+
+- a profile or the project file points a network destination, such as the registry URL or the plugin download host, at something other than its default:
+
+  ```
+  Note: `rover.yaml` sets `APOLLO_ROVER_DOWNLOAD_HOST` to `https://mirror.example.com`.
+  ```
+
+- an environment variable overrides a value set by a profile you named with `--profile`, or by the project file. For a URL setting, the note names the URL the environment sends Rover to:
+
+  ```
+  Note: `APOLLO_REGISTRY_URL` from the environment is set to `https://registry.example.com`, overriding the value set in profile `staging`.
+  ```
+
+  For any other setting, it doesn't repeat the value:
+
+  ```
+  Note: `APOLLO_CHECKS_TIMEOUT_SECONDS` from the environment overrides the value set in profile `staging`.
+  ```
+
+Notices go to `stderr` only. They never appear in `--format json` output and never change a command's exit code. To turn them off, pass `--no-config-notices` or set `APOLLO_ROVER_NO_CONFIG_NOTICES` to `true`. You can't turn them off in a profile or project file.
 
 ## Logging
 
@@ -127,7 +204,7 @@ Rover supports the following levels of logging, in descending order of severity:
 * `debug`
 * `trace`
 
-By default, Rover logs `error`, `warn`, and `info` messages. You can configure this behavior for a command by setting its minimum log level with the `--log` flag:
+By default, Rover doesn't log anything. To see log messages for a command, set your minimum log level with the `--log` flag (or the `APOLLO_LOG_LEVEL` environment variable):
 
 ```
 rover graph check my-graph@prod --schema ./schema.graphql --log debug
@@ -142,16 +219,14 @@ By default, Rover prints the main output of its commands to `stdout` in plaintex
 
 Every Rover command supports two options for configuring its output behavior:
 
-- `--format`, for [setting the output format](#setting-output-format) (`plain` or `json`)
-- `--output`, for [writing a command's output to a file](#setting-output-location) instead of `stdout`
+- `--format`, for [setting the output format](#json-output) (`plain` or `json`)
+- `--output`, for [writing a command's output to a file](#writing-to-a-file) instead of `stdout`
 
 ### JSON output
 
 <Note>
 
-The `--format` option was added in Rover `v0.11.0`. Earlier versions of Rover use the `--output` option to set output format.
-
-Current versions of Rover still support using `--output` this way, but that support is deprecated and will be removed in a future release.
+The `--format` option was added in Rover v0.11.0. Earlier versions of Rover use the `--output` option to set output format. Rover 1.0 no longer supports that use: `--output json` writes the command's output to a file named `json`.
 
 </Note>
 
@@ -177,6 +252,39 @@ For more programmatic control over Rover's output, you can pass `--format json` 
     "message": "An unknown error occurred.",
     "code": null
   }
+}
+```
+
+For a concrete example, here is `rover auth whoami` for a user API key supplied through an environment variable. In the default plaintext format:
+
+```terminal showLineNumbers=false
+┌──────────┬──────────────────┐
+│ Key Type ┆ USER             │
+├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ User ID  ┆ user-123         │
+├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Origin   ┆ $APOLLO_KEY      │
+├╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ API Key  ┆ user********LOLO │
+└──────────┴──────────────────┘
+```
+
+With `--format json`, the same output is the `data` object of the envelope (commands add `"success": true` to `data`):
+
+```json
+{
+  "json_version": "1",
+  "data": {
+    "key_type": "USER",
+    "graph_id": null,
+    "graph_title": null,
+    "user_id": "user-123",
+    "origin": "$APOLLO_KEY",
+    "grant_type": null,
+    "api_key": "user********LOLO",
+    "success": true
+  },
+  "error": null
 }
 ```
 
@@ -321,22 +429,32 @@ If the specified file already exists, Rover overwrites it.
 
 <Note>
 
-This functionality is available in Rover `v0.11.0` and later. In earlier versions of Rover, the `--output` option instead provides the functionality that's now provided by the [`--format` option](#json-output).
-
-Current versions of Rover still support using `--output` like `--format`, but that support is deprecated and will be removed in a future release.
+This functionality is available in Rover v0.11.0 and later. In earlier versions of Rover, the `--output` option instead provides the functionality that's now provided by the [`--format` option](#json-output). Rover 1.0 no longer supports using `--output` like `--format`.
 
 </Note>
 
-## Setting config storage location
+## Where Rover stores configuration
 
-Rover stores your configuration in a local file and uses it when making requests. By default, this file is stored in your operating system's default configuration directory, in a file named `.sensitive`.
+Rover keeps credentials and settings in different places:
 
-You can override this file's location by setting the `APOLLO_CONFIG_HOME` environment variable. This can be useful for CI systems that don't give you access to default operating system directories.
+- **Credentials.** An OAuth login or personal API key is stored in your operating system's credential store under the service name `rover`: macOS Keychain, Windows Credential Manager, or the Linux kernel keyring. Where no credential store is available, Rover falls back to a `credentials.json` file in the configuration directory, readable and writable only by your user (mode `0600`).
+- **Settings.** Rover stores a profile's settings in `profiles/<name>/settings.toml` in the configuration directory.
+
+The default configuration directory depends on your operating system:
+
+| Operating system | Default configuration directory |
+|------------------|---------------------------------|
+| macOS | `~/Library/Application Support/com.Apollo.Rover` |
+| Linux | `~/.config/rover` (or `$XDG_CONFIG_HOME/rover`) |
+| Windows | `%APPDATA%\Apollo\Rover\config` |
+
+To use a different directory, pass `--config-home` or set the `APOLLO_CONFIG_HOME` environment variable. This can be useful for CI systems that don't provide access to default operating system directories.
 
 ```bash
-# Stores config in ./myspecialconfig/rover.toml
 APOLLO_CONFIG_HOME=./myspecialconfig/
 ```
+
+If you stored an API key with an earlier version of Rover, Rover moves it from its old plaintext file into the credential store automatically the first time it reads it. For details, see [Credentials are stored in the OS keychain](/rover/upgrading-to-1#credentials-are-stored-in-the-os-keychain).
 
 ## Git context
 
@@ -388,19 +506,74 @@ rover subgraph check my-graph --validation-period 1m --client-timeout=60
 
 ## Supported environment variables
 
-You can configure Rover's behavior by setting the environment variables listed below.
+You can configure most of Rover's behavior with an environment variable, and most environment variables have a matching flag, shown in the following table. A flag's `--help` text also names its environment variable.
 
-If present, an environment variable's value takes precedence over all other methods of configuring the associated behavior.
+### How Rover chooses a setting's value
 
-| Name                        | Value          |
-|-----------------------------|----------------|
-| `APOLLO_HOME` | The path to the parent directory of Rover's binary. The default value is your operating system's default home directory. Rover will install itself in a folder called `.rover` inside the directory specified. |
-| `APOLLO_CONFIG_HOME` | The path where Rover's configuration is stored. The default value is your operating system's default configuration directory. |
-| `APOLLO_GRAPH_REF` | A graph ref passed to `rover dev` command. [Learn more](./commands/dev#understanding---graph-ref-vs-apollo_graph_ref) |
-| `APOLLO_KEY` | The API key that Rover should use to authenticate with GraphOS Studio. |
-| `APOLLO_TELEMETRY_DISABLED` | Set to `true` if you don't want Rover to collect anonymous usage data. |
-| `APOLLO_VCS_REMOTE_URL` | The URL of your project's remote repository. See [Git context](#git-context). |
-| `APOLLO_VCS_BRANCH` | The name of the version-controlled branch. See [Git context](#git-context). |
-| `APOLLO_VCS_COMMIT` | The long identifier (SHA in Git) of the commit. See [Git context](#git-context). |
-| `APOLLO_VCS_AUTHOR` | The name and email of a commit's author (e.g., `Jane Doe <jane@example.com>`). See [Git context](#git-context). |
-| `NO_COLOR` | Set to `1` if you don't want Rover to print color. |
+For each setting, Rover uses the first of these sources that supplies a value:
+
+1. A flag passed on the command line.
+2. The setting's environment variable. A variable that's set to an empty value still counts as set, except `APOLLO_HOME`, where an empty `APOLLO_HOME` or `--rover-home ""` is treated as unset, and `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` (for details, see [Boolean values](#boolean-values)).
+3. A profile named with `--profile`, including `--profile default` typed out.
+4. The project file: the `settings:` section of `rover.yaml` in your project's `.rover/` directory.
+5. The `default` profile, when `--profile` isn't passed.
+6. Rover's built-in default.
+
+Only the settings marked in the **Profile** and **Project** columns below can come from a profile or the project file. For every other setting, the chain is just the flag, then the environment variable, then the built-in default. Run `rover config show` to see each setting's effective value and the source that supplied it.
+
+<Note>
+
+This is separate from [credential resolution](#which-credential-rover-uses), which has its own precedence and isn't affected by the preceding order.
+
+</Note>
+
+### Boolean values
+
+A boolean environment variable is set by `1` or `true` (case-insensitive) and unset by `0`, `false`, an empty value, or leaving it unset. There are two exceptions:
+
+- `APOLLO_TELEMETRY_DISABLED` disables telemetry when it's set to any value, including `false` or an empty value. Only leaving it unset keeps telemetry enabled.
+- `NO_COLOR` and `APOLLO_NO_COLOR` follow the cross-tool `NO_COLOR` convention: an empty value, `0`, and `false` count as unset, and anything else turns color off.
+
+`APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` has three states rather than two. `1` or `true` turns automatic downloads on, and `0` or `false` turns them off. Rover ignores any other value, such as `no`, `yes`, or an empty value, as if the variable were unset, so a profile, the project file, or the built-in default decides.
+
+A boolean stored in a profile or the project file is always a real `true` or `false`, whatever its environment variable's rule. So `APOLLO_TELEMETRY_DISABLED: false` in a profile or project file keeps telemetry enabled, even though `APOLLO_TELEMETRY_DISABLED=false` in the environment disables it.
+
+### Variables
+
+| Name | Flag | Profile | Project | Value |
+|------|------|:-------:|:-------:|-------|
+| `APOLLO_HOME` | `--rover-home` | | | The path to the parent directory of Rover's binary. The default value is your operating system's default home directory. Rover installs itself in a folder called `.rover` inside the directory specified. |
+| `APOLLO_CONFIG_HOME` | `--config-home` | | | The path where Rover stores configuration. The default value is your operating system's default configuration directory. For details, see [Where Rover stores configuration](#where-rover-stores-configuration). |
+| `APOLLO_KEY` | | | | The API key that Rover uses to authenticate with GraphOS Studio. For details, see [Which credential Rover uses](#which-credential-rover-uses). |
+| `APOLLO_CLIENT_ID` | | | | The client ID of a [client-credential pair](/rover/commands/api-key#client-credential-pairs) Rover exchanges for an access token. Requires `APOLLO_CLIENT_SECRET`. Not the same as `APOLLO_OAUTH_CLIENT_ID`. |
+| `APOLLO_CLIENT_SECRET` | | | | The client secret of a [client-credential pair](/rover/commands/api-key#client-credential-pairs). Requires `APOLLO_CLIENT_ID`. |
+| `APOLLO_REGISTRY_URL` | `--registry-url` | ✓ | ✓ | Overrides the GraphOS registry endpoint Rover sends requests to. |
+| `APOLLO_TELEMETRY_URL` | `--telemetry-url` | ✓ | ✓ | Overrides the endpoint anonymous usage telemetry is reported to. |
+| `APOLLO_TELEMETRY_DISABLED` | `--telemetry-disabled` | ✓ | ✓ | Set if you don't want Rover to collect anonymous usage data. See [Boolean values](#boolean-values) for how its value is read. |
+| `APOLLO_CHECKS_TIMEOUT_SECONDS` | `--checks-timeout` | ✓ | ✓ | How long, in seconds, Rover CLI polls an asynchronous check or preview build before timing out. Applies to `graph check`, `subgraph check`, the checks run by `graph publish` and `subgraph publish`, and to `subgraph preview` and `contract preview`. Defaults to `300` (5 minutes). |
+| `APOLLO_CLIENT_TIMEOUT` | `--client-timeout` | ✓ | ✓ | Overrides the timeout (in seconds) for HTTP(S) requests. For details, see [Increasing request timeouts](#increasing-request-timeouts). |
+| `APOLLO_ROVER_DOWNLOAD_HOST` | `--download-host` | ✓ | ✓ | Overrides the host Rover downloads plugin binaries (`router`, `supergraph`, and `apollo-mcp-server`) from. |
+| `APOLLO_TEMPLATES_API` | `--templates-api` (`rover template` only) | ✓ | ✓ | Overrides where `rover template` fetches project templates from. `rover init` fetches templates from GitHub and doesn't use this. |
+| `APOLLO_GRAPH_REF` | | ✓ | ✓ | A graph ref passed to the `rover dev` command. [Learn more](./commands/dev#understanding-apollo_graph_ref-vs---graph-ref) |
+| `APOLLO_OAUTH_AUTHORIZATION_URL` | `--oauth-authorization-url` | ✓ | ✓ | Overrides the OAuth authorization endpoint `rover auth login` uses. |
+| `APOLLO_OAUTH_TOKEN_URL` | `--oauth-token-url` | ✓ | ✓ | Overrides the OAuth token endpoint `rover auth login` and client-credentials authentication (`APOLLO_CLIENT_ID`/`APOLLO_CLIENT_SECRET`) use. |
+| `APOLLO_OAUTH_DEVICE_AUTHORIZATION_URL` | `--oauth-device-authorization-url` | ✓ | ✓ | Overrides the OAuth device authorization endpoint `rover auth login --no-browser` uses. |
+| `APOLLO_OAUTH_REVOCATION_URL` | `--oauth-revocation-url` | ✓ | ✓ | Overrides the OAuth revocation endpoint `rover auth logout` uses. |
+| `APOLLO_OAUTH_WHOAMI_URL` | `--oauth-whoami-url` | ✓ | ✓ | Overrides the OAuth userinfo endpoint `rover auth whoami` uses. |
+| `APOLLO_OAUTH_CLIENT_ID` | `--oauth-client-id` | ✓ | ✓ | Overrides the ID of Rover's own OAuth application, which `rover auth login` and `rover auth logout` use. Not a credential, and unrelated to `APOLLO_CLIENT_ID`. |
+| `APOLLO_ROVER_DEV_ROUTER_VERSION` | `--router-version` (`rover dev` only) | | | Overrides the version of the GraphOS Router `rover dev` runs. |
+| `APOLLO_ROVER_DEV_COMPOSITION_VERSION` | `--composition-version` (`rover dev` only) | | | Overrides the version of Apollo Federation `rover dev` uses for composition. `--federation-version` takes precedence over both. |
+| `APOLLO_ROVER_DEV_MCP_VERSION` | `--mcp-version` (`rover dev` only) | | | Overrides the version of Apollo MCP Server `rover dev --mcp` runs. |
+| `APOLLO_VCS_REMOTE_URL` | `--vcs-remote-url` | | | The URL of your project's remote repository. For details, see [Git context](#git-context). |
+| `APOLLO_VCS_BRANCH` | `--vcs-branch` | | | The name of the version-controlled branch. For details, see [Git context](#git-context). |
+| `APOLLO_VCS_COMMIT` | `--vcs-commit` | | | The long identifier (SHA in Git) of the commit. For details, see [Git context](#git-context). |
+| `APOLLO_VCS_AUTHOR` | `--vcs-author` | | | The name and email of a commit's author (e.g., `Jane Doe <jane@example.com>`). For details, see [Git context](#git-context). |
+| `APOLLO_ROVER_SKIP_UPDATE` | `--skip-update-check` plus `--skip-update` | | | Set to `1` or `true` to turn off all of Rover's automatic updates at once: the check for a newer version of Rover (`--skip-update-check`) and plugin downloads by commands such as `rover supergraph compose` and `rover dev` (`--skip-update`). An explicit `rover plugin install` still downloads. |
+| `APOLLO_ROVER_NO_DOWNLOAD` | `--no-download` (`rover plugin install` only) | | | Set to `1` or `true` to make `rover plugin install` use only plugins already installed, without contacting the plugin registry. |
+| `APOLLO_ROVER_GLOBAL` | `--global` (`rover plugin install` only) | | | Set to `1` or `true` to make `rover plugin install` install globally rather than into your project. For details, see [Installing globally](/rover/commands/plugin#installing-globally). |
+| `APOLLO_ROVER_NO_CONFIG_NOTICES` | `--no-config-notices` | | | Set to `true` to turn off [configuration notices](#configuration-notices). |
+| `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` | | ✓ | ✓ | Whether a command such as `rover supergraph compose` or `rover dev` downloads a plugin it doesn't have. Defaults to `true`, and when nothing sets it, each such download warns that a future version of Rover will stop downloading plugins automatically. Set to `true` to keep downloading without the warning, or to `false` to stop. In the environment, `1`/`true` and `0`/`false` both work. An explicit `rover plugin install` always downloads, regardless of this setting, and `--skip-update` still prevents a download. For details, see [Automatic downloads](/rover/commands/plugin#automatic-downloads). |
+| `APOLLO_LOG_LEVEL` | `--log` | | | Sets Rover's [log level](#logging). |
+| `APOLLO_FORMAT` | `--format` | | | Sets Rover's [output format](#configuring-output) (`plain` or `json`). |
+| `NO_COLOR` | `--no-color` | | | Set if you don't want Rover to print color. See [Boolean values](#boolean-values) for how its value is read. |
+| `APOLLO_NO_COLOR` | `--no-color` | | | Same as `NO_COLOR`, with the same value rule. Rover checks this in addition to, not instead of, `NO_COLOR`. |

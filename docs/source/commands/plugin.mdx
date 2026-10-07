@@ -1,0 +1,426 @@
+---
+title: The Rover plugin Command
+subtitle: Install the plugins Rover uses for composition and local development
+description: Use the rover plugin install command to install the supergraph, router, and Apollo MCP Server plugins into a project or globally, record them in a lockfile, and control when Rover downloads plugins.
+---
+
+Some Rover commands delegate their work to a plugin binary:
+
+| Plugin | What it is | Used by |
+| ------ | ---------- | ------- |
+| `supergraph` | Federation composition | [`rover supergraph compose`](/rover/commands/supergraphs#supergraph-compose), [`rover dev`](/rover/commands/dev), `rover lsp`, `rover connector` |
+| `router` | GraphOS Router | [`rover dev`](/rover/commands/dev) |
+| `apollo-mcp-server` | Apollo MCP Server | [`rover dev --mcp`](/rover/commands/dev#run-your-mcp-server) |
+
+These commands download a required plugin if it's missing, and warn that a future version of Rover won't. To install plugins ahead of time, use `rover plugin install`. To control downloads, see [Automatic downloads](#automatic-downloads).
+
+## `plugin install`
+
+```bash
+rover plugin install [NAME@VERSION]
+```
+
+Name the plugin and the version you want as `<NAME>@<VERSION>`:
+
+```bash
+rover plugin install supergraph@=2.9.3
+rover plugin install router@2
+rover plugin install apollo-mcp-server@latest
+```
+
+### Plugin versions
+
+Each plugin accepts these version forms:
+
+| Form | Meaning | Accepted by | Example |
+| ---- | ------- | ----------- | ------- |
+| A major version | The newest release within that major version | `supergraph` (`2`), `router` (`1`, `2`) | `router@2` |
+| `latest` | The newest release. For `router`, and for `supergraph` in `rover.yaml`, the newest 2.x release | `router`, `apollo-mcp-server`, and `supergraph` in `rover.yaml` only | `apollo-mcp-server@latest` |
+| `=X.Y.Z` | Exactly that release | every plugin | `supergraph@=2.9.3` |
+
+On the command line, `supergraph@latest` isn't accepted. Use a major version, such as `supergraph@2`. In [`rover.yaml`](#declaring-plugins-in-roveryaml), `supergraph: latest` is accepted and means the newest 2.x release, but a major version such as `2` says the same thing more plainly.
+
+Federation 1 versions of `supergraph` are refused with [`E064`](/rover/errors#e064).
+
+The older spellings `latest-N` (for a major version) and `vX.Y.Z` (for an exact version) still work, but print a deprecation warning naming the current spelling:
+
+```
+warning: `latest-2` is a deprecated version format. Use `2` instead.
+```
+
+Pin an exact version for anything you want to be reproducible. A floating version (`latest` or a major) is resolved against the Apollo plugin registry when you install, and the result is recorded in the [lockfile](#the-plugin-lockfile).
+
+Run without a plugin name to install everything in scope. See [Installing everything a project declares](#installing-everything-a-project-declares).
+
+`rover plugin install` always downloads a plugin that isn't installed yet. The [automatic-download setting](#automatic-downloads) doesn't affect it. To forbid downloading, pass `--no-download`.
+
+### Options
+
+| Option | Description |
+| ------ | ----------- |
+| `-f`, `--force` | Overwrite any existing binary without prompting for confirmation. |
+| `--no-download` | Never download: use the plugin if it's already installed, and fail, naming it, if it isn't. You can also set the `APOLLO_ROVER_NO_DOWNLOAD` environment variable to `1` or `true`. Neither this nor `--skip-update` implies the other. |
+| `-g`, `--global` | Install into the [global install root](#installing-globally), even inside a project that has its own. You can also set the `APOLLO_ROVER_GLOBAL` environment variable to `1` or `true`. |
+| `-m`, `--manifest-path <FILE>` | Install into the project whose `rover.yaml` this is, rather than the one found by searching up from the working directory. Creates the project if it doesn't exist. See [Creating a project](#creating-a-project). |
+| `--elv2-license <ELV2_LICENSE_ACCEPTED>` | Accept the ELv2 license without prompting. Expected value: `accept`. You can also set the `APOLLO_ELV2_LICENSE` environment variable to `accept`. |
+
+Other common Rover options (for example `--format`, `--log`, and `--client-timeout`) also apply. Run `rover plugin install --help` for the full list.
+
+### Accepting the ELv2 license
+
+The `supergraph`, `router`, and `apollo-mcp-server` plugins are licensed under the [ELv2 license](https://www.apollographql.com/docs/resources/elastic-license-v2-faq/). The first time you install one on a machine, Rover asks you to accept the license. Rover remembers your answer.
+
+CI systems can't answer the prompt, so accept the license with `--elv2-license accept` or `APOLLO_ELV2_LICENSE=accept`:
+
+```bash
+rover plugin install supergraph@=2.9.3 --elv2-license accept
+```
+
+Otherwise the command fails. In CI, where the `CI` environment variable is set, the message is:
+
+```
+error: This command requires that you accept the terms of the ELv2 license.
+        Before running this command again, you need to either set `APOLLO_ELV2_LICENSE=accept` as an environment variable, or pass the `--elv2-license=accept` argument.
+```
+
+Outside CI, the message adds: `You will only need to do this once on this machine.`
+
+## Where plugins are installed
+
+Rover installs plugins at one of two levels:
+
+- **Project:** a `.rover/` directory in your repository. Plugins go in `.rover/bin/`.
+- **Global:** Rover's own directory, shared by every project on the machine. Plugins go in `$APOLLO_HOME/.rover/bin/`, which is `~/.rover/bin/` when `APOLLO_HOME` isn't set.
+
+Rover finds the project by searching the working directory, then each parent directory, for a `.rover/` directory, and stops at the first one it finds. Your home directory's `~/.rover/` is the global level, never a project.
+
+When a command needs a plugin, it looks in the project first, then globally, and uses the first copy it finds at the version it needs. A plugin installed globally works in every project that hasn't installed its own copy.
+
+### Installing into a project
+
+Inside a project, `rover plugin install` installs into the project's `.rover/bin/` and records the installed version in `.rover/plugin-versions.lock`:
+
+```bash
+rover plugin install supergraph@=2.9.3
+```
+
+```
+downloading the 'supergraph' plugin from https://rover.apollo.dev/tar/supergraph/aarch64-apple-darwin/v2.9.3
+the 'supergraph' plugin was successfully installed to /work/app/.rover/bin/supergraph-v2.9.3
+```
+
+In JSON output, Rover reports the plugin with `"level": "project"`.
+
+#### Creating a project
+
+Rover never creates a project on its own. To create one, name your manifest with `--manifest-path`:
+
+```bash
+rover plugin install supergraph@=2.9.3 --manifest-path .rover/rover.yaml
+```
+
+If the manifest doesn't exist, Rover creates it and the rest of the project alongside it:
+
+```
+.rover/
+├── .gitignore            # contains "bin/"
+├── bin/
+│   └── supergraph-v2.9.3
+├── plugin-versions.lock
+└── rover.yaml
+```
+
+Rover doesn't overwrite a `.gitignore` that's already there. If the install fails, Rover doesn't leave a partly created project behind.
+
+`--manifest-path` also installs into a project other than the one Rover would find from the working directory. The [`settings:`](/rover/configuring#project-settings) in the named project's `rover.yaml` apply to the command.
+
+You can't combine `--manifest-path` with a global install. With `--global`, Rover refuses the command:
+
+```
+error: the argument '--manifest-path <FILE>' cannot be used with '--global'
+```
+
+Rover also refuses the command if you set `APOLLO_ROVER_GLOBAL`:
+
+```
+error: `--manifest-path` names a project to install into, but `APOLLO_ROVER_GLOBAL` asks for a global install.
+        Unset `APOLLO_ROVER_GLOBAL` to install into the project, or drop `--manifest-path` to install globally.
+```
+
+### Installing globally
+
+Outside a project, `rover plugin install` installs into `$APOLLO_HOME/.rover/bin/` (by default, `~/.rover/bin/`) and records the version in `$APOLLO_HOME/.rover/plugin-versions.lock`. In JSON output, the plugin is reported with `"level": "global"`.
+
+To install globally from inside a project, pass `--global` (`-g`), or set `APOLLO_ROVER_GLOBAL` to `1` or `true`:
+
+```bash
+rover plugin install router@2 --global
+```
+
+<Note>
+
+If you installed Rover with npm and no project is in scope, plugins install into the npm package's `node_modules/.bin/` directory instead, and aren't recorded in a lockfile.
+
+</Note>
+
+## Installing everything a project declares
+
+Run `rover plugin install` with no plugin name to install every plugin in scope:
+
+```bash
+rover plugin install
+```
+
+Rover installs every plugin the lockfile records, at exactly the version it records, without asking the plugin registry. It also installs every plugin that `rover.yaml` [declares](#declaring-plugins-in-roveryaml) but the lockfile doesn't record yet, and records it.
+
+This makes a committed lockfile reproducible: every machine that runs `rover plugin install` in the project gets the same versions.
+
+If `rover.yaml` and the lockfile disagree, the command fails instead of silently choosing one. For example, after changing a declared version in `rover.yaml`:
+
+```
+error[E052]: The plugin lockfile is out of date with `/work/app/.rover/rover.yaml`: `supergraph` is declared as `=2.9.4` but locked at `2.9.3`.
+        Run `rover plugin install supergraph@=2.9.4` to update it.
+```
+
+Plugin-using commands such as `rover supergraph compose` fail the same way. A `rover.yaml` with no lockfile beside it isn't an error: Rover uses its declarations as written.
+
+## The plugin lockfile
+
+Each successful `rover plugin install` records what it installed in `plugin-versions.lock`, next to that level's `rover.yaml`. Installing one plugin leaves every other entry as it was, so a floating version recorded earlier keeps the release it was locked at. Other commands never write the lockfile.
+
+The lockfile is TOML:
+
+```toml title=".rover/plugin-versions.lock"
+# This file is generated by Rover. It is not intended for manual editing.
+version = 1
+
+[[plugins]]
+name = "supergraph"
+requested = "=2.9.3"
+resolved = "2.9.3"
+
+[[plugins]]
+name = "router"
+requested = "2"
+resolved = "2.17.0"
+```
+
+`requested` is the version you asked for, and `resolved` is the exact release it resolved to.
+
+Don't edit the lockfile by hand. To change a version, run `rover plugin install <NAME>@<VERSION>`.
+
+In a project, commit `.rover/rover.yaml` and `.rover/plugin-versions.lock`, and don't commit `.rover/bin/`. A project Rover creates comes with a `.gitignore` that ignores `bin/`.
+
+A lockfile Rover can't read, including one written by a newer version of Rover, fails with [`E052`](/rover/errors#e052) naming the file. Rover doesn't ignore or overwrite it.
+
+## Declaring plugins in `rover.yaml`
+
+A `rover.yaml` can declare which plugin versions a project, or the whole machine, expects:
+
+```yaml title=".rover/rover.yaml"
+plugins:
+  supergraph: "=2.9.3"
+  router: "2"
+  apollo-mcp-server: latest
+```
+
+The keys under `plugins:` must be `supergraph`, `router`, or `apollo-mcp-server`. Each value takes any of the [version forms](#plugin-install).
+
+Rover reads `rover.yaml` from two places:
+
+- **Project:** `.rover/rover.yaml` in the project.
+- **Global:** `$APOLLO_HOME/.rover/rover.yaml` (by default, `~/.rover/rover.yaml`).
+
+When both declare a plugin, the project declaration takes precedence for that plugin. If your project declares only `router`, Rover still uses the global declaration for `supergraph`.
+
+A `rover.yaml` that Rover can't use fails with [`E052`](/rover/errors#e052) naming the file. For example, an unknown plugin name or a YAML merge key (`<<`) under `plugins:` is refused:
+
+```
+error[E052]: Couldn't decide which `supergraph` plugin version to use
+
+Caused by:
+    0: `/home/me/.rover/rover.yaml` is not a valid manifest.
+    1: plugins: `<<` is not a Rover plugin. Valid plugins are `supergraph`, `router`, and `apollo-mcp-server` at line 4 column 3
+        Fix `/home/me/.rover/rover.yaml`, or remove it, then re-run the command.
+```
+
+A project's `rover.yaml` can also hold a `settings:` section. See [Project settings](/rover/configuring#project-settings).
+
+### Which version a command uses
+
+For the `supergraph` plugin, Rover takes the version from the first of these that's set:
+
+1. The `--federation-version` option
+2. `federation_version` in `supergraph.yaml`
+3. The project's `rover.yaml`
+4. The global `rover.yaml`
+
+`supergraph.yaml` is authoritative for composition, so adding a `rover.yaml` never changes what an existing `supergraph.yaml` composes with. When both set a version and they disagree, Rover uses `supergraph.yaml` and warns:
+
+```
+warning: `supergraph.yaml` sets `federation_version: =2.9.3`, overriding the `supergraph` version declared in `rover.yaml`.
+```
+
+[`rover dev`](/rover/commands/dev#versioning) also reads the `router` and `apollo-mcp-server` versions from `rover.yaml`, after its own options and environment variables.
+
+When `rover.yaml` declares a floating version and the lockfile at the same level records it, commands use the locked release.
+
+## Automatic downloads
+
+`rover supergraph compose`, `rover dev`, `rover lsp`, and `rover connector` use a plugin that's already installed, in the project or globally. If it isn't installed, the command downloads it into the global install root, even inside a project, and writes no lockfile. To install a plugin into a project and record it, use `rover plugin install`.
+
+The `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` setting controls these downloads. When nothing sets it, each download prints a warning, because a future version of Rover will stop downloading plugins automatically:
+
+```
+Warning: Rover downloaded the `supergraph` plugin v2.9.3 because `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` isn't set. A future version of Rover will not install plugins automatically. Install plugins ahead of time with `rover plugin install supergraph@=2.9.3`, or set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` to `true` to keep downloading them or `false` to stop now.
+```
+
+`--no-config-notices` doesn't silence this warning. Only setting `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`, to either value, does:
+
+- `true` keeps downloading missing plugins, without the warning.
+- `false` stops downloading. A plugin installed nowhere then stops the command with [`E058`](/rover/errors#e058):
+
+  ```
+  error[E058]: Error when updating Federation Version
+
+  Caused by:
+      0: Couldn't obtain the `supergraph` plugin
+      1: Rover needs the `supergraph` plugin v2.9.3, but it isn't installed in `/work/app/.rover/bin` or `/home/me/.rover/bin` and downloads are disabled by `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`.
+          Run `rover plugin install supergraph@=2.9.3` to install it ahead of time, or set `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` to `true` to let Rover download it.
+  ```
+
+  With downloads turned off, a floating version such as `federation_version: 2` uses the newest matching release that's already installed.
+
+Set it in any of these ways:
+
+- Set the `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` environment variable to `1` or `true`, or to `0` or `false`. The environment variable outranks a profile and the project file.
+- Store it on a profile with [`rover config set`](/rover/commands/config#config-set):
+
+  ```bash
+  rover config set APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD false
+  ```
+
+- Set it under `settings:` in the project's `.rover/rover.yaml`:
+
+  ```yaml title=".rover/rover.yaml"
+  settings:
+    APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD: false
+  ```
+
+  The global `rover.yaml` can't set it. Rover ignores its `settings:` section and warns.
+
+Run `rover config show` to see the setting's value and where it came from. With nothing set, it reports `true` from the built-in default.
+
+`--skip-update` and `APOLLO_ROVER_SKIP_UPDATE` forbid downloads even when `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD` is `true`. Under either, a missing plugin fails with [`E058`](/rover/errors#e058), naming every directory Rover searched:
+
+```
+error[E058]: Error when updating Federation Version
+
+Caused by:
+    0: Couldn't obtain the `supergraph` plugin
+    1: Rover needs the `supergraph` plugin v2.9.2, but it isn't installed in `/work/app/.rover/bin` or `/home/me/.rover/bin` and downloads are disabled by `--skip-update`.
+        Run `rover plugin install supergraph@=2.9.2` to install it ahead of time, or re-run without `--skip-update` to let Rover download it.
+```
+
+`--skip-update` guards the commands that use plugins, and `--no-download` guards `rover plugin install`. Neither implies the other.
+
+## Output
+
+`rover plugin install` reports progress on `stderr`:
+
+```
+downloading the 'supergraph' plugin from https://rover.apollo.dev/tar/supergraph/aarch64-apple-darwin/v2.9.3
+the 'supergraph' plugin was successfully installed to /home/me/.rover/bin/supergraph-v2.9.3
+```
+
+Installing a plugin that's already installed at the target level downloads nothing, says where it found the plugin, and exits successfully:
+
+```
+the 'supergraph' plugin v2.9.3 is already installed at /home/me/.rover/bin/supergraph-v2.9.3
+```
+
+To reinstall a plugin, pass `--force`.
+
+With `--format json`, `data.plugins` lists each plugin the command installed or found:
+
+```json
+{
+  "json_version": "1",
+  "data": {
+    "plugins": [
+      {
+        "name": "supergraph",
+        "version": "2.9.3",
+        "source": "downloaded",
+        "level": "project",
+        "path": "/work/app/.rover/bin/supergraph-v2.9.3"
+      }
+    ],
+    "success": true
+  },
+  "error": null
+}
+```
+
+| Field | Description |
+| ----- | ----------- |
+| `name` | The plugin: `supergraph`, `router`, or `apollo-mcp-server`. |
+| `version` | The exact version, never the version as requested. |
+| `source` | `downloaded` if Rover downloaded it during this run, `installed` if it was already installed, or `fallback` if Rover couldn't reach the plugin registry and used a release that was already installed. |
+| `level` | `project` or `global`. |
+| `path` | Where the plugin binary is. |
+
+`rover supergraph compose --format json` reports the plugin it used in the same `data.plugins` field, next to the composed schema (`core_schema`) and any `hints`. For example:
+
+```json
+{
+  "json_version": "1",
+  "data": {
+    "core_schema": "schema @link(url: \"https://specs.apollo.dev/link/v1.0\") ...",
+    "hints": [],
+    "plugins": [
+      {
+        "name": "supergraph",
+        "version": "2.9.3",
+        "source": "downloaded",
+        "level": "global",
+        "path": "/home/me/.rover/bin/supergraph-v2.9.3"
+      }
+    ],
+    "success": true
+  },
+  "error": null
+}
+```
+
+### Errors
+
+With `--format json`, a failure about a particular plugin (`E048` to `E052`, and `E058`) also names the plugin and the version requested in `error.plugin` and `error.requested_version`, and `data.plugins` is an empty list:
+
+```json
+{
+  "json_version": "1",
+  "data": {
+    "plugins": [],
+    "success": false
+  },
+  "error": {
+    "message": "...",
+    "code": "E048",
+    "plugin": "router",
+    "requested_version": "=2.9.9"
+  }
+}
+```
+
+A failure about a manifest or lockfile rather than a plugin doesn't carry `plugin` or `requested_version`.
+
+| Code | When it occurs |
+| ---- | -------------- |
+| [`E048`](/rover/errors#e048) | Rover couldn't resolve which release a version request means. |
+| [`E049`](/rover/errors#e049) | Rover couldn't download the plugin. |
+| [`E050`](/rover/errors#e050) | Rover downloaded the plugin but couldn't install it. |
+| [`E051`](/rover/errors#e051) | The requested exact release is no longer served by the plugin registry. |
+| [`E052`](/rover/errors#e052) | A `rover.yaml` or lockfile can't be used, or the two disagree. |
+| [`E058`](/rover/errors#e058) | A plugin isn't installed and downloads are disabled. |
+| [`E064`](/rover/errors#e064) | A Federation 1 version of the `supergraph` plugin was requested. Rover no longer supports Federation 1. |

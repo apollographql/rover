@@ -23,6 +23,32 @@ The wizard walks you through a set of questions to help you choose the best opti
 - Credentials to interact with GraphOS
     - These credentials are necessary for actions like [developing your graph locally](/rover/commands/dev) or [publishing graph updates](/graphos/platform/schema-management/delivery/publish).
 
+#### Providing a personal API key
+
+`rover init` creates the graph as you, so it needs a credential that belongs to a person: a personal API key, or a login with [`rover auth login`](/rover/commands/auth). If Rover finds no credential for your profile, it asks you for a personal API key before the wizard starts:
+
+```terminal showLineNumbers=false
+No credentials found. Please go to https://go.apollo.dev/r/init and create a new Personal API key.
+
+Copy the key and paste it into the prompt below.
+```
+
+Rover saves the pasted key to your profile, checks it with GraphOS, then prints `Successfully saved your API key.` It rejects a key that isn't shaped like an API key:
+
+```terminal showLineNumbers=false
+error: Invalid API key format
+        Please get a valid key from https://go.apollo.dev/r/init and re-run `rover init`.
+```
+
+It also rejects a graph API key, or any other key that isn't a personal API key, with `error: Invalid API key found`. The same error appears if the profile's existing credential, or `APOLLO_KEY`, is a graph API key. Rover then suggests unsetting `APOLLO_KEY` and running `rover init` again. If GraphOS refuses a pasted key, Rover removes it from the profile again and fails with `error: Invalid API key found`, so the key isn't left stored for later commands.
+
+Without a terminal to ask on, for example in CI or with input piped in, `rover init` can't prompt for a key and fails:
+
+```terminal showLineNumbers=false
+error: No credentials found, and `rover init` has no terminal to ask for one on
+        Run `rover auth login` to log in, or set the `APOLLO_KEY` environment variable to a Personal API Key, then run `rover init` again.
+```
+
 #### Options
 
 You can also pass options directly to `rover init` instead of answering prompts in the wizard. The wizard still asks for any information not provided via an option and will always ask for confirmation before creating any files locally.
@@ -69,7 +95,22 @@ After you've chosen your use case, the wizard prompts you for a project name. It
 
 ### Next steps
 
-Once you've completed the wizard, it provides a [`rover dev`](./dev) command with prepopulated credentials. Run this command to start developing your graph.
+After you've completed the wizard, it prints your graph's `APOLLO_GRAPH_REF` and `APOLLO_KEY`, and a [`rover dev`](./dev) command to start developing your graph.
+
+#### Install the plugins `rover dev` needs
+
+`rover dev` runs the `supergraph` composition plugin and the `router` plugin. If they aren't installed, `rover dev` downloads them and warns that a future version of Rover will stop downloading plugins automatically. To avoid that, install them before your first `rover dev`, using the `federation_version` from your generated `supergraph.yaml` for the `supergraph` plugin:
+
+```terminal showLineNumbers=false
+rover plugin install supergraph@<FEDERATION_VERSION>
+rover plugin install router@2
+```
+
+For example, if `supergraph.yaml` sets `federation_version: =2.9.3`, run `rover plugin install supergraph@=2.9.3`. Rover asks you to accept the ELv2 license the first time.
+
+To control whether `rover dev` downloads missing plugins itself, see [Automatic downloads](/rover/commands/plugin#automatic-downloads).
+
+#### Start developing
 
     <Tabs>
 
@@ -163,7 +204,7 @@ rover init --mcp \
 
 #### Run your MCP server
 
-When the `rover init` wizard is complete, you can use [`rover dev`](./dev) to start everything together. See [Running the Apollo MCP Server](/apollo-mcp-server/run).
+When the `rover init` wizard is complete, use [`rover dev`](./dev) to start everything together. As for a graph, [install the plugins `rover dev` needs](#install-the-plugins-rover-dev-needs) first, adding the MCP server plugin with `rover plugin install apollo-mcp-server@latest`, or let `rover dev` download them with a warning (see [Automatic downloads](/rover/commands/plugin#automatic-downloads)). For details, see [Running the Apollo MCP Server](/apollo-mcp-server/run).
 
 #### Connect your MCP server to Claude Desktop
 
