@@ -20,8 +20,8 @@ Rover's telemetry is a single fire-and-report request per invocation. Measured a
 ## 2. Background: how this works today
 
 - **One report per invocation.** When enabled, Rover sends one request to Apollo's telemetry endpoint per invocation, with a 1-second timeout, no batching, and **no sampling**. Debug builds never report.
-- **Opt-out only.** Telemetry is disabled by the `APOLLO_TELEMETRY_DISABLED` environment variable, which is presence-based: any value, including `false`, disables it. There is no flag and no persisted setting.
-- **What is sent.** Command name and all of its arguments with their raw values; a persistent anonymous machine identifier; a per-invocation session identifier; a SHA-256 hash of the working directory; a SHA-256 hash of the Git remote URL when one exists; OS, architecture, and CI vendor when detected; and the Rover version.
+- **Opt-out only.** Telemetry can be disabled by the `APOLLO_TELEMETRY_DISABLED` environment variable, which is presence-based (any value, including `false`, disables it); by the `--telemetry-disabled` flag; by a setting stored on a profile; or by a setting in the project file. The stored forms are real booleans, so `false` there keeps telemetry enabled. The privacy documentation lists all four.
+- **What is sent.** Command name and its arguments, serialized without scrubbing except for fields already excluded from serialization (for example graph ref, profile name, and subgraph name, URL, and schema path); a persistent anonymous machine identifier; a per-invocation session identifier; a SHA-256 hash of the working directory; a SHA-256 hash of the Git remote URL when one exists; OS, architecture, and CI vendor when detected; and the Rover version.
 - **What is not sent.** Duration, outcome (success or error), derived feature usage, or any account, org, or graph identifier.
 - **Telemetry is disconnected from authentication.** No identity plumbing exists between telemetry and Rover's auth subsystem, even experimentally.
 - **Error codes are not classified.** Rover's error codes are a flat list with no notion of user-caused versus internal or platform-caused errors. Rust panics bypass the error-code path entirely.
@@ -51,8 +51,8 @@ A survey of other industry CLI applications (a source-hosting CLI, a cloud-provi
 
 ## A1. Goals
 
-1. **Accurate disclosure.** Every field Rover sends is documented in the privacy documentation, including the Git remote URL hash. A reader can compare the docs to the payload and find no discrepancy.
-2. **No raw argument values.** Rover reports flag names only, plus the values of allowlisted flags. No identifying value is sent. This makes the privacy documentation's existing claim true.
+1. **Accurate disclosure.** The privacy documentation makes no claim about exclusions that the payload does not honor, and documents every field Rover sends, including any added by this PRD. A reader can compare the docs to the payload and find no discrepancy.
+2. **No unscrubbed argument values.** Rover reports flag names only, plus the values of allowlisted flags. No identifying value is sent, including values not already excluded from serialization today. This makes the privacy documentation's existing claim true.
 3. **Bounded exit delay.** Telemetry never delays process exit by more than a small, fixed cap on a slow or unreachable network, and still delivers reliably in the normal case where the request completes in tens of milliseconds. Telemetry must not silently drop events for commands that finish in a few milliseconds.
 4. **Duration.** Each event includes the wall-clock duration of the command's execution.
 5. **Graph identifier.** When a graph ref is resolvable for the invocation, the event includes a SHA-256 hash of it, using the same hashing convention as the existing working-directory and remote-URL hashes. When no graph ref is resolvable, the field is absent. The hash is disclosed in the privacy documentation alongside the others.
@@ -74,7 +74,7 @@ A survey of other industry CLI applications (a source-hosting CLI, a cloud-provi
 - Account- or org-level fields.
 - Capturing responses to interactive prompts.
 - Changing the default (on, opt-out) or adding an opt-in prompt.
-- Sampling.
+- Sampling. Whether to sample is an open question (A4) rather than a goal.
 - Enterprise or regulated-customer exemption. One surveyed CLI skips telemetry against a self-hosted enterprise server, but that depends on how Rover would identify such an environment, so it is an open question (A4) rather than a goal.
 
 ## A4. Open questions (resolve in the Part A spec)
@@ -83,17 +83,16 @@ A survey of other industry CLI applications (a source-hosting CLI, a cloud-provi
 - **Allowlist contents.** Which flags have values provably non-identifying enough to report.
 - **Error classification.** Which error codes are user errors and which are internal, and what happens to errors that are plausibly both.
 - **Enterprise exemption.** Whether Rover should skip telemetry for non-default registries or enterprise environments, and how it would know.
-- **Boolean semantics of `APOLLO_TELEMETRY_DISABLED`.** Whether to keep it presence-only, which is the current behavior and a quirk, or normalize it. Settled alongside the profile configuration work.
 - **Sampling.** Whether reporting 100% of invocations is still justified once duration and outcome make events more useful, given one surveyed CLI samples about 1%.
 
 ## A5. Success metrics
 
-- **Disclosure.** Every field in the payload appears in the privacy documentation, and every field described there is in the payload. The Git remote URL hash and the graph hash are both listed.
+- **Disclosure.** Every field in the payload appears in the privacy documentation, and every field described there is in the payload. The graph hash is listed, and no exclusion claim in the documentation is contradicted by the payload.
 - **Minimization.** For any invocation, no flag value outside the allowlist appears in the event, verified against the full set of global and per-command flags.
 - **Exit delay.** On an unreachable telemetry endpoint, no command's exit is delayed by more than the chosen cap.
 - **Delivery.** On a reachable endpoint, events from commands that finish in a few milliseconds are delivered at the same rate as events from long-running commands.
 - **Payload.** Each event includes duration and outcome; events for invocations with a resolvable graph ref include the graph hash, and others omit it. A command that panics reports an internal error.
-- **Compatibility.** Setting `APOLLO_TELEMETRY_DISABLED` to any value results in no event, as today.
+- **Compatibility.** Setting the `APOLLO_TELEMETRY_DISABLED` environment variable to any value results in no event, as today.
 
 ---
 
@@ -136,7 +135,7 @@ Independent of Part A and of its anonymity discussion. It addresses reliability 
 
 ## Rollout
 
-- **Slice one (Part A): disclosure and minimization.** Privacy documentation corrections and removal of raw argument values. Smallest change, and it repairs the existing trust gap. The documentation fix is its own PR, separate from code changes.
+- **Slice one (Part A): disclosure and minimization.** Correction of the privacy documentation's exclusion claim and removal of unscrubbed argument values. Smallest change, and it repairs the existing trust gap. The documentation fix is its own PR, separate from code changes.
 - **Slice two (Part A): exit delay.** Lower the request timeout while keeping the wait.
 - **Slice three (Part A): payload.** Duration, graph hash, and outcome classification, with their disclosure. Outcome classification may split further, since it needs the error-mapping decision and panic handling.
 - **Part B.** Its own spec and slice, sequenced with the Platform API team.
