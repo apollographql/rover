@@ -552,7 +552,7 @@ A boolean stored in a profile or the project file is always a real `true` or `fa
 | `APOLLO_TELEMETRY_DISABLED` | `--telemetry-disabled` | ✓ | ✓ | Set if you don't want Rover to collect anonymous usage data. See [Boolean values](#boolean-values) for how its value is read. |
 | `APOLLO_CHECKS_TIMEOUT_SECONDS` | `--checks-timeout` | ✓ | ✓ | How long, in seconds, Rover CLI polls an asynchronous check or preview build before timing out. Applies to `graph check`, `subgraph check`, the checks run by `graph publish` and `subgraph publish`, and to `subgraph preview` and `contract preview`. Defaults to `300` (5 minutes). |
 | `APOLLO_CLIENT_TIMEOUT` | `--client-timeout` | ✓ | ✓ | Overrides the timeout (in seconds) for HTTP(S) requests. For details, see [Increasing request timeouts](#increasing-request-timeouts). |
-| `APOLLO_ROVER_DOWNLOAD_HOST` | `--download-host` | ✓ | ✓ | Overrides the host Rover downloads plugin binaries (`router`, `supergraph`, and `apollo-mcp-server`) from. |
+| `APOLLO_ROVER_DOWNLOAD_HOST` | `--download-host` | ✓ | ✓ | Overrides the host Rover downloads plugin binaries (`router`, `supergraph`, and `apollo-mcp-server`) from. To host your own, see [Using a plugin mirror](/rover/commands/plugin#using-a-plugin-mirror). |
 | `APOLLO_TEMPLATES_API` | `--templates-api` (`rover template` only) | ✓ | ✓ | Overrides where `rover template` fetches project templates from. `rover init` fetches templates from GitHub and doesn't use this. |
 | `APOLLO_GRAPH_REF` | | ✓ | ✓ | A graph ref passed to the `rover dev` command. [Learn more](./commands/dev#understanding-apollo_graph_ref-vs---graph-ref) |
 | `APOLLO_OAUTH_AUTHORIZATION_URL` | `--oauth-authorization-url` | ✓ | ✓ | Overrides the OAuth authorization endpoint `rover auth login` uses. |

@@ -324,6 +324,32 @@ Caused by:
 
 `--skip-update` guards the commands that use plugins, and `--no-download` guards `rover plugin install`. Neither implies the other.
 
+## Using a plugin mirror
+
+If your network can't reach `https://rover.apollo.dev`, host the plugin binaries yourself and point Rover at them with `APOLLO_ROVER_DOWNLOAD_HOST` (Rover 1.0 and later). Set it the same ways as any [Rover setting](/rover/configuring#supported-environment-variables): the `--download-host` flag, the environment variable, `rover config set APOLLO_ROVER_DOWNLOAD_HOST <url>`, or `settings:` in `.rover/rover.yaml`.
+
+```bash
+APOLLO_ROVER_DOWNLOAD_HOST=https://mirror.example.com rover plugin install supergraph@latest-2
+```
+
+The host must serve the same routes as `rover.apollo.dev`. Pointing it at GitHub release URLs doesn't work, because Rover builds URLs in the registry's layout, not GitHub's. A proxy, such as an artifact repository with a rewrite rule, can bridge the two.
+
+Rover requests `{host}/tar/{plugin}/{target}/{version}`, where:
+
+- `plugin` is `router`, `supergraph`, or `apollo-mcp-server`.
+- `target` is `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu`, `x86_64-apple-darwin`, `aarch64-apple-darwin`, or `x86_64-pc-windows-msvc`.
+- `version` is `v` plus an exact version (`v2.9.3`), or a floating alias.
+
+| Request | Your host must respond with |
+| --- | --- |
+| `GET` with an exact version | A gzip-compressed tar archive containing the binary at `dist/<plugin>` (`dist/<plugin>.exe` on Windows). Redirects are followed. |
+| `HEAD` with a floating alias | A redirect whose `X-Version` header names the release the alias currently resolves to (for example `v2.9.3`). Rover reads the header and doesn't follow the redirect. |
+| An exact version you don't have | `404 Not Found`, or `410 Gone` for a withdrawn release. |
+
+Floating aliases are `latest-0`, `latest-2`, and `latest-3` for `supergraph`; `latest-plugin` (router 1), `latest-2`, and `latest-3` for `router`; and `latest` for `apollo-mcp-server`. A mirror that only hosts specific releases works if you [pin exact versions](#plugin-versions) and never use floating ones.
+
+To avoid depending on a mirror at run time, install plugins ahead of time with `rover plugin install` and [turn off automatic downloads](#automatic-downloads).
+
 ## Output
 
 `rover plugin install` reports progress on `stderr`:
