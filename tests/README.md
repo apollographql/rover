@@ -59,16 +59,9 @@ Particular tests can be targeted for a faster feedback loop:
 
 ### GitHub
 
-#### Manual smoke tests
+#### Smoke tests
 
-To run against our supported architectures and operating systems, go to the [manual smoke tests in GitHub Actions](https://github.com/apollographql/rover/actions/workflows/run-smokes-manual.yml), select `run workflow`, select your branch, and then use JSON arrays to specify the federation versions and router versions. Here's an example for a single federation version and a single router version:
-
-```
-["2.8.0"]
-["1.50.0"]
-```
-
-These would be input individually, which will make sense when you see the input prompt.
+Smoke tests run against our supported architectures and operating systems automatically, on every pull request, in the merge queue, and on pushes to `main`. The [`run-smokes-on-pr.yml`](../.github/workflows/run-smokes-on-pr.yml) workflow calculates the federation and router versions to test, so there is nothing to trigger by hand.
 
 ## Integration tests
 
