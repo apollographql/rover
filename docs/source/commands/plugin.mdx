@@ -326,7 +326,9 @@ Caused by:
 
 ## Using a plugin mirror
 
-If your network can't reach `https://rover.apollo.dev`, host the plugin binaries yourself and point Rover at them with `APOLLO_ROVER_DOWNLOAD_HOST` (Rover 1.0 and later). Set it the same ways as any [Rover setting](/rover/configuring#supported-environment-variables): the `--download-host` flag, the environment variable, `rover config set APOLLO_ROVER_DOWNLOAD_HOST <url>`, or `settings:` in `.rover/rover.yaml`.
+Rover's plugin commands download plugin binaries from `https://rover.apollo.dev`. If your network can't reach it, host the binaries yourself and set `APOLLO_ROVER_DOWNLOAD_HOST` to your host. This is the same mechanism described in [Installing from a mirror](/rover/getting-started#installing-from-a-mirror), and it applies to `rover plugin install` and to automatic downloads alike. This section describes what your host must serve.
+
+You can set `APOLLO_ROVER_DOWNLOAD_HOST` as an environment variable in any version of Rover. In Rover 1.0 and later, you can also set it like any other [Rover setting](/rover/configuring#supported-environment-variables): with the `--download-host` flag, with `rover config set APOLLO_ROVER_DOWNLOAD_HOST <url>`, or under `settings:` in `.rover/rover.yaml`.
 
 ```bash
 APOLLO_ROVER_DOWNLOAD_HOST=https://mirror.example.com rover plugin install supergraph@latest-2
