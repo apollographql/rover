@@ -37,6 +37,12 @@ ignore = [
     # surface, so this is no security risk to us. Remove once `pwd-grp` migrates
     # to `pastey` upstream.
     "RUSTSEC-2024-0436",
+    # `unsafe-libyaml`, a dependency of `serde_yaml` (itself deprecated), is unmaintained
+    # (RUSTSEC-2024-0449). `serde_yaml` is used both directly by Rover and via
+    # `apollo-configuration`, so we can't drop it on our own. This is an unmaintained notice, not a
+    # known vulnerability. Remove once Rover and `apollo-configuration` move to a maintained YAML
+    # library.
+    "RUSTSEC-2024-0449",
 ]
 
 # This section is considered when running `cargo deny check licenses`
@@ -59,7 +65,6 @@ allow = [
     "MIT",
     "MIT-0",
     "MPL-2.0",
-    "OpenSSL",
     "Unicode-3.0",
     "Zlib"
 ]
@@ -77,6 +82,12 @@ name = "apollo-language-server"
 version = "*"
 expression = "Elastic-2.0"
 license-files = [{ path = "LICENSE.md", hash = 0x5fc4a573 }]
+
+[[licenses.clarify]]
+name = "jsonpath-rust"
+version = "0.3.5"
+expression = "MIT"
+license-files = [{ path = "LICENSE", hash = 0xcb90f5db }]
 
 [[licenses.exceptions]]
 name = "apollo-language-server"
