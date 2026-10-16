@@ -7,7 +7,7 @@ idiomatic_version_file_enable_tools = ["rust"]
 # 5-13 minutes in every CI job that sets up mise.
 "aqua:cargo-bins/cargo-binstall" = "1.25.3"
 "cargo:lychee" = "0.24.2"
-node = "24.21.0"
+node = "24.22.0"
 "npm:npm" = "12.2.0"
 "cargo:cargo-deny" = "0.20"
 "cargo:graphql_client_cli" = "0.16.0"
