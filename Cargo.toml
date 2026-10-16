@@ -239,7 +239,7 @@ uuid = "1"
 url = "2"
 url-static = "1.0"
 webbrowser = "1"
-zip = "8"
+zip = "9"
 
 ### keyring ecosystem
 keyring-core = "1.0"
