@@ -28,7 +28,7 @@ Customers have reported a variety of errors coming back through Rover's error ch
 
 ## 5. Key decisions and rationale
 
-- **A standard, not a bespoke header.** W3C Trace Context is understood by observability tooling on the platform side, so the gateway doesn't need Rover-specific parsing.
+- **A standard for trace identity.** W3C Trace Context's `traceparent` is understood by observability tooling on the platform side, so the gateway doesn't need Rover-specific parsing to correlate a request's trace. The retry count is Rover-defined data and does need an encoding agreed with the gateway team.
 - **Anonymous by construction.** `tracestate` carries request-level facts only, which keeps tracing outside the anonymity decision in the telemetry PRD.
 - **Ownership is split.** The Rover team owns the Rover-side changes. The Platform API team owns gateway parsing, forwarding to observability backends, and propagation to internal services. This work has no user-visible value until the gateway side lands.
 - **Future extension, not committed.** If users separately opt in, the anonymous usage data Rover already collects could ride alongside this channel for a more comprehensive field view. That is not part of this PRD.
@@ -43,6 +43,7 @@ Customers have reported a variety of errors coming back through Rover's error ch
 
 - **Owning team and sequencing** for the gateway work, and whether Rover ships headers before the gateway consumes them.
 - **Header scope.** Whether every Platform API request carries them or only selected operations.
+- **Retry count transport.** Whether the retry count rides in a Rover-defined `tracestate` entry, which needs a key and encoding agreed with the gateway team and may be truncated by intermediaries, or in W3C `baggage`, the standard header for request-level data.
 - **Privacy documentation.** Whether and how the headers are disclosed, given they are not part of the telemetry event.
 
 ## 8. Success metrics
