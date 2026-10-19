@@ -1,6 +1,5 @@
 # PRD: Rover Request Tracing
 
-- **Owner:** Brian George
 - **Component:** Rover CLI (Platform API request tracing)
 
 This PRD lets Platform API failures seen by Rover be root-caused end to end. It is independent of Rover's anonymous usage telemetry (see `specs/rover-telemetry/prd.md`): it addresses the reliability of individual requests, not aggregate behavior, and it introduces no user or account identity.
