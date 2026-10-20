@@ -21,13 +21,9 @@ use crate::{
 };
 
 mod plugin;
-// Other modules only ever construct this in their own #[cfg(test)] fixtures, never
-// from production code, so this re-export is test-only rather than merely unused.
-#[cfg(test)]
-pub(crate) use plugin::PluginLevel;
 pub(crate) use plugin::{
-    McpServerVersion, Plugin, PluginInstaller, PluginProvenance, PluginProvenanceTracker,
-    PluginSource, federation_version,
+    McpServerVersion, Plugin, PluginInstaller, PluginLevel, PluginProvenance,
+    PluginProvenanceTracker, PluginSource, federation_version,
 };
 
 #[derive(Debug, Serialize, Parser)]
