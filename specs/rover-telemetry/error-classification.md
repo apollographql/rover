@@ -1,13 +1,15 @@
 # Error classification for telemetry outcomes
 
-- **Spec:** [spec.md](./spec.md), FR16a and FR17
+- **Spec:** [spec.md](./spec.md)
+- **FR15a** defines which outcome an error gets: user, connection, or internal.
+- **FR16** requires every error to map to exactly one outcome, with ambiguous and unmapped errors going to `internal_error`.
 
-This table maps each of Rover's error codes to the telemetry outcome `user_error`, `internal_error`, or `connection_error`. It applies the principle in FR16a:
+This table maps each of Rover's error codes to the telemetry outcome `user_error`, `internal_error`, or `connection_error`. It applies the principle in FR15a:
 
 - **`user_error`**: the user can correct the cause. That covers bad input, configuration, authentication, permissions, schema or composition failures, check and lint failures, environment problems on the user's machine, and HTTP 4xx responses.
 - **`connection_error`**: Rover couldn't reach a server, the connection dropped, or the request timed out, whichever side caused it.
 - **`internal_error`**: Rover bugs, HTTP 5xx responses, and any other server error.
-- **Ambiguous**: the code's own documentation lists several causes, and the code can't tell them apart. FR17 maps these to `internal_error`. They're marked so a reviewer can override them.
+- **Ambiguous**: the code's own documentation lists several causes, and the code can't tell them apart. FR16 maps these to `internal_error`. They're marked so a reviewer can override them.
 
 ## Table
 
@@ -17,14 +19,13 @@ This table maps each of Rover's error codes to the telemetry outcome `user_error
 | E002 | Invalid request header name | `user_error` | Clear |
 | E003 | Invalid request header value | `user_error` | Clear |
 | E004 | Request couldn't be executed (server unreachable, connection lost) | `connection_error` | Clear |
-| E005 | Unexpected registry behavior | `internal_error` | Clear |
-| E006 | Unexpected registry behavior | `internal_error` | Clear |
+| E005, E006 | Unexpected registry behavior (the two codes share one explanation) | `internal_error` | Clear |
 | E007 | `subgraph` command on a non-federated graph | `user_error` | Clear |
 | E008 | Invalid variant | `user_error` | Clear |
 | E009 | Subgraph name doesn't exist | `user_error` | Clear |
 | E010 | Graph lookup or authentication failure | `user_error` | Clear |
 | E011 | Introspection response can't be parsed | `internal_error` | Ambiguous: wrong endpoint, or a Rover parsing bug |
-| E012 | Endpoint returned an HTTP 4xx or 5xx status | `user_error` for 4xx, `internal_error` for 5xx | Clear: decided by the response status (FR16a) |
+| E012 | Endpoint returned an HTTP 4xx or 5xx status | `user_error` for 4xx, `internal_error` for 5xx | Clear: decided by the response status (FR15a) |
 | E013 | API key not recognized | `user_error` | Clear |
 | E014 | API key in the wrong format | `user_error` | Clear |
 | E015 | Update check found a malformed release version | `internal_error` | Clear |
@@ -90,4 +91,4 @@ Each code is counted once. E012 is counted under `user_error` but also yields `i
 ## Decisions for review
 
 1. **Remaining ambiguous codes.** E048, E050, E056, E063, and E065 involve the network but also have non-network causes, so they stay `internal_error`. They'd move to `connection_error` only if the code could tell a connection failure from the other causes.
-2. **Errors with no code.** An error can carry no code, and FR17 maps those to `internal_error` for now. Classifying them is tracked as follow-up work, and this table is incomplete until that's done.
+2. **Errors with no code.** An error can carry no code, and FR16 maps those to `internal_error` for now. Classifying them is tracked as follow-up work, and this table is incomplete until that's done.
