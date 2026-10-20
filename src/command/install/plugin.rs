@@ -15,6 +15,7 @@ use crate::{
     plugin::{
         deprecation::DeprecationWarnings,
         error::{DownloadControl, PluginFailure, RequestOrigin},
+        installed,
         version::{DeprecatedSpelling, PluginName, VersionRequest},
     },
     utils::client::StudioClientConfig,
@@ -458,21 +459,16 @@ impl PluginInstaller {
     ) -> RoverResult<PluginProvenance> {
         let searched = self.search_order(self.installer.bin_dir_location()?);
         let requested = plugin.request();
-        // The newest the request allows at the first level that has one.
-        for bin_dir in &searched {
-            let newest = installed_releases(bin_dir, plugin.name())?
-                .into_iter()
-                .filter(|(version, _)| allows(&requested, version))
-                .max_by(|(a, _), (b, _)| a.cmp(b));
-            if let Some((version, path)) = newest {
-                return Ok(PluginProvenance::new(
-                    plugin.get_name(),
-                    version,
-                    PluginSource::Installed,
-                    self.level_of(&path),
-                    path,
-                ));
-            }
+        let found = installed::find_first(&searched, plugin.name(), &requested)
+            .map_err(|err| RoverError::new(anyhow!(err)))?;
+        if let Some(copy) = found {
+            return Ok(PluginProvenance::new(
+                plugin.get_name(),
+                copy.version,
+                PluginSource::Installed,
+                self.level_of(&copy.path),
+                copy.path,
+            ));
         }
         Err(RoverError::new(PluginFailure::DownloadsDisabled {
             plugin: plugin.name(),
@@ -809,50 +805,6 @@ fn find_installed_plugins(
         })
         .collect();
     Ok(installed_plugins)
-}
-
-/// Every release of `plugin` installed in `bin_dir`, with the path to each.
-/// A directory that doesn't exist holds nothing, and so does not fail.
-fn installed_releases(
-    bin_dir: &Utf8PathBuf,
-    plugin: PluginName,
-) -> RoverResult<Vec<(Version, Utf8PathBuf)>> {
-    let entries = match bin_dir.read_dir_utf8() {
-        Ok(entries) => entries,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
-        Err(error) => {
-            return Err(RoverError::new(
-                anyhow!(error).context(format!("Couldn't list the plugins in `{bin_dir}`.")),
-            ));
-        }
-    };
-    let prefix = format!("{plugin}-v");
-    Ok(entries
-        .filter_map(Result::ok)
-        // Following symlinks, as the exact lookup does: a plugin linked into
-        // place by a package manager is installed.
-        .filter(|entry| {
-            entry
-                .path()
-                .metadata()
-                .is_ok_and(|metadata| metadata.is_file())
-        })
-        .filter_map(|entry| {
-            let name = entry.file_name();
-            let name = name.strip_suffix(consts::EXE_SUFFIX).unwrap_or(name);
-            let version = Version::parse(name.strip_prefix(&prefix)?).ok()?;
-            Some((version, entry.into_path()))
-        })
-        .collect())
-}
-
-/// Whether `version` is a release `requested` could resolve to.
-fn allows(requested: &VersionRequest, version: &Version) -> bool {
-    match (requested.exact(), requested.major()) {
-        (Some(exact), _) => exact == version,
-        (None, Some(major)) => version.major == major,
-        (None, None) => true,
-    }
 }
 
 fn version_from_installed_path(path: &Utf8PathBuf, plugin_name: &str) -> RoverResult<Version> {
