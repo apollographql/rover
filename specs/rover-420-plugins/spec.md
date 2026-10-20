@@ -183,7 +183,19 @@ The duplication this implies is accepted. `rover plugin install` is not a prereq
 
 - **FR40**: `--force` must reinstall a plugin that is already present at the target level, replacing the binary on disk. It must not touch the other level.
 - **FR41**: A batch install must be resumable: each plugin's outcome is reported as it completes, and re-running after a partial failure must skip the plugins that already succeeded. A failure on one plugin must not abort the remaining ones; every plugin is attempted, and the command exits non-zero if any failed.
-- **FR42**: `rover plugin list` must list installed plugins with exact version, install location, and level, in text and in JSON. Inside a project it lists both levels, marking which copy a plugin-using command would actually use per FR26. `--global` restricts it to the global level.
+- **FR42**: `rover plugin list` must list every installed copy of every plugin with its exact version, install location, and level, in text and in JSON. Inside a project it lists both levels, the project's first; `--global` restricts it to the global level, and `--manifest-path` names the project, as for `install` (FR23–FR25). It never contacts the network.
+
+  For each plugin, it must mark the one copy a plugin-using command would use without downloading: the request is the one FR29 takes from the declarations in scope, pinned by a lockfile per FR31, or the plugin's built-in default when nothing declares it, and the copy is the one FR26 finds for that request — the newest matching release at the first level that has one, the project before the global level. Under `--global`, only the global level's declarations and copies count. A plugin with no copy matching its request has none marked. A version flag, an environment variable, or `supergraph.yaml` outranks the declarations (FR29), so the listing must say that the marker does not account for them.
+
+  If the declarations in scope cannot be read — a malformed manifest, or a lockfile that has drifted from its manifest (FR18) — the listing must still list every copy, mark none, and warn with the failure's message rather than fail.
+
+  Required text, below a listing with a marked copy:
+  > `*` marks the copy Rover uses for each plugin, going by `rover.yaml` and `plugin-versions.lock`. A version flag, an environment variable, or `supergraph.yaml` can select another.
+
+  Required text when nothing is installed at the levels listed:
+  > No plugins are installed in this project or globally.
+
+  > No plugins are installed globally.
 - **FR43**: `rover plugin uninstall <name>...` must remove the named plugins' binaries from the target level, which is chosen exactly as it is for `install`: the project when one is in scope, the global level otherwise, overridden by `--global` or `--manifest-path` (FR23–FR25).
 - **FR44**: A bare `<name>` must remove every installed version of that plugin at the target level. `<name>@=X.Y.Z` must remove only that version. A floating alias is ambiguous here and must be rejected before anything is removed.
 
@@ -455,6 +467,15 @@ Given `--client-timeout 1` and a registry that stalls on the resolution request,
 
 **Listing across levels**
 Given `supergraph` v2.9.3 installed globally and `router` v2.1.0 installed in the project, when `rover plugin list` runs inside that project, then both are listed with exact version, location, and level, and the copy each plugin-using command would use is marked. `--global` lists only the global level. `--format json` carries the same fields.
+
+**The listing marks the copy the declarations select**
+Given `supergraph` v2.9.2 and v2.9.3 installed globally, v2.9.2 installed in the project, and a project `rover.yaml` declaring `supergraph: "2"`, when `rover plugin list` runs inside that project, then all three copies are listed and only the project's v2.9.2 is marked, because the project is searched first. Given the same copies and the project lockfile pinning v2.9.3, then the global v2.9.3 is marked. Given `rover.yaml` declaring `supergraph: "=2.8.0"`, which is installed at neither level, then no `supergraph` copy is marked. In every case no request reaches the registry.
+
+**The listing survives unreadable declarations**
+Given `supergraph` v2.9.3 installed globally and a project `rover.yaml` that does not parse, when `rover plugin list` runs inside that project, then v2.9.3 is listed unmarked, the manifest's error is printed as a warning, and the command exits 0.
+
+**Listing nothing**
+Given no plugin installed at either level, when `rover plugin list` runs inside a project, then it prints the FR42 text for both levels and exits 0; under `--global`, the global-only text.
 
 **No project means global, and nothing is invented**
 Given no `.rover/` directory anywhere in scope, when `rover plugin install supergraph@=2.9.3` runs, then the plugin installs globally exactly as it does today, and no `.rover/` directory is created in the working directory. This holds at every release, including 1.0.
