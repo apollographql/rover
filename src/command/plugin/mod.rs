@@ -26,6 +26,19 @@ use crate::{
 /// lockfile by accident.
 pub struct LockfileWrite(());
 
+/// Permission to write a manifest, which, like [`LockfileWrite`], only the
+/// `rover plugin` verbs that install or remove plugins can grant: a command
+/// that only uses plugins never rewrites what its user declared.
+pub struct ManifestWrite(());
+
+#[cfg(test)]
+impl ManifestWrite {
+    /// A permit for tests of the manifest itself, outside this module.
+    pub(crate) const fn for_tests() -> Self {
+        Self(())
+    }
+}
+
 #[cfg(test)]
 impl LockfileWrite {
     /// A permit for tests of the lockfile itself, outside this module.
