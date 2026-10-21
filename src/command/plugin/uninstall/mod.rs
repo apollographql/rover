@@ -5,16 +5,22 @@ use std::{fmt, fs, str::FromStr};
 use anyhow::anyhow;
 use camino::{Utf8Path, Utf8PathBuf};
 use clap::Parser;
-use rover_print::{print::Print, style::StyledText};
+use rover_print::{
+    print::{Print, PrintExt},
+    style::StyledText,
+};
+use semver::Version;
 
 use self::output::{PluginUninstallOutput, RemovedCopy};
-use super::{absolute_manifest, target_manifest};
+use super::{LockfileWrite, ManifestWrite, absolute_manifest, target_manifest};
 use crate::{
     PKG_NAME, RoverError, RoverOutput, RoverResult,
     command::install::{PluginLevel, installer},
     plugin::{
         discovery::{ManifestDirs, project_in_scope},
         installed::{self, InstalledCopy},
+        lockfile::{LOCKFILE, PluginLockfile},
+        manifest::{MANIFEST_FILE, ManifestEditor},
         version::{InvalidPluginVersion, PluginName, UnknownPluginName, VersionRequest},
     },
     utils::GLOBAL_ENV,
@@ -112,11 +118,42 @@ impl UninstallTarget {
 struct Level {
     level: PluginLevel,
     bin_dir: Utf8PathBuf,
+    /// Where the level's manifest and lockfile are, or `None` when its
+    /// plugins are somewhere that is no level's, as
+    /// `APOLLO_NODE_MODULES_BIN_DIR` can put them.
+    declarations: Option<Declarations>,
+}
+
+struct Declarations {
+    /// The directory holding the lockfile.
+    dir: Utf8PathBuf,
+    manifest: Utf8PathBuf,
 }
 
 impl Level {
+    /// The project whose manifest is `manifest`.
+    fn project(manifest: &Utf8Path) -> Self {
+        let dir = manifest.parent().unwrap_or(manifest).to_path_buf();
+        Self {
+            level: PluginLevel::Project,
+            bin_dir: dir.join("bin"),
+            declarations: Some(Declarations {
+                manifest: manifest.to_path_buf(),
+                dir,
+            }),
+        }
+    }
+
     fn copies(&self) -> RoverResult<Vec<InstalledCopy>> {
         installed::installed_copies(&self.bin_dir).map_err(|err| RoverError::new(anyhow!(err)))
+    }
+
+    /// Where this level is, as a message names it.
+    const fn place(&self) -> &'static str {
+        match self.level {
+            PluginLevel::Project => "in this project",
+            PluginLevel::Global => "globally",
+        }
     }
 }
 
@@ -141,16 +178,18 @@ impl PluginUninstall {
             )
         })?;
         let rover_installer = installer(PKG_NAME, false, override_install_path.clone())?;
+        let global_bin = rover_installer.bin_dir_location()?;
+        let global_dir = rover_installer.get_base_dir_path()?;
         let global_level = Level {
             level: PluginLevel::Global,
-            bin_dir: rover_installer.bin_dir_location()?,
-        };
-        let project_level = |manifest: &Utf8Path| Level {
-            level: PluginLevel::Project,
-            bin_dir: manifest.parent().unwrap_or(manifest).join("bin"),
+            declarations: (global_bin == global_dir.join("bin")).then(|| Declarations {
+                manifest: global_dir.join(MANIFEST_FILE),
+                dir: global_dir,
+            }),
+            bin_dir: global_bin,
         };
         let (target, other) = match &project_manifest {
-            Some(manifest) => (project_level(manifest), Some(global_level)),
+            Some(manifest) => (Level::project(manifest), Some(global_level)),
             // The project in scope, if any, is only looked at to say where a
             // plugin is that a global uninstall didn't find; it is never
             // touched.
@@ -162,7 +201,7 @@ impl PluginUninstall {
                         ))
                     })
                     .flatten()
-                    .map(|project| project_level(&project.join("rover.yaml")));
+                    .map(|project| Level::project(&project.join(MANIFEST_FILE)));
                 (global_level, project)
             }
         };
@@ -191,15 +230,13 @@ impl PluginUninstall {
         }
 
         let stderr = rover_print::print::stderr::default();
-        let mut removed = Vec::new();
+        let mut removing: Vec<&InstalledCopy> = Vec::new();
         for named in &self.plugins {
-            let to_remove: Vec<&InstalledCopy> = target_copies
+            let named_copies: Vec<&InstalledCopy> = target_copies
                 .iter()
                 .filter(|copy| named.removes(copy))
-                // A copy an earlier argument already removed.
-                .filter(|copy| copy.path.exists())
                 .collect();
-            if to_remove.is_empty() {
+            if named_copies.is_empty() {
                 let elsewhere = other_copies
                     .iter()
                     .flatten()
@@ -209,30 +246,42 @@ impl PluginUninstall {
                     target.level,
                     elsewhere,
                 )));
-                continue;
             }
-            for copy in to_remove {
-                fs::remove_file(&copy.path).map_err(|err| {
-                    RoverError::new(
-                        anyhow!(err).context(format!("Couldn't remove `{}`.", copy.path)),
-                    )
-                })?;
-                stderr.print(&StyledText::plain(format!(
-                    "Removed `{}` v{} {}.",
-                    copy.plugin,
-                    copy.version,
-                    match target.level {
-                        PluginLevel::Project => "from this project",
-                        PluginLevel::Global => "from the global install",
-                    }
-                )));
-                removed.push(RemovedCopy {
-                    name: copy.plugin,
-                    version: copy.version.clone(),
-                    level: target.level,
-                    path: copy.path.clone(),
-                });
+            for copy in named_copies {
+                if !removing.iter().any(|removed| removed.path == copy.path) {
+                    removing.push(copy);
+                }
             }
+        }
+        let changes = target
+            .declarations
+            .as_ref()
+            .map(|declarations| DeclarationChanges::plan(declarations, &target_copies, &removing))
+            .transpose()?;
+
+        let mut removed = Vec::new();
+        for copy in removing {
+            fs::remove_file(&copy.path).map_err(|err| {
+                RoverError::new(anyhow!(err).context(format!("Couldn't remove `{}`.", copy.path)))
+            })?;
+            stderr.print(&StyledText::plain(format!(
+                "Removed `{}` v{} {}.",
+                copy.plugin,
+                copy.version,
+                match target.level {
+                    PluginLevel::Project => "from this project",
+                    PluginLevel::Global => "from the global install",
+                }
+            )));
+            removed.push(RemovedCopy {
+                name: copy.plugin,
+                version: copy.version.clone(),
+                level: target.level,
+                path: copy.path.clone(),
+            });
+        }
+        if let Some(changes) = changes {
+            changes.apply(&target)?;
         }
 
         Ok(RoverOutput::CliOutput(Box::new(PluginUninstallOutput {
@@ -244,6 +293,112 @@ impl PluginUninstall {
     /// working directory, or `None` without the flag.
     pub(crate) fn named_manifest(&self) -> Option<RoverResult<Utf8PathBuf>> {
         self.manifest_path.as_deref().map(absolute_manifest)
+    }
+}
+
+/// What an uninstall does to the target level's declarations, worked out
+/// before anything is removed, so that a manifest or lockfile it can't
+/// update stops it while every binary is still in place.
+struct DeclarationChanges {
+    /// The lockfile without the entries of the plugins left with no copy at
+    /// the level, if it had any.
+    lockfile: Option<(Utf8PathBuf, PluginLockfile)>,
+    /// The manifest with those entries removed, unless nothing in it
+    /// changes.
+    manifest: Option<ManifestEditor>,
+    /// The plugins whose locked release is going while other copies stay.
+    locked_release_gone: Vec<(PluginName, Version)>,
+}
+
+impl DeclarationChanges {
+    fn plan(
+        declarations: &Declarations,
+        installed: &[InstalledCopy],
+        removing: &[&InstalledCopy],
+    ) -> RoverResult<Self> {
+        let is_removed = |copy: &InstalledCopy| removing.iter().any(|gone| gone.path == copy.path);
+        let mut undeclared = Vec::new();
+        let mut kept_some = Vec::new();
+        for plugin in PluginName::ALL {
+            if !removing.iter().any(|copy| copy.plugin == plugin) {
+                continue;
+            }
+            let left = installed
+                .iter()
+                .any(|copy| copy.plugin == plugin && !is_removed(copy));
+            if left {
+                kept_some.push(plugin);
+            } else {
+                undeclared.push(plugin);
+            }
+        }
+
+        let lockfile_path = declarations.dir.join(LOCKFILE);
+        let lockfile = PluginLockfile::load(&lockfile_path)?;
+        let locked_release_gone = kept_some
+            .into_iter()
+            .filter_map(|plugin| {
+                let locked = lockfile.as_ref()?.get(plugin)?;
+                removing
+                    .iter()
+                    .any(|copy| copy.plugin == plugin && copy.version == locked.resolved)
+                    .then(|| (plugin, locked.resolved.clone()))
+            })
+            .collect();
+        let lockfile = lockfile
+            .filter(|lockfile| {
+                undeclared
+                    .iter()
+                    .any(|plugin| lockfile.get(*plugin).is_some())
+            })
+            .map(|lockfile| {
+                let without = undeclared
+                    .iter()
+                    .fold(lockfile, |lockfile, plugin| lockfile.without(*plugin));
+                (lockfile_path, without)
+            });
+
+        let manifest = if undeclared.is_empty() {
+            // Every plugin keeps a copy, and so its declaration: the manifest
+            // isn't read at all.
+            None
+        } else {
+            let mut editor = ManifestEditor::open(&declarations.manifest)?;
+            let mut changed = false;
+            for plugin in &undeclared {
+                changed |= editor.remove(*plugin)?;
+            }
+            // Rendered now, so an edit that can't be made fails here.
+            editor.render()?;
+            changed.then_some(editor)
+        };
+
+        Ok(Self {
+            lockfile,
+            manifest,
+            locked_release_gone,
+        })
+    }
+
+    /// Write the planned changes, once the binaries are gone, and warn about
+    /// what they leave behind.
+    fn apply(self, target: &Level) -> RoverResult<()> {
+        if let Some((path, lockfile)) = &self.lockfile {
+            lockfile.write(path, &LockfileWrite(()))?;
+        }
+        if let Some(manifest) = &self.manifest {
+            manifest.write(&ManifestWrite(()))?;
+        }
+        let stderr = rover_print::print::stderr::default();
+        for (plugin, version) in &self.locked_release_gone {
+            stderr.warnln(format!(
+                "`{LOCKFILE}` records `{plugin}` v{version}, which is no longer installed {}. \
+                 The next plugin-using command will download it again, or fail if downloads are \
+                 disabled.",
+                target.place()
+            ));
+        }
+        Ok(())
     }
 }
 

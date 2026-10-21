@@ -95,6 +95,13 @@ impl PluginLockfile {
         self
     }
 
+    /// This lockfile without `plugin`'s entry, and every other entry as it
+    /// was.
+    pub fn without(mut self, plugin: PluginName) -> Self {
+        self.0.remove(&plugin);
+        self
+    }
+
     /// The file's contents, exactly as Rover writes them to disk.
     pub fn render(&self) -> String {
         let body =
@@ -307,6 +314,24 @@ mod tests {
 
         assert_that!(PluginLockfile::default().with(router.clone()))
             .is_equal_to(PluginLockfile::from_iter([router]));
+    }
+
+    #[rstest]
+    fn removing_one_plugin_leaves_every_other_entry_as_it_was() {
+        let supergraph = locked(
+            PluginName::Supergraph,
+            VersionRequest::Major(2),
+            Version::new(2, 9, 3),
+        );
+        let router = locked(
+            PluginName::Router,
+            VersionRequest::Latest,
+            Version::new(2, 1, 0),
+        );
+        let lockfile = PluginLockfile::from_iter([supergraph.clone(), router]);
+
+        assert_that!(lockfile.without(PluginName::Router))
+            .is_equal_to(PluginLockfile::from_iter([supergraph]));
     }
 
     #[rstest]
