@@ -170,7 +170,7 @@ type OrganizationMutation {
   rotateKey(expireOldKeyAt: Timestamp, keyId: ID!, newKeyName: String): GraphOsKey!
 
   """
-  Rotates an OAuth client's secret: creates a new secret and expires every other secret the client has, active or not yet active, after `gracePeriodDays` days (immediately by default)
+  Rotates an OAuth client's secret: creates a new secret and expires every other secret the client has, active or not yet active, after `gracePeriodDays` days (immediately by default). `gracePeriodDays` must be between 0 and 30.
   """
   rotateOAuthClientSecret(clientId: ID!, gracePeriodDays: Int): OAuthClient!
 

@@ -20,7 +20,7 @@ To install or upgrade to a **specific version** of Rover (recommended for CI env
 
 ```bash
 # Note the `v` prefixing the version number
-curl -sSL https://rover.apollo.dev/nix/v1.0.0 | sh
+curl -sSL https://rover.apollo.dev/nix/v1.0.1 | sh
 ```
 
 If your machine doesn't have the `curl` command, you can get the latest version from the [`curl` downloads page](https://curl.se/download.html).
@@ -43,7 +43,7 @@ To install or upgrade to a **specific version** of Rover (recommended for CI env
 
 ```bash
 # Note the `v` prefixing the version number
-iwr 'https://rover.apollo.dev/win/v1.0.0' | iex
+iwr 'https://rover.apollo.dev/win/v1.0.1' | iex
 ```
 
 #### Installing from a binary mirror using the bash and PowerShell scripts
@@ -79,9 +79,9 @@ Starting with Rover v0.39.1, Apollo publishes a Linux container image with each 
 Pull from either GitHub Container Registry or Docker Hub:
 
 ```bash
-docker pull ghcr.io/apollographql/rover:1.0.0
+docker pull ghcr.io/apollographql/rover:1.0.1
 # or
-docker pull apollograph/rover:1.0.0
+docker pull apollograph/rover:1.0.1
 ```
 
 Then run any Rover command:
@@ -90,7 +90,7 @@ Then run any Rover command:
 docker run --rm \
   -e APOLLO_KEY \
   -v "$PWD:/workspace" -w /workspace \
-  ghcr.io/apollographql/rover:1.0.0 \
+  ghcr.io/apollographql/rover:1.0.1 \
   subgraph check my-graph@prod --name products --schema ./schema.graphql
 ```
 
@@ -103,7 +103,7 @@ Authenticate with a [client-credential pair](/rover/commands/api-key#client-cred
 docker run --rm \
   -e APOLLO_CLIENT_ID -e APOLLO_CLIENT_SECRET \
   -v "$PWD:/workspace" -w /workspace \
-  ghcr.io/apollographql/rover:1.0.0 \
+  ghcr.io/apollographql/rover:1.0.1 \
   subgraph check my-graph@prod --name products --schema ./schema.graphql
 ```
 
@@ -113,7 +113,7 @@ The image doesn't include any plugins. A plugin installed globally in one `docke
 docker run --rm \
   -e APOLLO_ELV2_LICENSE=accept \
   -v "$PWD:/workspace" -w /workspace \
-  ghcr.io/apollographql/rover:1.0.0 \
+  ghcr.io/apollographql/rover:1.0.1 \
   plugin install
 ```
 
