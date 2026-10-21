@@ -1,6 +1,5 @@
 # PRD: Rover Telemetry
 
-- **Owner:** Brian George
 - **Component:** Rover CLI (anonymous usage telemetry)
 
 This PRD reviews Rover's current usage telemetry, benchmarks it against other industry CLI applications, and recommends where Rover should land. It fixes disclosure and data-minimization gaps and adds the fields needed for aggregate analysis. Request tracing against the Platform API is a separate concern and is covered by its own PRD.
