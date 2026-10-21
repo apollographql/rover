@@ -153,11 +153,22 @@ mod tests {
 
     use super::DevOpts;
 
+    /// `args` parsed with none of the environment variables other tests here
+    /// set, which clap would otherwise read while one of them has it set.
+    fn parse_without_env(args: &[&str]) -> Result<DevOpts, clap::Error> {
+        temp_env::with_vars_unset(
+            [
+                "APOLLO_ROVER_DEV_COMPOSITION_VERSION",
+                "APOLLO_ROVER_DEV_ROUTER_VERSION",
+            ],
+            || DevOpts::try_parse_from(args),
+        )
+    }
+
     #[test]
     fn supergraph_output_flag_parses_into_supergraph_opts() {
         let opts =
-            DevOpts::try_parse_from(["dev", "--supergraph-output", "build/supergraph.graphql"])
-                .unwrap();
+            parse_without_env(&["dev", "--supergraph-output", "build/supergraph.graphql"]).unwrap();
         assert_eq!(
             opts.supergraph_opts.supergraph_output,
             Some(Utf8PathBuf::from("build/supergraph.graphql"))
@@ -166,7 +177,7 @@ mod tests {
 
     #[test]
     fn supergraph_output_defaults_to_none() {
-        let opts = DevOpts::try_parse_from(["dev"]).unwrap();
+        let opts = parse_without_env(&["dev"]).unwrap();
         assert_eq!(opts.supergraph_opts.supergraph_output, None);
     }
 
