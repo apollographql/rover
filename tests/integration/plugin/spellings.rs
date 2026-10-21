@@ -120,6 +120,7 @@ fn both_spellings_install_the_same_plugin(
 #[case::plugin_noun(&["plugin"])]
 #[case::plugin_install(&["plugin", "install"])]
 #[case::plugin_list(&["plugin", "list"])]
+#[case::plugin_uninstall(&["plugin", "uninstall"])]
 #[case::install(&["install"])]
 fn help(#[case] command: &[&str]) {
     let mut rover = Command::cargo_bin("rover").unwrap();

@@ -1,12 +1,13 @@
 mod install;
 mod list;
+mod uninstall;
 
 use anyhow::anyhow;
 use camino::{Utf8Path, Utf8PathBuf};
 use clap::Parser;
 
 pub(crate) use self::install::PluginInstall;
-use self::list::PluginList;
+use self::{list::PluginList, uninstall::PluginUninstall};
 use crate::{
     RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
     plugin::{
@@ -60,6 +61,9 @@ pub enum Command {
 
     /// List the plugins installed in this project and globally
     List(PluginList),
+
+    /// Remove installed plugins from this project, or globally
+    Uninstall(PluginUninstall),
 }
 
 impl Plugins {
@@ -71,6 +75,7 @@ impl Plugins {
         match &self.command {
             Command::Install(command) => command.run(override_install_path, client_config).await,
             Command::List(command) => command.run(override_install_path),
+            Command::Uninstall(command) => command.run(override_install_path),
         }
     }
 }
@@ -84,6 +89,7 @@ impl Plugins {
         match &self.command {
             Command::Install(command) => command.named_manifest(),
             Command::List(command) => command.named_manifest(),
+            Command::Uninstall(command) => command.named_manifest(),
         }
     }
 }
@@ -151,7 +157,7 @@ impl Plugins {
     pub(crate) fn install(&self) -> Option<&PluginInstall> {
         match &self.command {
             Command::Install(command) => Some(command),
-            Command::List(_) => None,
+            Command::List(_) | Command::Uninstall(_) => None,
         }
     }
 }
