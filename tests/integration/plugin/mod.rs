@@ -19,3 +19,5 @@ mod precedence;
 mod reproducible;
 #[cfg(not(target_env = "musl"))]
 mod spellings;
+#[cfg(not(target_env = "musl"))]
+mod uninstall;
