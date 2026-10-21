@@ -202,17 +202,26 @@ The duplication this implies is accepted. `rover plugin install` is not a prereq
   Required text:
   > `router@2` is ambiguous for uninstall. Name the plugin alone to remove every installed version, or an exact `router@=2.1.0`.
 
-- **FR45**: Uninstalling must remove the plugin's entry from the target level's manifest and lockfile, mirroring what a named install writes (FR38). `--no-save` must leave the manifest entry in place while still updating the lockfile — which deliberately creates the FR18 drift state, so Rover must warn when it does.
+- **FR45**: An uninstall that leaves no copy of a plugin at the target level — as a bare name always does — must remove that plugin's entry from the level's manifest and lockfile, mirroring what a named install writes (FR38). The manifest edit must leave everything else in the file as its author wrote it: comments, key order, quoting, indentation, and line endings. A manifest whose `plugins:` entry Rover cannot edit that way, such as a flow mapping, must fail the uninstall before anything is removed, naming the file. Uninstall always updates both files: it has no `--no-save`.
+
+  An exact `<name>@=X.Y.Z` that leaves other copies of the plugin at the level must leave both entries in place: the plugin is still installed there, and still declared. If the release it removed is the one the lockfile records, Rover must warn that the next plugin-using command will install it again.
 
   Required text:
-  > Warning: `supergraph` is still declared in `rover.yaml`. The next plugin-using command will fail until you remove it or re-install.
+  > Warning: `plugin-versions.lock` records `supergraph` v2.9.3, which is no longer installed in this project. The next plugin-using command will download it again, or fail if downloads are disabled.
 
-- **FR46**: Uninstalling must never touch a level other than the target. In particular, uninstalling in a project that has no copy of its own must not remove the global copy it was falling back to (FR26); it must report that nothing was removed at this level and name `--global`.
+- **FR46**: Uninstalling must never touch a level other than the target. In particular, uninstalling in a project that has no copy of its own must not remove the global copy it was falling back to (FR26); it must report that nothing was removed at this level and name `--global`. Removing nothing leaves the level's manifest and lockfile as they are. The same holds the other way round: `--global` with a copy only in the project removes nothing and says how to remove the project's copy.
 
   Required text:
   > `supergraph` isn't installed in this project. It resolves from the global install; re-run with `--global` to remove it there.
 
+  > `supergraph` isn't installed globally. It's installed in this project; re-run without `--global` to remove it there.
+
 - **FR47**: Uninstalling a plugin that is installed at no level must be a no-op that says so and exits 0, mirroring FR39.
+
+  Required text:
+  > `supergraph` isn't installed in this project or globally. Nothing was removed.
+
+  > `supergraph` isn't installed globally. Nothing was removed.
 
 ### 3.8 Never-download controls (R8)
 
@@ -405,14 +414,17 @@ Given `supergraph` v2.9.3 already in the project root, when `rover plugin instal
 **Uninstall removes the binary and the declaration**
 Given `supergraph` v2.9.3 installed in the project and declared in its `rover.yaml`, when `rover plugin uninstall supergraph` runs, then the binary is removed from `<project>/.rover/bin/`, the `supergraph` entry is removed from both `rover.yaml` and `plugin-versions.lock`, and the global level is untouched.
 
+**Uninstalling one release of several keeps the declaration**
+Given `supergraph` v2.9.2 and v2.9.3 installed in the project, `rover.yaml` declaring `supergraph: "2"`, and the lockfile recording v2.9.3, when `rover plugin uninstall supergraph@=2.9.2` runs, then only v2.9.2 is removed and `rover.yaml` and the lockfile are unchanged. When `rover plugin uninstall supergraph@=2.9.3` runs instead, then only v2.9.3 is removed, both files are unchanged, and the FR45 warning that the lockfile records a release no longer installed is printed.
+
+**Uninstall keeps the rest of the manifest as written**
+Given a project `rover.yaml` with comments, a `settings:` section, and `router` and `supergraph` declared, when `rover plugin uninstall supergraph` runs, then the file differs from before only by the `supergraph` line. Given `plugins:` written as a flow mapping instead, then the uninstall fails naming the file, and neither the binary nor either file is changed.
+
 **Uninstall does not reach across levels**
 Given `supergraph` installed globally and not in the project, when `rover plugin uninstall supergraph` runs inside the project, then nothing is removed, the FR46 text naming `--global` is printed, and the global copy still satisfies a subsequent `rover supergraph compose` in that project.
 
 **Uninstall version selection**
 Given `supergraph` v2.9.2 and v2.9.3 both installed at the target level, when `rover plugin uninstall supergraph@=2.9.2` runs, then only v2.9.2 is removed. When `rover plugin uninstall supergraph` runs, then both are removed. When `rover plugin uninstall supergraph@2` runs, then it is rejected with the FR44 text and nothing is removed.
-
-**Uninstall with `--no-save` warns about the drift it creates**
-Given `supergraph` installed and declared, when `rover plugin uninstall supergraph --no-save` runs, then the binary and the lockfile entry are removed, `rover.yaml` still declares it, the FR45 warning is printed, and the next plugin-using command fails with the FR18 drift error.
 
 **Uninstalling what isn't there**
 Given `supergraph` installed at no level, when `rover plugin uninstall supergraph` runs, then nothing is removed, the command says so, and it exits 0.
@@ -523,6 +535,7 @@ Decisions taken while drafting and their reasoning are provided here.
 - **The opt-in is a setting, `APOLLO_ROVER_ALLOW_AUTOMATIC_DOWNLOAD`** (FR78), over a top-level manifest key and over the shorter `allow_download`. As a profile-configuration setting it can be stored in a profile as well as the project manifest, appears in `rover config show`, and follows one precedence chain, instead of a second, plugin-system-only layering. Agreed with the profile-configuration spec (ROVER-451, §3.16), which defines it. "Automatic" is the load-bearing word: an explicit `rover plugin install` is never gated by it.
 - **Per-invocation controls outrank the standing opt-in** (FR79), over letting a manifest re-enable downloads a command was told not to make.
 - **A `plugin` noun with `install`, `list`, `uninstall`, `resolve`** (FR33), over flags on `rover install`. `rover install --plugin` survives as a deprecated alias (FR34).
+- **`uninstall` has no `--no-save`** (FR45), over mirroring `npm uninstall --no-save` for symmetry with `install`. Keeping the manifest entry while removing the binary and lockfile entry leaves exactly the drift state that every plugin-using command refuses to run in (FR18), so the flag's only outcome would be a broken project. The wants it might serve are already covered: removing a level's `bin/` and re-running `rover plugin install` restores it (FR28), and `--force` replaces a binary in place (FR40).
 - **Project-local installs, global when no project is in scope** (FR23), over Cargo's global-first default and over npm's "invent a project in the working directory." Rover never creates a project root on its own (FR22), which is what keeps the change non-breaking (FR74).
 - **Yanked versions get their own error code** (FR61), over folding them into general resolution failure, so a script can distinguish a version that never existed from one withdrawn.
 - **Version flags per command follow the plugin chain** (FR7), over giving every command all three flags or defining flags only for `rover dev`. `compose`, `connector`, and `lsp` run only `supergraph`, so they get only `--federation-version`; `dev` runs all three plugins and gets all three flags. Raised in spec review.
