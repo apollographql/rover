@@ -1,6 +1,7 @@
 pub mod client;
 pub mod effect;
 pub mod env;
+pub mod lifecycle;
 pub mod parsers;
 pub mod pkg;
 pub mod service;

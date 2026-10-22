@@ -330,6 +330,9 @@ tree-sitter-typescript = { workspace = true }
 tree-sitter-swift = { workspace = true }
 tree-sitter-kotlin-ng = { workspace = true }
 
+[target.'cfg(unix)'.dependencies]
+nix = { workspace = true, features = ["process", "signal"] }
+
 [dev-dependencies]
 apollo-compiler = { workspace = true }
 apollo-parser = { workspace = true }
@@ -365,6 +368,10 @@ tower-test = { workspace = true }
 tracing-test = { workspace = true }
 temp-env = { version = "0.3", features = ["async_closure"] }
 which = { workspace = true }
+
+# A panic must unwind so that telemetry can report it before the process exits.
+[profile.release]
+panic = "unwind"
 
 # For sputnik, run tests with debug_assertions disabled. This is necessary because telemetry is not sent if
 # debug_assertions is enabled, and the tests rely on telemetry being sent to mock APIs.

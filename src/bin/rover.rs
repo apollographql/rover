@@ -12,5 +12,8 @@ async fn main() -> Result<_, std::io::Error> {
         repository: rover::PKG_REPOSITORY.into()
     });
 
+    // After the hook that prints panics, so a panic is also remembered for telemetry.
+    rover::utils::lifecycle::observe_panics();
+
     Ok(Rover::run_from_args().await)
 }
