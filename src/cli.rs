@@ -286,36 +286,19 @@ impl Rover {
         self.output_opts.set_no_color();
 
         // attempt to create a new `Session` to capture anonymous usage data
-        let rover_output = match Session::new(self) {
-            // if successful, report the usage data in the background
-            Ok(session) => {
-                // kicks off the reporting on a background thread
-                let report_thread = tokio::task::spawn(async move {
-                    // log + ignore errors because it is not in the critical path
-                    let _ = session.report().await.map_err(|telemetry_error| {
-                        tracing::debug!(?telemetry_error);
-                        telemetry_error
-                    });
-                });
+        let session = Session::new(self).ok();
 
-                // kicks off the app on the main thread
-                // don't return an error with ? quite yet
-                // since we still want to report the usage data
-                let app_result = self.execute_command().await;
+        let rover_output = self.execute_command().await;
 
-                // makes sure the reporting finishes in the background
-                // before continuing.
-                // ignore errors because it is not in the critical path
-                let _ = report_thread.await;
-
-                // return result of app execution
-                // now that we have reported our usage data
-                app_result
-            }
-
-            // otherwise just run the app without reporting
-            Err(_) => self.execute_command().await,
-        };
+        // report once the command has finished. `report` gives up after its own
+        // short budget however slow the endpoint is, and errors are logged and
+        // ignored: telemetry is not in the critical path.
+        if let Some(session) = session {
+            let _ = session
+                .report()
+                .await
+                .inspect_err(|telemetry_error| tracing::debug!(?telemetry_error));
+        }
 
         match rover_output {
             Ok(output) => {
