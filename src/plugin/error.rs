@@ -20,6 +20,7 @@
 use std::{error::Error, fmt, sync::Arc};
 
 use camino::Utf8PathBuf;
+use http::StatusCode;
 use semver::Version;
 use serde::Serialize;
 
@@ -62,6 +63,10 @@ pub enum PluginFailure {
         plugin: PluginName,
         requested: VersionRequest,
         version: Version,
+        /// The HTTP status the registry refused the download with, if that's
+        /// why it failed. A download that failed any other way, such as one
+        /// that dropped, timed out, or arrived unusable, has none.
+        status: Option<StatusCode>,
         source: PluginFailureCause,
     },
 
@@ -373,6 +378,15 @@ impl PluginFailure {
             Self::NoLongerServed { version, .. } => Some(VersionRequest::Exact(version.clone())),
             Self::LockfileDrift { declared, .. } => Some(declared.clone()),
             Self::Manifest { .. } | Self::Lockfile { .. } => None,
+        }
+    }
+
+    /// The HTTP status the plugin registry refused a download with, if that's
+    /// why a download failed.
+    pub(crate) const fn download_status(&self) -> Option<StatusCode> {
+        match self {
+            Self::Download { status, .. } => *status,
+            _ => None,
         }
     }
 
@@ -830,6 +844,7 @@ mod tests {
             plugin: PluginName::Router,
             requested: VersionRequest::Major(2),
             version: v("2.1.0"),
+            status: None,
             source: cause("Request timed out"),
         }
     }
