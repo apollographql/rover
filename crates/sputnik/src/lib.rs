@@ -8,4 +8,4 @@ mod session;
 
 pub use error::SputnikError;
 pub use report::Report;
-pub use session::{Command, Environment, Session};
+pub use session::{Command, Environment, Outcome, Session};

@@ -18,7 +18,7 @@ This table maps each of Rover's error codes to the telemetry outcome `user_error
 | E001 | GraphQL endpoint response isn't valid JSON | `internal_error` | Ambiguous: wrong endpoint or headers, or a registry fault |
 | E002 | Invalid request header name | `user_error` | Clear |
 | E003 | Invalid request header value | `user_error` | Clear |
-| E004 | Request couldn't be executed (server unreachable, connection lost) | `connection_error` | Clear |
+| E004 | Request couldn't be executed (server unreachable, connection lost) | `connection_error` | Clear. A response that arrived but couldn't be decoded is `internal_error`, and an HTTP status decides ahead of the code (FR15a) |
 | E005, E006 | Unexpected registry behavior (the two codes share one explanation) | `internal_error` | Clear |
 | E007 | `subgraph` command on a non-federated graph | `user_error` | Clear |
 | E008 | Invalid variant | `user_error` | Clear |
@@ -62,7 +62,7 @@ This table maps each of Rover's error codes to the telemetry outcome `user_error
 | E046 | Can't read, write, or delete a credential in the keychain | `user_error` | Clear: locked or misconfigured keychain |
 | E047 | Publish succeeded but a launch it triggered failed | `user_error` | Clear: usually the published schema |
 | E048 | Can't resolve a plugin release | `internal_error` | Ambiguous: no matching version, or the plugin registry is unreachable |
-| E049 | Plugin download failed | `connection_error` | Ambiguous: a connection failure or timeout, or an HTTP error from the registry. Treated as a connection error because the download is a network transfer |
+| E049 | Plugin download failed | `connection_error` | Decided by cause: when the registry refused the download with an HTTP status, that status decides (4xx `user_error`, 5xx `internal_error`); a download that failed any other way, such as a dropped or timed-out transfer, is a connection error, even when the cause could be a corrupt archive Rover can't tell apart |
 | E050 | Plugin install failed | `internal_error` | Ambiguous: unwritable or full directory, or a corrupt archive |
 | E051 | Requested plugin release was withdrawn | `user_error` | Clear |
 | E052 | Plugin manifest can't be used | `user_error` | Clear |
@@ -91,4 +91,4 @@ Each code is counted once. E012 is counted under `user_error` but also yields `i
 ## Decisions for review
 
 1. **Remaining ambiguous codes.** E048, E050, E056, E063, and E065 involve the network but also have non-network causes, so they stay `internal_error`. They'd move to `connection_error` only if the code could tell a connection failure from the other causes.
-2. **Errors with no code.** An error can carry no code, and FR16 maps those to `internal_error` for now. Classifying them is tracked as follow-up work, and this table is incomplete until that's done.
+2. **Errors with no code.** An error can carry no code, and FR16 maps those to `internal_error` for now. Classifying them is tracked as follow-up work, and this table is incomplete until that's done. A failure from a Studio GraphQL operation carries no code, but it is classified by the HTTP failure it wraps: a 4xx status is `user_error`, a 5xx is `internal_error`, and a timeout, failed connection or dropped connection is `connection_error`.

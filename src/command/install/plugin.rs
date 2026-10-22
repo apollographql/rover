@@ -648,6 +648,7 @@ impl PluginInstaller {
         version: &Version,
         err: InstallerError,
     ) -> RoverError {
+        let status = err.download_status();
         match err {
             // The download error itself, not the installer's wrapper around it,
             // which would only repeat that the download failed.
@@ -655,6 +656,7 @@ impl PluginInstaller {
                 plugin: plugin.name(),
                 requested: plugin.request(),
                 version: version.clone(),
+                status,
                 source: Arc::new(*source),
             }),
             // Without a root to name, there's no installation failure to report.

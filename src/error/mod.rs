@@ -12,10 +12,13 @@ use std::{
 
 use apollo_federation_types::rover::BuildErrors;
 use calm_io::{stderr, stdoutln};
+use http::StatusCode;
 use rover_client::RoverClientError;
+use rover_http::HttpServiceError;
 use rover_std::Style;
 use serde::{Serialize, Serializer, ser::SerializeStruct};
 use serde_json::{Value, json};
+use sputnik::Outcome;
 
 use crate::{
     command::{CliOutput, auth::grants::revoke::error::GrantsRevokeError},
@@ -79,6 +82,17 @@ impl Serialize for RoverError {
     }
 }
 
+/// What an HTTP error status says: a 4xx is the user's to correct, a 5xx isn't.
+fn status_outcome(status: StatusCode) -> Option<Outcome> {
+    if status.is_client_error() {
+        Some(Outcome::UserError)
+    } else if status.is_server_error() {
+        Some(Outcome::InternalError)
+    } else {
+        None
+    }
+}
+
 impl RoverError {
     pub fn new<E>(error: E) -> Self
     where
@@ -119,6 +133,57 @@ impl RoverError {
 
     pub fn message(&self) -> String {
         self.error.to_string()
+    }
+
+    /// How a command that fails with this error ends. What an HTTP failure in
+    /// the error says decides first: a 4xx status is the user's to correct, a
+    /// 5xx isn't, and a failure to reach a server is a connection error.
+    /// Otherwise the error's code decides, and an error with no code is
+    /// internal.
+    pub fn outcome(&self) -> Outcome {
+        self.http_outcome().unwrap_or_else(|| {
+            self.metadata
+                .code
+                .as_ref()
+                .map_or(Outcome::InternalError, RoverErrorCode::outcome)
+        })
+    }
+
+    /// The outcome an HTTP failure in this error's chain implies, if there is
+    /// one, whichever HTTP stack produced it.
+    fn http_outcome(&self) -> Option<Outcome> {
+        if let Some(status) = self
+            .plugin_failure()
+            .and_then(PluginFailure::download_status)
+        {
+            return status_outcome(status);
+        }
+        self.error.chain().find_map(|cause| {
+            if let Some(error) = cause.downcast_ref::<reqwest::Error>() {
+                return match error.status() {
+                    Some(status) => status_outcome(status),
+                    // Rover couldn't use the response, or couldn't build the
+                    // request at all: neither is a failure to reach the server.
+                    None if error.is_decode() || error.is_builder() || error.is_redirect() => {
+                        Some(Outcome::InternalError)
+                    }
+                    None => None,
+                };
+            }
+            match cause.downcast_ref::<HttpServiceError>()? {
+                HttpServiceError::BadStatusCode { status_code, .. } => status_outcome(*status_code),
+                HttpServiceError::TimedOut
+                | HttpServiceError::Connect(_)
+                | HttpServiceError::Closed(_)
+                | HttpServiceError::Body(_) => Some(Outcome::ConnectionError),
+                HttpServiceError::Http(_)
+                | HttpServiceError::Cancelled(_)
+                | HttpServiceError::Decode(_)
+                | HttpServiceError::Request(_)
+                | HttpServiceError::Unexpected(_)
+                | HttpServiceError::InfallibleBody(_) => Some(Outcome::InternalError),
+            }
+        })
     }
 
     pub fn code(&self) -> Option<RoverErrorCode> {
@@ -321,10 +386,189 @@ impl<E: Into<anyhow::Error>> From<E> for RoverError {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use anyhow::anyhow;
+    use bytes::Bytes;
+    use http::StatusCode;
+    use http_body_util::Full;
+    use httpmock::MockServer;
+    use rover_client::{EndpointKind, RoverClientError};
+    use rover_graphql::GraphQLServiceError;
+    use rover_http::HttpServiceError;
     use serde_json::json;
+    use speculoos::prelude::*;
+    use sputnik::Outcome;
 
     use super::RoverError;
+    use crate::{
+        RoverErrorCode,
+        plugin::{
+            error::PluginFailure,
+            version::{PluginName, VersionRequest},
+        },
+    };
+
+    /// A failure from a Studio GraphQL operation, which goes through `rover-http`'s
+    /// Tower stack and so carries no `reqwest::Error` and no error code.
+    fn tower_error(error: HttpServiceError) -> RoverError {
+        RoverError::new(RoverClientError::Service {
+            source: Box::new(GraphQLServiceError::<()>::UpstreamService(Box::new(error))),
+            endpoint_kind: EndpointKind::ApolloStudio,
+        })
+    }
+
+    fn bad_status(status: StatusCode) -> HttpServiceError {
+        HttpServiceError::BadStatusCode {
+            status_code: status,
+            response: http::Response::new(Full::new(Bytes::new())),
+        }
+    }
+
+    fn io(message: &str) -> Box<dyn std::error::Error + Send + Sync> {
+        Box::new(std::io::Error::other(message.to_string()))
+    }
+
+    #[rstest::rstest]
+    #[case::bad_request(bad_status(StatusCode::BAD_REQUEST), Outcome::UserError)]
+    #[case::not_found(bad_status(StatusCode::NOT_FOUND), Outcome::UserError)]
+    #[case::server_error(bad_status(StatusCode::INTERNAL_SERVER_ERROR), Outcome::InternalError)]
+    #[case::unavailable(bad_status(StatusCode::SERVICE_UNAVAILABLE), Outcome::InternalError)]
+    #[case::timed_out(HttpServiceError::TimedOut, Outcome::ConnectionError)]
+    #[case::connect(HttpServiceError::Connect(io("refused")), Outcome::ConnectionError)]
+    #[case::closed(HttpServiceError::Closed(io("closed")), Outcome::ConnectionError)]
+    #[case::body(HttpServiceError::Body(io("reset")), Outcome::ConnectionError)]
+    #[case::decode(HttpServiceError::Decode(io("garbled")), Outcome::InternalError)]
+    #[case::unexpected(HttpServiceError::Unexpected(io("odd")), Outcome::InternalError)]
+    fn a_failure_through_the_tower_stack_is_decided_by_what_it_says(
+        #[case] error: HttpServiceError,
+        #[case] expected: Outcome,
+    ) {
+        assert_that!(tower_error(error).outcome()).is_equal_to(expected);
+    }
+
+    #[rstest::rstest]
+    #[case::refused_by_the_registry(Some(StatusCode::NOT_FOUND), Outcome::UserError)]
+    #[case::registry_failing(Some(StatusCode::BAD_GATEWAY), Outcome::InternalError)]
+    #[case::dropped_or_timed_out(None, Outcome::ConnectionError)]
+    fn a_plugin_download_failure_is_decided_by_its_status_when_it_has_one(
+        #[case] status: Option<StatusCode>,
+        #[case] expected: Outcome,
+    ) {
+        let error = RoverError::new(PluginFailure::Download {
+            plugin: PluginName::Router,
+            requested: VersionRequest::Major(2),
+            version: semver::Version::new(2, 1, 0),
+            status,
+            source: std::sync::Arc::from(io("transfer failed")),
+        });
+        assert_that!(error.code()).is_equal_to(Some(RoverErrorCode::E049));
+        assert_that!(error.outcome()).is_equal_to(expected);
+    }
+
+    #[tokio::test]
+    async fn a_response_that_cannot_be_decoded_is_an_internal_error() {
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.any_request();
+            then.status(200).body("not json");
+        });
+        let source = reqwest::get(server.base_url())
+            .await
+            .unwrap()
+            .json::<serde_json::Value>()
+            .await
+            .unwrap_err();
+        let error = RoverError::new(RoverClientError::SendRequest {
+            source,
+            endpoint_kind: EndpointKind::ApolloStudio,
+        });
+        // E004 is the code for a request that couldn't be executed, which is
+        // a connection error; but the server did answer.
+        assert_that!(error.code()).is_equal_to(Some(RoverErrorCode::E004));
+        assert_that!(error.outcome()).is_equal_to(Outcome::InternalError);
+    }
+
+    async fn send_request_error(
+        url: &str,
+        timeout: Duration,
+        error_for_status: bool,
+    ) -> RoverError {
+        let response = reqwest::Client::new()
+            .get(url)
+            .timeout(timeout)
+            .send()
+            .await;
+        let source = if error_for_status {
+            response.and_then(|r| r.error_for_status()).unwrap_err()
+        } else {
+            response.unwrap_err()
+        };
+        RoverError::new(RoverClientError::SendRequest {
+            source,
+            endpoint_kind: EndpointKind::Customer,
+        })
+    }
+
+    #[rstest::rstest]
+    #[case::not_found(404, Outcome::UserError)]
+    #[case::unauthorized(401, Outcome::UserError)]
+    #[case::server_error(500, Outcome::InternalError)]
+    #[case::unavailable(503, Outcome::InternalError)]
+    #[tokio::test]
+    async fn an_http_error_response_is_decided_by_its_status(
+        #[case] status: u16,
+        #[case] expected: Outcome,
+    ) {
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.any_request();
+            then.status(status);
+        });
+        let error = send_request_error(&server.base_url(), Duration::from_secs(5), true).await;
+        assert_that!(error.outcome()).is_equal_to(expected);
+    }
+
+    #[tokio::test]
+    async fn an_unreachable_server_is_a_connection_error() {
+        // A port that was just free, so nothing is listening on it.
+        let port = std::net::TcpListener::bind("127.0.0.1:0")
+            .unwrap()
+            .local_addr()
+            .unwrap()
+            .port();
+        let error = send_request_error(
+            &format!("http://127.0.0.1:{port}"),
+            Duration::from_secs(5),
+            false,
+        )
+        .await;
+        assert_that!(error.outcome()).is_equal_to(Outcome::ConnectionError);
+    }
+
+    #[tokio::test]
+    async fn a_timed_out_request_is_a_connection_error() {
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.any_request();
+            then.status(200).delay(Duration::from_secs(5));
+        });
+        let error = send_request_error(&server.base_url(), Duration::from_millis(50), false).await;
+        assert_that!(error.outcome()).is_equal_to(Outcome::ConnectionError);
+    }
+
+    #[test]
+    fn a_user_correctable_error_is_a_user_error() {
+        let error = RoverError::new(RoverClientError::InvalidKey);
+        assert_that!(error.outcome()).is_equal_to(Outcome::UserError);
+    }
+
+    #[test]
+    fn an_error_with_no_code_is_an_internal_error() {
+        let error = RoverError::new(anyhow!("something unexpected"));
+        assert_that!(error.code()).is_none();
+        assert_that!(error.outcome()).is_equal_to(Outcome::InternalError);
+    }
 
     #[test]
     fn json_output_surfaces_the_anyhow_cause_chain() {
