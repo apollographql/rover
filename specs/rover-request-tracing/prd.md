@@ -23,7 +23,7 @@ Customers have reported a variety of errors coming back through Rover's error ch
 
 1. **Trace context on Platform API requests.** Rover sends `traceparent` and `tracestate` on requests to the Platform API, so a failure, or a set of failures, can be followed across every service involved in the request.
 2. **Anonymous request-level data.** `tracestate` carries request-level data such as the number of retries attempted for that request, giving visibility into how often and where requests fail. It never carries anything user-identifiable.
-3. **Platform-side support.** The Platform API gateway parses both headers, uses `traceparent` as the trace ID for subsequent logs and traces, forwards the data to its observability backends, and propagates the headers to internal services.
+3. **Platform-side support.** The Platform API gateway parses both headers, uses `traceparent` as the trace ID for subsequent logs and traces, forwards the data to its observability backends, and propagates the headers to internal services. This will allow us to observe rover requests as a top-level span in the Datadog APM trace viewer.
 
 ## 5. Key decisions and rationale
 
