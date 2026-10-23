@@ -14,17 +14,15 @@ use self::{
     output::PluginInstallOutput,
     project_root::NewProjectRoot,
 };
-use super::LockfileWrite;
+use super::{LockfileWrite, absolute_manifest, target_manifest};
 use crate::{
     PKG_NAME, RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
     command::install::{Plugin, PluginInstaller, PluginProvenance, PluginSource, installer},
     options::LicenseAccepter,
     plugin::{
-        discovery::{ManifestDirs, project_in_scope},
         error::{DownloadControl, RequestOrigin},
         layering::LayeredDeclarations,
         lockfile::{LOCKFILE, LockedPlugin, PluginLockfile},
-        manifest::MANIFEST_FILE,
         precedence::{self, PluginRequest, RequestInputs},
     },
     utils::{GLOBAL_ENV, client::StudioClientConfig},
@@ -237,10 +235,11 @@ impl PluginInstall {
     /// when a global install is asked for (FR24), and otherwise the manifest
     /// of the project in scope, if there is one (FR23).
     fn project_manifest(&self, apollo_home: Option<&Utf8Path>) -> RoverResult<Option<Utf8PathBuf>> {
-        match (&self.manifest_path, self.global()) {
-            // Clap refuses the two flags together, so only the variable
-            // gets here.
-            (Some(_), true) => {
+        target_manifest(
+            self.manifest_path.as_deref(),
+            self.global(),
+            apollo_home,
+            || {
                 let mut err = RoverError::new(anyhow!(
                     "`--manifest-path` names a project to install into, but `{GLOBAL_ENV}` \
                      asks for a global install."
@@ -249,15 +248,9 @@ impl PluginInstall {
                     "Unset `{GLOBAL_ENV}` to install into the project, or drop \
                      `--manifest-path` to install globally."
                 )));
-                Err(err)
-            }
-            (Some(manifest), false) => absolute_manifest(manifest).map(Some),
-            (None, true) => Ok(None),
-            (None, false) => Ok(
-                project_in_scope(ManifestDirs::for_this_process(apollo_home))
-                    .map(|project| project.join(MANIFEST_FILE)),
-            ),
-        }
+                err
+            },
+        )
     }
 
     /// The manifest `--manifest-path` names, made absolute against the working
@@ -317,13 +310,6 @@ fn belongs_in_lockfile(installed: &PluginProvenance, level: &Utf8Path) -> bool {
         && installed.path.parent() == Some(&level.join("bin"))
 }
 
-/// `manifest`, made absolute against the working directory.
-fn absolute_manifest(manifest: &Utf8Path) -> RoverResult<Utf8PathBuf> {
-    let absolute = std::path::absolute(manifest)
-        .map_err(|err| anyhow!(err).context(format!("Couldn't find `{manifest}`.")))?;
-    Ok(Utf8PathBuf::try_from(absolute).map_err(|err| anyhow!(err))?)
-}
-
 #[cfg(test)]
 mod tests {
     use camino::Utf8Path;
@@ -335,25 +321,6 @@ mod tests {
     use crate::command::install::PluginLevel;
 
     const IN_BIN: &str = "/home/me/.rover/bin/supergraph-v2.9.3";
-
-    /// A relative `--manifest-path` is resolved against the working directory,
-    /// and an absolute one is kept as it is - the one resolution the install
-    /// and settings resolution share.
-    #[rstest]
-    #[case::relative("ci/.rover/rover-ci.yaml")]
-    #[case::absolute("/srv/app/.rover/rover.yaml")]
-    fn a_named_manifest_is_made_absolute(#[case] named: &str) {
-        let resolved = absolute_manifest(Utf8Path::new(named)).unwrap();
-
-        let expected = if Utf8Path::new(named).is_absolute() {
-            Utf8PathBuf::from(named)
-        } else {
-            Utf8PathBuf::try_from(std::env::current_dir().unwrap())
-                .unwrap()
-                .join(named)
-        };
-        assert_that!(resolved).is_equal_to(expected);
-    }
 
     #[rstest]
     #[case::downloaded_into_the_levels_bin_directory(IN_BIN, PluginSource::Downloaded, true)]
