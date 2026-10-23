@@ -302,7 +302,7 @@ fn supergraph_request(
     declarations: &LayeredDeclarations,
 ) -> Result<PluginRequest, Box<PluginFailure>> {
     let as_request = |version| Plugin::Supergraph(version).request();
-    let inputs = RequestInputs::new(as_request(LatestFedTwo))
+    let inputs = RequestInputs::new(PluginName::Supergraph.default_request())
         .with_override(passed_in.map(|(version, origin)| (as_request(version), origin)))
         .with_supergraph_config(from_config.map(as_request), config_path);
 
