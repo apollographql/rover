@@ -47,6 +47,13 @@ impl Use {
                 ));
                 return Err(err);
             }
+        } else if !io::stderr().is_terminal() {
+            let mut cmd = Rover::command();
+            cmd.error(
+                ClapErrorKind::MissingRequiredArgument,
+                "--template is required when not attached to a TTY",
+            )
+            .exit();
         } else {
             // otherwise, ask them what language they want to use
             let project_language = self.options.get_or_prompt_language()?;

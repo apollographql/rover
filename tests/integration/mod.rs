@@ -17,3 +17,4 @@ mod plugin;
 mod schema;
 mod subgraph;
 mod supergraph;
+mod template;
