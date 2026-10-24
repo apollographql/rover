@@ -301,29 +301,33 @@ impl Rover {
         // attempt to create a new `Session` to capture anonymous usage data
         let session = Session::new(self).ok();
 
+        let started = std::time::Instant::now();
         let rover_output = self.execute_command().await;
+        // The command isn't finished until its output is written, so printing
+        // is part of its duration. A failure to print is held until the event
+        // is sent, so it can't cost the event.
+        let (printed, exit_code) = match rover_output {
+            Ok(output) => {
+                let exit_code = output.exit_code();
+                (self.output_opts.handle_output(output), exit_code)
+            }
+            Err(error) => (self.output_opts.handle_output(error), 1),
+        };
+        let duration = started.elapsed();
 
         // report once the command has finished. `report` gives up after its own
         // short budget however slow the endpoint is, and errors are logged and
         // ignored: telemetry is not in the critical path.
         if let Some(session) = session {
             let _ = session
+                .with_duration(duration)
                 .report()
                 .await
                 .inspect_err(|telemetry_error| tracing::debug!(?telemetry_error));
         }
 
-        match rover_output {
-            Ok(output) => {
-                let exit_code = output.exit_code();
-                self.output_opts.handle_output(output)?;
-                process::exit(exit_code);
-            }
-            Err(error) => {
-                self.output_opts.handle_output(error)?;
-                process::exit(1);
-            }
-        }
+        printed?;
+        process::exit(exit_code);
     }
 
     pub async fn execute_command(&self) -> RoverResult<RoverOutput> {
