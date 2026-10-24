@@ -12,9 +12,9 @@ use wsl::is_wsl;
 
 use crate::{Report, SputnikError};
 
-/// Timeout for reporting telemetry. Note that this includes the entire time to make the request
-/// and receive the response, including on the client side. This is not just the server latency.
-const REPORT_TIMEOUT: Duration = Duration::from_secs(1);
+/// The most that reporting telemetry may delay process exit, in total. This covers the entire
+/// time to make the request, including name resolution and connecting, not just server latency.
+const REPORT_TIMEOUT: Duration = Duration::from_millis(250);
 
 /// The Session represents a usage of the CLI analogous to a web session
 /// It contains the "url" (command path + flags) but doesn't contain any
@@ -134,8 +134,19 @@ impl Session {
         })
     }
 
-    /// sends anonymous usage data to the endpoint defined in ReportingInfo.
+    /// sends anonymous usage data to the endpoint defined in ReportingInfo, giving up after
+    /// [`REPORT_TIMEOUT`] (250ms) however slow or unreachable the endpoint is.
+    ///
+    /// The budget is a plain `tokio::time::timeout` rather than `rover-http`'s `TimeoutLayer`,
+    /// because sputnik sends with a bare `reqwest::Client`, not a Tower service. Moving it onto
+    /// Tower is a separate refactor.
     pub async fn report(&self) -> Result<(), SputnikError> {
+        tokio::time::timeout(REPORT_TIMEOUT, self.send())
+            .await
+            .unwrap_or(Err(SputnikError::TimedOut))
+    }
+
+    async fn send(&self) -> Result<(), SputnikError> {
         // TODO: consider whether we want to disable non-production telemetry or at least document
         //  the reasoning for not using it
         if cfg!(debug_assertions) {
@@ -151,7 +162,6 @@ impl Session {
                 .body(body)
                 .header("User-Agent", &self.reporting_info.user_agent)
                 .header("Content-Type", "application/json")
-                .timeout(REPORT_TIMEOUT)
                 .send()
                 .await?;
         }
@@ -172,12 +182,10 @@ fn get_repo_hash() -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use std::error::Error;
-
     use httpmock::{Method::POST, MockServer};
     use reqwest::Client;
     use rstest::*;
-    use speculoos::{assert_that, result::ResultAssertions};
+    use speculoos::prelude::*;
 
     use super::*;
 
@@ -271,23 +279,28 @@ mod tests {
             };
         });
 
+        let started = std::time::Instant::now();
         let res = session.report().await;
+        let elapsed = started.elapsed();
 
         if let ReportCase::TelemetryDisabled = case {
             // When telemetry is disabled, we should expect not outbound calls
             mocked.assert_calls(0);
         } else {
-            mocked.assert();
+            mocked.assert_calls(1);
         }
 
+        let res = res.map_err(|error| error.to_string());
         match case {
             ReportCase::Success | ReportCase::TelemetryDisabled => {
-                assert_that!(res).is_ok();
+                assert_that!(res).is_equal_to(Ok(()));
             }
             ReportCase::TimedOut => {
-                assert_that!(res).is_err().matches(|err| {
-                    err.source().unwrap().source().unwrap().to_string() == "operation timed out"
-                });
+                assert_that!(res)
+                    .is_equal_to(Err("Reporting anonymous usage data timed out.".to_string()));
+                // The report gives up at the budget, not before and not long after.
+                assert_that!(elapsed).is_greater_than_or_equal_to(REPORT_TIMEOUT);
+                assert_that!(elapsed).is_less_than(REPORT_TIMEOUT + Duration::from_millis(500));
             }
         };
 
