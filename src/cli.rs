@@ -28,6 +28,7 @@ use crate::{
     utils::{
         client::{ClientBuilder, ClientTimeout, StudioClientConfig},
         env::{RoverEnv, RoverEnvKey},
+        lifecycle::{self, Finish},
         stringify::option_from_display,
         version,
     },
@@ -282,6 +283,16 @@ pub struct Rover {
     test_manifest_dirs: Option<crate::plugin::discovery::ManifestDirs>,
 }
 
+/// Reports a telemetry session. `Session::report` gives up after its own short budget however
+/// slow the endpoint is, and failures are logged and ignored: telemetry is not in the critical
+/// path.
+async fn report_telemetry(session: Option<Session>) {
+    let Some(session) = session else { return };
+    if let Some(Err(telemetry_error)) = lifecycle::quietly(session.report()).await {
+        tracing::debug!(?telemetry_error);
+    }
+}
+
 impl Rover {
     pub async fn run_from_args() -> RoverResult<()> {
         // The same as `Rover::parse()`, keeping the matches for telemetry.
@@ -299,45 +310,67 @@ impl Rover {
         self.output_opts.set_no_color();
 
         // attempt to create a new `Session` to capture anonymous usage data
-        let session = Session::new(self).ok();
+        let telemetry = lifecycle::Telemetry::new(Session::new(self).ok());
 
         let started = std::time::Instant::now();
-        let rover_output = self.execute_command().await;
-        // How it ended is decided by what it returned, not by whether printing
-        // that succeeds: a reader that closes the pipe early is still a success.
-        let outcome = match &rover_output {
-            // A command can finish by design with a non-zero exit code, such as
-            // a check that finds failures.
-            Ok(output) if output.exit_code() == 0 => Outcome::Success,
-            Ok(_) => Outcome::UserError,
-            Err(error) => error.outcome(),
-        };
-        // The command isn't finished until its output is written, so printing
-        // is part of its duration. A failure to print is held until the event
-        // is sent, so it can't cost the event.
-        let (printed, exit_code) = match rover_output {
-            Ok(output) => {
-                let exit_code = output.exit_code();
-                (self.output_opts.handle_output(output), exit_code)
-            }
-            Err(error) => (self.output_opts.handle_output(error), 1),
-        };
+        let finish = lifecycle::run(&telemetry, |signal| signal.exit_by_default(), async {
+            let rover_output = self.execute_command().await;
+            // How it ended is decided by what it returned, not by whether
+            // printing that succeeds: a reader that closes the pipe early is
+            // still a success.
+            let outcome = match &rover_output {
+                // A command can finish by design with a non-zero exit code,
+                // such as a check that finds failures.
+                Ok(output) if output.exit_code() == 0 => Outcome::Success,
+                Ok(_) => Outcome::UserError,
+                Err(error) => error.outcome(),
+            };
+            // The command isn't finished until its output is written, so
+            // printing is part of its duration. A failure to print is held
+            // until the event is sent, so it can't cost the event.
+            let (printed, exit_code) = match rover_output {
+                Ok(output) => {
+                    let exit_code = output.exit_code();
+                    (self.output_opts.handle_output(output), exit_code)
+                }
+                Err(error) => (self.output_opts.handle_output(error), 1),
+            };
+            (outcome, printed, exit_code)
+        })
+        .await;
         let duration = started.elapsed();
 
-        // report once the command has finished. `report` gives up after its own
-        // short budget however slow the endpoint is, and errors are logged and
-        // ignored: telemetry is not in the critical path.
-        if let Some(session) = session {
-            let _ = session
-                .with_duration(duration)
-                .with_outcome(outcome)
-                .report()
-                .await
-                .inspect_err(|telemetry_error| tracing::debug!(?telemetry_error));
+        // Telemetry is reported once the command has ended, however it ended
+        // short of a signal, which reports for itself.
+        match finish {
+            Finish::Completed {
+                output: (outcome, printed, exit_code),
+                session,
+            } => {
+                let outcome = if lifecycle::has_panicked() {
+                    // A panic on another thread that the command carried on past.
+                    Outcome::InternalError
+                } else {
+                    outcome
+                };
+                report_telemetry(
+                    session.map(|session| session.with_duration(duration).with_outcome(outcome)),
+                )
+                .await;
+                printed?;
+                process::exit(exit_code);
+            }
+            Finish::Panicked { payload, session } => {
+                report_telemetry(session.map(|session| {
+                    session
+                        .with_duration(duration)
+                        .with_outcome(Outcome::InternalError)
+                }))
+                .await;
+                // Carry on as an unreported panic would have.
+                std::panic::resume_unwind(payload)
+            }
         }
-
-        printed?;
-        process::exit(exit_code);
     }
 
     pub async fn execute_command(&self) -> RoverResult<RoverOutput> {

@@ -5871,6 +5871,7 @@ dependencies = [
  "lazycell",
  "mime",
  "mockall",
+ "nix",
  "opener",
  "os_info",
  "pluralizer",
