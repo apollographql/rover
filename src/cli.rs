@@ -2,7 +2,7 @@ use std::{fmt::Display, io, process};
 
 use camino::Utf8PathBuf;
 use clap::{
-    Parser, ValueEnum,
+    CommandFactory, FromArgMatches, Parser, ValueEnum,
     builder::{
         Styles,
         styling::{AnsiColor, Effects},
@@ -240,6 +240,13 @@ pub struct Rover {
     #[clap(flatten)]
     oauth_opts: OauthOpts,
 
+    /// What clap matched on the command line, for telemetry to tell which
+    /// flags were supplied. Empty when `Rover` wasn't built from the real
+    /// command line, in which case telemetry reports no flags.
+    #[arg(skip)]
+    #[serde(skip_serializing)]
+    arg_matches: Option<clap::ArgMatches>,
+
     #[arg(skip)]
     #[serde(skip_serializing)]
     env_store: LazyCell<RoverEnv>,
@@ -277,7 +284,13 @@ pub struct Rover {
 
 impl Rover {
     pub async fn run_from_args() -> RoverResult<()> {
-        Rover::parse().run().await
+        // The same as `Rover::parse()`, keeping the matches for telemetry.
+        let matches = Rover::command().get_matches();
+        Rover::from_arg_matches(&matches)
+            .unwrap_or_else(|error| error.format(&mut Rover::command()).exit())
+            .with_arg_matches(matches)
+            .run()
+            .await
     }
 
     pub async fn run(&self) -> RoverResult<()> {
@@ -534,6 +547,17 @@ impl Rover {
     /// caller wants `get_client_config`'s fully-resolved value instead.
     pub(crate) fn registry_url_flag_or_env(&self) -> Option<String> {
         self.registry_url.clone()
+    }
+
+    /// Keep what clap matched on the command line, for telemetry.
+    pub(crate) fn with_arg_matches(mut self, matches: clap::ArgMatches) -> Self {
+        self.arg_matches = Some(matches);
+        self
+    }
+
+    /// What clap matched on the command line, if `Rover` was built from it.
+    pub(crate) const fn arg_matches(&self) -> Option<&clap::ArgMatches> {
+        self.arg_matches.as_ref()
     }
 
     /// The raw, clap-merged `--telemetry-url`/`APOLLO_TELEMETRY_URL` value,
