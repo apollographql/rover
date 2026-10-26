@@ -254,6 +254,11 @@ jobs:
       with:
         # Save caches from main only: other PRs can't reuse a PR's cache, and it evicts main's (10 GB repo limit).
         cache-save-if: ${{ github.ref == 'refs/heads/main' }}
+    # mise 2026.10.19 runs `cargo install` outside the repo, where rustup can't see
+    # rust-toolchain.toml, and this container has no default toolchain. Making the
+    # pinned toolchain the default keeps rust-toolchain.toml the one place it's set.
+    - name: Make the pinned toolchain the rustup default
+      run: rustup default "$(rustup show active-toolchain | awk '{print $1}')"
     - uses: jdx/mise-action@82a612c5ab8bcda7cc5db6b7e81a8e7584c3dc6e # v5.2.3
       with:
         # Save caches from main only: other PRs can't reuse a PR's cache, and it evicts main's (10 GB repo limit).
