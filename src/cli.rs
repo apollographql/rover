@@ -330,13 +330,25 @@ impl Rover {
             .await
     }
 
+    /// Whether this command falls back to the `APOLLO_GRAPH_REF` setting when no graph ref is
+    /// given on the command line.
+    pub(crate) const fn graph_ref_falls_back_to_the_setting(&self) -> bool {
+        matches!(self.command, Command::Dev(_))
+    }
+
     pub async fn run(&self) -> RoverResult<()> {
         timber::init(self.log_level);
         tracing::trace!(command_structure = ?self);
         self.output_opts.set_no_color();
 
         // attempt to create a new `Session` to capture anonymous usage data
-        let telemetry = lifecycle::Telemetry::new(Session::new(self).ok());
+        let session = Session::new(self)
+            .ok()
+            .map(|session| match self.graph_id() {
+                Some(graph_id) => session.with_graph_id(graph_id),
+                None => session,
+            });
+        let telemetry = lifecycle::Telemetry::new(session);
 
         let started = std::time::Instant::now();
         let finish = lifecycle::run(&telemetry, |signal| signal.exit_by_default(), async {
@@ -2002,7 +2014,7 @@ mod tests {
     use std::fs;
 
     use camino::Utf8PathBuf;
-    use clap::Parser;
+    use clap::{CommandFactory, FromArgMatches, Parser};
     use speculoos::prelude::*;
     use sputnik::Outcome;
 
@@ -2453,6 +2465,79 @@ mod tests {
 
         assert_that!(rover.resolve_graph_ref_setting())
             .is_ok_containing(Some("my-graph@staging".to_string()));
+    }
+
+    /// `rover dev`, run against a config home and a project, and the graph ref its
+    /// telemetry would find. `RoverEnv` starts empty under `cfg(test)`, so the process's own
+    /// `APOLLO_GRAPH_REF` can't reach it.
+    fn graph_ref_dev_finds(
+        home: &tempfile::TempDir,
+        project: Option<&str>,
+        profile_args: &[&str],
+    ) -> Option<String> {
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let tree = tempfile::tempdir().unwrap();
+        let project = project.map(|contents| {
+            let dir = Utf8PathBuf::try_from(tree.path().to_path_buf())
+                .unwrap()
+                .join(".rover");
+            fs::create_dir_all(&dir).unwrap();
+            fs::write(dir.join(MANIFEST_FILE), contents).unwrap();
+            dir
+        });
+        let mut args = vec![PKG_NAME, "--config-home", home_path.as_str()];
+        args.extend_from_slice(profile_args);
+        args.push("dev");
+        let matches = Rover::command().get_matches_from(&args);
+        let mut rover = Rover::from_arg_matches(&matches)
+            .unwrap()
+            .with_arg_matches(matches);
+        rover.set_manifest_dirs(ManifestDirs {
+            project,
+            global: None,
+        });
+        rover
+            .resolvable_graph_ref()
+            .map(|graph_ref| graph_ref.to_string())
+    }
+
+    #[test]
+    fn dev_telemetry_finds_a_graph_ref_stored_on_the_profile() {
+        let home = config_home_with_setting("staging", "APOLLO_GRAPH_REF", "my-graph@staging");
+
+        assert_that!(graph_ref_dev_finds(&home, None, &["--profile", "staging"]))
+            .is_equal_to(Some("my-graph@staging".to_string()));
+    }
+
+    #[test]
+    fn dev_telemetry_finds_a_graph_ref_set_in_the_project_file() {
+        let home = tempfile::tempdir().unwrap();
+
+        assert_that!(graph_ref_dev_finds(
+            &home,
+            Some("settings:\n  APOLLO_GRAPH_REF: my-graph@staging\n"),
+            &[],
+        ))
+        .is_equal_to(Some("my-graph@staging".to_string()));
+    }
+
+    #[test]
+    fn dev_telemetry_prefers_the_project_file_to_the_default_profile() {
+        let home = config_home_with_setting("default", "APOLLO_GRAPH_REF", "default-graph@prod");
+
+        assert_that!(graph_ref_dev_finds(
+            &home,
+            Some("settings:\n  APOLLO_GRAPH_REF: my-graph@staging\n"),
+            &[],
+        ))
+        .is_equal_to(Some("my-graph@staging".to_string()));
+    }
+
+    #[test]
+    fn dev_telemetry_finds_no_graph_ref_when_the_stored_one_is_malformed() {
+        let home = config_home_with_setting("staging", "APOLLO_GRAPH_REF", "not a graph ref!");
+
+        assert_that!(graph_ref_dev_finds(&home, None, &["--profile", "staging"])).is_none();
     }
 
     #[test]
