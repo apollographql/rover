@@ -170,6 +170,7 @@ git-url-parse = "0.6"
 git2 = { version = "0.21", default-features = false }
 graphql_client = "0.16"
 heck = "0.5"
+hmac = "0.13"
 humantime = "2"
 http = "1"
 http-body = "1"
