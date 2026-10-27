@@ -243,7 +243,7 @@ mod tests {
     use speculoos::prelude::*;
     use tokio::sync::oneshot;
 
-    use super::{Finish, Telemetry, TerminationSignal, run};
+    use super::{Finish, Telemetry, TerminationSignal, quietly, run};
 
     /// What a [`Finish`] came to, in a form that can be compared whole.
     #[derive(Debug, PartialEq, Eq)]
@@ -268,6 +268,25 @@ mod tests {
         move |signal| {
             let _ = sender.send(signal);
         }
+    }
+
+    #[rstest::rstest]
+    #[case::a_value(false, Some(7))]
+    #[case::a_panic(true, None)]
+    #[tokio::test]
+    async fn quietly_returns_the_value_and_swallows_a_panic(
+        #[case] panics: bool,
+        #[case] expected: Option<i32>,
+    ) {
+        let reported = quietly(async move {
+            if panics {
+                panic!("boom");
+            }
+            7
+        })
+        .await;
+
+        assert_that!(reported).is_equal_to(expected);
     }
 
     #[test]
