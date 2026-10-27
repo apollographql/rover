@@ -18,12 +18,9 @@ use sputnik::{Outcome, Session};
 static PANICKED: AtomicBool = AtomicBool::new(false);
 
 tokio::task_local! {
-    /// Present while telemetry is reporting, in the task doing the reporting.
-    ///
-Set while telemetry reports, so a panic in the reporting task itself is kept off the terminal. This is a task-local rather than a global flag so a panic in any other task is still printed and counted.
-    /// spawns, such as one of `hyper`'s connection tasks, doesn't have it and so is printed
-    /// and counted like any other, and a panic anywhere else in the process isn't hidden
-    /// because telemetry happens to be reporting.
+    /// Set while telemetry reports, so a panic in the reporting task itself is kept off the
+    /// terminal. This is a task-local rather than a global flag so a panic in any other task
+    /// is still printed and counted.
     static REPORTING: ();
 }
 
@@ -63,30 +60,35 @@ pub(crate) async fn quietly<T>(reporting: impl Future<Output = T>) -> Option<T> 
 /// watcher reports when a signal arrives, and only one of them can: whichever claims the
 /// session first.
 pub(crate) struct Telemetry {
-    claimed: AtomicBool,
-    session: Mutex<Option<Session>>,
+    state: Mutex<State>,
+}
+
+enum State {
+    // Boxed because a session is large next to `Claimed`.
+    Unclaimed(Box<Option<Session>>),
+    Claimed,
+}
+
+/// The right to report, held by whoever claimed it first. `session` is `None` when telemetry
+/// is off for this invocation.
+pub(crate) struct Claim {
+    pub(crate) session: Option<Session>,
 }
 
 impl Telemetry {
     pub(crate) fn new(session: Option<Session>) -> Arc<Self> {
         Arc::new(Self {
-            claimed: AtomicBool::new(false),
-            session: Mutex::new(session),
+            state: Mutex::new(State::Unclaimed(Box::new(session))),
         })
     }
 
-    /// Takes the right to report: false if someone already has it.
-    fn claim(&self) -> bool {
-        !self.claimed.swap(true, Ordering::SeqCst)
-    }
-
-    /// The session to report, if there is one. Only whoever [`claim`](Self::claim) returned
-    /// true for should call this.
-    fn take_session(&self) -> Option<Session> {
-        self.session
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .take()
+    /// `Some` for the first caller only, with the session that caller is to report.
+    fn claim(&self) -> Option<Claim> {
+        let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        match std::mem::replace(&mut *state, State::Claimed) {
+            State::Unclaimed(session) => Some(Claim { session: *session }),
+            State::Claimed => None,
+        }
     }
 }
 
@@ -152,8 +154,9 @@ pub(crate) async fn run<F: Future>(
     let watcher = Arc::clone(telemetry);
     tokio::spawn(async move {
         let signal = signals.received().await;
-        if watcher.claim()
-            && let Some(session) = watcher.take_session()
+        if let Some(Claim {
+            session: Some(session),
+        }) = watcher.claim()
         {
             quietly(session.with_outcome(Outcome::Terminated).report()).await;
         }
@@ -161,11 +164,10 @@ pub(crate) async fn run<F: Future>(
     });
 
     let result = AssertUnwindSafe(command).catch_unwind().await;
-    if !telemetry.claim() {
+    let Some(Claim { session }) = telemetry.claim() else {
         // A signal got there first, and is ending the process.
         return std::future::pending().await;
-    }
-    let session = telemetry.take_session();
+    };
     match result {
         Ok(output) => Finish::Completed { output, session },
         Err(payload) => Finish::Panicked { payload, session },
@@ -271,8 +273,9 @@ mod tests {
     #[test]
     fn only_the_first_to_claim_the_session_reports() {
         let telemetry = Telemetry::new(None);
-        assert_that!(telemetry.claim()).is_equal_to(true);
-        assert_that!(telemetry.claim()).is_equal_to(false);
+        assert_that!(telemetry.claim().map(|claim| claim.session.is_none()))
+            .is_equal_to(Some(true));
+        assert_that!(telemetry.claim().map(|claim| claim.session.is_none())).is_equal_to(None);
     }
 
     #[tokio::test]
