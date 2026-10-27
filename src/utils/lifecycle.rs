@@ -36,7 +36,7 @@ pub fn observe_panics() {
     panic::set_hook(Box::new(move |info| {
         // Only a panic in the reporting task itself is quiet: one on another
         // thread or task is still a panic the user should see and we should count.
-        if REPORTING.try_with(|()| ()).is_ok() {
+        if REPORTING.try_get().is_ok() {
             tracing::debug!(%info, "panicked while reporting telemetry");
         } else {
             PANICKED.store(true, Ordering::SeqCst);
