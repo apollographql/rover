@@ -20,7 +20,7 @@ static PANICKED: AtomicBool = AtomicBool::new(false);
 tokio::task_local! {
     /// Present while telemetry is reporting, in the task doing the reporting.
     ///
-    /// This is a task-local, not a global flag, on purpose: a panic in a task that reporting
+Set while telemetry reports, so a panic in the reporting task itself is kept off the terminal. This is a task-local rather than a global flag so a panic in any other task is still printed and counted.
     /// spawns, such as one of `hyper`'s connection tasks, doesn't have it and so is printed
     /// and counted like any other, and a panic anywhere else in the process isn't hidden
     /// because telemetry happens to be reporting.
