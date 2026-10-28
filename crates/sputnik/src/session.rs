@@ -1,4 +1,11 @@
-use std::{collections::HashMap, convert::TryFrom, env, fmt::Debug, time::Duration};
+use std::{
+    collections::HashMap,
+    convert::TryFrom,
+    env,
+    fmt::Debug,
+    io::{stdin, IsTerminal},
+    time::Duration,
+};
 
 use camino::Utf8PathBuf;
 use ci_info::types::Vendor as CiVendor;
@@ -43,6 +50,13 @@ pub struct Session {
     /// The current version of the CLI
     cli_version: Version,
 
+    /// Whether the invocation looks automated or interactive
+    environment: Environment,
+
+    /// Wall-clock milliseconds the command ran for, once it has completed
+    #[serde(skip_serializing_if = "Option::is_none")]
+    duration_ms: Option<u64>,
+
     /// Where the telemetry data is being reported to
     #[serde(skip_serializing)]
     reporting_info: ReportingInfo,
@@ -50,6 +64,28 @@ pub struct Session {
     /// The reqwest Client sputnik uses to send telemetry data
     #[serde(skip_serializing)]
     client: Client,
+}
+
+/// A coarse classification of the context an invocation ran in. It never carries anything
+/// that identifies a machine or a person.
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Environment {
+    /// CI was detected, or standard input isn't a terminal
+    Automated,
+
+    /// Everything else, including a terminal user whose output is piped
+    Interactive,
+}
+
+impl Environment {
+    const fn detect(is_ci: bool, stdin_is_terminal: bool) -> Self {
+        if is_ci || !stdin_is_terminal {
+            Environment::Automated
+        } else {
+            Environment::Interactive
+        }
+    }
 }
 
 /// Platform represents the platform the CLI is being run from
@@ -101,11 +137,9 @@ impl Session {
         let cwd_hash = get_cwd_hash(&current_dir);
         let remote_url_hash = get_repo_hash();
 
-        let continuous_integration = if ci_info::is_ci() {
-            ci_info::get().vendor
-        } else {
-            None
-        };
+        let is_ci = ci_info::is_ci();
+        let environment = Environment::detect(is_ci, stdin().is_terminal());
+        let continuous_integration = if is_ci { ci_info::get().vendor } else { None };
 
         let os = if is_wsl() {
             "wsl".to_string()
@@ -129,9 +163,18 @@ impl Session {
             remote_url_hash,
             platform,
             cli_version,
+            environment,
+            duration_ms: None,
             reporting_info,
             client,
         })
+    }
+
+    /// records how long the command ran for, including writing its output and excluding the time
+    /// spent reporting.
+    pub fn with_duration(mut self, duration: Duration) -> Self {
+        self.duration_ms = Some(u64::try_from(duration.as_millis()).unwrap_or(u64::MAX));
+        self
     }
 
     /// sends anonymous usage data to the endpoint defined in ReportingInfo, giving up after
@@ -185,6 +228,7 @@ mod tests {
     use httpmock::{Method::POST, MockServer};
     use reqwest::Client;
     use rstest::*;
+    use serde_json::json;
     use speculoos::prelude::*;
 
     use super::*;
@@ -219,6 +263,8 @@ mod tests {
                 continuous_integration: None,
             },
             cli_version: Version::parse("0.0.0-test").unwrap(),
+            environment: Environment::Interactive,
+            duration_ms: None,
             reporting_info: ReportingInfo {
                 is_telemetry_enabled: true,
                 endpoint: Url::parse(format!("http://0.0.0.0/{}", report_path()).as_str()).unwrap(),
@@ -305,5 +351,54 @@ mod tests {
         };
 
         Ok(())
+    }
+
+    #[rstest]
+    #[case::ci(true, true, Environment::Automated)]
+    #[case::ci_without_a_terminal(true, false, Environment::Automated)]
+    #[case::piped_input(false, false, Environment::Automated)]
+    #[case::terminal(false, true, Environment::Interactive)]
+    fn environment_is_detected(
+        #[case] is_ci: bool,
+        #[case] stdin_is_terminal: bool,
+        #[case] expected: Environment,
+    ) {
+        assert_that!(Environment::detect(is_ci, stdin_is_terminal)).is_equal_to(expected);
+    }
+
+    /// The fixture's event as it serializes, with the given duration if the command has
+    /// completed.
+    fn serialized_event(duration_ms: Option<u64>) -> serde_json::Value {
+        let mut event = json!({
+            "command": {"name": "test-command", "arguments": {"cowbell": "--with-feeling"}},
+            "machine_id": "ffffffff-ffff-ffff-ffff-ffffffffffff",
+            "session_id": "00000000-0000-0000-0000-000000000000",
+            "cwd_hash": "current/working/directory",
+            "remote_url_hash": null,
+            "platform": {
+                "os": "rocks-and-lightning",
+                "arch": "itecture",
+                "continuous_integration": null
+            },
+            "cli_version": "0.0.0-test",
+            "environment": "interactive"
+        });
+        if let Some(duration_ms) = duration_ms {
+            event["duration_ms"] = json!(duration_ms);
+        }
+        event
+    }
+
+    #[rstest]
+    fn the_event_omits_duration_until_the_command_completes(session: Session) {
+        let body = serde_json::to_value(&session).unwrap();
+        assert_that!(body).is_equal_to(serialized_event(None));
+    }
+
+    #[rstest]
+    fn duration_is_whole_milliseconds(session: Session) {
+        let body =
+            serde_json::to_value(session.with_duration(Duration::from_micros(1_999_999))).unwrap();
+        assert_that!(body).is_equal_to(serialized_event(Some(1999)));
     }
 }
