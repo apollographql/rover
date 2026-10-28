@@ -7,7 +7,7 @@ use rover_studio::types::GraphRef;
 use sputnik::{Command, GraphId, Report, SputnikError};
 use url::Url;
 
-use crate::{PKG_NAME, PKG_VERSION, cli::Rover, options::SettingName, utils::env::RoverEnvKey};
+use crate::{PKG_NAME, PKG_VERSION, cli::Rover, utils::env::RoverEnvKey};
 
 const TELEMETRY_URL: &str = "https://rover.apollo.dev/telemetry";
 
@@ -108,7 +108,7 @@ fn flag_name(arg: &clap::Arg) -> String {
 ///
 /// Reading it from the matches, rather than from each command's own struct, covers every command
 /// that has such an argument, including any added later.
-fn graph_ref_in(matches: &clap::ArgMatches) -> Option<GraphRef> {
+pub(crate) fn graph_ref_in(matches: &clap::ArgMatches) -> Option<GraphRef> {
     let mut graph_ref = None;
     let mut level = matches;
     loop {
@@ -123,31 +123,6 @@ fn graph_ref_in(matches: &clap::ArgMatches) -> Option<GraphRef> {
 }
 
 impl Rover {
-    /// The graph ref this invocation ran against, if it has a resolvable one (FR20).
-    ///
-    /// A command takes it from its arguments. A command that falls back to the setting,
-    /// `rover dev`, also reads `APOLLO_GRAPH_REF`, and then the stored profile and project
-    /// settings, as it does to run. This never fails and never prints: a ref that can't be found
-    /// or read is no graph ref.
-    pub(crate) fn resolvable_graph_ref(&self) -> Option<GraphRef> {
-        self.arg_matches().and_then(graph_ref_in).or_else(|| {
-            if !self.graph_ref_falls_back_to_the_setting() {
-                return None;
-            }
-            let raw = self
-                .get_env_var(RoverEnvKey::GraphRef)
-                .ok()
-                .flatten()
-                .or_else(|| {
-                    self.resolve_stored_setting(SettingName::GraphRef)
-                        .ok()
-                        .flatten()
-                        .map(|(_, value)| value)
-                })?;
-            raw.parse().ok()
-        })
-    }
-
     /// The identifier of the graph this invocation ran against, for its telemetry event, when it
     /// has one. Nothing is read or written when telemetry is disabled, so an install that
     /// doesn't report, or doesn't use a graph ref, never creates an install salt.
