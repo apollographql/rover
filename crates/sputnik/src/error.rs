@@ -22,6 +22,10 @@ pub enum SputnikError {
     #[error("Could not report anonymous usage data.")]
     HttpError(#[from] reqwest::Error),
 
+    /// TimedOut occurs when reporting anonymous usage data exceeds its time budget.
+    #[error("Reporting anonymous usage data timed out.")]
+    TimedOut,
+
     /// VersionParseError occurs when the version of the tool cannot be determined.
     #[error("Could not parse the version of the tool.")]
     VersionParseError(#[from] semver::Error),
