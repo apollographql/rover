@@ -53,6 +53,10 @@ pub struct Session {
     /// Whether the invocation looks automated or interactive
     environment: Environment,
 
+    /// How the command ended
+    #[serde(skip_serializing_if = "Option::is_none")]
+    outcome: Option<Outcome>,
+
     /// Wall-clock milliseconds the command ran for, once it has completed
     #[serde(skip_serializing_if = "Option::is_none")]
     duration_ms: Option<u64>,
@@ -86,6 +90,27 @@ impl Environment {
             Environment::Interactive
         }
     }
+}
+
+/// How a command ended.
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Outcome {
+    /// The command completed with exit code 0
+    Success,
+
+    /// The command failed for a reason the user can correct, or completed by design with a
+    /// non-zero exit code
+    UserError,
+
+    /// The command failed for a reason the user can't correct
+    InternalError,
+
+    /// The command failed because a server couldn't be reached or a request couldn't complete
+    ConnectionError,
+
+    /// The command was stopped by a signal before it completed
+    Terminated,
 }
 
 /// Platform represents the platform the CLI is being run from
@@ -164,10 +189,17 @@ impl Session {
             platform,
             cli_version,
             environment,
+            outcome: None,
             duration_ms: None,
             reporting_info,
             client,
         })
+    }
+
+    /// records how the command ended.
+    pub const fn with_outcome(mut self, outcome: Outcome) -> Self {
+        self.outcome = Some(outcome);
+        self
     }
 
     /// records how long the command ran for, including writing its output and excluding the time
@@ -264,6 +296,7 @@ mod tests {
             },
             cli_version: Version::parse("0.0.0-test").unwrap(),
             environment: Environment::Interactive,
+            outcome: None,
             duration_ms: None,
             reporting_info: ReportingInfo {
                 is_telemetry_enabled: true,
@@ -400,5 +433,16 @@ mod tests {
         let body =
             serde_json::to_value(session.with_duration(Duration::from_micros(1_999_999))).unwrap();
         assert_that!(body).is_equal_to(serialized_event(Some(1999)));
+    }
+
+    #[rstest]
+    #[case::success(Outcome::Success, "success")]
+    #[case::user_error(Outcome::UserError, "user_error")]
+    #[case::internal_error(Outcome::InternalError, "internal_error")]
+    #[case::connection_error(Outcome::ConnectionError, "connection_error")]
+    #[case::terminated(Outcome::Terminated, "terminated")]
+    fn outcome_is_reported(session: Session, #[case] outcome: Outcome, #[case] expected: &str) {
+        let body = serde_json::to_value(session.with_outcome(outcome)).unwrap();
+        assert_that!(body["outcome"]).is_equal_to(json!(expected));
     }
 }

@@ -4,10 +4,11 @@ use std::{
 };
 
 use serde::Serialize;
-use strum_macros::EnumString;
+use sputnik::Outcome;
+use strum_macros::{EnumIter, EnumString};
 
 /// `Code` contains the error codes associated with specific errors.
-#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, EnumString)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, EnumString, EnumIter)]
 pub enum RoverErrorCode {
     E001,
     E002,
@@ -83,6 +84,82 @@ impl Display for RoverErrorCode {
 }
 
 impl RoverErrorCode {
+    /// How a command that fails with this code ends, per the table in
+    /// `specs/rover-telemetry/error-classification.md`. The match has no
+    /// wildcard so a new code can't be added without deciding its outcome.
+    pub const fn outcome(&self) -> Outcome {
+        match self {
+            RoverErrorCode::E002
+            | RoverErrorCode::E003
+            | RoverErrorCode::E007
+            | RoverErrorCode::E008
+            | RoverErrorCode::E009
+            | RoverErrorCode::E010
+            | RoverErrorCode::E013
+            | RoverErrorCode::E014
+            | RoverErrorCode::E016
+            | RoverErrorCode::E017
+            | RoverErrorCode::E018
+            | RoverErrorCode::E019
+            | RoverErrorCode::E020
+            | RoverErrorCode::E021
+            | RoverErrorCode::E022
+            | RoverErrorCode::E023
+            | RoverErrorCode::E024
+            | RoverErrorCode::E027
+            | RoverErrorCode::E029
+            | RoverErrorCode::E030
+            | RoverErrorCode::E032
+            | RoverErrorCode::E033
+            | RoverErrorCode::E034
+            | RoverErrorCode::E035
+            | RoverErrorCode::E036
+            | RoverErrorCode::E037
+            | RoverErrorCode::E038
+            | RoverErrorCode::E039
+            | RoverErrorCode::E040
+            | RoverErrorCode::E041
+            | RoverErrorCode::E042
+            | RoverErrorCode::E043
+            | RoverErrorCode::E044
+            | RoverErrorCode::E046
+            | RoverErrorCode::E047
+            | RoverErrorCode::E051
+            | RoverErrorCode::E052
+            | RoverErrorCode::E053
+            | RoverErrorCode::E054
+            | RoverErrorCode::E055
+            | RoverErrorCode::E057
+            | RoverErrorCode::E058
+            | RoverErrorCode::E059
+            | RoverErrorCode::E060
+            | RoverErrorCode::E061
+            | RoverErrorCode::E062
+            | RoverErrorCode::E064 => Outcome::UserError,
+            RoverErrorCode::E004
+            | RoverErrorCode::E028
+            | RoverErrorCode::E031
+            | RoverErrorCode::E049 => Outcome::ConnectionError,
+            // E012 is a user error for an HTTP 4xx and an internal one for a 5xx
+            // (`RoverError::outcome` reads the status when there is one). With
+            // no status to tell them apart, it's ambiguous, so it's internal.
+            RoverErrorCode::E001
+            | RoverErrorCode::E005
+            | RoverErrorCode::E006
+            | RoverErrorCode::E011
+            | RoverErrorCode::E012
+            | RoverErrorCode::E015
+            | RoverErrorCode::E025
+            | RoverErrorCode::E026
+            | RoverErrorCode::E045
+            | RoverErrorCode::E048
+            | RoverErrorCode::E050
+            | RoverErrorCode::E056
+            | RoverErrorCode::E063
+            | RoverErrorCode::E065 => Outcome::InternalError,
+        }
+    }
+
     // builds a Map of every possible code and its explanation, so we can
     // access from the `explain` function
     fn explanations() -> HashMap<RoverErrorCode, String> {
@@ -361,5 +438,86 @@ impl RoverErrorCode {
         } else {
             "Explanation not available".to_string()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::{BTreeMap, BTreeSet};
+
+    use speculoos::prelude::*;
+    use sputnik::Outcome;
+    use strum::IntoEnumIterator;
+
+    use super::RoverErrorCode;
+
+    /// The table `RoverErrorCode::outcome` is written from.
+    const CLASSIFICATION: &str =
+        include_str!("../../../specs/rover-telemetry/error-classification.md");
+
+    fn outcome_named(name: &str) -> Outcome {
+        match name {
+            "user_error" => Outcome::UserError,
+            "internal_error" => Outcome::InternalError,
+            "connection_error" => Outcome::ConnectionError,
+            other => panic!("`{other}` is not an outcome"),
+        }
+    }
+
+    /// The outcome the classification doc's table gives each code it lists, by code.
+    ///
+    /// A row names one outcome, except a row such as E012's that says the status of an HTTP
+    /// response decides. `RoverErrorCode::outcome` has no status to go on, and the rule for an
+    /// error it can't classify is `internal_error`, so that is the outcome it must give.
+    fn documented_outcomes() -> BTreeMap<String, Outcome> {
+        let mut documented = BTreeMap::new();
+        // | Code | Cause | Outcome | Basis |
+        for row in CLASSIFICATION
+            .lines()
+            .filter(|line| line.starts_with("| E"))
+        {
+            let cells = row.split('|').map(str::trim).collect::<Vec<_>>();
+            let outcomes = cells[3]
+                .split('`')
+                .skip(1)
+                .step_by(2)
+                .map(outcome_named)
+                .collect::<Vec<_>>();
+            let outcome = match outcomes.as_slice() {
+                [outcome] => *outcome,
+                [_, _] => Outcome::InternalError,
+                _ => panic!("can't read the outcome in the row `{row}`"),
+            };
+            // One row may cover several codes: `E005, E006`.
+            for code in cells[1].split(',') {
+                documented.insert(code.trim().to_string(), outcome);
+            }
+        }
+        documented
+    }
+
+    #[test]
+    fn every_code_has_the_outcome_the_classification_doc_gives_it() {
+        let documented = documented_outcomes();
+        let actual = RoverErrorCode::iter()
+            .map(|code| (code.to_string(), code.outcome()))
+            .collect::<BTreeMap<_, _>>();
+
+        let mismatches = documented
+            .keys()
+            .chain(actual.keys())
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .filter(|code| documented.get(*code) != actual.get(*code))
+            .map(|code| {
+                format!(
+                    "{code}: the doc says {:?}, the code says {:?}",
+                    documented.get(code),
+                    actual.get(code)
+                )
+            })
+            .collect::<Vec<_>>();
+
+        assert_that!(mismatches).is_equal_to(Vec::<String>::new());
     }
 }
