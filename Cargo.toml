@@ -331,7 +331,7 @@ tree-sitter-swift = { workspace = true }
 tree-sitter-kotlin-ng = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
-signal-hook = "0.3"
+signal-hook = "0.4"
 
 [dev-dependencies]
 apollo-compiler = { workspace = true }
