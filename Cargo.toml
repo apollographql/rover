@@ -174,7 +174,7 @@ humantime = "2"
 http = "1"
 http-body = "1"
 http-body-util = "0.1"
-httpmock = "0.8"
+httpmock = "0.9"
 hyper = "1"
 indoc = "2"
 insta = { version = "1", features = ["json"] }

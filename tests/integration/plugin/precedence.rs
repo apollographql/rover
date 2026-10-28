@@ -366,7 +366,7 @@ fn registry() -> (httpmock::MockServer, usize) {
                 .path_includes("/latest-2");
             then.status(302).header("X-Version", "v2.9.3");
         })
-        .id;
+        .id();
     server.mock(|when, then| {
         when.method(httpmock::Method::GET)
             .path_includes("/tar/supergraph/");

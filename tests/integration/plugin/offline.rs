@@ -35,13 +35,13 @@ impl Registry {
                 when.method(Method::HEAD).path_includes("/latest-2");
                 then.status(302).header("X-Version", "v2.9.3");
             })
-            .id;
+            .id();
         let artifact = server
             .mock(|when, then| {
                 when.method(Method::GET).path_includes("/tar/supergraph/");
                 then.status(200).body(supergraph_tarball(b"#!/bin/sh\n"));
             })
-            .id;
+            .id();
         Self {
             server,
             mocks: [resolution, artifact],
