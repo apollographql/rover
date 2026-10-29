@@ -59,6 +59,7 @@ When reviewing a `spec.md`, flag it if it reads like an implementation plan inst
 - Keep new CLI surface aligned with the existing `rover [noun] [verb]` model. Before adding or restructuring commands, read `ARCHITECTURE.md`.
 - Command implementations usually live under `src/command/<noun>/...`; shared behavior should be placed in the narrowest reusable module.
 - If a change affects packaging, installation, or release behavior, inspect the relevant files under `installers/*`, docs, and CI workflows before editing.
+- **Don't cite spec requirement numbers (`FR20`, `NFR3`, ...) in code comments, doc comments, or tests.** Several specs number their requirements independently, so a bare number is ambiguous, and it goes stale when a spec is renumbered. Say what the behavior is in plain words, and let the spec link to the code through its own text. This applies to comments you write or edit; leave unrelated existing references alone, and flag them in review if a PR adds new ones.
 
 ## Architecture and Implementation Patterns
 
