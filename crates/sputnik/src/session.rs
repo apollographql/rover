@@ -17,7 +17,7 @@ use serde::Serialize;
 use uuid::Uuid;
 use wsl::is_wsl;
 
-use crate::{Report, SputnikError};
+use crate::{GraphId, Report, SputnikError};
 
 /// The most that reporting telemetry may delay process exit, in total. This covers the entire
 /// time to make the request, including name resolution and connecting, not just server latency.
@@ -60,6 +60,10 @@ pub struct Session {
     /// Wall-clock milliseconds the command ran for, once it has completed
     #[serde(skip_serializing_if = "Option::is_none")]
     duration_ms: Option<u64>,
+    /// A one-way identifier of the graph the command ran against. It is omitted when the
+    /// command has no graph ref to derive it from.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    graph_id: Option<GraphId>,
 
     /// Where the telemetry data is being reported to
     #[serde(skip_serializing)]
@@ -191,6 +195,7 @@ impl Session {
             environment,
             outcome: None,
             duration_ms: None,
+            graph_id: None,
             reporting_info,
             client,
         })
@@ -206,6 +211,13 @@ impl Session {
     /// spent reporting.
     pub fn with_duration(mut self, duration: Duration) -> Self {
         self.duration_ms = Some(u64::try_from(duration.as_millis()).unwrap_or(u64::MAX));
+        self
+    }
+
+    /// adds the identifier of the graph the command ran against. An event for a command with no
+    /// graph ref is sent without one, so there is nothing to call this with.
+    pub fn with_graph_id(mut self, graph_id: GraphId) -> Self {
+        self.graph_id = Some(graph_id);
         self
     }
 
@@ -298,6 +310,7 @@ mod tests {
             environment: Environment::Interactive,
             outcome: None,
             duration_ms: None,
+            graph_id: None,
             reporting_info: ReportingInfo {
                 is_telemetry_enabled: true,
                 endpoint: Url::parse(format!("http://0.0.0.0/{}", report_path()).as_str()).unwrap(),
@@ -305,6 +318,27 @@ mod tests {
             },
             client: Client::new(),
         }
+    }
+
+    #[rstest]
+    #[case::with_a_graph_ref(Some("015b2b8f"))]
+    #[case::without_one(None)]
+    fn the_graph_id_is_in_the_event_only_when_there_is_one(
+        session: Session,
+        #[case] graph_id: Option<&str>,
+    ) {
+        let session = match graph_id {
+            Some(graph_id) => session.with_graph_id(GraphId::for_tests(graph_id)),
+            None => session,
+        };
+
+        let mut expected = serialized_event(None);
+        if let Some(graph_id) = graph_id {
+            expected["graph_id"] = json!(graph_id);
+        }
+        assert_that!(serde_json::to_value(&session))
+            .is_ok()
+            .is_equal_to(expected);
     }
 
     enum ReportCase {
