@@ -14,6 +14,7 @@ use lazycell::{AtomicLazyCell, LazyCell};
 use reqwest::Client;
 use rover_client::shared::GitContext;
 use rover_std::Style;
+use rover_studio::types::GraphRef;
 use serde::Serialize;
 use sputnik::{Outcome, Session};
 use timber::Level;
@@ -330,13 +331,62 @@ impl Rover {
             .await
     }
 
+    /// The graph ref this invocation ran against, if it has a resolvable one, for its telemetry
+    /// event.
+    ///
+    /// A command takes it from its arguments. `rover dev` also falls back to
+    /// `APOLLO_GRAPH_REF`, and then the stored profile and project settings, as it does to run.
+    /// It is the only command that reads the setting, so it is the only one matched below:
+    /// a command that starts calling `resolve_graph_ref_setting` has to be added here too.
+    ///
+    /// This never fails, prints, or creates the config home: a ref that can't be found or read
+    /// is no graph ref.
+    pub(crate) fn resolvable_graph_ref(&self) -> Option<GraphRef> {
+        self.arg_matches()
+            .and_then(crate::utils::telemetry::graph_ref_in)
+            .or_else(|| {
+                if !matches!(self.command, Command::Dev(_)) {
+                    return None;
+                }
+                let raw = self
+                    .get_env_var(RoverEnvKey::GraphRef)
+                    .ok()
+                    .flatten()
+                    .or_else(|| {
+                        let config = self.get_rover_config_read_only().ok()?;
+                        self.resolve_stored_setting_with(&config, SettingName::GraphRef)
+                            .ok()
+                            .flatten()
+                            .map(|(_, value)| value)
+                    })?;
+                raw.parse().ok()
+            })
+    }
+
     pub async fn run(&self) -> RoverResult<()> {
+        // Must run before anything reads an environment variable, including the
+        // telemetry session below, not inside `Dev::run` or its arm in
+        // `execute_command` - `Rover`'s env-var cache (`env_store`, a
+        // `LazyCell<RoverEnv>`) is filled on first `get_env_var` call and never
+        // refreshed, so a `.env`-supplied `APOLLO_GRAPH_REF` loaded any later
+        // would be invisible to it, letting a stored profile value wrongly win
+        // instead of it, and spuriously triggering the "running without GraphOS
+        // credentials" notice.
+        if matches!(self.command, Command::Dev(_)) {
+            dotenvy::dotenv().ok();
+        }
         timber::init(self.log_level);
         tracing::trace!(command_structure = ?self);
         self.output_opts.set_no_color();
 
         // attempt to create a new `Session` to capture anonymous usage data
-        let telemetry = lifecycle::Telemetry::new(Session::new(self).ok());
+        let session = Session::new(self)
+            .ok()
+            .map(|session| match self.graph_id() {
+                Some(graph_id) => session.with_graph_id(graph_id),
+                None => session,
+            });
+        let telemetry = lifecycle::Telemetry::new(session);
 
         let started = std::time::Instant::now();
         let finish = lifecycle::run(&telemetry, |signal| signal.exit_by_default(), async {
@@ -446,15 +496,7 @@ impl Rover {
             }
             Command::Schema(command) => command.run(self.get_client_config().await?).await,
             Command::Dev(command) => {
-                // Must run before `resolve_graph_ref_setting` below, not
-                // inside `Dev::run` - `Rover`'s env-var cache (`env_store`,
-                // a `LazyCell<RoverEnv>`) is filled on first `get_env_var`
-                // call and never refreshed, so a `.env`-supplied
-                // `APOLLO_GRAPH_REF` loaded any later would be invisible to
-                // it, letting a stored profile value wrongly win instead
-                // (inverting FR25's tier order) and spuriously triggering
-                // the "running without GraphOS credentials" notice.
-                dotenvy::dotenv().ok();
+                // `resolvable_graph_ref` mirrors this arm's use of the graph ref setting.
                 command
                     .run(
                         self.get_install_override_path()?,
@@ -2002,7 +2044,7 @@ mod tests {
     use std::fs;
 
     use camino::Utf8PathBuf;
-    use clap::Parser;
+    use clap::{CommandFactory, FromArgMatches, Parser};
     use speculoos::prelude::*;
     use sputnik::Outcome;
 
@@ -2453,6 +2495,93 @@ mod tests {
 
         assert_that!(rover.resolve_graph_ref_setting())
             .is_ok_containing(Some("my-graph@staging".to_string()));
+    }
+
+    /// `rover dev`, run against a config home and a project, and the graph ref its
+    /// telemetry would find. `RoverEnv` starts empty under `cfg(test)`, so the process's own
+    /// `APOLLO_GRAPH_REF` can't reach it.
+    fn graph_ref_dev_finds(
+        home: &tempfile::TempDir,
+        project: Option<&str>,
+        profile_args: &[&str],
+    ) -> Option<String> {
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let tree = tempfile::tempdir().unwrap();
+        let project = project.map(|contents| {
+            let dir = Utf8PathBuf::try_from(tree.path().to_path_buf())
+                .unwrap()
+                .join(".rover");
+            fs::create_dir_all(&dir).unwrap();
+            fs::write(dir.join(MANIFEST_FILE), contents).unwrap();
+            dir
+        });
+        let mut args = vec![PKG_NAME, "--config-home", home_path.as_str()];
+        args.extend_from_slice(profile_args);
+        args.push("dev");
+        let matches = Rover::command().get_matches_from(&args);
+        let mut rover = Rover::from_arg_matches(&matches)
+            .unwrap()
+            .with_arg_matches(matches);
+        rover.set_manifest_dirs(ManifestDirs {
+            project,
+            global: None,
+        });
+        rover
+            .resolvable_graph_ref()
+            .map(|graph_ref| graph_ref.to_string())
+    }
+
+    #[test]
+    fn dev_telemetry_does_not_create_a_missing_config_home() {
+        let parent = tempfile::tempdir().unwrap();
+        let home = parent.path().join("not-yet");
+        let args = vec![PKG_NAME, "--config-home", home.to_str().unwrap(), "dev"];
+        let matches = Rover::command().get_matches_from(&args);
+        let rover = Rover::from_arg_matches(&matches)
+            .unwrap()
+            .with_arg_matches(matches);
+
+        assert_that!(rover.resolvable_graph_ref()).is_none();
+        assert_that!(home.exists()).is_false();
+    }
+
+    #[test]
+    fn dev_telemetry_finds_a_graph_ref_stored_on_the_profile() {
+        let home = config_home_with_setting("staging", "APOLLO_GRAPH_REF", "my-graph@staging");
+
+        assert_that!(graph_ref_dev_finds(&home, None, &["--profile", "staging"]))
+            .is_equal_to(Some("my-graph@staging".to_string()));
+    }
+
+    #[test]
+    fn dev_telemetry_finds_a_graph_ref_set_in_the_project_file() {
+        let home = tempfile::tempdir().unwrap();
+
+        assert_that!(graph_ref_dev_finds(
+            &home,
+            Some("settings:\n  APOLLO_GRAPH_REF: my-graph@staging\n"),
+            &[],
+        ))
+        .is_equal_to(Some("my-graph@staging".to_string()));
+    }
+
+    #[test]
+    fn dev_telemetry_prefers_the_project_file_to_the_default_profile() {
+        let home = config_home_with_setting("default", "APOLLO_GRAPH_REF", "default-graph@prod");
+
+        assert_that!(graph_ref_dev_finds(
+            &home,
+            Some("settings:\n  APOLLO_GRAPH_REF: my-graph@staging\n"),
+            &[],
+        ))
+        .is_equal_to(Some("my-graph@staging".to_string()));
+    }
+
+    #[test]
+    fn dev_telemetry_finds_no_graph_ref_when_the_stored_one_is_malformed() {
+        let home = config_home_with_setting("staging", "APOLLO_GRAPH_REF", "not a graph ref!");
+
+        assert_that!(graph_ref_dev_finds(&home, None, &["--profile", "staging"])).is_none();
     }
 
     #[test]

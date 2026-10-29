@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use camino::Utf8PathBuf;
 use clap::{CommandFactory, parser::ValueSource};
 use reqwest::Client;
-use sputnik::{Command, Report, SputnikError};
+use rover_studio::types::GraphRef;
+use sputnik::{Command, GraphId, Report, SputnikError};
 use url::Url;
 
 use crate::{PKG_NAME, PKG_VERSION, cli::Rover, utils::env::RoverEnvKey};
@@ -101,6 +102,45 @@ fn flag_name(arg: &clap::Arg) -> String {
         .map_or_else(|| arg.get_id().to_string(), str::to_string)
 }
 
+/// The graph ref the command line `matches` came from names, from the `graph_ref` argument of
+/// the command it runs, if there is one: the `GRAPH_REF` positional of a command like
+/// `rover graph fetch`, or the `--graph-ref` flag of `rover dev`.
+///
+/// Reading it from the matches, rather than from each command's own struct, covers every command
+/// that has such an argument, including any added later.
+pub(crate) fn graph_ref_in(matches: &clap::ArgMatches) -> Option<GraphRef> {
+    let mut graph_ref = None;
+    let mut level = matches;
+    loop {
+        if let Ok(Some(found)) = level.try_get_one::<GraphRef>("graph_ref") {
+            graph_ref = Some(found.clone());
+        }
+        match level.subcommand() {
+            Some((_, next)) => level = next,
+            None => return graph_ref,
+        }
+    }
+}
+
+impl Rover {
+    /// The identifier of the graph this invocation ran against, for its telemetry event, when it
+    /// has one. Nothing is read or written when telemetry is disabled, so an install that
+    /// doesn't report, or doesn't use a graph ref, never creates an install salt.
+    pub(crate) fn graph_id(&self) -> Option<GraphId> {
+        if !self.is_telemetry_enabled().ok()? {
+            return None;
+        }
+        let graph_ref = self.resolvable_graph_ref()?;
+        match self.install_salt() {
+            Ok(salt) => Some(salt.graph_identifier(&graph_ref)),
+            Err(error) => {
+                tracing::debug!(?error, "could not read the install salt");
+                None
+            }
+        }
+    }
+}
+
 impl Report for Rover {
     fn serialize_command(&self) -> Result<Command, SputnikError> {
         // Without what clap matched there's no telling which flags were
@@ -162,12 +202,14 @@ impl Report for Rover {
 mod tests {
     use std::collections::{BTreeMap, BTreeSet, HashMap};
 
+    use assert_fs::prelude::*;
     use clap::{CommandFactory, FromArgMatches, Parser};
+    use rstest::rstest;
     use serde_json::json;
     use speculoos::prelude::*;
     use sputnik::Command;
 
-    use super::{ALLOWLISTED_FLAGS, flag_name};
+    use super::{ALLOWLISTED_FLAGS, flag_name, graph_ref_in};
     use crate::{
         PKG_NAME,
         cli::Rover,
@@ -541,5 +583,245 @@ mod tests {
         let expect_enabled = true;
         let is_telemetry_enabled = rover.is_telemetry_enabled().unwrap();
         assert_eq!(is_telemetry_enabled, expect_enabled);
+    }
+
+    /// Every command with a `graph_ref` argument, as the path to it.
+    fn commands_with_a_graph_ref() -> Vec<String> {
+        fn walk(command: &clap::Command, path: &mut Vec<String>, found: &mut Vec<String>) {
+            if command
+                .get_arguments()
+                .any(|arg| arg.get_id() == "graph_ref")
+            {
+                found.push(path.join(" "));
+            }
+            for subcommand in command.get_subcommands() {
+                path.push(subcommand.get_name().to_string());
+                walk(subcommand, path, found);
+                path.pop();
+            }
+        }
+        let mut found = Vec::new();
+        walk(&Rover::command(), &mut Vec::new(), &mut found);
+        found
+    }
+
+    /// Fails when a command gains a `graph_ref` argument that nothing here covers, so that
+    /// its invocations can't silently go without a graph identifier. Add it here and to the
+    /// cases of `a_commands_graph_ref_is_found`.
+    #[test]
+    fn every_command_with_a_graph_ref_is_covered() {
+        let mut expected: Vec<String> = [
+            "contract describe",
+            "contract preview",
+            "contract publish",
+            "dev",
+            "supergraph fetch",
+            "graph check",
+            "graph delete",
+            "graph fetch",
+            "graph lint",
+            "graph publish",
+            "readme fetch",
+            "readme publish",
+            "subgraph check",
+            "subgraph delete",
+            "subgraph fetch",
+            "subgraph lint",
+            "subgraph list",
+            "subgraph preview",
+            "subgraph publish",
+            "persisted-queries publish",
+            "client check",
+        ]
+        .map(String::from)
+        .to_vec();
+        // Without the `composition-js` feature there is no `connector` command, and
+        // `supergraph compose` takes no graph ref.
+        if cfg!(feature = "composition-js") {
+            expected.extend(["connector", "supergraph compose"].map(String::from));
+        }
+        expected.sort();
+        let mut found = commands_with_a_graph_ref();
+        found.sort();
+
+        assert_that!(found).is_equal_to(expected);
+    }
+
+    #[rstest]
+    #[case::contract_describe(&["contract", "describe", "my-graph@staging"])]
+    #[case::contract_preview(&["contract", "preview", "my-graph@staging"])]
+    #[case::contract_publish(&[
+        "contract", "publish", "my-graph@staging", "--no-include-tags", "--no-exclude-tags",
+        "--no-hide-unreachable-types",
+    ])]
+    #[case::dev(&["dev", "--graph-ref", "my-graph@staging"])]
+    #[case::supergraph_fetch(&["supergraph", "fetch", "my-graph@staging"])]
+    #[case::graph_check(&["graph", "check", "my-graph@staging", "--schema", "-"])]
+    #[case::graph_delete(&["graph", "delete", "my-graph@staging"])]
+    #[case::graph_fetch(&["graph", "fetch", "my-graph@staging"])]
+    #[case::graph_lint(&["graph", "lint", "my-graph@staging", "--schema", "-"])]
+    #[case::graph_publish(&["graph", "publish", "my-graph@staging", "--schema", "-"])]
+    #[case::readme_fetch(&["readme", "fetch", "my-graph@staging"])]
+    #[case::readme_publish(&["readme", "publish", "my-graph@staging", "--file", "-"])]
+    #[case::subgraph_check(&["subgraph", "check", "my-graph@staging", "--name", "x", "--schema", "-"])]
+    #[case::subgraph_delete(&["subgraph", "delete", "my-graph@staging", "--name", "x"])]
+    #[case::subgraph_fetch(&["subgraph", "fetch", "my-graph@staging", "--name", "x"])]
+    #[case::subgraph_lint(&["subgraph", "lint", "my-graph@staging", "--name", "x", "--schema", "-"])]
+    #[case::subgraph_list(&["subgraph", "list", "my-graph@staging"])]
+    #[case::subgraph_preview(&["subgraph", "preview", "my-graph@staging"])]
+    #[case::subgraph_publish(&["subgraph", "publish", "my-graph@staging", "--name", "x", "--schema", "-"])]
+    #[case::persisted_queries_publish(&["persisted-queries", "publish", "my-graph@staging", "--manifest", "-"])]
+    #[case::client_check(&["client", "check", "my-graph@staging"])]
+    fn a_commands_graph_ref_is_found(#[case] args: &[&str]) {
+        let args = std::iter::once(PKG_NAME).chain(args.iter().copied());
+        let matches = Rover::command().get_matches_from(args);
+
+        assert_that!(graph_ref_in(&matches).map(|graph_ref| graph_ref.to_string()))
+            .is_equal_to(Some("my-graph@staging".to_string()));
+    }
+
+    /// The commands that only take a graph ref when Rover can compose.
+    #[cfg(feature = "composition-js")]
+    #[rstest]
+    #[case::connector(&[
+        "connector", "--graph-ref", "my-graph@staging", "run", "--connector-id", "x", "--variables", "{}",
+    ])]
+    #[case::supergraph_compose(&["supergraph", "compose", "--graph-ref", "my-graph@staging"])]
+    fn a_composing_commands_graph_ref_is_found(#[case] args: &[&str]) {
+        let args = std::iter::once(PKG_NAME).chain(args.iter().copied());
+        let matches = Rover::command().get_matches_from(args);
+
+        assert_that!(graph_ref_in(&matches).map(|graph_ref| graph_ref.to_string()))
+            .is_equal_to(Some("my-graph@staging".to_string()));
+    }
+
+    #[test]
+    fn a_graph_ref_without_a_variant_is_the_current_variant() {
+        let matches = Rover::command().get_matches_from([PKG_NAME, "graph", "fetch", "my-graph"]);
+
+        assert_that!(graph_ref_in(&matches).map(|graph_ref| graph_ref.to_string()))
+            .is_equal_to(Some("my-graph@current".to_string()));
+    }
+
+    #[rstest]
+    #[case::a_command_that_takes_none(&["config", "list"])]
+    #[case::an_optional_one_left_off(&["client", "check"])]
+    #[case::dev_without_the_flag(&["dev"])]
+    fn no_graph_ref_is_found(#[case] args: &[&str]) {
+        let args = std::iter::once(PKG_NAME).chain(args.iter().copied());
+        let matches = Rover::command().get_matches_from(args);
+
+        assert_that!(graph_ref_in(&matches)).is_none();
+    }
+
+    fn dev_with_env_graph_ref(args: &[&str], value: &str) -> Rover {
+        let mut rover = parse_with_matches(args);
+        rover.insert_env_var(RoverEnvKey::GraphRef, value).unwrap();
+        rover
+    }
+
+    #[test]
+    fn dev_falls_back_to_the_environment_variable() {
+        let rover = dev_with_env_graph_ref(&[PKG_NAME, "dev"], "my-graph@staging");
+
+        assert_that!(
+            rover
+                .resolvable_graph_ref()
+                .map(|graph_ref| graph_ref.to_string())
+        )
+        .is_equal_to(Some("my-graph@staging".to_string()));
+    }
+
+    #[test]
+    fn dev_prefers_its_flag_to_the_environment_variable() {
+        let rover = dev_with_env_graph_ref(
+            &[PKG_NAME, "dev", "--graph-ref", "my-graph@staging"],
+            "other-graph@prod",
+        );
+
+        assert_that!(
+            rover
+                .resolvable_graph_ref()
+                .map(|graph_ref| graph_ref.to_string())
+        )
+        .is_equal_to(Some("my-graph@staging".to_string()));
+    }
+
+    #[test]
+    fn dev_has_no_graph_ref_when_the_environment_variable_is_malformed() {
+        let rover = dev_with_env_graph_ref(&[PKG_NAME, "dev"], "not a graph ref!");
+
+        assert_that!(rover.resolvable_graph_ref()).is_none();
+    }
+
+    #[test]
+    fn only_dev_falls_back_to_the_environment_variable() {
+        let mut rover = parse_with_matches(&[PKG_NAME, "config", "list"]);
+        rover
+            .insert_env_var(RoverEnvKey::GraphRef, "my-graph@staging")
+            .unwrap();
+
+        assert_that!(rover.resolvable_graph_ref()).is_none();
+    }
+
+    /// Runs `test` with an empty config home. `RoverEnv` starts empty under `cfg(test)`, so
+    /// the process's own environment can't disable telemetry here.
+    fn with_config_home<T>(test: impl FnOnce(&assert_fs::TempDir, &str) -> T) -> T {
+        let home = assert_fs::TempDir::new().unwrap();
+        let path = home.path().to_str().unwrap().to_string();
+        test(&home, &path)
+    }
+
+    #[test]
+    fn the_graph_id_is_the_graph_ref_keyed_by_the_install_salt() {
+        with_config_home(|home, path| {
+            let args = [
+                PKG_NAME,
+                "--config-home",
+                path,
+                "graph",
+                "fetch",
+                "my-graph@staging",
+            ];
+            let rover = parse_with_matches(&args);
+
+            let graph_id = rover.graph_id().unwrap();
+
+            let salt = rover.install_salt().unwrap();
+            assert_that!(graph_id)
+                .is_equal_to(salt.graph_identifier(&"my-graph@staging".parse().unwrap()));
+            assert_that!(home.child("install_salt.txt").exists()).is_true();
+            assert_that!(rover.graph_id()).is_equal_to(Some(graph_id));
+        });
+    }
+
+    #[test]
+    fn a_command_with_no_graph_ref_has_no_graph_id_and_creates_no_salt() {
+        with_config_home(|home, path| {
+            let args = [PKG_NAME, "--config-home", path, "config", "list"];
+            let rover = parse_with_matches(&args);
+
+            assert_that!(rover.graph_id()).is_none();
+            assert_that!(home.child("install_salt.txt").exists()).is_false();
+        });
+    }
+
+    #[test]
+    fn nothing_is_derived_or_stored_when_telemetry_is_disabled() {
+        with_config_home(|home, path| {
+            let args = [
+                PKG_NAME,
+                "--config-home",
+                path,
+                "--telemetry-disabled",
+                "graph",
+                "fetch",
+                "my-graph@staging",
+            ];
+            let rover = parse_with_matches(&args);
+
+            assert_that!(rover.graph_id()).is_none();
+            assert_that!(home.child("install_salt.txt").exists()).is_false();
+        });
     }
 }
