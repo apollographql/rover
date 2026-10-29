@@ -370,8 +370,8 @@ impl Rover {
         // `LazyCell<RoverEnv>`) is filled on first `get_env_var` call and never
         // refreshed, so a `.env`-supplied `APOLLO_GRAPH_REF` loaded any later
         // would be invisible to it, letting a stored profile value wrongly win
-        // instead (inverting FR25's tier order) and spuriously triggering the
-        // "running without GraphOS credentials" notice.
+        // instead of it, and spuriously triggering the "running without GraphOS
+        // credentials" notice.
         if matches!(self.command, Command::Dev(_)) {
             dotenvy::dotenv().ok();
         }
