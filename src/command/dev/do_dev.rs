@@ -156,7 +156,7 @@ impl Dev {
         let (router_version, router_version_origin) = match dev_plugin_request(
             PluginName::Router,
             self.router_version_override()?,
-            VersionRequest::Major(2),
+            PluginName::Router.default_request(),
             &plugin_levels,
         )? {
             (Plugin::Router(version), origin) => (version, origin),
@@ -320,7 +320,7 @@ impl Dev {
             let (mcp_version, mcp_version_origin) = match dev_plugin_request(
                 PluginName::ApolloMcpServer,
                 self.mcp_version_override(),
-                VersionRequest::Latest,
+                PluginName::ApolloMcpServer.default_request(),
                 &plugin_levels,
             )? {
                 (Plugin::McpServer(version), origin) => (version, origin),

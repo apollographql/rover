@@ -36,6 +36,15 @@ impl PluginName {
             Self::ApolloMcpServer => "apollo-mcp-server",
         }
     }
+
+    /// The request a plugin-using command makes for this plugin when nothing
+    /// asks for a version: the bottom rung of the precedence ladder.
+    pub const fn default_request(&self) -> VersionRequest {
+        match self {
+            Self::Supergraph | Self::Router => VersionRequest::Major(2),
+            Self::ApolloMcpServer => VersionRequest::Latest,
+        }
+    }
 }
 
 impl fmt::Display for PluginName {
@@ -128,6 +137,15 @@ impl VersionRequest {
     /// single release.
     pub const fn is_floating(&self) -> bool {
         self.exact().is_none()
+    }
+
+    /// Whether `version` is a release this request could resolve to.
+    pub fn allows(&self, version: &Version) -> bool {
+        match (self.exact(), self.major()) {
+            (Some(exact), _) => exact == version,
+            (None, Some(major)) => version.major == major,
+            (None, None) => true,
+        }
     }
 }
 
@@ -284,6 +302,22 @@ mod tests {
         assert_that!(input.parse::<VersionRequest>())
             .is_ok()
             .is_equal_to(expected);
+    }
+
+    #[rstest]
+    #[case::latest_allows_any_major("latest", "3.0.0", true)]
+    #[case::a_major_allows_its_own_releases("2", "2.9.3", true)]
+    #[case::a_major_refuses_another_major("2", "3.0.0", false)]
+    #[case::an_exact_version_allows_itself("=2.9.3", "2.9.3", true)]
+    #[case::an_exact_version_refuses_its_neighbour("=2.9.3", "2.9.2", false)]
+    fn a_request_allows_the_releases_it_could_resolve_to(
+        #[case] request: &str,
+        #[case] version: &str,
+        #[case] expected: bool,
+    ) {
+        let request: VersionRequest = request.parse().unwrap();
+
+        assert_that!(request.allows(&Version::parse(version).unwrap())).is_equal_to(expected);
     }
 
     #[rstest]
