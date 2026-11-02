@@ -279,6 +279,23 @@ fn config_pin<T, E>(
     (pinned, path)
 }
 
+/// Whether a failed composition is worth a nudge toward migrating from Federation 1: nothing
+/// asked for a federation version, and none of the subgraphs opts in to Federation 2 with
+/// `@link`. Composition defaults to Federation 2 in that case, so Rover never infers
+/// Federation 1 from the SDL, and a subgraph with no federation directives at all reads the same
+/// under both versions. That's why this only shapes a suggestion after composition has failed.
+fn maybe_federation_one(
+    federation_version_specified: bool,
+    config: &FullyResolvedSupergraphConfig,
+) -> bool {
+    !federation_version_specified
+        && !config.subgraphs.is_empty()
+        && !config
+            .subgraphs
+            .values()
+            .any(|subgraph| *subgraph.is_fed_two())
+}
+
 /// What to say when the subgraphs couldn't be resolved to detect the
 /// Federation version from, naming where the version used instead came from.
 fn undetected(request: &PluginRequest) -> String {
@@ -317,6 +334,8 @@ impl CompositionPipeline<state::InstallSupergraph> {
         elv2_license_accepter: LicenseAccepter,
         skip_update: bool,
     ) -> Result<CompositionPipeline<state::Run>, CompositionPipelineError> {
+        // A version with no origin is the default, so nothing asked for one.
+        let federation_version_specified = self.state.federation_version_origin.is_some();
         let supergraph_binary =
             InstallSupergraph::new(self.state.federation_version, studio_client_config)
                 .requested_by(self.state.federation_version_origin)
@@ -327,6 +346,7 @@ impl CompositionPipeline<state::InstallSupergraph> {
             state: state::Run {
                 resolver: self.state.resolver,
                 supergraph_root: self.state.supergraph_root,
+                federation_version_specified,
                 supergraph_binary,
                 resolve_introspect_subgraph_factory: self.state.resolve_introspect_subgraph_factory,
                 fetch_remote_subgraph_factory: self.state.fetch_remote_subgraph_factory,
@@ -386,6 +406,11 @@ impl CompositionPipeline<state::Run> {
             });
         }
 
+        let maybe_federation_one = maybe_federation_one(
+            self.state.federation_version_specified,
+            &fully_resolved_supergraph_config,
+        );
+
         write_file_impl
             .write_file(
                 &supergraph_config_filepath,
@@ -410,6 +435,16 @@ impl CompositionPipeline<state::Run> {
             .clone()?
             .compose(exec_command_impl, supergraph_config_filepath)
             .await
+            .map_err(|mut error| {
+                if let CompositionError::Build {
+                    maybe_federation_one: flag,
+                    ..
+                } = &mut error
+                {
+                    *flag = maybe_federation_one;
+                }
+                error
+            })
     }
 
     #[tracing::instrument(skip_all)]
@@ -564,6 +599,9 @@ pub(crate) mod state {
     pub struct Run {
         pub resolver: InitializedSupergraphConfigResolver,
         pub supergraph_root: Utf8PathBuf,
+        /// Whether a flag, environment variable, supergraph config, or manifest asked for a
+        /// federation version, rather than it defaulting to the newest Federation 2 release.
+        pub federation_version_specified: bool,
         pub supergraph_binary: Result<SupergraphBinary, InstallSupergraphError>,
         pub resolve_introspect_subgraph_factory: ResolveIntrospectSubgraphFactory,
         pub fetch_remote_subgraph_factory: FetchRemoteSubgraphFactory,
@@ -859,5 +897,47 @@ mod tests {
             result,
             Err(CompositionPipelineError::FederationOneUnsupported(_))
         ));
+    }
+    const WITH_LINK: &str = "extend schema @link(url: \"https://specs.apollo.dev/federation/v2.3\", import: [\"@key\"])\ntype Query { a: Int }";
+    const WITHOUT_LINK: &str = "type Query { a: Int }\ntype User @key(fields: \"id\") { id: ID! }";
+
+    fn config_of(sdls: &[&str]) -> FullyResolvedSupergraphConfig {
+        let subgraphs = sdls
+            .iter()
+            .enumerate()
+            .map(|(index, sdl)| {
+                let name = format!("subgraph-{index}");
+                let subgraph =
+                    crate::composition::supergraph::config::full::FullyResolvedSubgraph::builder()
+                        .name(name.clone())
+                        .schema(sdl.to_string())
+                        .schema_source(apollo_federation_types::config::SchemaSource::Sdl {
+                            sdl: sdl.to_string(),
+                        })
+                        .build();
+                (name, subgraph)
+            })
+            .collect();
+        FullyResolvedSupergraphConfig::builder()
+            .subgraphs(subgraphs)
+            .federation_version(LatestFedTwo)
+            .build()
+    }
+
+    /// Only a project that asked for no version, and whose subgraphs all lack `@link`, may be a
+    /// Federation 1 project.
+    #[rstest::rstest]
+    #[case::nothing_opts_in(false, &[WITHOUT_LINK, WITHOUT_LINK], true)]
+    #[case::one_subgraph_opts_in(false, &[WITHOUT_LINK, WITH_LINK], false)]
+    #[case::every_subgraph_opts_in(false, &[WITH_LINK, WITH_LINK], false)]
+    #[case::a_version_was_asked_for(true, &[WITHOUT_LINK], false)]
+    #[case::no_subgraphs(false, &[], false)]
+    fn a_project_may_be_federation_one_only_when_nothing_opts_in_to_federation_two(
+        #[case] version_specified: bool,
+        #[case] sdls: &[&str],
+        #[case] expected: bool,
+    ) {
+        assert_that!(maybe_federation_one(version_specified, &config_of(sdls)))
+            .is_equal_to(expected);
     }
 }
