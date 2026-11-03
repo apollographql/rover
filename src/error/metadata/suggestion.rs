@@ -249,7 +249,7 @@ impl Display for RoverErrorSuggestion {
                 format!("{} See {} for more information on resolving build errors.", prefix, Style::Link.paint("https://www.apollographql.com/docs/federation/errors/"))
             },
             MigrateToFederationTwo => format!(
-                "None of your subgraphs use the {} directive, so they may have been written for Federation 1, which Rover no longer supports. If so, they need migrating to Federation 2, which may be the cause of these errors. See {} for how to migrate.",
+                "None of your subgraphs use the {} directive, so they may have been written for Federation 1, which Rover no longer supports. If so, they need migrating to Federation 2, and that may be what's causing these errors. See {} for how to migrate.",
                 Style::Command.paint("`@link`"),
                 Style::Link.paint(crate::federation::FEDERATION_2_MIGRATION_URL)
             ),

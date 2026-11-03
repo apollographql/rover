@@ -677,7 +677,7 @@ mod tests {
         #[rstest]
         #[case::a_project_that_may_be_federation_one(true, vec![
             "The subgraph schema you provided is invalid. See https://www.apollographql.com/docs/federation/errors/ for more information on resolving build errors.",
-            "None of your subgraphs use the `@link` directive, so they may have been written for Federation 1, which Rover no longer supports. If so, they need migrating to Federation 2, which may be the cause of these errors. See https://www.apollographql.com/docs/graphos/schema-design/federated-schemas/reference/moving-to-federation-2#opt-in-to-federation-2 for how to migrate.",
+            "None of your subgraphs use the `@link` directive, so they may have been written for Federation 1, which Rover no longer supports. If so, they need migrating to Federation 2, and that may be what's causing these errors. See https://www.apollographql.com/docs/graphos/schema-design/federated-schemas/reference/moving-to-federation-2#opt-in-to-federation-2 for how to migrate.",
         ])]
         #[case::any_other_project(false, vec![
             "The subgraph schema you provided is invalid. See https://www.apollographql.com/docs/federation/errors/ for more information on resolving build errors.",

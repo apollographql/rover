@@ -898,6 +898,7 @@ mod tests {
             Err(CompositionPipelineError::FederationOneUnsupported(_))
         ));
     }
+
     const WITH_LINK: &str = "extend schema @link(url: \"https://specs.apollo.dev/federation/v2.3\", import: [\"@key\"])\ntype Query { a: Int }";
     const WITHOUT_LINK: &str = "type Query { a: Int }\ntype User @key(fields: \"id\") { id: ID! }";
 
