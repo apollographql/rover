@@ -1029,18 +1029,17 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             println!("{}", tool);
         }
 
-        println!("\n{}", Style::Heading.paint("Selected Graph:"));
         println!(
-            "  • Graph: {} ({})",
-            selected_graph.graph_name, selected_graph.variant_name
+            "{}",
+            helpers::existing_graph_mcp_summary(
+                &selected_graph.graph_name,
+                &selected_graph.variant_name,
+                &selected_graph.organization_name,
+                &graph_ref_str,
+                !supergraph_sdl.is_empty(),
+                &apollo_key,
+            )
         );
-        println!("  • Organization: {}", selected_graph.organization_name);
-        println!("  • Graph Reference: {}", graph_ref_str);
-        if !supergraph_sdl.is_empty() {
-            println!("  • Supergraph schema: Downloaded");
-        }
-        println!("  • Service API key: {}", apollo_key);
-        println!("  • ✓ Credentials saved to .env file");
 
         println!("\n{}", Style::Heading.paint("Next steps:"));
         println!("   1. Start the MCP server:");

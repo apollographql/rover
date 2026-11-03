@@ -283,3 +283,106 @@ fn test_mcp_step_numbering_logic() {
         final_step_num_without_commands
     );
 }
+
+const CANARY_API_KEY: &str = "service:my-graph:abcdefghijklmnopqrstuv"; // gitleaks:allow
+
+fn project_created_with_key(api_key: &str) -> ProjectCreated {
+    ProjectCreated {
+        output_path: Utf8PathBuf::from("test_project"),
+        config: crate::command::init::config::ProjectConfig {
+            organization: crate::command::init::options::OrganizationId::from_str("test_org")
+                .unwrap(),
+            use_case: crate::command::init::options::ProjectUseCase::Connectors,
+            project_name: crate::command::init::options::ProjectName::from_str("my_test_project")
+                .unwrap(),
+            graph_id: crate::command::init::graph_id::validation::GraphId::from_str("my-graph")
+                .unwrap(),
+            project_type: crate::command::init::options::ProjectType::CreateNew,
+        },
+        artifacts: vec![Utf8PathBuf::from(".env")],
+        api_key: api_key.to_string(),
+        graph_ref: GraphRef::new("my-graph", Some("current")).unwrap(),
+        template: Template {
+            id: TemplateId("typescript".to_string()),
+            display_name: "TypeScript Subgraph".to_string(),
+            path: "start-with-typescript".to_string(),
+            language: "TypeScript".to_string(),
+            federation_version: "=2.10.0".to_string(),
+            max_schema_depth: 5,
+            routing_url: "http://localhost:4001".to_string(),
+            commands: None,
+            start_point_file: "GETTING_STARTED.md".to_string(),
+            print_depth: None,
+        },
+    }
+}
+
+#[test]
+fn test_api_key_saved_line_masks_key_and_points_to_env() {
+    let line = crate::command::init::helpers::api_key_saved_line(CANARY_API_KEY);
+
+    assert_eq!(line, "serv********stuv (saved to .env)");
+    assert_eq!(
+        line,
+        format!("{} (saved to .env)", houston::mask_key(CANARY_API_KEY))
+    );
+}
+
+#[test]
+fn test_mcp_credentials_section_masks_api_key() {
+    let section = project_created_with_key(CANARY_API_KEY).mcp_credentials_section();
+
+    assert!(
+        !section.contains(CANARY_API_KEY),
+        "credentials section must not contain the full API key: {section}"
+    );
+    assert!(section.contains(&houston::mask_key(CANARY_API_KEY)));
+    assert!(section.contains(": serv********stuv (saved to .env)"));
+    assert!(section.contains("my-graph@current"));
+}
+
+#[test]
+fn test_existing_graph_mcp_summary_masks_api_key() {
+    let summary = crate::command::init::helpers::existing_graph_mcp_summary(
+        "My Graph",
+        "current",
+        "My Org",
+        "my-graph@current",
+        true,
+        CANARY_API_KEY,
+    );
+
+    assert!(
+        !summary.contains(CANARY_API_KEY),
+        "summary must not contain the full API key: {summary}"
+    );
+    assert!(summary.contains(&houston::mask_key(CANARY_API_KEY)));
+
+    let lines: Vec<&str> = summary.lines().skip(2).collect();
+    assert_eq!(
+        lines,
+        vec![
+            "  • Graph: My Graph (current)",
+            "  • Organization: My Org",
+            "  • Graph Reference: my-graph@current",
+            "  • Supergraph schema: Downloaded",
+            "  • Service API key: serv********stuv (saved to .env)",
+            "  • ✓ Credentials saved to .env file",
+        ]
+    );
+}
+
+#[test]
+fn test_existing_graph_mcp_summary_omits_schema_line_when_not_downloaded() {
+    let summary = crate::command::init::helpers::existing_graph_mcp_summary(
+        "My Graph",
+        "current",
+        "My Org",
+        "my-graph@current",
+        false,
+        CANARY_API_KEY,
+    );
+
+    assert!(!summary.contains("Supergraph schema"));
+    assert!(!summary.contains(CANARY_API_KEY));
+}
