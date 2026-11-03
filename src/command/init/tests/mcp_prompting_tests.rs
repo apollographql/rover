@@ -369,6 +369,104 @@ fn test_mcp_preview_creation_flow_propagates_confirm_error() {
     );
 }
 
+fn existing_graph_mcp_files_fixture() -> std::collections::HashMap<Utf8PathBuf, String> {
+    let mut files = std::collections::HashMap::new();
+    files.insert(Utf8PathBuf::from("README.md"), "# Test".to_string());
+    files.insert(Utf8PathBuf::from(".apollo/mcp.local.yaml"), String::new());
+    files
+}
+
+#[test]
+fn test_preview_mcp_files_returns_confirm_answer() {
+    use crate::command::init::Init;
+
+    let files = existing_graph_mcp_files_fixture();
+
+    assert!(Init::preview_mcp_files(&files, || Ok(true)).expect("confirm returned Ok"));
+    assert!(!Init::preview_mcp_files(&files, || Ok(false)).expect("confirm returned Ok"));
+}
+
+#[test]
+fn test_preview_mcp_files_propagates_confirm_error() {
+    use crate::{RoverError, command::init::Init};
+
+    let files = existing_graph_mcp_files_fixture();
+
+    let result = Init::preview_mcp_files(&files, || {
+        Err(RoverError::new(anyhow::anyhow!("no terminal")))
+    });
+
+    assert!(
+        result.is_err(),
+        "a failed confirmation should surface as an error, not a silent cancel"
+    );
+}
+
+#[tokio::test]
+async fn test_confirm_then_declined_skips_then() {
+    use std::cell::Cell;
+
+    use crate::command::init::confirm_then;
+
+    let then_calls = Cell::new(0);
+
+    let result = confirm_then(
+        || Ok(false),
+        || async {
+            then_calls.set(then_calls.get() + 1);
+            Ok("created")
+        },
+    )
+    .await
+    .expect("declining should not be an error");
+
+    assert_eq!(result, None);
+    assert_eq!(then_calls.get(), 0);
+}
+
+#[tokio::test]
+async fn test_confirm_then_confirm_error_skips_then() {
+    use std::cell::Cell;
+
+    use crate::{RoverError, command::init::confirm_then};
+
+    let then_calls = Cell::new(0);
+
+    let result = confirm_then(
+        || Err(RoverError::new(anyhow::anyhow!("no terminal"))),
+        || async {
+            then_calls.set(then_calls.get() + 1);
+            Ok("created")
+        },
+    )
+    .await;
+
+    assert!(result.is_err(), "a failed confirmation should be returned");
+    assert_eq!(then_calls.get(), 0);
+}
+
+#[tokio::test]
+async fn test_confirm_then_accepted_runs_then_once() {
+    use std::cell::Cell;
+
+    use crate::command::init::confirm_then;
+
+    let then_calls = Cell::new(0);
+
+    let result = confirm_then(
+        || Ok(true),
+        || async {
+            then_calls.set(then_calls.get() + 1);
+            Ok("created")
+        },
+    )
+    .await
+    .expect("accepting should succeed");
+
+    assert_eq!(result, Some("created"));
+    assert_eq!(then_calls.get(), 1);
+}
+
 #[test]
 fn test_mcp_creation_previewed_to_confirmed_conversion() {
     use std::collections::HashMap;
