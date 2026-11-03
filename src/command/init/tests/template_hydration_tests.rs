@@ -2,8 +2,14 @@ use std::{collections::HashMap, str::FromStr};
 
 use camino::Utf8PathBuf;
 use rover_studio::types::GraphRef;
+use rstest::rstest;
 
-use crate::command::init::{graph_id::validation::GraphId, options::*, states::*};
+use crate::command::init::{
+    graph_id::validation::GraphId,
+    helpers::{ExistingGraphMCPContext, hydrate_env_api_key, hydrate_existing_graph_file},
+    options::*,
+    states::*,
+};
 
 #[test]
 fn test_mcp_template_placeholder_processing() {
@@ -79,7 +85,6 @@ RUN echo "Building {{PROJECT_NAME}}"
     };
 
     // Test the template placeholder processing
-    let test_api_key = "service:my-test-graph:abc123def456"; // gitleaks:allow
     let test_graph_ref = GraphRef::new("my-test-graph", Some("current")).unwrap();
 
     // Process .env.template content
@@ -89,25 +94,21 @@ PROJECT_NAME={{PROJECT_NAME}}
 GRAPHQL_ENDPOINT={{GRAPHQL_ENDPOINT}}
 "#;
 
-    let processed_env = mcp_creation_confirmed.process_template_placeholders(
-        env_content,
-        test_api_key,
-        &test_graph_ref,
-    );
+    let processed_env =
+        mcp_creation_confirmed.process_template_placeholders(env_content, &test_graph_ref);
 
     println!("=== Original .env.template content ===");
     println!("{}", env_content);
     println!("=== Processed .env content ===");
     println!("{}", processed_env);
 
-    // Verify the placeholders were replaced
-    assert!(processed_env.contains(&format!("APOLLO_KEY={}", test_api_key)));
+    // Verify the placeholders were replaced, except the API key, which only `.env` receives
+    assert!(processed_env.contains("APOLLO_KEY={{APOLLO_KEY}}"));
     assert!(processed_env.contains(&format!("APOLLO_GRAPH_REF={}", test_graph_ref)));
     assert!(processed_env.contains("PROJECT_NAME=my_test_project"));
     assert!(processed_env.contains("GRAPHQL_ENDPOINT=http://host.docker.internal:4000/graphql"));
 
     // Verify placeholders are no longer present
-    assert!(!processed_env.contains("{{APOLLO_KEY}}"));
     assert!(!processed_env.contains("{{APOLLO_GRAPH_REF}}"));
     assert!(!processed_env.contains("{{PROJECT_NAME}}"));
     assert!(!processed_env.contains("{{GRAPHQL_ENDPOINT}}"));
@@ -120,11 +121,8 @@ graph_ref: ${APOLLO_GRAPH_REF}
 endpoint: ${GRAPHQL_ENDPOINT}
 "#;
 
-    let processed_yaml = mcp_creation_confirmed.process_template_placeholders(
-        yaml_content,
-        test_api_key,
-        &test_graph_ref,
-    );
+    let processed_yaml =
+        mcp_creation_confirmed.process_template_placeholders(yaml_content, &test_graph_ref);
 
     println!("=== Original YAML content ===");
     println!("{}", yaml_content);
@@ -133,13 +131,12 @@ endpoint: ${GRAPHQL_ENDPOINT}
 
     // Verify ${} placeholders were replaced
     assert!(processed_yaml.contains("project: my_test_project"));
-    assert!(processed_yaml.contains(&format!("apollo_key: {}", test_api_key)));
+    assert!(processed_yaml.contains("apollo_key: ${APOLLO_KEY}"));
     assert!(processed_yaml.contains(&format!("graph_ref: {}", test_graph_ref)));
     assert!(processed_yaml.contains("endpoint: http://localhost:4000/graphql"));
 
     // Verify ${} placeholders are no longer present
     assert!(!processed_yaml.contains("${PROJECT_NAME}"));
-    assert!(!processed_yaml.contains("${APOLLO_KEY}"));
     assert!(!processed_yaml.contains("${APOLLO_GRAPH_REF}"));
     assert!(!processed_yaml.contains("${GRAPHQL_ENDPOINT}"));
 }
@@ -202,25 +199,12 @@ This is a test project with graph ref: {{APOLLO_GRAPH_REF}}
     let test_api_key = "service:my-test-graph:abc123def456"; // gitleaks:allow
     let test_graph_ref = GraphRef::new("my-test-graph", Some("current")).unwrap();
 
-    // Simulate the file processing logic from create_project()
-    let mut processed_files = HashMap::new();
-    for (file_path, content) in &mcp_creation_confirmed.composed_template.merged_files {
-        let content_str = String::from_utf8_lossy(content);
-        let processed_content = mcp_creation_confirmed.process_template_placeholders(
-            &content_str,
-            test_api_key,
-            &test_graph_ref,
-        );
-
-        // Handle .env.template → .env renaming for MCP projects
-        let final_path = if file_path.as_str().ends_with(".env.template") {
-            Utf8PathBuf::from(file_path.as_str().replace(".env.template", ".env"))
-        } else {
-            file_path.clone()
-        };
-
-        processed_files.insert(final_path, processed_content);
-    }
+    // Run the file processing logic from create_project()
+    let processed_files: HashMap<Utf8PathBuf, String> = mcp_creation_confirmed
+        .hydrate_merged_files(test_api_key, &test_graph_ref)
+        .into_iter()
+        .map(|(path, content)| (path, String::from_utf8(content).unwrap()))
+        .collect();
 
     // Verify .env.template was renamed to .env
     assert!(processed_files.contains_key(&Utf8PathBuf::from(".env")));
@@ -249,4 +233,158 @@ This is a test project with graph ref: {{APOLLO_GRAPH_REF}}
         println!("{}", content);
         println!("---");
     }
+}
+
+const CANARY_API_KEY: &str = "service:canary-graph:CANARY-KEY-0123456789"; // gitleaks:allow
+
+/// Template files that reference the API key in every supported placeholder style
+fn api_key_fixture_files() -> Vec<(&'static str, &'static str)> {
+    vec![
+        (
+            ".env.template",
+            "APOLLO_KEY=\"{{APOLLO_KEY}}\"\nAPOLLO_GRAPH_REF=\"{{APOLLO_GRAPH_REF}}\"\n",
+        ),
+        (
+            ".apollo/mcp.staging.yaml",
+            "graphos:\n  apollo_graph_ref: ${APOLLO_GRAPH_REF}\nheaders:\n  Authorization: \"Bearer ${APOLLO_KEY}\"\n  X-Env-Authorization: \"Bearer ${env.APOLLO_KEY}\"\n",
+        ),
+        (
+            ".vscode/settings.json",
+            "{\n  \"APOLLO_KEY\": \"{{APOLLO_KEY}}\",\n  \"APOLLO_GRAPH_REF\": \"{{APOLLO_GRAPH_REF}}\"\n}\n",
+        ),
+        (
+            "mcp.Dockerfile",
+            "ENV APOLLO_KEY={{APOLLO_KEY}}\nENV APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}\n",
+        ),
+    ]
+}
+
+/// The files expected after hydrating `api_key_fixture_files` for `graph_ref`
+fn expected_hydrated_fixture_files(graph_ref: &str) -> HashMap<Utf8PathBuf, String> {
+    HashMap::from([
+        (
+            Utf8PathBuf::from(".env"),
+            format!("APOLLO_KEY=\"{CANARY_API_KEY}\"\nAPOLLO_GRAPH_REF=\"{graph_ref}\"\n"),
+        ),
+        (
+            Utf8PathBuf::from(".apollo/mcp.staging.yaml"),
+            format!(
+                "graphos:\n  apollo_graph_ref: {graph_ref}\nheaders:\n  Authorization: \"Bearer ${{APOLLO_KEY}}\"\n  X-Env-Authorization: \"Bearer ${{env.APOLLO_KEY}}\"\n"
+            ),
+        ),
+        (
+            Utf8PathBuf::from(".vscode/settings.json"),
+            format!(
+                "{{\n  \"APOLLO_KEY\": \"{{{{APOLLO_KEY}}}}\",\n  \"APOLLO_GRAPH_REF\": \"{graph_ref}\"\n}}\n"
+            ),
+        ),
+        (
+            Utf8PathBuf::from("mcp.Dockerfile"),
+            format!("ENV APOLLO_KEY={{{{APOLLO_KEY}}}}\nENV APOLLO_GRAPH_REF={graph_ref}\n"),
+        ),
+    ])
+}
+
+fn assert_api_key_only_in_env(files: &HashMap<Utf8PathBuf, String>) {
+    for (path, content) in files {
+        if path.as_str() != ".env" {
+            assert!(
+                !content.contains(CANARY_API_KEY),
+                "{path} should not contain the API key"
+            );
+        }
+    }
+}
+
+#[test]
+fn test_new_project_writes_api_key_only_to_env() {
+    let merged_files = api_key_fixture_files()
+        .into_iter()
+        .map(|(path, content)| (Utf8PathBuf::from(path), content.as_bytes().to_vec()))
+        .collect();
+
+    let mcp_creation_confirmed = MCPCreationConfirmed {
+        output_path: Utf8PathBuf::from("/tmp/test"),
+        config: crate::command::init::config::ProjectConfig {
+            organization: OrganizationId::from_str("test_org").unwrap(),
+            use_case: ProjectUseCase::Connectors,
+            project_name: ProjectName::from_str("canary_project").unwrap(),
+            graph_id: GraphId::from_str("canary-graph").unwrap(),
+            project_type: ProjectType::CreateNew,
+        },
+        composed_template: MCPComposedTemplate::new(
+            crate::command::init::template_fetcher::Template {
+                id: crate::command::init::template_fetcher::TemplateId("test".to_string()),
+                display_name: "Test Template".to_string(),
+                path: "test".to_string(),
+                language: "TypeScript".to_string(),
+                federation_version: "=2.10.0".to_string(),
+                max_schema_depth: 5,
+                routing_url: "http://localhost:4001".to_string(),
+                commands: None,
+                start_point_file: "README.md".to_string(),
+                print_depth: None,
+            },
+            merged_files,
+        ),
+    };
+    let graph_ref = GraphRef::new("canary-graph", Some("current")).unwrap();
+
+    let hydrated: HashMap<Utf8PathBuf, String> = mcp_creation_confirmed
+        .hydrate_merged_files(CANARY_API_KEY, &graph_ref)
+        .into_iter()
+        .map(|(path, content)| (path, String::from_utf8(content).unwrap()))
+        .collect();
+
+    assert_eq!(
+        hydrated,
+        expected_hydrated_fixture_files("canary-graph@current")
+    );
+    assert_api_key_only_in_env(&hydrated);
+}
+
+#[test]
+fn test_existing_graph_writes_api_key_only_to_env() {
+    let ctx = ExistingGraphMCPContext {
+        project_name: "canary-graph",
+        graph_ref: "canary-graph@current",
+        graph_id: "canary-graph",
+        graph_name: "Canary Graph",
+        variant_name: "current",
+        organization_name: "test_org",
+        api_key: CANARY_API_KEY,
+        graph_studio_url: "https://studio.apollographql.com/graph/canary-graph/explorer",
+        mcp_server_binary: "/home/test/.rover/bin/apollo-mcp-server",
+        mcp_config_path: "/project/.apollo/mcp.claude.yaml",
+        tools_path: "/project/tools",
+    };
+
+    let hydrated: HashMap<Utf8PathBuf, String> = api_key_fixture_files()
+        .into_iter()
+        .map(|(path, content)| hydrate_existing_graph_file(&Utf8PathBuf::from(path), content, &ctx))
+        .collect();
+
+    assert_eq!(
+        hydrated,
+        expected_hydrated_fixture_files("canary-graph@current")
+    );
+    assert_api_key_only_in_env(&hydrated);
+}
+
+#[rstest]
+#[case::double_brace_key("APOLLO_KEY={{APOLLO_KEY}}", "APOLLO_KEY=service:canary:key")] // gitleaks:allow
+#[case::double_brace_api_key("APOLLO_KEY={{APOLLO_API_KEY}}", "APOLLO_KEY=service:canary:key")] // gitleaks:allow
+#[case::dollar_key("APOLLO_KEY=${APOLLO_KEY}", "APOLLO_KEY=service:canary:key")] // gitleaks:allow
+#[case::dollar_api_key("APOLLO_KEY=${APOLLO_API_KEY}", "APOLLO_KEY=service:canary:key")] // gitleaks:allow
+#[case::quoted_key("APOLLO_KEY=\"{{APOLLO_KEY}}\"", "APOLLO_KEY=\"service:canary:key\"")] // gitleaks:allow
+#[case::env_reference_preserved("KEY=${env.APOLLO_KEY}", "KEY=${env.APOLLO_KEY}")]
+#[case::other_placeholders_preserved(
+    "APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}",
+    "APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}"
+)]
+fn test_hydrate_env_api_key(#[case] content: &str, #[case] expected: &str) {
+    assert_eq!(
+        hydrate_env_api_key(content, "service:canary:key"), // gitleaks:allow
+        expected
+    );
 }

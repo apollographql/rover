@@ -1085,12 +1085,7 @@ impl MCPCreationConfirmed {
 
     /// Process template placeholders in any file content (for MCP projects)
     /// Handles both ${} and {{}} placeholder formats for comprehensive compatibility
-    pub fn process_template_placeholders(
-        &self,
-        content: &str,
-        api_key: &str,
-        graph_ref: &GraphRef,
-    ) -> String {
+    pub fn process_template_placeholders(&self, content: &str, graph_ref: &GraphRef) -> String {
         use crate::command::init::helpers::{
             MCPTemplateContext, process_mcp_template_placeholders,
         };
@@ -1106,7 +1101,6 @@ impl MCPCreationConfirmed {
             graph_name: &project_name, // graph_name same as project_name for new projects
             variant_name: "current",
             organization_name: &organization,
-            api_key,
             graph_ref,
             mcp_server_binary: None,
             mcp_config_path: None,
@@ -1114,6 +1108,35 @@ impl MCPCreationConfirmed {
         };
 
         process_mcp_template_placeholders(content, &ctx)
+    }
+
+    /// Fills placeholders in every merged template file and returns the files to write.
+    /// `.env.template` is written as `.env`, and it is the only file that receives the API key.
+    pub fn hydrate_merged_files(
+        &self,
+        api_key: &str,
+        graph_ref: &GraphRef,
+    ) -> HashMap<Utf8PathBuf, Vec<u8>> {
+        use crate::command::init::helpers::hydrate_env_api_key;
+
+        let mut processed_files = HashMap::new();
+        for (file_path, content) in &self.composed_template.merged_files {
+            let content_str = String::from_utf8_lossy(content);
+            let processed_content = self.process_template_placeholders(&content_str, graph_ref);
+
+            // Handle .env.template → .env renaming for MCP projects
+            let (final_path, processed_content) = if file_path.as_str().ends_with(".env.template") {
+                (
+                    Utf8PathBuf::from(file_path.as_str().replace(".env.template", ".env")),
+                    hydrate_env_api_key(&processed_content, api_key),
+                )
+            } else {
+                (file_path.clone(), processed_content)
+            };
+
+            processed_files.insert(final_path, processed_content.into_bytes());
+        }
+        processed_files
     }
 
     pub async fn create_project(
@@ -1209,21 +1232,7 @@ impl MCPCreationConfirmed {
         .expect("graph ref should be valid");
 
         // Process ALL template placeholders in merged files (including add-MCP files)
-        let mut processed_files = HashMap::new();
-        for (file_path, content) in &self.composed_template.merged_files {
-            let content_str = String::from_utf8_lossy(content);
-            let processed_content =
-                self.process_template_placeholders(&content_str, &api_key, &graph_ref);
-
-            // Handle .env.template → .env renaming for MCP projects
-            let final_path = if file_path.as_str().ends_with(".env.template") {
-                Utf8PathBuf::from(file_path.as_str().replace(".env.template", ".env"))
-            } else {
-                file_path.clone()
-            };
-
-            processed_files.insert(final_path, processed_content.into_bytes());
-        }
+        let processed_files = self.hydrate_merged_files(&api_key, &graph_ref);
 
         // Create a temporary SelectedTemplateState with processed files
         let selected_template = SelectedTemplateState {
