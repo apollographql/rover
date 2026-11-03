@@ -50,7 +50,7 @@ jobs:
     steps:
     - uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98
     - name: Install nightly@nightly toolchain
-      uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
+      uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2.0.1
       with:
         # Save caches from main only: other PRs can't reuse a PR's cache, and it evicts main's (10 GB repo limit).
         cache-save-if: ${{ github.ref == 'refs/heads/main' }}
@@ -68,7 +68,7 @@ jobs:
     steps:
     - uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98
     - name: Install stable@stable toolchain
-      uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
+      uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2.0.1
       with:
         # Save caches from main only: other PRs can't reuse a PR's cache, and it evicts main's (10 GB repo limit).
         cache-save-if: ${{ github.ref == 'refs/heads/main' }}
@@ -90,7 +90,7 @@ jobs:
     steps:
     - uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98
     - name: Install stable@stable toolchain
-      uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
+      uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2.0.1
       with:
         # Save caches from main only: other PRs can't reuse a PR's cache, and it evicts main's (10 GB repo limit).
         cache-save-if: ${{ github.ref == 'refs/heads/main' }}
@@ -170,7 +170,7 @@ jobs:
           cache_save: ${{ github.ref == 'refs/heads/main' }}
         env:
           CARGO_NET_RETRY: "5"
-      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2.0.1
         with:
           # Save caches from main only: other PRs can't reuse a PR's cache, and it evicts main's (10 GB repo limit).
           cache-save-if: ${{ github.ref == 'refs/heads/main' }}
@@ -195,7 +195,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2.0.1
         with:
           # Save caches from main only: other PRs can't reuse a PR's cache, and it evicts main's (10 GB repo limit).
           cache-save-if: ${{ github.ref == 'refs/heads/main' }}
@@ -250,7 +250,7 @@ jobs:
     # owns the checkout.
     - name: Fix git ownership
       run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-    - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
+    - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2.0.1
       with:
         # Save caches from main only: other PRs can't reuse a PR's cache, and it evicts main's (10 GB repo limit).
         cache-save-if: ${{ github.ref == 'refs/heads/main' }}
