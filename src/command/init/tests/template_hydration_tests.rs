@@ -388,3 +388,48 @@ fn test_hydrate_env_api_key(#[case] content: &str, #[case] expected: &str) {
         expected
     );
 }
+
+#[cfg(unix)]
+mod env_file_permissions {
+    use std::os::unix::fs::PermissionsExt;
+
+    use camino::Utf8PathBuf;
+    use rstest::rstest;
+    use speculoos::prelude::*;
+
+    use crate::command::init::helpers::{restrict_env_file_permissions, write_project_file};
+
+    fn mode(path: &Utf8PathBuf) -> u32 {
+        std::fs::metadata(path).unwrap().permissions().mode() & 0o777
+    }
+
+    #[rstest]
+    #[case(".env", 0o600)]
+    #[case("nested/.env", 0o600)]
+    #[case(".apollo/mcp.local.yaml", 0o644)]
+    #[case(".env.example", 0o644)]
+    fn write_project_file_keeps_only_env_private(#[case] relative: &str, #[case] expected: u32) {
+        let dir = tempfile::tempdir().unwrap();
+        let path = Utf8PathBuf::from_path_buf(dir.path().join(relative)).unwrap();
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        // Start from a known mode so the result does not depend on the process umask.
+        std::fs::write(&path, "").unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+
+        write_project_file(&path, "APOLLO_KEY=placeholder\n").unwrap();
+
+        assert_that!(mode(&path)).is_equal_to(expected);
+    }
+
+    #[test]
+    fn restrict_env_file_permissions_tightens_an_existing_env_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = Utf8PathBuf::from_path_buf(dir.path().join(".env")).unwrap();
+        std::fs::write(&path, "APOLLO_KEY=placeholder\n").unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o666)).unwrap();
+
+        restrict_env_file_permissions(&path).unwrap();
+
+        assert_that!(mode(&path)).is_equal_to(0o600);
+    }
+}

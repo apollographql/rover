@@ -381,6 +381,27 @@ pub fn hydrate_env_api_key(content: &str, api_key: &str) -> String {
         .replace("{{APOLLO_API_KEY}}", api_key)
 }
 
+/// Makes a generated `.env` file readable and writable only by its owner.
+///
+/// Other files are left as they are. On platforms without Unix permissions this does nothing.
+pub fn restrict_env_file_permissions(path: &Utf8Path) -> std::io::Result<()> {
+    if path.file_name() != Some(".env") {
+        return Ok(());
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
+    }
+    Ok(())
+}
+
+/// Writes one generated project file, keeping a `.env` file private to its owner.
+pub fn write_project_file(path: &Utf8Path, content: impl AsRef<[u8]>) -> std::io::Result<()> {
+    std::fs::write(path, content)?;
+    restrict_env_file_permissions(path)
+}
+
 /// Values used to fill placeholders in `add-mcp` files when adding MCP to an existing graph
 pub struct ExistingGraphMCPContext<'a> {
     pub project_name: &'a str,

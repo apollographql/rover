@@ -955,7 +955,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 std::fs::create_dir_all(parent)?;
             }
 
-            std::fs::write(&target_path, processed_content)?;
+            helpers::write_project_file(&target_path, processed_content)?;
         }
 
         println!();

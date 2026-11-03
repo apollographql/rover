@@ -1242,6 +1242,11 @@ impl MCPCreationConfirmed {
 
         // Write processed template files to filesystem
         selected_template.write_template(&self.output_path)?;
+        for file_path in selected_template.files.keys() {
+            crate::command::init::helpers::restrict_env_file_permissions(
+                &self.output_path.join(file_path),
+            )?;
+        }
 
         // Build supergraph configuration (required for MCP projects)
         let routing_url = selected_template.template.routing_url.clone();
