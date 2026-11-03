@@ -5,7 +5,7 @@ use rover_studio::types::GraphRef;
 use crate::{
     RoverResult,
     command::init::{
-        states,
+        GraphVariantOption, states,
         template_operations::{PrintMode::Confirmation, print_grouped_files},
     },
 };
@@ -258,6 +258,82 @@ pub fn normalize_docker_tag(graph_id: &str) -> String {
         .chars()
         .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_' || *c == '.')
         .collect()
+}
+
+/// Port the generated MCP server listens on.
+///
+/// Matches `transport.port` in the rover-init-starters `add-mcp` MCP config.
+pub(crate) const MCP_DEFAULT_PORT: u16 = 8000;
+
+/// Local MCP endpoint URL for a server started from the generated config.
+pub(crate) fn mcp_local_endpoint() -> String {
+    format!("http://127.0.0.1:{MCP_DEFAULT_PORT}/mcp")
+}
+
+/// `docker run` command for the MCP image built as `{docker_tag}-mcp`.
+pub(crate) fn mcp_docker_run_hint(docker_tag: &str) -> String {
+    format!(
+        "docker run -p 127.0.0.1:{MCP_DEFAULT_PORT}:{MCP_DEFAULT_PORT} --env-file .env {docker_tag}-mcp"
+    )
+}
+
+/// README written into an existing graph's directory by `rover init --mcp`.
+pub(super) fn existing_graph_mcp_readme(
+    selected_graph: &GraphVariantOption,
+    graph_ref_str: &str,
+    subgraph_info: &str,
+    docker_tag: &str,
+    graph_endpoint: &str,
+) -> String {
+    format!(
+        r#"# {} MCP Server
+
+This MCP server provides AI-accessible tools for your Apollo graph.
+
+## Graph Information
+- **Graph ID**: {}
+- **Variant**: {}
+- **Organization**: {}
+- **Graph Reference**: {}
+{}
+
+## Quick Start
+
+1. Build the MCP server:
+   ```bash
+   docker build -f mcp.Dockerfile -t {}-mcp .
+   ```
+
+2. Run the MCP server:
+   ```bash
+   {}
+   # Linux users may need: docker run --network=host --env-file .env {}-mcp
+   ```
+
+3. Test with MCP Inspector:
+   ```bash
+   npx @mcp/inspector
+   ```
+
+4. Configure Claude Desktop to use this server.
+
+## View in Apollo Studio
+{}"#,
+        selected_graph.graph_name,
+        selected_graph.graph_id,
+        selected_graph.variant_name,
+        selected_graph.organization_name,
+        graph_ref_str,
+        if !subgraph_info.is_empty() {
+            format!("\n- **{}**", subgraph_info)
+        } else {
+            String::new()
+        },
+        docker_tag,
+        mcp_docker_run_hint(docker_tag),
+        docker_tag,
+        graph_endpoint
+    )
 }
 
 /// Context for processing MCP template placeholders

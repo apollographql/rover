@@ -619,7 +619,7 @@ impl ProjectCreated {
         );
         println!(
             "   MCP endpoint: {}",
-            Style::Link.paint("http://127.0.0.1:5050/mcp")
+            Style::Link.paint(mcp_local_endpoint())
         );
         println!();
         println!(
@@ -681,7 +681,7 @@ impl ProjectCreated {
         println!(
             "   → API: {} | MCP: {}",
             Style::Link.paint("http://localhost:4000"),
-            Style::Link.paint("http://localhost:5050")
+            Style::Link.paint(mcp_local_endpoint())
         );
         println!();
 
