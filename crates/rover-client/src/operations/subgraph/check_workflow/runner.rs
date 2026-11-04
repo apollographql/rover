@@ -4,8 +4,9 @@ use rover_studio::types::GraphRef;
 
 use self::subgraph_check_workflow_query::{
     CheckWorkflowStatus, CheckWorkflowTaskStatus, ProposalStatus,
+    SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOn,
     SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOn::{
-        CompositionCheckTask, CustomCheckTask, DownstreamCheckTask, LintCheckTask,
+        CompositionCheckTask, CustomCheckTask, DownstreamCheckTask, FilterCheckTask, LintCheckTask,
         OperationsCheckTask, ProposalsCheckTask,
     },
     SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnCustomCheckTaskResult,
@@ -19,10 +20,10 @@ use crate::{
     operations::subgraph::check_workflow::types::QueryResponseData,
     shared::{
         check_workflow_poll::{poll_check_workflow, PollState},
-        CheckTaskStatus, CheckWorkflowResponse, CustomCheckResponse, Diagnostic,
-        DownstreamCheckResponse, DownstreamVariantCheckResult, LintCheckResponse,
-        OperationCheckResponse, ProposalsCheckResponse, ProposalsCheckSeverityLevel,
-        ProposalsCoverage, RelatedProposal, SchemaChange, Violation,
+        CheckTaskKind, CheckTaskStatus, CheckTaskSummary, CheckWorkflowResponse,
+        CustomCheckResponse, Diagnostic, DownstreamCheckResponse, DownstreamVariantCheckResult,
+        LintCheckResponse, OperationCheckResponse, ProposalsCheckResponse,
+        ProposalsCheckSeverityLevel, ProposalsCoverage, RelatedProposal, SchemaChange, Violation,
     },
     RoverClientError,
 };
@@ -151,7 +152,14 @@ fn get_check_response_from_data(
         Vec<SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnDownstreamCheckTaskResults>,
     > = None;
 
+    let mut task_summaries = Vec::with_capacity(check_workflow.tasks.len());
+
     for task in check_workflow.tasks {
+        task_summaries.push(CheckTaskSummary {
+            kind: task_kind(&task.on),
+            status: Some(task.status.clone()).into(),
+            target_url: task.target_url.clone(),
+        });
         match task.on {
             CompositionCheckTask(typed_task) => {
                 core_schema_status = Some(Some(task.status).into());
@@ -264,6 +272,7 @@ fn get_check_response_from_data(
             custom_result,
         ),
         maybe_downstream_response,
+        task_summaries,
     };
 
     match check_workflow.status {
@@ -275,6 +284,18 @@ fn get_check_response_from_data(
             })
         }
         _ => Err(RoverClientError::UnknownCheckWorkflowStatus),
+    }
+}
+
+const fn task_kind(task: &SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOn) -> CheckTaskKind {
+    match task {
+        CompositionCheckTask(_) => CheckTaskKind::Build,
+        FilterCheckTask => CheckTaskKind::ContractFilter,
+        OperationsCheckTask(_) => CheckTaskKind::Operations,
+        LintCheckTask(_) => CheckTaskKind::Lint,
+        ProposalsCheckTask(_) => CheckTaskKind::Proposals,
+        CustomCheckTask(_) => CheckTaskKind::Custom,
+        DownstreamCheckTask(_) => CheckTaskKind::Downstream,
     }
 }
 
@@ -1006,5 +1027,179 @@ mod tests {
             }],
         };
         assert_that!(&response.maybe_downstream_response).is_equal_to(Some(expected));
+    }
+
+    fn expect_check_workflow_failure(
+        result: Result<CheckWorkflowResponse, RoverClientError>,
+    ) -> (String, CheckWorkflowResponse) {
+        match result {
+            Err(error @ RoverClientError::CheckWorkflowFailure { .. }) => {
+                let message = error.to_string();
+                let RoverClientError::CheckWorkflowFailure { check_response, .. } = error else {
+                    unreachable!()
+                };
+                (message, *check_response)
+            }
+            other => panic!("Expected CheckWorkflowFailure error, got {other:?}"),
+        }
+    }
+
+    /// The build task failed but Studio returned no composition errors for it, so every task
+    /// depending on it is blocked. The failure must be attributed to the build, not reported as
+    /// an unknown task.
+    #[rstest]
+    fn build_failure_without_composition_errors_names_the_build_task(graph_ref: GraphRef) {
+        let data = create_check_workflow_data(
+            CheckWorkflowStatus::FAILED,
+            json!([
+                {
+                    "__typename": "CompositionCheckTask",
+                    "status": "FAILED",
+                    "targetURL": "https://studio.example/checks/build",
+                    "coreSchemaModified": false,
+                    "result": null
+                },
+                {
+                    "__typename": "OperationsCheckTask",
+                    "status": "BLOCKED",
+                    "targetURL": null,
+                    "result": null
+                },
+                {
+                    "__typename": "ProposalsCheckTask",
+                    "status": "BLOCKED",
+                    "targetURL": "https://studio.example/checks/proposals",
+                    "didOverrideProposalsCheckTask": false,
+                    "proposalCoverage": "PENDING",
+                    "relatedProposalResults": [],
+                    "severityLevel": "ERROR"
+                }
+            ]),
+        );
+
+        let (message, response) = expect_check_workflow_failure(get_check_response_from_data(
+            data,
+            graph_ref,
+            "test-subgraph".to_string(),
+            true,
+        ));
+
+        assert_that!(message).is_equal_to(
+            "The changes in the schema you proposed caused build checks to fail.".to_string(),
+        );
+        assert_that!(response.maybe_core_schema_status).is_equal_to(Some(CheckTaskStatus::FAILED));
+        assert_that!(response.task_summaries).is_equal_to(vec![
+            CheckTaskSummary {
+                kind: CheckTaskKind::Build,
+                status: CheckTaskStatus::FAILED,
+                target_url: Some("https://studio.example/checks/build".to_string()),
+            },
+            CheckTaskSummary {
+                kind: CheckTaskKind::Operations,
+                status: CheckTaskStatus::BLOCKED,
+                target_url: None,
+            },
+            CheckTaskSummary {
+                kind: CheckTaskKind::Proposals,
+                status: CheckTaskStatus::BLOCKED,
+                target_url: Some("https://studio.example/checks/proposals".to_string()),
+            },
+        ]);
+    }
+
+    /// Rover queries no fields of the contract filter task, but its status alone is enough to
+    /// name it as the task that failed.
+    #[rstest]
+    fn failed_contract_filter_task_is_named(graph_ref: GraphRef) {
+        let data = create_check_workflow_data(
+            CheckWorkflowStatus::FAILED,
+            json!([
+                {
+                    "__typename": "FilterCheckTask",
+                    "status": "FAILED",
+                    "targetURL": "https://studio.example/checks/filter"
+                }
+            ]),
+        );
+
+        let (message, response) = expect_check_workflow_failure(get_check_response_from_data(
+            data,
+            graph_ref,
+            "test-subgraph".to_string(),
+            true,
+        ));
+
+        assert_that!(message).is_equal_to(
+            "The changes in the schema you proposed caused contract filter checks to fail."
+                .to_string(),
+        );
+        assert_that!(response.failed_tasks()).is_equal_to(vec![CheckTaskKind::ContractFilter]);
+    }
+
+    /// A task Studio reports as failed without a result has no response section, but must
+    /// still be named, alongside the other failures, in a stable order.
+    #[rstest]
+    fn multiple_failures_including_ones_without_results_are_all_named(graph_ref: GraphRef) {
+        let data = create_check_workflow_data(
+            CheckWorkflowStatus::FAILED,
+            json!([
+                {
+                    "__typename": "CustomCheckTask",
+                    "status": "FAILED",
+                    "targetURL": null,
+                    "result": null
+                },
+                {
+                    "__typename": "OperationsCheckTask",
+                    "status": "FAILED",
+                    "targetURL": null,
+                    "result": null
+                },
+                {
+                    "__typename": "CompositionCheckTask",
+                    "status": "FAILED",
+                    "targetURL": null,
+                    "coreSchemaModified": false,
+                    "result": {
+                        "__typename": "CompositionCheckResult",
+                        "errors": []
+                    }
+                }
+            ]),
+        );
+
+        let (message, response) = expect_check_workflow_failure(get_check_response_from_data(
+            data,
+            graph_ref,
+            "test-subgraph".to_string(),
+            true,
+        ));
+
+        assert_that!(message).is_equal_to(
+            "The changes in the schema you proposed caused build, operation and custom checks to fail."
+                .to_string(),
+        );
+        assert_that!(response.maybe_operations_response).is_none();
+        assert_that!(response.maybe_custom_response).is_none();
+    }
+
+    /// A task type missing from Rover's copy of the Studio schema can't reach the check report
+    /// as an unrecognized task: the response fails to parse instead.
+    #[test]
+    fn task_type_missing_from_the_schema_fails_to_parse() {
+        let parsed = serde_json::from_value::<QueryResponseData>(json!({
+            "graph": {
+                "checkWorkflow": {
+                    "status": "FAILED",
+                    "tasks": [
+                        { "__typename": "SomeFutureCheckTask", "status": "FAILED", "targetURL": null }
+                    ]
+                }
+            }
+        }));
+
+        assert_that!(parsed.map_err(|error| error.to_string())).is_err_containing(
+            "unknown variant `SomeFutureCheckTask`, expected one of `CompositionCheckTask`, `CustomCheckTask`, `DownstreamCheckTask`, `FilterCheckTask`, `LintCheckTask`, `OperationsCheckTask`, `ProposalsCheckTask`".to_string(),
+        );
     }
 }

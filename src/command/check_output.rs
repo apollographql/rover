@@ -502,6 +502,7 @@ mod test {
                 ),
                 variants: vec![variant("mobile", true, CheckTaskStatus::FAILED)],
             }),
+            task_summaries: Vec::new(),
         }
     }
 
@@ -519,6 +520,7 @@ mod test {
             maybe_proposals_response: None,
             maybe_custom_response: None,
             maybe_downstream_response: None,
+            task_summaries: Vec::new(),
         }
     }
 

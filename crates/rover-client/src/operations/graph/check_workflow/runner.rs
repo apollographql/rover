@@ -2,9 +2,10 @@ use graphql_client::*;
 use rover_studio::types::GraphRef;
 
 use self::graph_check_workflow_query::{
-    CheckWorkflowStatus, CheckWorkflowTaskStatus,
+    CheckWorkflowStatus, CheckWorkflowTaskStatus, GraphCheckWorkflowQueryGraphCheckWorkflowTasksOn,
     GraphCheckWorkflowQueryGraphCheckWorkflowTasksOn::{
-        CustomCheckTask, DownstreamCheckTask, LintCheckTask, OperationsCheckTask,
+        CompositionCheckTask, CustomCheckTask, DownstreamCheckTask, FilterCheckTask, LintCheckTask,
+        OperationsCheckTask, ProposalsCheckTask,
     },
     GraphCheckWorkflowQueryGraphCheckWorkflowTasksOnCustomCheckTaskResult,
     GraphCheckWorkflowQueryGraphCheckWorkflowTasksOnDownstreamCheckTaskResults,
@@ -16,9 +17,9 @@ use crate::{
     operations::graph::check_workflow::types::{CheckWorkflowInput, QueryResponseData},
     shared::{
         check_workflow_poll::{poll_check_workflow, PollState},
-        CheckWorkflowResponse, CustomCheckResponse, Diagnostic, DownstreamCheckResponse,
-        DownstreamVariantCheckResult, LintCheckResponse, OperationCheckResponse, SchemaChange,
-        Violation,
+        CheckTaskKind, CheckTaskSummary, CheckWorkflowResponse, CustomCheckResponse, Diagnostic,
+        DownstreamCheckResponse, DownstreamVariantCheckResult, LintCheckResponse,
+        OperationCheckResponse, SchemaChange, Violation,
     },
     RoverClientError,
 };
@@ -137,7 +138,14 @@ fn get_check_response_from_data(
         Vec<GraphCheckWorkflowQueryGraphCheckWorkflowTasksOnDownstreamCheckTaskResults>,
     > = None;
 
+    let mut task_summaries = Vec::with_capacity(check_workflow.tasks.len());
+
     for task in check_workflow.tasks {
+        task_summaries.push(CheckTaskSummary {
+            kind: task_kind(&task.on),
+            status: Some(task.status.clone()).into(),
+            target_url: task.target_url.clone(),
+        });
         match task.on {
             OperationsCheckTask(typed_task) => {
                 operations_status = Some(task.status);
@@ -214,6 +222,7 @@ fn get_check_response_from_data(
         ),
         maybe_proposals_response: None,
         maybe_downstream_response,
+        task_summaries,
     };
 
     match check_workflow.status {
@@ -225,6 +234,18 @@ fn get_check_response_from_data(
             })
         }
         _ => Err(RoverClientError::UnknownCheckWorkflowStatus),
+    }
+}
+
+const fn task_kind(task: &GraphCheckWorkflowQueryGraphCheckWorkflowTasksOn) -> CheckTaskKind {
+    match task {
+        CompositionCheckTask => CheckTaskKind::Build,
+        FilterCheckTask => CheckTaskKind::ContractFilter,
+        OperationsCheckTask(_) => CheckTaskKind::Operations,
+        LintCheckTask(_) => CheckTaskKind::Lint,
+        ProposalsCheckTask => CheckTaskKind::Proposals,
+        CustomCheckTask(_) => CheckTaskKind::Custom,
+        DownstreamCheckTask(_) => CheckTaskKind::Downstream,
     }
 }
 
@@ -753,5 +774,35 @@ mod tests {
             }],
         };
         assert_that!(&response.maybe_downstream_response).is_equal_to(Some(expected));
+    }
+
+    /// `graph check` selects no fields of the proposals task, but a failure there must still
+    /// be named rather than reported as an unknown task.
+    #[rstest]
+    fn failed_task_type_without_queried_fields_is_named(graph_ref: GraphRef) {
+        let data = create_check_workflow_data(
+            CheckWorkflowStatus::FAILED,
+            json!([
+                {
+                    "__typename": "ProposalsCheckTask",
+                    "status": "FAILED",
+                    "targetURL": "https://studio.example/checks/proposals"
+                }
+            ]),
+        );
+
+        let error = get_check_response_from_data(data, graph_ref, false).unwrap_err();
+
+        assert_that!(error.to_string()).is_equal_to(
+            "The changes in the schema you proposed caused proposal checks to fail.".to_string(),
+        );
+        let RoverClientError::CheckWorkflowFailure { check_response, .. } = error else {
+            panic!("Expected CheckWorkflowFailure error, got {error:?}");
+        };
+        assert_that!(check_response.task_summaries).is_equal_to(vec![CheckTaskSummary {
+            kind: CheckTaskKind::Proposals,
+            status: CheckTaskStatus::FAILED,
+            target_url: Some("https://studio.example/checks/proposals".to_string()),
+        }]);
     }
 }
