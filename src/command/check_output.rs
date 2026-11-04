@@ -85,6 +85,12 @@ impl CliOutput for CheckWorkflowOutput<'_> {
     }
 }
 
+const NO_SCHEMA_CHANGES: &str = "There were no changes detected in the composed schema.";
+const CORE_SCHEMA_ONLY_CHANGES: &str =
+    "There were no changes detected in the composed API schema, but the core schema was modified.";
+const API_SCHEMA_CHANGES: &str = "The composed API schema was modified.";
+const UNKNOWN_API_SCHEMA_CHANGES: &str = "The composed schema was modified.";
+
 /// Summarizes what the build changed, for the `Build Check` section.
 ///
 /// The composition task only reports whether the core (supergraph) schema changed. Whether the
@@ -105,12 +111,10 @@ fn build_check_summary(
         core_schema_modified,
         maybe_operations_response,
     ) {
-        (true, _, _) => "The composed API schema was modified.",
-        (false, false, _) => "There were no changes detected in the composed schema.",
-        (false, true, Some(_)) => {
-            "There were no changes detected in the composed API schema, but the core schema was modified."
-        }
-        (false, true, None) => "The composed schema was modified.",
+        (true, _, _) => API_SCHEMA_CHANGES,
+        (false, false, _) => NO_SCHEMA_CHANGES,
+        (false, true, Some(_)) => CORE_SCHEMA_ONLY_CHANGES,
+        (false, true, None) => UNKNOWN_API_SCHEMA_CHANGES,
     }
 }
 
@@ -648,11 +652,6 @@ mod test {
             .is_equal_to(expected.to_string());
     }
 
-    const NO_SCHEMA_CHANGES: &str = "There were no changes detected in the composed schema.";
-    const CORE_SCHEMA_ONLY_CHANGES: &str = "There were no changes detected in the composed API schema, but the core schema was modified.";
-    const API_SCHEMA_CHANGES: &str = "The composed API schema was modified.";
-    const UNKNOWN_API_SCHEMA_CHANGES: &str = "The composed schema was modified.";
-
     fn schema_change(severity: ChangeSeverity) -> SchemaChange {
         SchemaChange {
             code: "FIELD_REMOVED".to_string(),
@@ -751,6 +750,27 @@ mod test {
     ) {
         let response = subgraph_check_response(core_schema_modified, maybe_operations_response);
         assert_that!(build_check_body(&response)).is_equal_to(expected.to_string());
+    }
+
+    /// Pins the exact wording of each Build Check message with a checked-in snapshot, so the
+    /// production message constants can be shared with the code under test without letting a
+    /// reworded or mistyped message pass unnoticed.
+    #[rstest]
+    #[case::core_schema_unchanged("build_check_core_schema_unchanged", false, operations_result(vec![]))]
+    #[case::only_the_core_schema_changed("build_check_only_core_schema_changed", true, operations_result(vec![]))]
+    #[case::api_schema_changed(
+        "build_check_api_schema_changed",
+        true,
+        operations_result(vec![schema_change(ChangeSeverity::FAIL)])
+    )]
+    #[case::unknown_api_schema_changes("build_check_unknown_api_schema_changes", true, None)]
+    fn build_check_wording_snapshot(
+        #[case] snapshot_name: &str,
+        #[case] core_schema_modified: bool,
+        #[case] maybe_operations_response: Option<OperationCheckResponse>,
+    ) {
+        let response = subgraph_check_response(core_schema_modified, maybe_operations_response);
+        insta::assert_snapshot!(snapshot_name, build_check_body(&response));
     }
 
     /// Regression guard: no combination that reports schema changes may also say that no
