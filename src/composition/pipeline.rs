@@ -279,11 +279,9 @@ fn config_pin<T, E>(
     (pinned, path)
 }
 
-/// Whether a failed composition is worth a nudge toward migrating from Federation 1: nothing
-/// asked for a federation version, and none of the subgraphs opts in to Federation 2 with
-/// `@link`. Composition defaults to Federation 2 in that case, so Rover never infers
-/// Federation 1 from the SDL, and a subgraph with no federation directives at all reads the same
-/// under both versions. That's why this only shapes a suggestion after composition has failed.
+/// Whether a failed composition is worth a nudge toward migrating from Federation 1. True when
+/// no federation version was requested and no subgraph uses `@link`. This only gives a hint: a
+/// subgraph with no federation directives is valid under both versions.
 fn maybe_federation_one(
     federation_version_specified: bool,
     config: &FullyResolvedSupergraphConfig,
