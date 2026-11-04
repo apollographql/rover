@@ -1,0 +1,43 @@
+---
+source: tests/integration/subgraph/check.rs
+expression: json
+---
+{
+  "json_version": "3",
+  "data": {
+    "core_schema_modified": false,
+    "tasks": {
+      "proposals": {
+        "task_status": "BLOCKED",
+        "severity_level": "ERROR",
+        "proposal_coverage": "PENDING",
+        "target_url": "https://studio.apollographql.com/graph/my-graph/checks/proposals",
+        "related_proposals": [],
+        "has_exceeded_max_diffs": null,
+        "overridden": false
+      }
+    },
+    "task_statuses": [
+      {
+        "task": "build",
+        "status": "FAILED",
+        "target_url": "https://studio.apollographql.com/graph/my-graph/checks/build"
+      },
+      {
+        "task": "operations",
+        "status": "BLOCKED",
+        "target_url": null
+      },
+      {
+        "task": "proposals",
+        "status": "BLOCKED",
+        "target_url": "https://studio.apollographql.com/graph/my-graph/checks/proposals"
+      }
+    ],
+    "success": false
+  },
+  "error": {
+    "message": "The changes in the schema you proposed caused build checks to fail.",
+    "code": "E043"
+  }
+}
