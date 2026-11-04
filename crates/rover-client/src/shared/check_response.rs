@@ -25,9 +25,77 @@ pub struct CheckWorkflowResponse {
     pub maybe_custom_response: Option<CustomCheckResponse>,
 
     pub maybe_downstream_response: Option<DownstreamCheckResponse>,
+
+    // The status of every task Studio reported for the workflow, including tasks it returned
+    // no result for and task types Rover doesn't otherwise query, so a failure can always be
+    // attributed to the task that caused it.
+    #[serde(skip)]
+    pub task_summaries: Vec<CheckTaskSummary>,
 }
 
 impl CheckWorkflowResponse {
+    /// The tasks that failed, in a stable order, each listed once.
+    ///
+    /// A task counts as failed when either its rendered response says so (which covers a
+    /// downstream check escalated to a failure by a blocking contract variant) or Studio
+    /// reported it as failed, whether or not it returned a result for it.
+    pub fn failed_tasks(&self) -> Vec<CheckTaskKind> {
+        let response_statuses = [
+            (CheckTaskKind::Build, self.maybe_core_schema_status.as_ref()),
+            (
+                CheckTaskKind::Operations,
+                self.maybe_operations_response
+                    .as_ref()
+                    .map(|response| &response.task_status),
+            ),
+            (
+                CheckTaskKind::Lint,
+                self.maybe_lint_response
+                    .as_ref()
+                    .map(|response| &response.task_status),
+            ),
+            (
+                CheckTaskKind::Proposals,
+                self.maybe_proposals_response
+                    .as_ref()
+                    .map(|response| &response.task_status),
+            ),
+            (
+                CheckTaskKind::Custom,
+                self.maybe_custom_response
+                    .as_ref()
+                    .map(|response| &response.task_status),
+            ),
+            (
+                CheckTaskKind::Downstream,
+                self.maybe_downstream_response
+                    .as_ref()
+                    .map(|response| &response.task_status),
+            ),
+        ];
+        let mut failed: Vec<CheckTaskKind> = response_statuses
+            .into_iter()
+            .filter(|(_, status)| *status == Some(&CheckTaskStatus::FAILED))
+            .map(|(kind, _)| kind)
+            .chain(
+                self.task_summaries
+                    .iter()
+                    .filter(|summary| summary.status == CheckTaskStatus::FAILED)
+                    .map(|summary| summary.kind),
+            )
+            .collect();
+        failed.sort();
+        failed.dedup();
+        failed
+    }
+
+    /// The first task of the given kind Studio reported for the workflow, if any.
+    pub fn task_summary(&self, kind: CheckTaskKind) -> Option<&CheckTaskSummary> {
+        self.task_summaries
+            .iter()
+            .find(|summary| summary.kind == kind)
+    }
+
     pub fn get_json(&self) -> Value {
         let mut json_result: Value = json!({});
         let mut tasks: Value = json!({});
@@ -60,6 +128,54 @@ impl CheckWorkflowResponse {
 
         json_result
     }
+}
+
+/// The kinds of task a check workflow can run. The order is the order failures are listed in.
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub enum CheckTaskKind {
+    Build,
+    ContractFilter,
+    Operations,
+    Lint,
+    Proposals,
+    Custom,
+    Downstream,
+}
+
+impl CheckTaskKind {
+    /// How the task is named in a sentence, as in "caused build checks to fail".
+    pub const fn noun(self) -> &'static str {
+        match self {
+            CheckTaskKind::Build => "build",
+            CheckTaskKind::ContractFilter => "contract filter",
+            CheckTaskKind::Operations => "operation",
+            CheckTaskKind::Lint => "linter",
+            CheckTaskKind::Proposals => "proposal",
+            CheckTaskKind::Custom => "custom",
+            CheckTaskKind::Downstream => "downstream",
+        }
+    }
+
+    /// The task's heading in the check report.
+    pub const fn title(self) -> &'static str {
+        match self {
+            CheckTaskKind::Build => "Build Check",
+            CheckTaskKind::ContractFilter => "Contract Filter Check",
+            CheckTaskKind::Operations => "Operation Check",
+            CheckTaskKind::Lint => "Linter Check",
+            CheckTaskKind::Proposals => "Proposals Check",
+            CheckTaskKind::Custom => "Custom Check",
+            CheckTaskKind::Downstream => "Downstream Check",
+        }
+    }
+}
+
+/// The status Studio reported for one task of a check workflow, with its Studio link.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct CheckTaskSummary {
+    pub kind: CheckTaskKind,
+    pub status: CheckTaskStatus,
+    pub target_url: Option<String>,
 }
 
 /// CheckResponse is the return type of the
