@@ -381,25 +381,59 @@ pub fn hydrate_env_api_key(content: &str, api_key: &str) -> String {
         .replace("{{APOLLO_API_KEY}}", api_key)
 }
 
-/// Makes a generated `.env` file readable and writable only by its owner.
+/// Returns the path to write a template file to when it is the `.env` template.
 ///
-/// Other files are left as they are. On platforms without Unix permissions this does nothing.
-pub fn restrict_env_file_permissions(path: &Utf8Path) -> std::io::Result<()> {
-    if path.file_name() != Some(".env") {
-        return Ok(());
-    }
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
-    }
-    Ok(())
+/// A file named `.env.template`, in any directory, is written as `.env` next to it, and it is the
+/// only file that receives the API key. Returns `None` for every other file.
+pub fn env_output_path(template_path: &Utf8Path) -> Option<Utf8PathBuf> {
+    (template_path.file_name() == Some(".env.template"))
+        .then(|| template_path.with_file_name(".env"))
 }
 
-/// Writes one generated project file, keeping a `.env` file private to its owner.
+/// Returns `true` when `path` names a generated `.env` file.
+pub fn is_env_file(path: &Utf8Path) -> bool {
+    path.file_name() == Some(".env")
+}
+
+/// Writes one generated project file.
+///
+/// A `.env` file is written so that only its owner can read or write it. Other files are written
+/// with the default permissions.
 pub fn write_project_file(path: &Utf8Path, content: impl AsRef<[u8]>) -> std::io::Result<()> {
-    std::fs::write(path, content)?;
-    restrict_env_file_permissions(path)
+    if is_env_file(path) {
+        write_owner_only_file(path, content.as_ref())
+    } else {
+        std::fs::write(path, content)
+    }
+}
+
+/// Writes `content` to `path` so that only the owner can read or write it.
+///
+/// On Unix, a new file is created with mode `0600`, and an existing file is restricted to `0600`
+/// before the new content is written, so other users cannot open the file and read the new
+/// content. On other platforms this is a plain write.
+pub fn write_owner_only_file(path: &Utf8Path, content: &[u8]) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::{
+            io::Write,
+            os::unix::fs::{OpenOptionsExt, PermissionsExt},
+        };
+
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .mode(0o600)
+            .open(path)?;
+        // `mode` applies only when the file is created, so also restrict a file that already exists.
+        file.set_permissions(std::fs::Permissions::from_mode(0o600))?;
+        file.write_all(content)
+    }
+    #[cfg(not(unix))]
+    {
+        std::fs::write(path, content)
+    }
 }
 
 /// Values used to fill placeholders in `add-mcp` files when adding MCP to an existing graph
@@ -471,7 +505,7 @@ pub fn hydrate_existing_graph_file(
         );
 
     // Handle the specific case where .env.template needs dynamic values populated
-    if file_path == ".env.template" {
+    if let Some(env_path) = env_output_path(file_path) {
         // Fill the quoted values in .env.template, then the API key
         let env_content = processed_content
             .replace("\"{{PROJECT_NAME}}\"", &format!("\"{}\"", ctx.project_name))
@@ -485,10 +519,7 @@ pub fn hydrate_existing_graph_file(
             );
 
         // Write processed template as .env file instead of .env.template
-        return (
-            Utf8PathBuf::from(".env"),
-            hydrate_env_api_key(&env_content, ctx.api_key),
-        );
+        return (env_path, hydrate_env_api_key(&env_content, ctx.api_key));
     }
 
     (file_path.to_path_buf(), processed_content)

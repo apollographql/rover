@@ -1,14 +1,25 @@
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 use std::{collections::HashMap, str::FromStr};
 
+#[cfg(unix)]
+use camino::Utf8Path;
 use camino::Utf8PathBuf;
 use rover_studio::types::GraphRef;
-use rstest::rstest;
+use rstest::{fixture, rstest};
+use speculoos::prelude::*;
 
+#[cfg(unix)]
+use crate::command::init::helpers::write_project_file;
 use crate::command::init::{
     graph_id::validation::GraphId,
-    helpers::{ExistingGraphMCPContext, hydrate_env_api_key, hydrate_existing_graph_file},
+    helpers::{
+        ExistingGraphMCPContext, env_output_path, hydrate_env_api_key, hydrate_existing_graph_file,
+        is_env_file,
+    },
     options::*,
     states::*,
+    template_fetcher::{Template, TemplateId},
 };
 
 #[test]
@@ -236,9 +247,14 @@ This is a test project with graph ref: {{APOLLO_GRAPH_REF}}
 }
 
 const CANARY_API_KEY: &str = "service:canary-graph:CANARY-KEY-0123456789"; // gitleaks:allow
+const CANARY_GRAPH_REF: &str = "canary-graph@current";
 
-/// Template files that reference the API key in every supported placeholder style
-fn api_key_fixture_files() -> Vec<(&'static str, &'static str)> {
+/// Template files that reference the API key in every supported placeholder style.
+///
+/// These are synthetic files. They exercise every placeholder style, so they are not copies of
+/// the real starter templates, which read the key from the environment (`${env.APOLLO_KEY}`).
+#[fixture]
+fn api_key_template_files() -> Vec<(&'static str, &'static str)> {
     vec![
         (
             ".env.template",
@@ -259,35 +275,53 @@ fn api_key_fixture_files() -> Vec<(&'static str, &'static str)> {
     ]
 }
 
-/// The files expected after hydrating `api_key_fixture_files` for `graph_ref`
-fn expected_hydrated_fixture_files(graph_ref: &str) -> HashMap<Utf8PathBuf, String> {
+/// The files expected after hydrating `api_key_template_files` for `CANARY_GRAPH_REF`
+#[fixture]
+fn expected_hydrated_files() -> HashMap<Utf8PathBuf, String> {
     HashMap::from([
         (
             Utf8PathBuf::from(".env"),
-            format!("APOLLO_KEY=\"{CANARY_API_KEY}\"\nAPOLLO_GRAPH_REF=\"{graph_ref}\"\n"),
+            format!("APOLLO_KEY=\"{CANARY_API_KEY}\"\nAPOLLO_GRAPH_REF=\"{CANARY_GRAPH_REF}\"\n"),
         ),
         (
             Utf8PathBuf::from(".apollo/mcp.staging.yaml"),
             format!(
-                "graphos:\n  apollo_graph_ref: {graph_ref}\nheaders:\n  Authorization: \"Bearer ${{APOLLO_KEY}}\"\n  X-Env-Authorization: \"Bearer ${{env.APOLLO_KEY}}\"\n"
+                "graphos:\n  apollo_graph_ref: {CANARY_GRAPH_REF}\nheaders:\n  Authorization: \"Bearer ${{APOLLO_KEY}}\"\n  X-Env-Authorization: \"Bearer ${{env.APOLLO_KEY}}\"\n"
             ),
         ),
         (
             Utf8PathBuf::from(".vscode/settings.json"),
             format!(
-                "{{\n  \"APOLLO_KEY\": \"{{{{APOLLO_KEY}}}}\",\n  \"APOLLO_GRAPH_REF\": \"{graph_ref}\"\n}}\n"
+                "{{\n  \"APOLLO_KEY\": \"{{{{APOLLO_KEY}}}}\",\n  \"APOLLO_GRAPH_REF\": \"{CANARY_GRAPH_REF}\"\n}}\n"
             ),
         ),
         (
             Utf8PathBuf::from("mcp.Dockerfile"),
-            format!("ENV APOLLO_KEY={{{{APOLLO_KEY}}}}\nENV APOLLO_GRAPH_REF={graph_ref}\n"),
+            format!("ENV APOLLO_KEY={{{{APOLLO_KEY}}}}\nENV APOLLO_GRAPH_REF={CANARY_GRAPH_REF}\n"),
         ),
     ])
 }
 
+/// A minimal base template for building template states in tests
+#[fixture]
+fn test_template() -> Template {
+    Template {
+        id: TemplateId("test".to_string()),
+        display_name: "Test Template".to_string(),
+        path: "test".to_string(),
+        language: "TypeScript".to_string(),
+        federation_version: "=2.10.0".to_string(),
+        max_schema_depth: 5,
+        routing_url: "http://localhost:4001".to_string(),
+        commands: None,
+        start_point_file: "README.md".to_string(),
+        print_depth: None,
+    }
+}
+
 fn assert_api_key_only_in_env(files: &HashMap<Utf8PathBuf, String>) {
     for (path, content) in files {
-        if path.as_str() != ".env" {
+        if !is_env_file(path) {
             assert!(
                 !content.contains(CANARY_API_KEY),
                 "{path} should not contain the API key"
@@ -296,9 +330,13 @@ fn assert_api_key_only_in_env(files: &HashMap<Utf8PathBuf, String>) {
     }
 }
 
-#[test]
-fn test_new_project_writes_api_key_only_to_env() {
-    let merged_files = api_key_fixture_files()
+#[rstest]
+fn test_new_project_writes_api_key_only_to_env(
+    api_key_template_files: Vec<(&'static str, &'static str)>,
+    expected_hydrated_files: HashMap<Utf8PathBuf, String>,
+    test_template: Template,
+) {
+    let merged_files = api_key_template_files
         .into_iter()
         .map(|(path, content)| (Utf8PathBuf::from(path), content.as_bytes().to_vec()))
         .collect();
@@ -312,23 +350,9 @@ fn test_new_project_writes_api_key_only_to_env() {
             graph_id: GraphId::from_str("canary-graph").unwrap(),
             project_type: ProjectType::CreateNew,
         },
-        composed_template: MCPComposedTemplate::new(
-            crate::command::init::template_fetcher::Template {
-                id: crate::command::init::template_fetcher::TemplateId("test".to_string()),
-                display_name: "Test Template".to_string(),
-                path: "test".to_string(),
-                language: "TypeScript".to_string(),
-                federation_version: "=2.10.0".to_string(),
-                max_schema_depth: 5,
-                routing_url: "http://localhost:4001".to_string(),
-                commands: None,
-                start_point_file: "README.md".to_string(),
-                print_depth: None,
-            },
-            merged_files,
-        ),
+        composed_template: MCPComposedTemplate::new(test_template, merged_files),
     };
-    let graph_ref = GraphRef::new("canary-graph", Some("current")).unwrap();
+    let graph_ref = GraphRef::from_str(CANARY_GRAPH_REF).unwrap();
 
     let hydrated: HashMap<Utf8PathBuf, String> = mcp_creation_confirmed
         .hydrate_merged_files(CANARY_API_KEY, &graph_ref)
@@ -336,18 +360,18 @@ fn test_new_project_writes_api_key_only_to_env() {
         .map(|(path, content)| (path, String::from_utf8(content).unwrap()))
         .collect();
 
-    assert_eq!(
-        hydrated,
-        expected_hydrated_fixture_files("canary-graph@current")
-    );
+    assert_that!(hydrated).is_equal_to(&expected_hydrated_files);
     assert_api_key_only_in_env(&hydrated);
 }
 
-#[test]
-fn test_existing_graph_writes_api_key_only_to_env() {
+#[rstest]
+fn test_existing_graph_writes_api_key_only_to_env(
+    api_key_template_files: Vec<(&'static str, &'static str)>,
+    expected_hydrated_files: HashMap<Utf8PathBuf, String>,
+) {
     let ctx = ExistingGraphMCPContext {
         project_name: "canary-graph",
-        graph_ref: "canary-graph@current",
+        graph_ref: CANARY_GRAPH_REF,
         graph_id: "canary-graph",
         graph_name: "Canary Graph",
         variant_name: "current",
@@ -359,16 +383,24 @@ fn test_existing_graph_writes_api_key_only_to_env() {
         tools_path: "/project/tools",
     };
 
-    let hydrated: HashMap<Utf8PathBuf, String> = api_key_fixture_files()
+    let hydrated: HashMap<Utf8PathBuf, String> = api_key_template_files
         .into_iter()
         .map(|(path, content)| hydrate_existing_graph_file(&Utf8PathBuf::from(path), content, &ctx))
         .collect();
 
-    assert_eq!(
-        hydrated,
-        expected_hydrated_fixture_files("canary-graph@current")
-    );
+    assert_that!(hydrated).is_equal_to(&expected_hydrated_files);
     assert_api_key_only_in_env(&hydrated);
+}
+
+#[rstest]
+#[case::root(".env.template", Some(".env"))]
+#[case::nested("nested/.env.template", Some("nested/.env"))]
+#[case::suffix_only("local.env.template", None)]
+#[case::env_example(".env.example", None)]
+#[case::other("README.md", None)]
+fn test_env_output_path(#[case] template_path: &str, #[case] expected: Option<&str>) {
+    assert_that!(env_output_path(&Utf8PathBuf::from(template_path)))
+        .is_equal_to(expected.map(Utf8PathBuf::from));
 }
 
 #[rstest]
@@ -390,46 +422,64 @@ fn test_hydrate_env_api_key(#[case] content: &str, #[case] expected: &str) {
 }
 
 #[cfg(unix)]
-mod env_file_permissions {
-    use std::os::unix::fs::PermissionsExt;
+fn file_mode(path: &Utf8Path) -> u32 {
+    std::fs::metadata(path).unwrap().permissions().mode() & 0o777
+}
 
-    use camino::Utf8PathBuf;
-    use rstest::rstest;
-    use speculoos::prelude::*;
-
-    use crate::command::init::helpers::{restrict_env_file_permissions, write_project_file};
-
-    fn mode(path: &Utf8PathBuf) -> u32 {
-        std::fs::metadata(path).unwrap().permissions().mode() & 0o777
+/// `existing_mode` is the mode of a file already at the path, or `None` when there is no file.
+#[cfg(unix)]
+#[rstest]
+#[case::new_env(".env", None, 0o600)]
+#[case::existing_env(".env", Some(0o644), 0o600)]
+#[case::existing_world_writable_env(".env", Some(0o666), 0o600)]
+#[case::nested_env("nested/.env", Some(0o644), 0o600)]
+#[case::config_file(".apollo/mcp.local.yaml", Some(0o644), 0o644)]
+#[case::env_example(".env.example", Some(0o644), 0o644)]
+fn test_write_project_file_keeps_only_env_private(
+    #[case] relative: &str,
+    #[case] existing_mode: Option<u32>,
+    #[case] expected_mode: u32,
+) {
+    let dir = tempfile::tempdir().unwrap();
+    let path = Utf8PathBuf::from_path_buf(dir.path().join(relative)).unwrap();
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    if let Some(mode) = existing_mode {
+        // Start from a known mode so the result does not depend on the process umask
+        std::fs::write(&path, "OLD=value\n").unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(mode)).unwrap();
     }
 
-    #[rstest]
-    #[case(".env", 0o600)]
-    #[case("nested/.env", 0o600)]
-    #[case(".apollo/mcp.local.yaml", 0o644)]
-    #[case(".env.example", 0o644)]
-    fn write_project_file_keeps_only_env_private(#[case] relative: &str, #[case] expected: u32) {
-        let dir = tempfile::tempdir().unwrap();
-        let path = Utf8PathBuf::from_path_buf(dir.path().join(relative)).unwrap();
-        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-        // Start from a known mode so the result does not depend on the process umask.
-        std::fs::write(&path, "").unwrap();
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+    write_project_file(&path, "APOLLO_KEY=placeholder\n").unwrap();
 
-        write_project_file(&path, "APOLLO_KEY=placeholder\n").unwrap();
+    assert_that!(file_mode(&path)).is_equal_to(expected_mode);
+    assert_that!(std::fs::read_to_string(&path).unwrap())
+        .is_equal_to("APOLLO_KEY=placeholder\n".to_string());
+}
 
-        assert_that!(mode(&path)).is_equal_to(expected);
-    }
+#[cfg(unix)]
+#[rstest]
+fn test_write_template_creates_env_private_to_its_owner(test_template: Template) {
+    let dir = tempfile::tempdir().unwrap();
+    let output_path = Utf8PathBuf::from_path_buf(dir.path().to_path_buf()).unwrap();
+    let selected_template = SelectedTemplateState {
+        template: test_template,
+        files: HashMap::from([
+            (
+                Utf8PathBuf::from(".env"),
+                b"APOLLO_KEY=placeholder\n".to_vec(),
+            ),
+            (
+                Utf8PathBuf::from(".apollo/mcp.local.yaml"),
+                b"endpoint: http://localhost:4000\n".to_vec(),
+            ),
+        ]),
+    };
 
-    #[test]
-    fn restrict_env_file_permissions_tightens_an_existing_env_file() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = Utf8PathBuf::from_path_buf(dir.path().join(".env")).unwrap();
-        std::fs::write(&path, "APOLLO_KEY=placeholder\n").unwrap();
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o666)).unwrap();
+    selected_template.write_template(&output_path).unwrap();
 
-        restrict_env_file_permissions(&path).unwrap();
-
-        assert_that!(mode(&path)).is_equal_to(0o600);
-    }
+    assert_that!(file_mode(&output_path.join(".env"))).is_equal_to(0o600);
+    assert_that!(std::fs::read_to_string(output_path.join(".env")).unwrap())
+        .is_equal_to("APOLLO_KEY=placeholder\n".to_string());
+    assert_that!(std::fs::read_to_string(output_path.join(".apollo/mcp.local.yaml")).unwrap())
+        .is_equal_to("endpoint: http://localhost:4000\n".to_string());
 }

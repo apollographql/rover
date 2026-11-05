@@ -1117,7 +1117,7 @@ impl MCPCreationConfirmed {
         api_key: &str,
         graph_ref: &GraphRef,
     ) -> HashMap<Utf8PathBuf, Vec<u8>> {
-        use crate::command::init::helpers::hydrate_env_api_key;
+        use crate::command::init::helpers::{env_output_path, hydrate_env_api_key};
 
         let mut processed_files = HashMap::new();
         for (file_path, content) in &self.composed_template.merged_files {
@@ -1125,13 +1125,9 @@ impl MCPCreationConfirmed {
             let processed_content = self.process_template_placeholders(&content_str, graph_ref);
 
             // Handle .env.template → .env renaming for MCP projects
-            let (final_path, processed_content) = if file_path.as_str().ends_with(".env.template") {
-                (
-                    Utf8PathBuf::from(file_path.as_str().replace(".env.template", ".env")),
-                    hydrate_env_api_key(&processed_content, api_key),
-                )
-            } else {
-                (file_path.clone(), processed_content)
+            let (final_path, processed_content) = match env_output_path(file_path) {
+                Some(env_path) => (env_path, hydrate_env_api_key(&processed_content, api_key)),
+                None => (file_path.clone(), processed_content),
             };
 
             processed_files.insert(final_path, processed_content.into_bytes());
@@ -1242,11 +1238,6 @@ impl MCPCreationConfirmed {
 
         // Write processed template files to filesystem
         selected_template.write_template(&self.output_path)?;
-        for file_path in selected_template.files.keys() {
-            crate::command::init::helpers::restrict_env_file_permissions(
-                &self.output_path.join(file_path),
-            )?;
-        }
 
         // Build supergraph configuration (required for MCP projects)
         let routing_url = selected_template.template.routing_url.clone();
