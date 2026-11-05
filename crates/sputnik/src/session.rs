@@ -51,7 +51,7 @@ pub struct Session {
     cli_version: Version,
 
     /// Whether the invocation looks automated or interactive
-    environment: Environment,
+    invocation_mode: Environment,
 
     /// How the command ended
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -63,7 +63,7 @@ pub struct Session {
     /// A one-way identifier of the graph the command ran against. It is omitted when the
     /// command has no graph ref to derive it from.
     #[serde(skip_serializing_if = "Option::is_none")]
-    graph_id: Option<GraphId>,
+    graph_id_hash: Option<GraphId>,
 
     /// Where the telemetry data is being reported to
     #[serde(skip_serializing)]
@@ -192,10 +192,10 @@ impl Session {
             remote_url_hash,
             platform,
             cli_version,
-            environment,
+            invocation_mode: environment,
             outcome: None,
             duration_ms: None,
-            graph_id: None,
+            graph_id_hash: None,
             reporting_info,
             client,
         })
@@ -217,7 +217,7 @@ impl Session {
     /// adds the identifier of the graph the command ran against. An event for a command with no
     /// graph ref is sent without one, so there is nothing to call this with.
     pub fn with_graph_id(mut self, graph_id: GraphId) -> Self {
-        self.graph_id = Some(graph_id);
+        self.graph_id_hash = Some(graph_id);
         self
     }
 
@@ -307,10 +307,10 @@ mod tests {
                 continuous_integration: None,
             },
             cli_version: Version::parse("0.0.0-test").unwrap(),
-            environment: Environment::Interactive,
+            invocation_mode: Environment::Interactive,
             outcome: None,
             duration_ms: None,
-            graph_id: None,
+            graph_id_hash: None,
             reporting_info: ReportingInfo {
                 is_telemetry_enabled: true,
                 endpoint: Url::parse(format!("http://0.0.0.0/{}", report_path()).as_str()).unwrap(),
@@ -334,7 +334,7 @@ mod tests {
 
         let mut expected = serialized_event(None);
         if let Some(graph_id) = graph_id {
-            expected["graph_id"] = json!(graph_id);
+            expected["graph_id_hash"] = json!(graph_id);
         }
         assert_that!(serde_json::to_value(&session))
             .is_ok()
@@ -448,7 +448,7 @@ mod tests {
                 "continuous_integration": null
             },
             "cli_version": "0.0.0-test",
-            "environment": "interactive"
+            "invocation_mode": "interactive"
         });
         if let Some(duration_ms) = duration_ms {
             event["duration_ms"] = json!(duration_ms);
