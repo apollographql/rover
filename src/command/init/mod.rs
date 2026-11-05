@@ -870,6 +870,11 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         );
         files.insert("README.md".into(), readme_content);
 
+        // Get the user's home directory for the MCP server binary path. This only
+        // reads the environment, so it runs before the prompt and fails before
+        // anything is created.
+        let home_dir = helpers::resolve_home_dir()?;
+
         // Preview files and get user confirmation before creating anything
         let confirmed = confirm_then(
             || {
@@ -885,22 +890,6 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                 })
             },
             || async {
-                // Get the user's home directory for MCP server binary path
-                let home_dir = if cfg!(windows) {
-                    std::env::var("USERPROFILE")
-                        .or_else(|_| {
-                            std::env::var("HOMEDRIVE").and_then(|drive| {
-                                std::env::var("HOMEPATH").map(|path| format!("{}{}", drive, path))
-                            })
-                        })
-                        .map_err(|_| anyhow!("Could not determine home directory on Windows"))
-                } else {
-                    std::env::var("HOME").map_err(|_| {
-                        anyhow!("Could not determine home directory from HOME environment variable")
-                    })
-                }?;
-                let home_dir = camino::Utf8PathBuf::from(home_dir);
-
                 // Get or create Apollo service key
                 // First check if APOLLO_KEY is already set in environment
                 let apollo_key = if let Ok(key) = std::env::var("APOLLO_KEY") {
@@ -942,11 +931,11 @@ This MCP server provides AI-accessible tools for your Apollo graph.
                     .await?
                 };
 
-                Ok::<_, RoverError>((home_dir, apollo_key))
+                Ok::<_, RoverError>(apollo_key)
             },
         )
         .await?;
-        let Some((home_dir, apollo_key)) = confirmed else {
+        let Some(apollo_key) = confirmed else {
             println!("Setup cancelled.");
             return Ok(RoverOutput::EmptySuccess);
         };
