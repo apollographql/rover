@@ -280,6 +280,7 @@ heck = { workspace = true }
 http = { workspace = true }
 http-body-util = { workspace = true }
 houston = { workspace = true }
+indoc = { workspace = true }
 itertools = { workspace = true }
 lazycell = { workspace = true }
 lazy_static = { workspace = true }
@@ -346,7 +347,6 @@ duct = "1"
 git2 = { workspace = true }
 graphql-schema-diff = "0.6"
 httpmock = { workspace = true }
-indoc = { workspace = true }
 insta = { workspace = true }
 json-matcher = "0.1"
 jsonschema = "0.60"

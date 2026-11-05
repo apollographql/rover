@@ -1,4 +1,5 @@
 use camino::Utf8PathBuf;
+use indoc::formatdoc;
 use rover_std::{Style, hyperlink};
 use rover_studio::types::GraphRef;
 
@@ -285,54 +286,52 @@ pub(super) fn existing_graph_mcp_readme(
     docker_tag: &str,
     graph_endpoint: &str,
 ) -> String {
-    format!(
-        r#"# {} MCP Server
+    let subgraph_line = if subgraph_info.is_empty() {
+        String::new()
+    } else {
+        format!("\n- **{subgraph_info}**")
+    };
 
-This MCP server provides AI-accessible tools for your Apollo graph.
+    formatdoc!(
+        r#"
+        # {graph_name} MCP Server
 
-## Graph Information
-- **Graph ID**: {}
-- **Variant**: {}
-- **Organization**: {}
-- **Graph Reference**: {}
-{}
+        This MCP server provides AI-accessible tools for your Apollo graph.
 
-## Quick Start
+        ## Graph Information
+        - **Graph ID**: {graph_id}
+        - **Variant**: {variant_name}
+        - **Organization**: {organization_name}
+        - **Graph Reference**: {graph_ref_str}
+        {subgraph_line}
 
-1. Build the MCP server:
-   ```bash
-   docker build -f mcp.Dockerfile -t {}-mcp .
-   ```
+        ## Quick Start
 
-2. Run the MCP server:
-   ```bash
-   {}
-   # Linux users may need: docker run --network=host --env-file .env {}-mcp
-   ```
+        1. Build the MCP server:
+           ```bash
+           docker build -f mcp.Dockerfile -t {docker_tag}-mcp .
+           ```
 
-3. Test with MCP Inspector:
-   ```bash
-   npx @mcp/inspector
-   ```
+        2. Run the MCP server:
+           ```bash
+           {docker_run_hint}
+           # Linux users may need: docker run --network=host --env-file .env {docker_tag}-mcp
+           ```
 
-4. Configure Claude Desktop to use this server.
+        3. Test with MCP Inspector:
+           ```bash
+           npx @mcp/inspector
+           ```
 
-## View in Apollo Studio
-{}"#,
-        selected_graph.graph_name,
-        selected_graph.graph_id,
-        selected_graph.variant_name,
-        selected_graph.organization_name,
-        graph_ref_str,
-        if !subgraph_info.is_empty() {
-            format!("\n- **{}**", subgraph_info)
-        } else {
-            String::new()
-        },
-        docker_tag,
-        mcp_docker_run_hint(docker_tag),
-        docker_tag,
-        graph_endpoint
+        4. Configure Claude Desktop to use this server.
+
+        ## View in Apollo Studio
+        {graph_endpoint}"#,
+        graph_name = selected_graph.graph_name,
+        graph_id = selected_graph.graph_id,
+        variant_name = selected_graph.variant_name,
+        organization_name = selected_graph.organization_name,
+        docker_run_hint = mcp_docker_run_hint(docker_tag),
     )
 }
 
