@@ -51,8 +51,13 @@ pub(crate) fn existing_graph_mcp_summary(
         "  • Service API key: {}\n",
         api_key_saved_line(api_key)
     ));
-    output.push_str("  • ✓ Credentials saved to .env file");
     output
+}
+
+/// Contents of a minimal `.env` holding the credentials `rover init --mcp`
+/// points users to.
+pub(crate) fn env_file_contents(api_key: &str, graph_ref: &str) -> String {
+    format!("APOLLO_KEY={api_key}\nAPOLLO_GRAPH_REF={graph_ref}\n")
 }
 
 pub(crate) fn get_command(supergraph_config: bool) -> String {

@@ -2,8 +2,10 @@ use std::str::FromStr;
 
 use camino::Utf8PathBuf;
 use rover_studio::types::GraphRef;
+use rstest::{fixture, rstest};
+use speculoos::prelude::*;
 
-use crate::command::init::{states::*, template_fetcher::*};
+use crate::command::init::{helpers, states::*, template_fetcher::*};
 
 // Tests verify the logic without trying to capture println! output
 
@@ -284,9 +286,13 @@ fn test_mcp_step_numbering_logic() {
     );
 }
 
-const CANARY_API_KEY: &str = "service:my-graph:abcdefghijklmnopqrstuv"; // gitleaks:allow
+#[fixture]
+fn canary_api_key() -> &'static str {
+    "service:my-graph:abcdefghijklmnopqrstuv" // gitleaks:allow
+}
 
-fn project_created_with_key(api_key: &str) -> ProjectCreated {
+#[fixture]
+fn project_created(canary_api_key: &str) -> ProjectCreated {
     ProjectCreated {
         output_path: Utf8PathBuf::from("test_project"),
         config: crate::command::init::config::ProjectConfig {
@@ -300,7 +306,7 @@ fn project_created_with_key(api_key: &str) -> ProjectCreated {
             project_type: crate::command::init::options::ProjectType::CreateNew,
         },
         artifacts: vec![Utf8PathBuf::from(".env")],
-        api_key: api_key.to_string(),
+        api_key: canary_api_key.to_string(),
         graph_ref: GraphRef::new("my-graph", Some("current")).unwrap(),
         template: Template {
             id: TemplateId("typescript".to_string()),
@@ -317,72 +323,64 @@ fn project_created_with_key(api_key: &str) -> ProjectCreated {
     }
 }
 
-#[test]
-fn test_api_key_saved_line_masks_key_and_points_to_env() {
-    let line = crate::command::init::helpers::api_key_saved_line(CANARY_API_KEY);
-
-    assert_eq!(line, "serv********stuv (saved to .env)");
-    assert_eq!(
-        line,
-        format!("{} (saved to .env)", houston::mask_key(CANARY_API_KEY))
-    );
+/// Output with terminal styling removed, so snapshots don't depend on
+/// whether colors are enabled where the tests run.
+fn plain(output: &str) -> String {
+    console::strip_ansi_codes(output).into_owned()
 }
 
-#[test]
-fn test_mcp_credentials_section_masks_api_key() {
-    let section = project_created_with_key(CANARY_API_KEY).mcp_credentials_section();
+#[rstest]
+fn test_api_key_saved_line_masks_key_and_points_to_env(canary_api_key: &str) {
+    let line = helpers::api_key_saved_line(canary_api_key);
 
-    assert!(
-        !section.contains(CANARY_API_KEY),
-        "credentials section must not contain the full API key: {section}"
-    );
-    assert!(section.contains(&houston::mask_key(CANARY_API_KEY)));
-    assert!(section.contains(": serv********stuv (saved to .env)"));
-    assert!(section.contains("my-graph@current"));
+    assert_that!(line).does_not_contain(canary_api_key);
+    assert_that!(line).is_equal_to(format!(
+        "{} (saved to .env)",
+        houston::mask_key(canary_api_key)
+    ));
 }
 
-#[test]
-fn test_existing_graph_mcp_summary_masks_api_key() {
-    let summary = crate::command::init::helpers::existing_graph_mcp_summary(
+#[rstest]
+fn test_mcp_credentials_section_masks_api_key(
+    project_created: ProjectCreated,
+    canary_api_key: &str,
+) {
+    let section = plain(&project_created.mcp_credentials_section());
+
+    assert_that!(section).does_not_contain(canary_api_key);
+    insta::assert_snapshot!(section);
+}
+
+#[rstest]
+#[case::supergraph_downloaded(true)]
+#[case::supergraph_not_downloaded(false)]
+fn test_existing_graph_mcp_summary_masks_api_key(
+    #[case] supergraph_downloaded: bool,
+    canary_api_key: &str,
+) {
+    let summary = plain(&helpers::existing_graph_mcp_summary(
         "My Graph",
         "current",
         "My Org",
         "my-graph@current",
-        true,
-        CANARY_API_KEY,
-    );
+        supergraph_downloaded,
+        canary_api_key,
+    ));
 
-    assert!(
-        !summary.contains(CANARY_API_KEY),
-        "summary must not contain the full API key: {summary}"
-    );
-    assert!(summary.contains(&houston::mask_key(CANARY_API_KEY)));
-
-    let lines: Vec<&str> = summary.lines().skip(2).collect();
-    assert_eq!(
-        lines,
-        vec![
-            "  • Graph: My Graph (current)",
-            "  • Organization: My Org",
-            "  • Graph Reference: my-graph@current",
-            "  • Supergraph schema: Downloaded",
-            "  • Service API key: serv********stuv (saved to .env)",
-            "  • ✓ Credentials saved to .env file",
-        ]
+    assert_that!(summary).does_not_contain(canary_api_key);
+    insta::assert_snapshot!(
+        format!("existing_graph_mcp_summary_supergraph_downloaded_{supergraph_downloaded}"),
+        summary
     );
 }
 
-#[test]
-fn test_existing_graph_mcp_summary_omits_schema_line_when_not_downloaded() {
-    let summary = crate::command::init::helpers::existing_graph_mcp_summary(
-        "My Graph",
-        "current",
-        "My Org",
-        "my-graph@current",
-        false,
-        CANARY_API_KEY,
-    );
-
-    assert!(!summary.contains("Supergraph schema"));
-    assert!(!summary.contains(CANARY_API_KEY));
+#[rstest]
+fn test_env_file_contents_holds_full_credentials(canary_api_key: &str) {
+    assert_that!(helpers::env_file_contents(
+        canary_api_key,
+        "my-graph@current"
+    ))
+    .is_equal_to(format!(
+        "APOLLO_KEY={canary_api_key}\nAPOLLO_GRAPH_REF=my-graph@current\n"
+    ));
 }
