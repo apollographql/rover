@@ -110,6 +110,9 @@ impl SupergraphBinary {
                 source: build_errors,
                 federation_version,
                 provenance: self.provenance.boxed(),
+                // The binary only sees the resolved config, not how the version was chosen, so
+                // the pipeline that ran it fills this in.
+                maybe_federation_one: false,
             })
     }
 
