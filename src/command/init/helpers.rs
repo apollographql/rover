@@ -3,43 +3,40 @@ use rover_std::{Style, hyperlink};
 use rover_studio::types::GraphRef;
 
 use crate::{
-    RoverResult,
+    PKG_NAME, RoverError, RoverErrorSuggestion, RoverResult,
     command::init::{
         states,
         template_operations::{PrintMode::Confirmation, print_grouped_files},
     },
 };
 
-/// Finds the user's home directory, using `lookup` to read environment variables.
-///
-/// On Windows (`windows` is `true`) this is `USERPROFILE`, falling back to
-/// `HOMEDRIVE` followed by `HOMEPATH`. Everywhere else it is `HOME`. Taking the
-/// lookup and the platform as arguments lets tests cover every branch on any OS
-/// without changing the process environment.
-pub(crate) fn home_dir_from(
-    lookup: impl Fn(&str) -> Option<String>,
-    windows: bool,
-) -> RoverResult<Utf8PathBuf> {
-    let home_dir = if windows {
-        lookup("USERPROFILE")
-            .or_else(|| {
-                let drive = lookup("HOMEDRIVE")?;
-                let path = lookup("HOMEPATH")?;
-                Some(format!("{drive}{path}"))
-            })
-            .ok_or_else(|| anyhow::anyhow!("Could not determine home directory on Windows"))?
-    } else {
-        lookup("HOME").ok_or_else(|| {
-            anyhow::anyhow!("Could not determine home directory from HOME environment variable")
-        })?
-    };
-    Ok(Utf8PathBuf::from(home_dir))
-}
+/// The `apollo-mcp-server` release that `rover init --mcp` configures.
+const MCP_SERVER_VERSION: &str = "0.8.0";
 
-/// Finds the user's home directory from the process environment.
-/// See [`home_dir_from`] for the rules.
-pub(crate) fn resolve_home_dir() -> RoverResult<Utf8PathBuf> {
-    home_dir_from(|key| std::env::var(key).ok(), cfg!(windows))
+/// The `apollo-mcp-server` binary in Rover's own directory:
+/// `.rover/bin/apollo-mcp-server-v{version}`, with the platform's executable
+/// suffix.
+///
+/// Rover's directory is under `rover_home` (`--rover-home` or `APOLLO_HOME`)
+/// when that is set and not empty, and under `home` otherwise. Installs into
+/// `APOLLO_NODE_MODULES_BIN_DIR` or a project `install_root` are not covered.
+pub(crate) fn mcp_server_binary(
+    rover_home: Option<&camino::Utf8Path>,
+    home: Option<&camino::Utf8Path>,
+) -> RoverResult<Utf8PathBuf> {
+    let rover_dir = binstall::base_dir(PKG_NAME, rover_home, home).ok_or_else(|| {
+        RoverError::new(anyhow::anyhow!(
+            "Could not find a home directory for the MCP server binary."
+        ))
+        .with_suggestion(RoverErrorSuggestion::Adhoc(
+            "Set `APOLLO_HOME` or pass `--rover-home <DIR>` to choose where Rover keeps its plugins."
+                .to_string(),
+        ))
+    })?;
+    Ok(rover_dir.join("bin").join(format!(
+        "apollo-mcp-server-v{MCP_SERVER_VERSION}{}",
+        std::env::consts::EXE_SUFFIX
+    )))
 }
 
 pub fn display_welcome_message() {

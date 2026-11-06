@@ -463,7 +463,11 @@ impl Rover {
         match &self.command {
             Command::Init(command) => {
                 command
-                    .run(self.get_client_config().await?, &profile_opt)
+                    .run(
+                        self.get_client_config().await?,
+                        &profile_opt,
+                        self.rover_home.as_deref(),
+                    )
                     .await
             }
             Command::Completion(command) => command.run(),
