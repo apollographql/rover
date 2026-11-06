@@ -24,6 +24,42 @@ pub fn display_welcome_message() {
     println!();
 }
 
+/// Formats an API key for display after it has been written to `.env`:
+/// the key is masked and followed by a pointer to the file that holds it.
+pub(crate) fn api_key_saved_line(api_key: &str) -> String {
+    format!("{} (saved to .env)", houston::mask_key(api_key))
+}
+
+/// Builds the "Selected Graph" summary shown after `rover init --mcp`
+/// adds an MCP server to a project for an existing graph.
+pub(crate) fn existing_graph_mcp_summary(
+    graph_name: &str,
+    variant_name: &str,
+    organization_name: &str,
+    graph_ref: &str,
+    supergraph_downloaded: bool,
+    api_key: &str,
+) -> String {
+    let mut output = format!("\n{}\n", Style::Heading.paint("Selected Graph:"));
+    output.push_str(&format!("  • Graph: {} ({})\n", graph_name, variant_name));
+    output.push_str(&format!("  • Organization: {}\n", organization_name));
+    output.push_str(&format!("  • Graph Reference: {}\n", graph_ref));
+    if supergraph_downloaded {
+        output.push_str("  • Supergraph schema: Downloaded\n");
+    }
+    output.push_str(&format!(
+        "  • Service API key: {}\n",
+        api_key_saved_line(api_key)
+    ));
+    output
+}
+
+/// Contents of a minimal `.env` holding the credentials `rover init --mcp`
+/// points users to.
+pub(crate) fn env_file_contents(api_key: &str, graph_ref: &str) -> String {
+    format!("APOLLO_KEY={api_key}\nAPOLLO_GRAPH_REF={graph_ref}\n")
+}
+
 pub(crate) fn get_command(supergraph_config: bool) -> String {
     let mut output = String::from("rover dev");
     if supergraph_config {

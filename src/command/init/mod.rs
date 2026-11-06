@@ -933,6 +933,9 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         let tools_path_str = tools_absolute_path.as_str().replace("/./", "/");
 
         // Write files to current directory with template replacement
+        let template_writes_env = files
+            .keys()
+            .any(|path| path == ".env.template" || path == ".env");
         for (file_path, content) in &files {
             let final_file_path = camino::Utf8PathBuf::from(file_path);
 
@@ -1013,6 +1016,23 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             std::fs::write(&target_path, processed_content)?;
         }
 
+        // The summary below shows the API key masked and points to `.env`, so
+        // `.env` must exist even when the template doesn't ship `.env.template`.
+        if !template_writes_env {
+            // Append rather than overwrite, so an existing `.env` keeps its variables.
+            let env_path = current_dir.join(".env");
+            let mut env_contents = match std::fs::read_to_string(&env_path) {
+                Ok(existing) => existing,
+                Err(err) if err.kind() == std::io::ErrorKind::NotFound => String::new(),
+                Err(err) => return Err(err.into()),
+            };
+            if !env_contents.is_empty() && !env_contents.ends_with('\n') {
+                env_contents.push('\n');
+            }
+            env_contents.push_str(&helpers::env_file_contents(&apollo_key, &graph_ref_str));
+            std::fs::write(&env_path, env_contents)?;
+        }
+
         println!();
         println!(
             "{}",
@@ -1029,18 +1049,17 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             println!("{}", tool);
         }
 
-        println!("\n{}", Style::Heading.paint("Selected Graph:"));
         println!(
-            "  • Graph: {} ({})",
-            selected_graph.graph_name, selected_graph.variant_name
+            "{}",
+            helpers::existing_graph_mcp_summary(
+                &selected_graph.graph_name,
+                &selected_graph.variant_name,
+                &selected_graph.organization_name,
+                &graph_ref_str,
+                !supergraph_sdl.is_empty(),
+                &apollo_key,
+            )
         );
-        println!("  • Organization: {}", selected_graph.organization_name);
-        println!("  • Graph Reference: {}", graph_ref_str);
-        if !supergraph_sdl.is_empty() {
-            println!("  • Supergraph schema: Downloaded");
-        }
-        println!("  • Service API key: {}", apollo_key);
-        println!("  • ✓ Credentials saved to .env file");
 
         println!("\n{}", Style::Heading.paint("Next steps:"));
         println!("   1. Start the MCP server:");
@@ -1185,9 +1204,9 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             completed_project.graph_ref
         );
         println!(
-            "   • {}: {} (This is your graph's API key)", // gitleaks:allow
+            "   • {}: {}",
             Style::Command.paint("APOLLO_KEY"),
-            completed_project.api_key
+            helpers::api_key_saved_line(&completed_project.api_key)
         );
         println!();
 

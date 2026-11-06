@@ -1,0 +1,10 @@
+---
+source: src/command/init/tests/mcp_next_steps_test.rs
+expression: summary
+---
+
+Selected Graph:
+  • Graph: My Graph (current)
+  • Organization: My Org
+  • Graph Reference: my-graph@current
+  • Service API key: serv********stuv (saved to .env)
