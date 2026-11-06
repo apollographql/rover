@@ -1,4 +1,5 @@
 use camino::Utf8PathBuf;
+use rover_print::print::Print;
 use rover_std::{Style, hyperlink};
 use rover_studio::types::GraphRef;
 
@@ -185,7 +186,9 @@ pub fn display_project_created_message(
 }
 
 /// Print categorized MCP file listing
-pub fn print_mcp_file_categories(file_paths: Vec<Utf8PathBuf>) {
+pub fn print_mcp_file_categories(printer: &impl Print, file_paths: Vec<Utf8PathBuf>) {
+    use rover_print::style::{Style, StyledText};
+
     // Categorize files for MCP-specific display
     let mut mcp_server_files = Vec::new();
     let mut apollo_files = Vec::new();
@@ -228,54 +231,63 @@ pub fn print_mcp_file_categories(file_paths: Vec<Utf8PathBuf>) {
 
     // Print categorized files
     if !mcp_server_files.is_empty() {
-        println!();
-        println!(
-            "{}",
-            Style::Heading.paint("MCP Server: Config, sample tools and tests")
-        );
+        printer.print(&StyledText::plain(""));
+        printer.print(&StyledText::new(
+            Style::Heading,
+            "MCP Server: Config, sample tools and tests",
+        ));
         for file in mcp_server_files {
             if file.contains("mcp.Dockerfile") {
-                println!("- {} (optional Docker container)", file);
+                printer.print(&StyledText::plain(format!(
+                    "- {} (optional Docker container)",
+                    file
+                )));
             } else {
-                println!("- {}", file);
+                printer.print(&StyledText::plain(format!("- {}", file)));
             }
         }
     }
 
     if !apollo_files.is_empty() {
-        println!();
-        println!(
-            "{}",
-            Style::Heading.paint("Apollo GraphOS: Apollo graph credentials and project files")
-        );
+        printer.print(&StyledText::plain(""));
+        printer.print(&StyledText::new(
+            Style::Heading,
+            "Apollo GraphOS: Apollo graph credentials and project files",
+        ));
         for file in apollo_files {
-            println!("- {}", file);
+            printer.print(&StyledText::plain(format!("- {}", file)));
         }
     }
 
     if !ide_files.is_empty() {
-        println!();
-        println!("{}", Style::Heading.paint("IDE: Project settings"));
+        printer.print(&StyledText::plain(""));
+        printer.print(&StyledText::new(Style::Heading, "IDE: Project settings"));
         for file in ide_files {
-            println!("- {}", file);
+            printer.print(&StyledText::plain(format!("- {}", file)));
         }
     }
 
     if !guide_files.is_empty() {
-        println!();
-        println!("{}", Style::Heading.paint("Guides and references"));
+        printer.print(&StyledText::plain(""));
+        printer.print(&StyledText::new(Style::Heading, "Guides and references"));
         for file in guide_files {
             if file.contains("GETTING_STARTED.md") {
-                println!(
+                printer.print(&StyledText::plain(format!(
                     "- {} → Working with Apollo graphs and Apollo Connectors",
                     file
-                );
+                )));
             } else if file.contains("MCP_README.md") {
-                println!("- {} → Working with Apollo MCP Server", file);
+                printer.print(&StyledText::plain(format!(
+                    "- {} → Working with Apollo MCP Server",
+                    file
+                )));
             } else if file.contains("AGENTS.md") {
-                println!("- {} → Agent rules for the robots", file);
+                printer.print(&StyledText::plain(format!(
+                    "- {} → Agent rules for the robots",
+                    file
+                )));
             } else {
-                println!("- {}", file);
+                printer.print(&StyledText::plain(format!("- {}", file)));
             }
         }
     }

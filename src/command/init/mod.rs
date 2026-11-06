@@ -31,6 +31,12 @@ use futures::future::OptionFuture;
 use houston::{ApiKey, ApiKeyActor};
 #[cfg(feature = "composition-js")]
 use rover_client::RoverClientError;
+use rover_print::print::Print;
+#[cfg(feature = "composition-js")]
+use rover_print::{
+    print::PrintExt,
+    style::{Style, StyledText},
+};
 #[cfg(feature = "composition-js")]
 use rover_std::hyperlink;
 use serde::Serialize;
@@ -162,24 +168,23 @@ impl ConfirmPrompt for TerminalPrompt {
 /// when it holds a graph key, or a new key created for `graph` otherwise.
 #[cfg(feature = "composition-js")]
 async fn resolve_mcp_api_key(
+    stderr: &impl Print,
     client_config: &StudioClientConfig,
     profile: &ProfileOpt,
     graph: &GraphVariantOption,
 ) -> RoverResult<String> {
-    use rover_std::Style;
-
     use crate::command::init::operations::create_api_key;
 
     if let Ok(key) = std::env::var("APOLLO_KEY")
         && matches!(ApiKey::try_from(key.as_str()), Ok(k) if k.actor() == ApiKeyActor::Graph)
     {
-        println!(
-            "{}",
-            Style::Success.paint("✓ Using existing APOLLO_KEY from environment")
-        );
+        stderr.print(&StyledText::new(
+            Style::Success,
+            "✓ Using existing APOLLO_KEY from environment",
+        ));
         return Ok(key);
     }
-    println!("{}", Style::Heading.paint("Creating service API key"));
+    stderr.print(&StyledText::new(Style::Heading, "Creating service API key"));
     create_api_key(
         client_config,
         profile,
@@ -226,6 +231,7 @@ impl Init {
         &self,
         client_config: StudioClientConfig,
         profile: &ProfileOpt,
+        stderr: &impl Print,
     ) -> RoverResult<RoverOutput> {
         use std::env;
 
@@ -252,7 +258,7 @@ impl Init {
             };
 
             return self
-                .handle_mcp_flow(project_type_selected, &client_config, profile)
+                .handle_mcp_flow(project_type_selected, &client_config, profile, stderr)
                 .await;
         }
 
@@ -356,6 +362,7 @@ impl Init {
         project_type_selected: crate::command::init::states::ProjectTypeSelected,
         client_config: &StudioClientConfig,
         profile: &ProfileOpt,
+        stderr: &impl Print,
     ) -> RoverResult<RoverOutput> {
         use crate::command::init::states::*;
 
@@ -414,7 +421,7 @@ impl Init {
             MCPSetupType::ExistingGraph => {
                 // Handle existing graph MCP flow directly
                 let client = client_config.get_authenticated_client(profile)?;
-                self.handle_existing_graph_mcp(&client, client_config, profile)
+                self.handle_existing_graph_mcp(&client, client_config, profile, stderr)
                     .await
             }
         }
@@ -485,8 +492,13 @@ impl Init {
 
         match setup_type {
             MCPSetupType::ExistingGraph => {
-                self.handle_existing_graph_mcp(&client, client_config, profile)
-                    .await
+                self.handle_existing_graph_mcp(
+                    &client,
+                    client_config,
+                    profile,
+                    &rover_print::print::stderr::default(),
+                )
+                .await
             }
             MCPSetupType::NewProject => {
                 self.handle_new_project_mcp(&client, client_config, profile)
@@ -563,7 +575,7 @@ impl Init {
         println!("=> You're about to add the following files to your local directory:");
 
         let file_paths: Vec<camino::Utf8PathBuf> = template_files.keys().cloned().collect();
-        print_mcp_file_categories(file_paths);
+        print_mcp_file_categories(&rover_print::print::stdout::default(), file_paths);
 
         println!();
         println!("{}", Style::File.paint("What this template gives you"));
@@ -582,14 +594,19 @@ impl Init {
 
     /// Prints the files that are about to be created.
     #[cfg(feature = "composition-js")]
-    fn print_mcp_preview(files: &std::collections::HashMap<camino::Utf8PathBuf, String>) {
+    fn print_mcp_preview(
+        stderr: &impl Print,
+        files: &std::collections::HashMap<camino::Utf8PathBuf, String>,
+    ) {
         use crate::command::init::helpers::print_mcp_file_categories;
 
-        println!();
-        println!("=> You're about to add the following files to your local directory:");
+        stderr.print(&StyledText::plain(""));
+        stderr.print(&StyledText::plain(
+            "=> You're about to add the following files to your local directory:",
+        ));
         let file_paths: Vec<camino::Utf8PathBuf> = files.keys().cloned().collect();
-        print_mcp_file_categories(file_paths);
-        println!();
+        print_mcp_file_categories(stderr, file_paths);
+        stderr.print(&StyledText::plain(""));
     }
 
     /// Prompt user to select a graph variant
@@ -631,6 +648,7 @@ impl Init {
         client: &rover_client::blocking::StudioClient,
         client_config: &StudioClientConfig,
         profile: &ProfileOpt,
+        stderr: &impl Print,
     ) -> RoverResult<RoverOutput> {
         use anyhow::anyhow;
         // Query GraphOS for user's organizations and their graphs
@@ -639,7 +657,6 @@ impl Init {
             subgraph::list::{self as list_subgraphs, SubgraphListInput},
             supergraph::fetch::{self as fetch_supergraph, SupergraphFetchInput},
         };
-        use rover_std::{Style, hyperlink};
         use rover_studio::types::GraphRef;
 
         use crate::command::init::authentication::{
@@ -654,14 +671,14 @@ impl Init {
         })?;
 
         if memberships_response.memberships.is_empty() {
-            println!(
-                "{}",
-                Style::WarningHeading.paint("▲ No organizations found")
-            );
-            println!(
+            stderr.print(&StyledText::new(
+                Style::WarningHeading,
+                "▲ No organizations found",
+            ));
+            stderr.print(&StyledText::plain(format!(
                 "You need to create an organization first. Visit {} to create your first organization.",
-                hyperlink("https://studio.apollographql.com")
-            );
+                stderr.paint(Style::Link, "https://studio.apollographql.com/")
+            )));
             return Ok(RoverOutput::EmptySuccess);
         }
 
@@ -702,12 +719,12 @@ impl Init {
         }
 
         if all_graph_options.is_empty() {
-            println!("{}", Style::WarningHeading.paint("▲ No graphs found"));
-            println!(
+            stderr.print(&StyledText::new(Style::WarningHeading, "▲ No graphs found"));
+            stderr.print(&StyledText::plain(format!(
                 "You must have a graph registered in GraphOS. Visit {} to connect an existing graph or run `{}` to create a new graph pre-configured to work with the Apollo MCP Server.",
-                hyperlink("https://studio.apollographql.com"),
-                Style::Command.paint("rover init --mcp")
-            );
+                stderr.paint(Style::Link, "https://studio.apollographql.com/"),
+                stderr.paint(Style::Command, "rover init --mcp")
+            )));
             return Ok(RoverOutput::EmptySuccess);
         }
 
@@ -732,10 +749,10 @@ impl Init {
                 Some(graph) => graph.clone(),
                 None => {
                     // If no exact match found, fall back to prompting
-                    eprintln!(
+                    stderr.print(&StyledText::plain(format!(
                         "Warning: Specified graph '{}' not found in available graphs",
                         graph_id
-                    );
+                    )));
                     Self::prompt_graph_selection(all_graph_options)?
                 }
             }
@@ -745,26 +762,31 @@ impl Init {
         };
 
         // Display project context and requirements
-        println!();
-        println!(
+        stderr.print(&StyledText::plain(""));
+        stderr.print(&StyledText::plain(format!(
             "️{}",
-            Style::File.paint("▲ Add AI capabilities to existing graph (~5 minute setup time)")
-        );
-        println!("Enhance an Apollo GraphOS graph with MCP server capabilities.");
-        println!();
-        println!(
+            stderr.paint(
+                Style::File,
+                "▲ Add AI capabilities to existing graph (~5 minute setup time)"
+            )
+        )));
+        stderr.print(&StyledText::plain(
+            "Enhance an Apollo GraphOS graph with MCP server capabilities.",
+        ));
+        stderr.print(&StyledText::plain(""));
+        stderr.print(&StyledText::plain(format!(
             "{} Your data source (API endpoint, database, or service)",
-            Style::Heading.paint("Requirements:")
-        );
-        println!();
+            stderr.paint(Style::Heading, "Requirements:")
+        )));
+        stderr.print(&StyledText::plain(""));
 
         // For existing graphs, we work with GraphQL schemas (no template selection needed)
 
         // Fetch graph schemas from GraphOS
-        println!(
-            "{}",
-            Style::Heading.paint("Pulling graph schemas from GraphOS")
-        );
+        stderr.print(&StyledText::new(
+            Style::Heading,
+            "Pulling graph schemas from GraphOS",
+        ));
 
         let graph_ref = GraphRef::new(
             selected_graph.graph_id.clone(),
@@ -782,11 +804,10 @@ impl Init {
         {
             Ok(response) => response.sdl.contents,
             Err(e) => {
-                eprintln!(
-                    "{}",
-                    Style::WarningHeading
-                        .paint(format!("▲ Could not fetch supergraph schema: {}", e))
-                );
+                stderr.print(&StyledText::new(
+                    Style::WarningHeading,
+                    format!("▲ Could not fetch supergraph schema: {}", e),
+                ));
                 // Continue without the schema - MCP can still work with just the graph reference
                 String::new()
             }
@@ -907,18 +928,18 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         let home_dir = helpers::resolve_home_dir()?;
 
         // Preview files, then get or create the API key only if the user confirms
-        Self::print_mcp_preview(&files);
+        Self::print_mcp_preview(stderr, &files);
 
         let key = OptionFuture::from(
             TerminalPrompt
                 .confirm("Create this template?")?
-                .then(|| resolve_mcp_api_key(client_config, profile, &selected_graph)),
+                .then(|| resolve_mcp_api_key(stderr, client_config, profile, &selected_graph)),
         )
         .await
         .transpose()?;
 
         let Some(apollo_key) = key else {
-            println!("Setup cancelled.");
+            stderr.print(&StyledText::plain("Setup cancelled."));
             return Ok(RoverOutput::EmptySuccess);
         };
 
@@ -1013,71 +1034,105 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             std::fs::write(&target_path, processed_content)?;
         }
 
-        println!();
-        println!(
-            "{}",
-            Style::Success.paint("MCP server added to your project!")
-        );
+        stderr.print(&StyledText::plain(""));
+        stderr.print(&StyledText::new(
+            Style::Success,
+            "MCP server added to your project!",
+        ));
 
-        println!("\n{}", Style::Heading.paint("Generated files:"));
+        stderr.print(&StyledText::plain(""));
+        stderr.print(&StyledText::new(Style::Heading, "Generated files:"));
         let tool_files: Vec<String> = files
             .keys()
             .filter(|k| k.starts_with("tools/") && k.ends_with(".graphql"))
             .map(|k| format!("   - {}", k.strip_prefix("tools/").unwrap_or(k)))
             .collect();
         for tool in tool_files {
-            println!("{}", tool);
+            stderr.print(&StyledText::plain(tool));
         }
 
-        println!("\n{}", Style::Heading.paint("Selected Graph:"));
-        println!(
+        stderr.print(&StyledText::plain(""));
+        stderr.print(&StyledText::new(Style::Heading, "Selected Graph:"));
+        stderr.print(&StyledText::plain(format!(
             "  • Graph: {} ({})",
             selected_graph.graph_name, selected_graph.variant_name
-        );
-        println!("  • Organization: {}", selected_graph.organization_name);
-        println!("  • Graph Reference: {}", graph_ref_str);
+        )));
+        stderr.print(&StyledText::plain(format!(
+            "  • Organization: {}",
+            selected_graph.organization_name
+        )));
+        stderr.print(&StyledText::plain(format!(
+            "  • Graph Reference: {}",
+            graph_ref_str
+        )));
         if !supergraph_sdl.is_empty() {
-            println!("  • Supergraph schema: Downloaded");
+            stderr.print(&StyledText::plain("  • Supergraph schema: Downloaded"));
         }
-        println!("  • Service API key: {}", apollo_key);
-        println!("  • ✓ Credentials saved to .env file");
+        stderr.print(&StyledText::plain(format!(
+            "  • Service API key: {}",
+            apollo_key
+        )));
+        stderr.print(&StyledText::plain("  • ✓ Credentials saved to .env file"));
 
-        println!("\n{}", Style::Heading.paint("Next steps:"));
-        println!("   1. Start the MCP server:");
-        println!();
-        println!("      {}: {}", Style::Heading.paint("Linux/macOS"), Style::Command.paint(format!("set -a && source .env && set +a && rover dev --graph-ref {} --mcp .apollo/mcp.local.yaml", graph_ref_str)));
-        println!();
-        println!("      {}: ", Style::Heading.paint("Windows PowerShell"));
-        println!("      {}", Style::Command.paint("Get-Content .env | ForEach-Object { $name, $value = $_.split('=',2); [System.Environment]::SetEnvironmentVariable($name, $value) }"));
-        println!(
+        stderr.print(&StyledText::plain(""));
+        stderr.print(&StyledText::new(Style::Heading, "Next steps:"));
+        stderr.print(&StyledText::plain("   1. Start the MCP server:"));
+        stderr.print(&StyledText::plain(""));
+        stderr.print(&StyledText::plain(format!(
+            "      {}: {}",
+            stderr.paint(Style::Heading, "Linux/macOS"),
+            stderr.paint(
+                Style::Command,
+                format!(
+                    "set -a && source .env && set +a && rover dev --graph-ref {} --mcp .apollo/mcp.local.yaml",
+                    graph_ref_str
+                )
+            )
+        )));
+        stderr.print(&StyledText::plain(""));
+        stderr.print(&StyledText::plain(format!(
+            "      {}: ",
+            stderr.paint(Style::Heading, "Windows PowerShell")
+        )));
+        stderr.print(&StyledText::plain(format!(
             "      {}",
-            Style::Command.paint(format!(
-                "rover dev --graph-ref {} --mcp .apollo/mcp.local.yaml",
-                graph_ref_str
-            ))
-        );
-        println!();
-        println!(
+            stderr.paint(
+                Style::Command,
+                "Get-Content .env | ForEach-Object { $name, $value = $_.split('=',2); [System.Environment]::SetEnvironmentVariable($name, $value) }"
+            )
+        )));
+        stderr.print(&StyledText::plain(format!(
+            "      {}",
+            stderr.paint(
+                Style::Command,
+                format!(
+                    "rover dev --graph-ref {} --mcp .apollo/mcp.local.yaml",
+                    graph_ref_str
+                )
+            )
+        )));
+        stderr.print(&StyledText::plain(""));
+        stderr.print(&StyledText::plain(format!(
             "      → API: {} | MCP: {}",
-            Style::Link.paint("http://localhost:4000"),
-            Style::Link.paint("http://localhost:5050")
-        );
-        println!();
-        println!("   2. For containerized deployment:");
-        println!(
+            stderr.paint(Style::Link, "http://localhost:4000"),
+            stderr.paint(Style::Link, "http://localhost:5050")
+        )));
+        stderr.print(&StyledText::plain(""));
+        stderr.print(&StyledText::plain("   2. For containerized deployment:"));
+        stderr.print(&StyledText::plain(format!(
             "      {}",
-            Style::Command.paint(format!(
-                "docker build -f mcp.Dockerfile -t {}-mcp .",
-                docker_tag
-            ))
-        );
-        println!(
+            stderr.paint(
+                Style::Command,
+                format!("docker build -f mcp.Dockerfile -t {}-mcp .", docker_tag)
+            )
+        )));
+        stderr.print(&StyledText::plain(format!(
             "      {}",
-            Style::Command.paint(format!(
-                "docker run --env-file .env -p5050:5050 {}-mcp",
-                docker_tag
-            ))
-        );
+            stderr.paint(
+                Style::Command,
+                format!("docker run --env-file .env -p5050:5050 {}-mcp", docker_tag)
+            )
+        )));
 
         Ok(RoverOutput::EmptySuccess)
     }
@@ -1617,6 +1672,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         &self,
         _client_config: StudioClientConfig,
         _profile: &ProfileOpt,
+        _stderr: &impl Print,
     ) -> RoverResult<RoverOutput> {
         use anyhow::anyhow;
         use rover_std::hyperlink;
