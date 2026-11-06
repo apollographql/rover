@@ -24,6 +24,7 @@ pub mod tests;
 pub mod transitions;
 use std::path::PathBuf;
 
+use camino::Utf8Path;
 use clap::Parser;
 #[cfg(feature = "composition-js")]
 use futures::future::OptionFuture;
@@ -226,6 +227,7 @@ impl Init {
         &self,
         client_config: StudioClientConfig,
         profile: &ProfileOpt,
+        rover_home: Option<&Utf8Path>,
     ) -> RoverResult<RoverOutput> {
         use std::env;
 
@@ -252,7 +254,7 @@ impl Init {
             };
 
             return self
-                .handle_mcp_flow(project_type_selected, &client_config, profile)
+                .handle_mcp_flow(project_type_selected, &client_config, profile, rover_home)
                 .await;
         }
 
@@ -356,6 +358,7 @@ impl Init {
         project_type_selected: crate::command::init::states::ProjectTypeSelected,
         client_config: &StudioClientConfig,
         profile: &ProfileOpt,
+        rover_home: Option<&Utf8Path>,
     ) -> RoverResult<RoverOutput> {
         use crate::command::init::states::*;
 
@@ -414,7 +417,7 @@ impl Init {
             MCPSetupType::ExistingGraph => {
                 // Handle existing graph MCP flow directly
                 let client = client_config.get_authenticated_client(profile)?;
-                self.handle_existing_graph_mcp(&client, client_config, profile)
+                self.handle_existing_graph_mcp(&client, client_config, profile, rover_home)
                     .await
             }
         }
@@ -485,7 +488,7 @@ impl Init {
 
         match setup_type {
             MCPSetupType::ExistingGraph => {
-                self.handle_existing_graph_mcp(&client, client_config, profile)
+                self.handle_existing_graph_mcp(&client, client_config, profile, None)
                     .await
             }
             MCPSetupType::NewProject => {
@@ -631,6 +634,7 @@ impl Init {
         client: &rover_client::blocking::StudioClient,
         client_config: &StudioClientConfig,
         profile: &ProfileOpt,
+        rover_home: Option<&Utf8Path>,
     ) -> RoverResult<RoverOutput> {
         use anyhow::anyhow;
         // Query GraphOS for user's organizations and their graphs
@@ -901,10 +905,10 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         );
         files.insert("README.md".into(), readme_content);
 
-        // Get the user's home directory for the MCP server binary path. This only
-        // reads the environment, so it runs before the prompt and fails before
-        // anything is created.
-        let home_dir = helpers::resolve_home_dir()?;
+        // Find the MCP server binary before the prompt, so a failure here
+        // happens before anything is created.
+        let home = binstall::get_home_dir_path().ok();
+        let mcp_server_binary = helpers::mcp_server_binary(rover_home, home.as_deref())?;
 
         // Preview files, then get or create the API key only if the user confirms
         Self::print_mcp_preview(&files);
@@ -921,9 +925,6 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             println!("Setup cancelled.");
             return Ok(RoverOutput::EmptySuccess);
         };
-
-        // Generate the MCP server binary path
-        let mcp_server_binary = home_dir.join(".rover/bin/apollo-mcp-server-v0.8.0");
 
         // Generate the MCP config path (relative to project)
         let mcp_config_path = current_dir.join(".apollo/mcp.claude.yaml");
@@ -1617,6 +1618,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         &self,
         _client_config: StudioClientConfig,
         _profile: &ProfileOpt,
+        _rover_home: Option<&Utf8Path>,
     ) -> RoverResult<RoverOutput> {
         use anyhow::anyhow;
         use rover_std::hyperlink;
