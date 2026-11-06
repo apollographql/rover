@@ -5,8 +5,13 @@ on:
 name: Claude Code Review
 jobs:
   claude-review:
+    # Pull requests from forks get no OIDC token or secrets, so this can only
+    # fail there. Moving it to `pull_request_target` would point a job with
+    # write access and our API key at untrusted content. A maintainer can ask
+    # for a review on a fork's pull request by commenting `@claude` instead.
     if: >-
       !contains(fromJSON('["renovate[bot]", "dependabot[bot]"]'), github.event.pull_request.user.login)
+      && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
       contents: write
