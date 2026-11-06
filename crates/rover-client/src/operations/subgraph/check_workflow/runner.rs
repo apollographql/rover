@@ -240,6 +240,9 @@ fn get_check_response_from_data(
         downstream_result,
         include_contract_checks,
     );
+    if let Some(downstream_response) = &maybe_downstream_response {
+        downstream_response.apply_status_to(&mut task_summaries);
+    }
     let downstream_failed = include_contract_checks
         && maybe_downstream_response
             .as_ref()
@@ -1287,5 +1290,44 @@ mod tests {
         assert_that!(parsed.map_err(|error| error.to_string())).is_err_containing(
             "unknown variant `SomeFutureCheckTask`, expected one of `CompositionCheckTask`, `CustomCheckTask`, `DownstreamCheckTask`, `FilterCheckTask`, `LintCheckTask`, `OperationsCheckTask`, `ProposalsCheckTask`".to_string(),
         );
+    }
+
+    /// A downstream task escalated to a failure by a blocking contract variant reports that
+    /// failure in its task status too, not the status Studio gave the task.
+    #[rstest]
+    fn escalated_downstream_failure_is_reflected_in_the_task_status(graph_ref: GraphRef) {
+        let data = create_check_workflow_data(
+            CheckWorkflowStatus::PASSED,
+            json!([
+                {
+                    "__typename": "DownstreamCheckTask",
+                    "status": "PASSED",
+                    "targetURL": "https://studio.example/checks/downstream",
+                    "results": [
+                        {
+                            "__typename": "DownstreamCheckResult",
+                            "blocking": true,
+                            "downstreamGraphID": "test-graph",
+                            "downstreamVariantName": "mobile",
+                            "downstreamWorkflow": { "status": "FAILED" },
+                            "failsUpstreamWorkflow": null
+                        }
+                    ]
+                }
+            ]),
+        );
+
+        let (_, response) = expect_check_workflow_failure(get_check_response_from_data(
+            data,
+            graph_ref,
+            "test-subgraph".to_string(),
+            true,
+        ));
+
+        assert_that!(response.task_summaries).is_equal_to(vec![CheckTaskSummary {
+            kind: CheckTaskKind::Downstream,
+            status: CheckTaskStatus::FAILED,
+            target_url: Some("https://studio.example/checks/downstream".to_string()),
+        }]);
     }
 }

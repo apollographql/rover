@@ -28,7 +28,7 @@ pub struct CheckWorkflowResponse {
 
     // The status of every task Studio reported for the workflow, including tasks it returned
     // no result for and task types Rover doesn't otherwise query, so a failure can always be
-    // attributed to the task that caused it.
+    // attributed to the task that caused it. `get_json` reports these as `task_statuses`.
     #[serde(skip)]
     pub task_summaries: Vec<CheckTaskSummary>,
 }
@@ -125,13 +125,17 @@ impl CheckWorkflowResponse {
         }
 
         json_result["tasks"] = tasks;
+        json_result["task_statuses"] = json!(self.task_summaries);
 
         json_result
     }
 }
 
 /// The kinds of task a check workflow can run. The order is the order failures are listed in.
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash)]
+///
+/// Serialized in snake case, matching the keys of the per-task results in the JSON output.
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum CheckTaskKind {
     Build,
     ContractFilter,
@@ -171,8 +175,9 @@ impl CheckTaskKind {
 }
 
 /// The status Studio reported for one task of a check workflow, with its Studio link.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 pub struct CheckTaskSummary {
+    #[serde(rename = "task")]
     pub kind: CheckTaskKind,
     pub status: CheckTaskStatus,
     pub target_url: Option<String>,
@@ -332,6 +337,15 @@ impl DownstreamCheckResponse {
         }
     }
 
+    /// Records this response's status, which may have been escalated past the one Studio gave
+    /// the task, on the downstream task's summary, so the two never disagree.
+    pub(crate) fn apply_status_to(&self, task_summaries: &mut [CheckTaskSummary]) {
+        task_summaries
+            .iter_mut()
+            .filter(|summary| summary.kind == CheckTaskKind::Downstream)
+            .for_each(|summary| summary.status = self.task_status.clone());
+    }
+
     /// Whether any contract variant's downstream check failure should block
     /// the upstream check.
     pub fn has_blocking_failure(&self) -> bool {
@@ -452,5 +466,60 @@ impl Display for Period {
             Period::Past(seconds) => (-seconds).to_string(),
         };
         write!(f, "{period}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+    use speculoos::prelude::*;
+
+    use super::*;
+
+    /// Every task's status is reported, alongside the per-task results, including a task with
+    /// no result and one whose results Rover doesn't query.
+    #[test]
+    fn json_reports_the_status_of_every_task() {
+        let response = CheckWorkflowResponse {
+            default_target_url: "https://studio.example/checks".to_string(),
+            maybe_core_schema_modified: Some(false),
+            maybe_core_schema_status: Some(CheckTaskStatus::FAILED),
+            maybe_operations_response: None,
+            maybe_lint_response: None,
+            maybe_proposals_response: None,
+            maybe_custom_response: None,
+            maybe_downstream_response: None,
+            task_summaries: vec![
+                CheckTaskSummary {
+                    kind: CheckTaskKind::Build,
+                    status: CheckTaskStatus::FAILED,
+                    target_url: Some("https://studio.example/checks/build".to_string()),
+                },
+                CheckTaskSummary {
+                    kind: CheckTaskKind::ContractFilter,
+                    status: CheckTaskStatus::BLOCKED,
+                    target_url: None,
+                },
+                CheckTaskSummary {
+                    kind: CheckTaskKind::Operations,
+                    status: CheckTaskStatus::BLOCKED,
+                    target_url: None,
+                },
+            ],
+        };
+
+        assert_that!(response.get_json()).is_equal_to(json!({
+            "core_schema_modified": false,
+            "tasks": {},
+            "task_statuses": [
+                {
+                    "task": "build",
+                    "status": "FAILED",
+                    "target_url": "https://studio.example/checks/build"
+                },
+                { "task": "contract_filter", "status": "BLOCKED", "target_url": null },
+                { "task": "operations", "status": "BLOCKED", "target_url": null }
+            ]
+        }));
     }
 }
