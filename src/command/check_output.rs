@@ -567,6 +567,7 @@ mod test {
                     status: "OPEN".to_string(),
                     display_name: "Add phone number".to_string(),
                 }],
+                has_exceeded_max_diffs: Some(false),
             }),
             maybe_custom_response: Some(CustomCheckResponse {
                 task_status: CheckTaskStatus::FAILED,
@@ -652,6 +653,7 @@ mod test {
                     .to_string(),
             ),
             related_proposals,
+            has_exceeded_max_diffs: None,
         }
     }
 
@@ -676,6 +678,36 @@ mod test {
             )),
             ..build_only_response()
         }
+    }
+
+    /// A check whose proposals task failed with no related proposals, where
+    /// Studio reported `has_exceeded_max_diffs` as given.
+    fn max_diffs_response(has_exceeded_max_diffs: Option<bool>) -> CheckWorkflowResponse {
+        let mut response = no_proposals_response();
+        response.maybe_proposals_response = Some(ProposalsCheckResponse {
+            has_exceeded_max_diffs,
+            ..proposals_response(
+                CheckTaskStatus::FAILED,
+                ProposalsCheckSeverityLevel::ERROR,
+                ProposalsCoverage::NONE,
+                vec![],
+            )
+        });
+        response
+    }
+
+    #[rstest]
+    #[case::exceeded("exceeded", Some(true))]
+    #[case::not_exceeded("not_exceeded", Some(false))]
+    #[case::not_reported("not_reported", None)]
+    fn max_diffs_response_json_snapshot(
+        #[case] name: &str,
+        #[case] has_exceeded_max_diffs: Option<bool>,
+    ) {
+        let json = CheckWorkflowOutput(&max_diffs_response(has_exceeded_max_diffs))
+            .json()
+            .expect("check workflow JSON rendering cannot fail");
+        insta::assert_json_snapshot!(format!("max_diffs_response_json_{name}"), json);
     }
 
     #[test]

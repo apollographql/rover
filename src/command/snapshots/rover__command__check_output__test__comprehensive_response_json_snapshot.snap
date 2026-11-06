@@ -50,7 +50,8 @@ expression: json
           "status": "OPEN",
           "display_name": "Add phone number"
         }
-      ]
+      ],
+      "has_exceeded_max_diffs": false
     },
     "custom": {
       "task_status": "FAILED",
