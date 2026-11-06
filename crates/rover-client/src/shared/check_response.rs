@@ -134,6 +134,10 @@ pub struct ProposalsCheckResponse {
     pub proposal_coverage: ProposalsCoverage,
     pub target_url: Option<String>,
     pub related_proposals: Vec<RelatedProposal>,
+    /// Whether the change had more diffs than Studio allows for a proposals
+    /// check, in which case Studio doesn't report the individual diffs.
+    /// `None` for checks run before Studio reported this.
+    pub has_exceeded_max_diffs: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Eq, PartialEq)]

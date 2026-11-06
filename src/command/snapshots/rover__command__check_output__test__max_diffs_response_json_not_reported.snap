@@ -1,0 +1,24 @@
+---
+source: src/command/check_output.rs
+expression: json
+---
+{
+  "core_schema_modified": false,
+  "tasks": {
+    "operations": {
+      "task_status": "PASSED",
+      "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/checks/123/operations",
+      "operation_check_count": 3,
+      "changes": [],
+      "failure_count": 0
+    },
+    "proposals": {
+      "task_status": "FAILED",
+      "severity_level": "ERROR",
+      "proposal_coverage": "NONE",
+      "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/proposal/abc",
+      "related_proposals": [],
+      "has_exceeded_max_diffs": null
+    }
+  }
+}

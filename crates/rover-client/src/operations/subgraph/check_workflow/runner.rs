@@ -417,6 +417,7 @@ fn get_proposals_response_from_result(
                 severity_level: severity,
                 proposal_coverage: coverage,
                 related_proposals,
+                has_exceeded_max_diffs: result.has_exceeded_max_diffs,
             })
         }
         None => None,
@@ -685,6 +686,48 @@ mod tests {
             }
             _ => panic!("Expected SubgraphBuildErrors error"),
         }
+    }
+
+    #[rstest]
+    #[case::exceeded(json!(true), Some(true))]
+    #[case::not_exceeded(json!(false), Some(false))]
+    #[case::checked_before_studio_reported_it(Value::Null, None)]
+    fn test_get_check_response_carries_proposals_max_diffs_exceeded(
+        graph_ref: GraphRef,
+        #[case] has_exceeded_max_diffs: Value,
+        #[case] expected: Option<bool>,
+    ) {
+        let data = create_check_workflow_data(
+            CheckWorkflowStatus::PASSED,
+            json!([
+                {
+                    "__typename": "ProposalsCheckTask",
+                    "status": "PASSED",
+                    "targetURL": "https://studio.apollographql.com/graph/test-graph/variant/test-variant/proposal/abc",
+                    "didOverrideProposalsCheckTask": false,
+                    "hasExceededMaxDiffs": has_exceeded_max_diffs,
+                    "proposalCoverage": "NONE",
+                    "relatedProposalResults": [],
+                    "severityLevel": "WARN"
+                }
+            ]),
+        );
+
+        let response =
+            get_check_response_from_data(data, graph_ref, "test-subgraph".to_string(), true)
+                .unwrap();
+
+        assert_that!(response.maybe_proposals_response).is_equal_to(Some(ProposalsCheckResponse {
+            task_status: CheckTaskStatus::PASSED,
+            severity_level: ProposalsCheckSeverityLevel::WARN,
+            proposal_coverage: ProposalsCoverage::NONE,
+            target_url: Some(
+                "https://studio.apollographql.com/graph/test-graph/variant/test-variant/proposal/abc"
+                    .to_string(),
+            ),
+            related_proposals: vec![],
+            has_exceeded_max_diffs: expected,
+        }));
     }
 
     #[rstest]
