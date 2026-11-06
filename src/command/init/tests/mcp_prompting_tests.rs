@@ -266,8 +266,10 @@ fn test_mcp_file_categorization_logic() {
 
     // Test the categorization logic by calling the function directly
     // Note: This doesn't test the actual printing, just that the function doesn't panic
+    use rover_print::print::testing::TerminalCapture;
+
     use crate::command::init::helpers::print_mcp_file_categories;
-    print_mcp_file_categories(test_files);
+    print_mcp_file_categories(&TerminalCapture::new(false), test_files);
 }
 
 fn mcp_graph_id_confirmed_fixture() -> MCPGraphIdConfirmed {

@@ -1026,7 +1026,7 @@ impl MCPGraphIdConfirmed {
 
         // Get the files from the composed template
         let files = self.composed_template.list_files();
-        print_mcp_file_categories(files);
+        print_mcp_file_categories(&rover_print::print::stdout::default(), files);
 
         println!();
         println!("{}", Style::File.paint("What this template gives you"));
