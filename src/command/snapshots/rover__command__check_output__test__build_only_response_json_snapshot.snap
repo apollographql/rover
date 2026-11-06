@@ -4,5 +4,6 @@ expression: json
 ---
 {
   "core_schema_modified": false,
-  "tasks": {}
+  "tasks": {},
+  "task_statuses": []
 }

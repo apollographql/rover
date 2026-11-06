@@ -1304,6 +1304,7 @@ mod tests {
             "data": {
                 "success": true,
                 "core_schema_modified": true,
+                "task_statuses": [],
                 "tasks": {
                     "custom": {
                         "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/custom/1",
@@ -1623,6 +1624,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             "data": {
                 "success": false,
                 "core_schema_modified": false,
+                "task_statuses": [],
                 "tasks": {
                     "custom": {
                         "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/custom/1",

@@ -391,7 +391,8 @@ fn downstream_text(response: &DownstreamCheckResponse) -> String {
 mod test {
     use console::strip_ansi_codes;
     use rover_client::shared::{
-        ChangeSeverity, Diagnostic, RelatedProposal, SchemaChange, Violation,
+        ChangeSeverity, CheckTaskKind, CheckTaskSummary, Diagnostic, RelatedProposal, SchemaChange,
+        Violation,
     };
     use rstest::rstest;
     use speculoos::prelude::*;
@@ -502,7 +503,39 @@ mod test {
                 ),
                 variants: vec![variant("mobile", true, CheckTaskStatus::FAILED)],
             }),
-            task_summaries: Vec::new(),
+            task_summaries: [
+                (CheckTaskKind::Build, CheckTaskStatus::PASSED, None),
+                (
+                    CheckTaskKind::Operations,
+                    CheckTaskStatus::FAILED,
+                    Some("operations"),
+                ),
+                (CheckTaskKind::Lint, CheckTaskStatus::PASSED, Some("lint")),
+                (
+                    CheckTaskKind::Proposals,
+                    CheckTaskStatus::FAILED,
+                    Some("proposals"),
+                ),
+                (
+                    CheckTaskKind::Custom,
+                    CheckTaskStatus::FAILED,
+                    Some("custom"),
+                ),
+                (
+                    CheckTaskKind::Downstream,
+                    CheckTaskStatus::FAILED,
+                    Some("downstream"),
+                ),
+            ]
+            .into_iter()
+            .map(|(kind, status, path)| CheckTaskSummary {
+                kind,
+                status,
+                target_url: path.map(|path| {
+                    format!("https://studio.apollographql.com/graph/my-graph/checks/{path}")
+                }),
+            })
+            .collect(),
         }
     }
 

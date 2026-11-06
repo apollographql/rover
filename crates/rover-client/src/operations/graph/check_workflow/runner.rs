@@ -194,6 +194,9 @@ fn get_check_response_from_data(
         downstream_result,
         include_contract_checks,
     );
+    if let Some(downstream_response) = &maybe_downstream_response {
+        downstream_response.apply_status_to(&mut task_summaries);
+    }
     let downstream_failed = include_contract_checks
         && maybe_downstream_response
             .as_ref()
