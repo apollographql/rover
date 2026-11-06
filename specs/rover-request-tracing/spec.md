@@ -14,7 +14,8 @@ Gateway behavior (parsing the headers, forwarding to observability backends, and
 - **Logical request**: one operation Rover asks the Platform API to perform. Repeating it after a failure is a retry. Repeating a request to check on progress, as when polling for a result, is a new logical request each time, not a retry.
 - **Attempt**: one send of a logical request over HTTP. A request that Rover retries has more than one attempt.
 - **Retry**: a repeat of a logical request after an attempt failed because of a timeout, a connection failure, or a retryable response status.
-- **Retry count**: the number of earlier attempts of the same logical request, across every retry mechanism Rover applies to it, before the current attempt. The first attempt has a retry count of 0.
+- **Retry mechanism**: any part of Rover that repeats a logical request after a failed attempt. Repeating a request to check on progress, as when polling, is not a retry mechanism.
+- **Retry count**: the number of earlier attempts of the same logical request before the current attempt. The first attempt has a retry count of 0.
 - **Trace ID**: the 16-byte trace identifier of the W3C Trace Context `traceparent` header.
 - **Parent ID**: the 8-byte parent identifier of the `traceparent` header.
 
@@ -37,7 +38,7 @@ Gateway behavior (parsing the headers, forwarding to observability backends, and
 ### 3.3 Retry count
 
 - **FR9** (Goal 2): Each attempt's `tracestate` must contain exactly one `rover` entry whose value is `retries:` followed by the attempt's retry count in decimal, for example `rover=retries:2`.
-- **FR10** (Goal 2): The first attempt of a logical request must carry `rover=retries:0`. Each retry must carry a count one higher than the attempt it follows. The count must include attempts made by every retry mechanism Rover applies to the request, on every request path, and must not reset or double count when mechanisms nest.
+- **FR10** (Goal 2): The first attempt of a logical request must carry `rover=retries:0`. Each retry must carry a count one higher than the attempt it follows. This must hold on every request path. Rover must not apply more than one retry mechanism to the same logical request, so the count is exact.
 - **FR11** (Goal 2): The retry count must count only attempts of the same logical request. It must not carry over to the next request, and must not accumulate across requests in an invocation. Each request in a polling sequence is a new logical request, so its first attempt carries `rover=retries:0`.
 
 ### 3.4 Anonymity
@@ -78,8 +79,11 @@ Given a request that was retried and a following request that wasn't, when the f
 **Polling is not retrying**
 Given a command that polls the Platform API for a result, when each poll is sent, then its first attempt carries `rover=retries:0`, whatever happened on earlier polls.
 
-**Every request path and nested retries**
-Given a Platform API request sent through the legacy blocking client and one sent through the service-based client, when each is retried, then both carry the same headers by the same rules, and where retry mechanisms nest, the retry count equals the total number of earlier attempts.
+**Every request path**
+Given a Platform API request sent through the legacy blocking client and one sent through the service-based client, when each is retried, then both carry the same headers by the same rules, and the retry count equals the number of earlier attempts.
+
+**One retry mechanism per request**
+Given any Platform API request that Rover retries, when it is retried, then a single retry mechanism performs every retry, and the attempts carry `rover=retries:0`, `rover=retries:1`, and so on in order.
 
 **Other destinations**
 Given a command that makes an introspection request to a user-supplied endpoint, a plugin download, an OAuth login or token request, or sends telemetry, when each request is sent, then none carries `traceparent` or `tracestate`.

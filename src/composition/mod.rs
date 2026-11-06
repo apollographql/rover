@@ -171,6 +171,15 @@ pub enum CompositionError {
         source: BuildErrors,
         federation_version: FederationVersion,
         provenance: Box<PluginProvenance>,
+        /// Whether the project may have been written for Federation 1: nothing asked for a
+        /// federation version, and no subgraph opts in to Federation 2 with `@link`. It is only
+        /// a hint for the error's suggestions, because a project with no federation directives
+        /// at all reads the same under both versions.
+        ///
+        /// Only the composition pipeline behind `rover supergraph compose` fills this in. Errors
+        /// from the composition watcher that `rover dev` and the language server use come
+        /// straight from the binary, so it is always `false` for them.
+        maybe_federation_one: bool,
     },
     /// Raised beside the binary rather than by it: the temporary directory whose
     /// path Rover builds the resolved supergraph config's filename from, before
