@@ -8,6 +8,6 @@ mod report;
 mod session;
 
 pub use error::SputnikError;
-pub use install_salt::{GraphId, InstallSalt};
+pub use install_salt::{GraphIdHash, InstallSalt};
 pub use report::Report;
-pub use session::{Command, Environment, Outcome, Session};
+pub use session::{Command, InvocationMode, Outcome, Session};

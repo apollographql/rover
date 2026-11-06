@@ -13,14 +13,14 @@ const SALT_BYTES: usize = 32;
 
 /// A one-way identifier for a graph, as lowercase hexadecimal.
 ///
-/// It can only be made by [`InstallSalt::graph_identifier`], so a graph ref, or anything else
+/// It can only be made by [`InstallSalt::graph_id_hash`], so a graph ref, or anything else
 /// that hasn't been through that keyed derivation, can't be put in an event as one.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(transparent)]
-pub struct GraphId(String);
+pub struct GraphIdHash(String);
 
 #[cfg(test)]
-impl GraphId {
+impl GraphIdHash {
     /// A graph identifier with a chosen value, for tests of what carries one.
     pub(crate) fn for_tests(value: &str) -> Self {
         Self(value.to_string())
@@ -80,11 +80,11 @@ impl InstallSalt {
     /// It is derived from the ref's canonical `name@variant` form, so a ref written without its
     /// variant gets the same identifier as one that names the default. The same salt and graph
     /// ref always give the same identifier, and a different salt gives a different one.
-    pub fn graph_identifier(&self, graph_ref: &GraphRef) -> GraphId {
+    pub fn graph_id_hash(&self, graph_ref: &GraphRef) -> GraphIdHash {
         let mut mac =
             Hmac::<Sha256>::new_from_slice(&self.0).expect("HMAC accepts a key of any length");
         mac.update(graph_ref.to_string().as_bytes());
-        GraphId(encode_hex(&mac.finalize().into_bytes()))
+        GraphIdHash(encode_hex(&mac.finalize().into_bytes()))
     }
 
     pub(crate) fn to_hex(&self) -> String {
@@ -123,7 +123,7 @@ mod tests {
     use sha2::{Digest, Sha256};
     use speculoos::prelude::*;
 
-    use super::{encode_hex, GraphId, GraphRef, InstallSalt, SALT_BYTES};
+    use super::{encode_hex, GraphIdHash, GraphRef, InstallSalt, SALT_BYTES};
 
     fn graph_ref(graph_ref: &str) -> GraphRef {
         graph_ref.parse().unwrap()
@@ -234,8 +234,10 @@ mod tests {
         let salt = InstallSalt([1; SALT_BYTES]);
 
         // HMAC-SHA256 with the salt as the key, worked out independently of this code.
-        assert_that!(salt.graph_identifier(&graph_ref("my-graph@current"))).is_equal_to(
-            GraphId::for_tests("015b2b8f15822524996e882cffbcf6a5d7660f804194b9cce129c4ec61f47d97"),
+        assert_that!(salt.graph_id_hash(&graph_ref("my-graph@current"))).is_equal_to(
+            GraphIdHash::for_tests(
+                "015b2b8f15822524996e882cffbcf6a5d7660f804194b9cce129c4ec61f47d97",
+            ),
         );
     }
 
@@ -243,31 +245,31 @@ mod tests {
     fn the_same_install_gets_the_same_identifier_for_the_same_graph_ref() {
         let salt = InstallSalt([7; SALT_BYTES]);
 
-        assert_that!(salt.graph_identifier(&graph_ref("my-graph@current")))
-            .is_equal_to(salt.graph_identifier(&graph_ref("my-graph@current")));
+        assert_that!(salt.graph_id_hash(&graph_ref("my-graph@current")))
+            .is_equal_to(salt.graph_id_hash(&graph_ref("my-graph@current")));
     }
 
     #[test]
     fn a_graph_ref_without_a_variant_gets_the_identifier_of_the_current_variant() {
         let salt = InstallSalt([7; SALT_BYTES]);
 
-        assert_that!(salt.graph_identifier(&graph_ref("my-graph")))
-            .is_equal_to(salt.graph_identifier(&graph_ref("my-graph@current")));
+        assert_that!(salt.graph_id_hash(&graph_ref("my-graph")))
+            .is_equal_to(salt.graph_id_hash(&graph_ref("my-graph@current")));
     }
 
     #[test]
     fn different_graph_refs_get_different_identifiers() {
         let salt = InstallSalt([7; SALT_BYTES]);
 
-        assert_that!(salt.graph_identifier(&graph_ref("my-graph@current")))
-            .is_not_equal_to(salt.graph_identifier(&graph_ref("my-graph@staging")));
+        assert_that!(salt.graph_id_hash(&graph_ref("my-graph@current")))
+            .is_not_equal_to(salt.graph_id_hash(&graph_ref("my-graph@staging")));
     }
 
     #[test]
     fn different_installs_get_different_identifiers_for_the_same_graph_ref() {
-        assert_that!(InstallSalt([1; SALT_BYTES]).graph_identifier(&graph_ref("my-graph@current")))
+        assert_that!(InstallSalt([1; SALT_BYTES]).graph_id_hash(&graph_ref("my-graph@current")))
             .is_not_equal_to(
-                InstallSalt([2; SALT_BYTES]).graph_identifier(&graph_ref("my-graph@current")),
+                InstallSalt([2; SALT_BYTES]).graph_id_hash(&graph_ref("my-graph@current")),
             );
     }
 
@@ -284,18 +286,18 @@ mod tests {
         ];
 
         for written in graph_refs {
-            let identifier = salt.graph_identifier(&graph_ref(written));
+            let identifier = salt.graph_id_hash(&graph_ref(written));
             for unsalted in [written.to_string(), graph_ref(written).to_string()] {
-                assert_that!(identifier.clone()).is_not_equal_to(GraphId::for_tests(&encode_hex(
-                    &Sha256::digest(unsalted.as_bytes()),
-                )));
+                assert_that!(identifier.clone()).is_not_equal_to(GraphIdHash::for_tests(
+                    &encode_hex(&Sha256::digest(unsalted.as_bytes())),
+                ));
             }
         }
     }
 
     #[test]
     fn a_graph_id_serializes_as_a_plain_string() {
-        assert_that!(serde_json::to_value(GraphId::for_tests("015b2b8f")))
+        assert_that!(serde_json::to_value(GraphIdHash::for_tests("015b2b8f")))
             .is_ok()
             .is_equal_to(serde_json::json!("015b2b8f"));
     }

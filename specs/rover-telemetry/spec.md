@@ -78,7 +78,7 @@ Request tracing against the Platform API is out of scope; it has its own PRD.
 ### 3.7 Wire contract
 
 - **FR27** (Goal 8): New fields must be additive and optional. Existing fields must keep their names and meaning, except that FR5 through FR9 narrow what the argument fields contain. The telemetry endpoint must accept events carrying the new fields before any Rover version that sends them is released, and must keep accepting events from older versions.
-- **FR28** (Goals 4–7): The new fields are named `duration_ms`, `outcome`, `environment`, and `graph_id`. An absent value is encoded by omitting the field.
+- **FR28** (Goals 4–7): The new fields are named `duration_ms`, `outcome`, `invocation_mode`, and `graph_id_hash`. An absent value is encoded by omitting the field.
 
 ## 4. Acceptance criteria
 
@@ -146,10 +146,10 @@ Given a run in which a CI vendor is detected, when the event is built, then the 
 Given a run with standard input attached to a terminal and no CI detected, when the event is built, then the invocation environment is `interactive`, including when output is piped.
 
 **Graph identifier present**
-Given a command whose graph ref resolves, when the event is built, then it includes `graph_id`.
+Given a command whose graph ref resolves, when the event is built, then it includes `graph_id_hash`.
 
 **Graph identifier stability and separation**
-Given one install, when two invocations resolve the same graph ref, then their `graph_id` values are equal. Given two installs with different install salts, when each resolves the same graph ref, then their `graph_id` values differ.
+Given one install, when two invocations resolve the same graph ref, then their `graph_id_hash` values are equal. Given two installs with different install salts, when each resolves the same graph ref, then their `graph_id_hash` values differ.
 
 **Help, version, and usage errors**
 Given `--help`, `--version`, or an invalid argument, when the command exits, then no event is sent.
@@ -161,10 +161,10 @@ Given a command whose output reader closes the pipe, when the command exits, the
 Given a run where CI is detected but no vendor is identified, or where standard input isn't a terminal, when the event is built, then the invocation environment is `automated`.
 
 **Graph identifier absent**
-Given a command with no resolvable graph ref, a malformed one, or no graph ref at all, when the event is built, then `graph_id` is absent.
+Given a command with no resolvable graph ref, a malformed one, or no graph ref at all, when the event is built, then `graph_id_hash` is absent.
 
 **Graph identifier is not reproducible**
-Given a list of known graph refs, when each is hashed with SHA-256, SHA-1, MD5, and BLAKE3, then no result equals an emitted `graph_id`.
+Given a list of known graph refs, when each is hashed with SHA-256, SHA-1, MD5, and BLAKE3, then no result equals an emitted `graph_id_hash`.
 
 **Opt-out**
 Given `APOLLO_TELEMETRY_DISABLED` set to any value, `--telemetry-disabled`, or a profile or project setting that disables telemetry, when any command runs, then no event is sent and no telemetry network request is made.
