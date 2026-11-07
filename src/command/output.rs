@@ -1279,6 +1279,7 @@ mod tests {
                     status: "OPEN".to_string(),
                     display_name: "Mock Proposal".to_string(),
                 }],
+                has_exceeded_max_diffs: Some(false),
             }),
             maybe_custom_response: Some(CustomCheckResponse {
                 task_status: CheckTaskStatus::PASSED,
@@ -1352,6 +1353,7 @@ mod tests {
                         "warnings_count": 1
                     },
                     "proposals": {
+                        "has_exceeded_max_diffs": false,
                         "proposal_coverage": "NONE",
                         "related_proposals": [
                             {
@@ -1590,6 +1592,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
                     status: "OPEN".to_string(),
                     display_name: "Mock Proposal".to_string(),
                 }],
+                has_exceeded_max_diffs: Some(false),
             }),
             maybe_custom_response: Some(CustomCheckResponse {
                 task_status: CheckTaskStatus::FAILED,
@@ -1675,6 +1678,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
                         "warnings_count": 1
                     },
                     "proposals": {
+                        "has_exceeded_max_diffs": false,
                         "proposal_coverage": "PARTIAL",
                         "related_proposals": [
                             {
