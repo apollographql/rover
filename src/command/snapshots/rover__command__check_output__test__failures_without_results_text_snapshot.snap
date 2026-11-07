@@ -1,0 +1,14 @@
+---
+source: src/command/check_output.rs
+expression: text
+---
+Build Check [PASSED]:
+There were no changes detected in the composed schema.
+
+Contract Filter Check [FAILED]:
+Studio didn't return any details for this task.
+View contract filter check details at: https://studio.apollographql.com/graph/my-graph/checks/filter
+
+Operation Check [FAILED]:
+Studio didn't return any details for this task.
+View operation check details at: https://studio.apollographql.com/graph/my-graph/checks?variant=current
