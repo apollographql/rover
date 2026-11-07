@@ -1,0 +1,15 @@
+---
+source: src/command/check_output.rs
+expression: text
+---
+Build Check [PASSED]:
+There were no changes detected in the composed schema.
+
+Operation Check [PASSED]:
+Compared 0 schema changes against 3 operations.
+No schema changes detected.
+View operation check details at: https://studio.apollographql.com/graph/my-graph/variant/current/checks/123/operations
+
+Proposals Check [FAILED]:
+No proposals are associated with these changes. Your proposals check severity level is set to ERROR, so changes that aren't in an approved proposal fail the check.
+View check details at: https://studio.apollographql.com/graph/my-graph/variant/current/checks/123/operations
