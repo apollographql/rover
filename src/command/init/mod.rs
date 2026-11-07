@@ -901,10 +901,9 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         );
         files.insert("README.md".into(), readme_content);
 
-        // Get the user's home directory for the MCP server binary path. This only
-        // reads the environment, so it runs before the prompt and fails before
-        // anything is created.
-        let home_dir = helpers::resolve_home_dir()?;
+        // Get the user's home directory for the MCP server binary path. This runs
+        // before the prompt, so it fails before anything is created.
+        let home_dir = binstall::get_home_dir_path()?;
 
         // Preview files, then get or create the API key only if the user confirms
         Self::print_mcp_preview(&files);

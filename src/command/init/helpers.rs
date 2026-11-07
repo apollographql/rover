@@ -10,38 +10,6 @@ use crate::{
     },
 };
 
-/// Finds the user's home directory, using `lookup` to read environment variables.
-///
-/// On Windows (`windows` is `true`) this is `USERPROFILE`, falling back to
-/// `HOMEDRIVE` followed by `HOMEPATH`. Everywhere else it is `HOME`. Taking the
-/// lookup and the platform as arguments lets tests cover every branch on any OS
-/// without changing the process environment.
-pub(crate) fn home_dir_from(
-    lookup: impl Fn(&str) -> Option<String>,
-    windows: bool,
-) -> RoverResult<Utf8PathBuf> {
-    let home_dir = if windows {
-        lookup("USERPROFILE")
-            .or_else(|| {
-                let drive = lookup("HOMEDRIVE")?;
-                let path = lookup("HOMEPATH")?;
-                Some(format!("{drive}{path}"))
-            })
-            .ok_or_else(|| anyhow::anyhow!("Could not determine home directory on Windows"))?
-    } else {
-        lookup("HOME").ok_or_else(|| {
-            anyhow::anyhow!("Could not determine home directory from HOME environment variable")
-        })?
-    };
-    Ok(Utf8PathBuf::from(home_dir))
-}
-
-/// Finds the user's home directory from the process environment.
-/// See [`home_dir_from`] for the rules.
-pub(crate) fn resolve_home_dir() -> RoverResult<Utf8PathBuf> {
-    home_dir_from(|key| std::env::var(key).ok(), cfg!(windows))
-}
-
 pub fn display_welcome_message() {
     println!();
     println!(
