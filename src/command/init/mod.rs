@@ -25,6 +25,9 @@ pub mod transitions;
 use std::path::PathBuf;
 
 use clap::Parser;
+#[cfg(feature = "composition-js")]
+use futures::future::OptionFuture;
+#[cfg(feature = "composition-js")]
 use houston::{ApiKey, ApiKeyActor};
 #[cfg(feature = "composition-js")]
 use rover_client::RoverClientError;
@@ -132,6 +135,59 @@ struct GraphVariantOption {
 pub use template_fetcher::InitTemplateFetcher;
 #[cfg(feature = "composition-js")]
 use transitions::{CreateProjectResult, RestartReason};
+
+/// Asks the user a yes/no question. A trait so tests can answer without a terminal.
+#[cfg(feature = "composition-js")]
+#[cfg_attr(test, mockall::automock)]
+pub(crate) trait ConfirmPrompt {
+    fn confirm(&self, message: &str) -> RoverResult<bool>;
+}
+
+/// Asks on stderr, defaulting to yes. Escape or `q` counts as no.
+#[cfg(feature = "composition-js")]
+pub(crate) struct TerminalPrompt;
+
+#[cfg(feature = "composition-js")]
+impl ConfirmPrompt for TerminalPrompt {
+    fn confirm(&self, message: &str) -> RoverResult<bool> {
+        Ok(dialoguer::Confirm::new()
+            .with_prompt(message)
+            .default(true)
+            .interact_on_opt(&dialoguer::console::Term::stderr())?
+            .unwrap_or(false))
+    }
+}
+
+/// Returns the graph API key for the MCP server: `APOLLO_KEY` from the environment
+/// when it holds a graph key, or a new key created for `graph` otherwise.
+#[cfg(feature = "composition-js")]
+async fn resolve_mcp_api_key(
+    client_config: &StudioClientConfig,
+    profile: &ProfileOpt,
+    graph: &GraphVariantOption,
+) -> RoverResult<String> {
+    use rover_std::Style;
+
+    use crate::command::init::operations::create_api_key;
+
+    if let Ok(key) = std::env::var("APOLLO_KEY")
+        && matches!(ApiKey::try_from(key.as_str()), Ok(k) if k.actor() == ApiKeyActor::Graph)
+    {
+        println!(
+            "{}",
+            Style::Success.paint("✓ Using existing APOLLO_KEY from environment")
+        );
+        return Ok(key);
+    }
+    println!("{}", Style::Heading.paint("Creating service API key"));
+    create_api_key(
+        client_config,
+        profile,
+        graph.graph_id.clone(),
+        format!("{}-mcp-server", graph.graph_name),
+    )
+    .await
+}
 
 #[derive(Debug, Parser, Clone, Serialize)]
 #[clap(about = "Initialize a new graph")]
@@ -524,15 +580,9 @@ impl Init {
         Ok(confirmed.unwrap_or(false))
     }
 
-    /// Preview files to be created before generation with confirm dialog
+    /// Prints the files that are about to be created.
     #[cfg(feature = "composition-js")]
-    async fn preview_mcp_files(
-        &self,
-        _selected_graph: &GraphVariantOption,
-        files: &std::collections::HashMap<camino::Utf8PathBuf, String>,
-    ) -> RoverResult<bool> {
-        use dialoguer::{Confirm, console::Term};
-
+    fn print_mcp_preview(files: &std::collections::HashMap<camino::Utf8PathBuf, String>) {
         use crate::command::init::helpers::print_mcp_file_categories;
 
         println!();
@@ -540,13 +590,6 @@ impl Init {
         let file_paths: Vec<camino::Utf8PathBuf> = files.keys().cloned().collect();
         print_mcp_file_categories(file_paths);
         println!();
-
-        let confirmed = Confirm::new()
-            .with_prompt("Create this template?")
-            .default(true)
-            .interact_on_opt(&Term::stderr())?;
-
-        Ok(confirmed.unwrap_or(false))
     }
 
     /// Prompt user to select a graph variant
@@ -858,69 +901,25 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         );
         files.insert("README.md".into(), readme_content);
 
-        // Get or create Apollo service key
-        // First check if APOLLO_KEY is already set in environment
-        let apollo_key = if let Ok(key) = std::env::var("APOLLO_KEY") {
-            let is_graph_key = matches!(
-                ApiKey::try_from(key.as_str()),
-                Ok(parsed) if parsed.actor() == ApiKeyActor::Graph
-            );
-            if is_graph_key {
-                println!(
-                    "{}",
-                    Style::Success.paint("✓ Using existing APOLLO_KEY from environment")
-                );
-                key
-            } else {
-                // Need to create a new service key for this graph
-                println!("{}", Style::Heading.paint("Creating service API key"));
+        // Get the user's home directory for the MCP server binary path. This runs
+        // before the prompt, so it fails before anything is created.
+        let home_dir = binstall::get_home_dir_path()?;
 
-                // Use the operations module to create API key
-                use crate::command::init::operations::create_api_key;
-                create_api_key(
-                    client_config,
-                    profile,
-                    selected_graph.graph_id.clone(),
-                    format!("{}-mcp-server", selected_graph.graph_name),
-                )
-                .await?
-            }
-        } else {
-            // Create new service key
-            println!("{}", Style::Heading.paint("Creating service API key"));
+        // Preview files, then get or create the API key only if the user confirms
+        Self::print_mcp_preview(&files);
 
-            use crate::command::init::operations::create_api_key;
-            create_api_key(
-                client_config,
-                profile,
-                selected_graph.graph_id.clone(),
-                format!("{}-mcp-server", selected_graph.graph_name),
-            )
-            .await?
-        };
+        let key = OptionFuture::from(
+            TerminalPrompt
+                .confirm("Create this template?")?
+                .then(|| resolve_mcp_api_key(client_config, profile, &selected_graph)),
+        )
+        .await
+        .transpose()?;
 
-        // Preview files and get user confirmation before creating them
-        let confirmed = self.preview_mcp_files(&selected_graph, &files).await?;
-        if !confirmed {
+        let Some(apollo_key) = key else {
             println!("Setup cancelled.");
             return Ok(RoverOutput::EmptySuccess);
-        }
-
-        // Get the user's home directory for MCP server binary path
-        let home_dir = if cfg!(windows) {
-            std::env::var("USERPROFILE")
-                .or_else(|_| {
-                    std::env::var("HOMEDRIVE").and_then(|drive| {
-                        std::env::var("HOMEPATH").map(|path| format!("{}{}", drive, path))
-                    })
-                })
-                .map_err(|_| anyhow!("Could not determine home directory on Windows"))
-        } else {
-            std::env::var("HOME").map_err(|_| {
-                anyhow!("Could not determine home directory from HOME environment variable")
-            })
-        }?;
-        let home_dir = camino::Utf8PathBuf::from(home_dir);
+        };
 
         // Generate the MCP server binary path
         let mcp_server_binary = home_dir.join(".rover/bin/apollo-mcp-server-v0.8.0");
