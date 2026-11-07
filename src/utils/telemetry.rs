@@ -4,7 +4,7 @@ use camino::Utf8PathBuf;
 use clap::{CommandFactory, parser::ValueSource};
 use reqwest::Client;
 use rover_studio::types::GraphRef;
-use sputnik::{Command, GraphId, Report, SputnikError};
+use sputnik::{Command, GraphIdHash, Report, SputnikError};
 use url::Url;
 
 use crate::{PKG_NAME, PKG_VERSION, cli::Rover, utils::env::RoverEnvKey};
@@ -126,13 +126,13 @@ impl Rover {
     /// The identifier of the graph this invocation ran against, for its telemetry event, when it
     /// has one. Nothing is read or written when telemetry is disabled, so an install that
     /// doesn't report, or doesn't use a graph ref, never creates an install salt.
-    pub(crate) fn graph_id(&self) -> Option<GraphId> {
+    pub(crate) fn graph_id_hash(&self) -> Option<GraphIdHash> {
         if !self.is_telemetry_enabled().ok()? {
             return None;
         }
         let graph_ref = self.resolvable_graph_ref()?;
         match self.install_salt() {
-            Ok(salt) => Some(salt.graph_identifier(&graph_ref)),
+            Ok(salt) => Some(salt.graph_id_hash(&graph_ref)),
             Err(error) => {
                 tracing::debug!(?error, "could not read the install salt");
                 None
@@ -785,13 +785,13 @@ mod tests {
             ];
             let rover = parse_with_matches(&args);
 
-            let graph_id = rover.graph_id().unwrap();
+            let graph_id_hash = rover.graph_id_hash().unwrap();
 
             let salt = rover.install_salt().unwrap();
-            assert_that!(graph_id)
-                .is_equal_to(salt.graph_identifier(&"my-graph@staging".parse().unwrap()));
+            assert_that!(graph_id_hash)
+                .is_equal_to(salt.graph_id_hash(&"my-graph@staging".parse().unwrap()));
             assert_that!(home.child("install_salt.txt").exists()).is_true();
-            assert_that!(rover.graph_id()).is_equal_to(Some(graph_id));
+            assert_that!(rover.graph_id_hash()).is_equal_to(Some(graph_id_hash));
         });
     }
 
@@ -801,7 +801,7 @@ mod tests {
             let args = [PKG_NAME, "--config-home", path, "config", "list"];
             let rover = parse_with_matches(&args);
 
-            assert_that!(rover.graph_id()).is_none();
+            assert_that!(rover.graph_id_hash()).is_none();
             assert_that!(home.child("install_salt.txt").exists()).is_false();
         });
     }
@@ -820,7 +820,7 @@ mod tests {
             ];
             let rover = parse_with_matches(&args);
 
-            assert_that!(rover.graph_id()).is_none();
+            assert_that!(rover.graph_id_hash()).is_none();
             assert_that!(home.child("install_salt.txt").exists()).is_false();
         });
     }

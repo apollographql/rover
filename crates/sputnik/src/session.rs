@@ -17,7 +17,7 @@ use serde::Serialize;
 use uuid::Uuid;
 use wsl::is_wsl;
 
-use crate::{GraphId, Report, SputnikError};
+use crate::{GraphIdHash, Report, SputnikError};
 
 /// The most that reporting telemetry may delay process exit, in total. This covers the entire
 /// time to make the request, including name resolution and connecting, not just server latency.
@@ -51,7 +51,7 @@ pub struct Session {
     cli_version: Version,
 
     /// Whether the invocation looks automated or interactive
-    environment: Environment,
+    invocation_mode: InvocationMode,
 
     /// How the command ended
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -63,7 +63,7 @@ pub struct Session {
     /// A one-way identifier of the graph the command ran against. It is omitted when the
     /// command has no graph ref to derive it from.
     #[serde(skip_serializing_if = "Option::is_none")]
-    graph_id: Option<GraphId>,
+    graph_id_hash: Option<GraphIdHash>,
 
     /// Where the telemetry data is being reported to
     #[serde(skip_serializing)]
@@ -78,7 +78,7 @@ pub struct Session {
 /// that identifies a machine or a person.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum Environment {
+pub enum InvocationMode {
     /// CI was detected, or standard input isn't a terminal
     Automated,
 
@@ -86,12 +86,12 @@ pub enum Environment {
     Interactive,
 }
 
-impl Environment {
+impl InvocationMode {
     const fn detect(is_ci: bool, stdin_is_terminal: bool) -> Self {
         if is_ci || !stdin_is_terminal {
-            Environment::Automated
+            InvocationMode::Automated
         } else {
-            Environment::Interactive
+            InvocationMode::Interactive
         }
     }
 }
@@ -167,7 +167,7 @@ impl Session {
         let remote_url_hash = get_repo_hash();
 
         let is_ci = ci_info::is_ci();
-        let environment = Environment::detect(is_ci, stdin().is_terminal());
+        let invocation_mode = InvocationMode::detect(is_ci, stdin().is_terminal());
         let continuous_integration = if is_ci { ci_info::get().vendor } else { None };
 
         let os = if is_wsl() {
@@ -192,10 +192,10 @@ impl Session {
             remote_url_hash,
             platform,
             cli_version,
-            environment,
+            invocation_mode,
             outcome: None,
             duration_ms: None,
-            graph_id: None,
+            graph_id_hash: None,
             reporting_info,
             client,
         })
@@ -216,8 +216,8 @@ impl Session {
 
     /// adds the identifier of the graph the command ran against. An event for a command with no
     /// graph ref is sent without one, so there is nothing to call this with.
-    pub fn with_graph_id(mut self, graph_id: GraphId) -> Self {
-        self.graph_id = Some(graph_id);
+    pub fn with_graph_id_hash(mut self, graph_id_hash: GraphIdHash) -> Self {
+        self.graph_id_hash = Some(graph_id_hash);
         self
     }
 
@@ -307,10 +307,10 @@ mod tests {
                 continuous_integration: None,
             },
             cli_version: Version::parse("0.0.0-test").unwrap(),
-            environment: Environment::Interactive,
+            invocation_mode: InvocationMode::Interactive,
             outcome: None,
             duration_ms: None,
-            graph_id: None,
+            graph_id_hash: None,
             reporting_info: ReportingInfo {
                 is_telemetry_enabled: true,
                 endpoint: Url::parse(format!("http://0.0.0.0/{}", report_path()).as_str()).unwrap(),
@@ -325,16 +325,18 @@ mod tests {
     #[case::without_one(None)]
     fn the_graph_id_is_in_the_event_only_when_there_is_one(
         session: Session,
-        #[case] graph_id: Option<&str>,
+        #[case] graph_id_hash: Option<&str>,
     ) {
-        let session = match graph_id {
-            Some(graph_id) => session.with_graph_id(GraphId::for_tests(graph_id)),
+        let session = match graph_id_hash {
+            Some(graph_id_hash) => {
+                session.with_graph_id_hash(GraphIdHash::for_tests(graph_id_hash))
+            }
             None => session,
         };
 
         let mut expected = serialized_event(None);
-        if let Some(graph_id) = graph_id {
-            expected["graph_id"] = json!(graph_id);
+        if let Some(graph_id_hash) = graph_id_hash {
+            expected["graph_id_hash"] = json!(graph_id_hash);
         }
         assert_that!(serde_json::to_value(&session))
             .is_ok()
@@ -421,16 +423,16 @@ mod tests {
     }
 
     #[rstest]
-    #[case::ci(true, true, Environment::Automated)]
-    #[case::ci_without_a_terminal(true, false, Environment::Automated)]
-    #[case::piped_input(false, false, Environment::Automated)]
-    #[case::terminal(false, true, Environment::Interactive)]
+    #[case::ci(true, true, InvocationMode::Automated)]
+    #[case::ci_without_a_terminal(true, false, InvocationMode::Automated)]
+    #[case::piped_input(false, false, InvocationMode::Automated)]
+    #[case::terminal(false, true, InvocationMode::Interactive)]
     fn environment_is_detected(
         #[case] is_ci: bool,
         #[case] stdin_is_terminal: bool,
-        #[case] expected: Environment,
+        #[case] expected: InvocationMode,
     ) {
-        assert_that!(Environment::detect(is_ci, stdin_is_terminal)).is_equal_to(expected);
+        assert_that!(InvocationMode::detect(is_ci, stdin_is_terminal)).is_equal_to(expected);
     }
 
     /// The fixture's event as it serializes, with the given duration if the command has
@@ -448,7 +450,7 @@ mod tests {
                 "continuous_integration": null
             },
             "cli_version": "0.0.0-test",
-            "environment": "interactive"
+            "invocation_mode": "interactive"
         });
         if let Some(duration_ms) = duration_ms {
             event["duration_ms"] = json!(duration_ms);
