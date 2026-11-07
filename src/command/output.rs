@@ -1293,6 +1293,7 @@ mod tests {
                 ],
             }),
             maybe_downstream_response: None,
+            task_summaries: Vec::new(),
         };
 
         let actual_json =
@@ -1303,6 +1304,7 @@ mod tests {
             "data": {
                 "success": true,
                 "core_schema_modified": true,
+                "task_statuses": [],
                 "tasks": {
                     "custom": {
                         "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/custom/1",
@@ -1407,6 +1409,7 @@ mod tests {
                 violations: vec![],
             }),
             maybe_downstream_response: None,
+            task_summaries: Vec::new(),
         };
 
         let actual_text = RoverOutput::CheckWorkflowResponse(mock_check_response)
@@ -1451,6 +1454,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             maybe_proposals_response: None,
             maybe_custom_response: None,
             maybe_downstream_response: None,
+            task_summaries: Vec::new(),
         };
 
         let actual_text = RoverOutput::CheckWorkflowResponse(check_response)
@@ -1488,6 +1492,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             maybe_proposals_response: None,
             maybe_custom_response: None,
             maybe_downstream_response: None,
+            task_summaries: Vec::new(),
         };
 
         let actual_text = RoverOutput::CheckWorkflowResponse(check_response)
@@ -1513,6 +1518,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             maybe_proposals_response: None,
             maybe_custom_response: None,
             maybe_downstream_response: None,
+            task_summaries: Vec::new(),
         };
 
         let actual_text = RoverOutput::CheckWorkflowResponse(check_response)
@@ -1604,6 +1610,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
                 ],
             }),
             maybe_downstream_response: None,
+            task_summaries: Vec::new(),
         };
 
         let actual_json =
@@ -1617,6 +1624,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             "data": {
                 "success": false,
                 "core_schema_modified": false,
+                "task_statuses": [],
                 "tasks": {
                     "custom": {
                         "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/custom/1",

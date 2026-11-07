@@ -21,6 +21,13 @@ expression: json
         ]
       }
     },
+    "task_statuses": [
+      {
+        "task": "downstream",
+        "status": "FAILED",
+        "target_url": "https://studio.apollographql.com/graph/my-graph/checks/downstream"
+      }
+    ],
     "success": false
   },
   "error": {
