@@ -850,54 +850,12 @@ impl Init {
         files.remove(&camino::Utf8PathBuf::from("supergraph.yaml"));
 
         // Add a basic README with graph info
-        let readme_content = format!(
-            r#"# {} MCP Server
-
-This MCP server provides AI-accessible tools for your Apollo graph.
-
-## Graph Information
-- **Graph ID**: {}
-- **Variant**: {}
-- **Organization**: {}
-- **Graph Reference**: {}
-{}
-
-## Quick Start
-
-1. Build the MCP server:
-   ```bash
-   docker build -f mcp.Dockerfile -t {}-mcp .
-   ```
-
-2. Run the MCP server:
-   ```bash
-   docker run --env-file .env -p5050:5050 {}-mcp
-   # Linux users may need: docker run --network=host --env-file .env {}-mcp
-   ```
-
-3. Test with MCP Inspector:
-   ```bash
-   npx @mcp/inspector
-   ```
-
-4. Configure Claude Desktop to use this server.
-
-## View in Apollo Studio
-{}"#,
-            selected_graph.graph_name,
-            selected_graph.graph_id,
-            selected_graph.variant_name,
-            selected_graph.organization_name,
-            graph_ref_str,
-            if !subgraph_info.is_empty() {
-                format!("\n- **{}**", subgraph_info)
-            } else {
-                String::new()
-            },
-            docker_tag,
-            docker_tag,
-            docker_tag,
-            graph_endpoint
+        let readme_content = helpers::existing_graph_mcp_readme(
+            &selected_graph,
+            &graph_ref_str,
+            &subgraph_info,
+            &docker_tag,
+            &graph_endpoint,
         );
         files.insert("README.md".into(), readme_content);
 
@@ -1078,7 +1036,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!(
             "      → API: {} | MCP: {}",
             Style::Link.paint("http://localhost:4000"),
-            Style::Link.paint("http://localhost:5050")
+            Style::Link.paint(helpers::mcp_local_endpoint())
         );
         println!();
         println!("   2. For containerized deployment:");
@@ -1091,10 +1049,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         );
         println!(
             "      {}",
-            Style::Command.paint(format!(
-                "docker run --env-file .env -p5050:5050 {}-mcp",
-                docker_tag
-            ))
+            Style::Command.paint(helpers::mcp_docker_run_hint(&docker_tag))
         );
 
         Ok(RoverOutput::EmptySuccess)
