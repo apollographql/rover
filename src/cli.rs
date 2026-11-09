@@ -311,6 +311,12 @@ async fn report_telemetry(session: Option<Session>) {
 
 impl Rover {
     pub async fn run_from_args() -> RoverResult<()> {
+        // Before clap reads any flag from its environment variable, so that a `.env` can
+        // supply them too.
+        if Rover::runs_dev(std::env::args_os()) {
+            dotenvy::dotenv().ok();
+        }
+
         // The same as `Rover::parse()`, keeping the matches for telemetry.
         let matches = Rover::command().get_matches();
         Rover::from_arg_matches(&matches)
@@ -318,6 +324,27 @@ impl Rover {
             .with_arg_matches(matches)
             .run()
             .await
+    }
+
+    /// Whether `args` run `rover dev`, found without failing or printing anything, so it can be
+    /// asked before the arguments are parsed for real. An argument that clap would reject is
+    /// ignored here, because the real parse is the one that reports it.
+    ///
+    /// `rover dev` is the one command that reads a `.env` file, and that file has to be loaded
+    /// before the real parse: clap reads a flag's environment variable while it parses, and
+    /// `Rover` caches the environment the first time it reads a variable, so a `.env` loaded
+    /// after either is invisible to it.
+    fn runs_dev<I, T>(args: I) -> bool
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<std::ffi::OsString> + Clone,
+    {
+        Rover::command()
+            .ignore_errors(true)
+            .disable_help_flag(true)
+            .disable_version_flag(true)
+            .try_get_matches_from(args)
+            .is_ok_and(|matches| matches.subcommand_name() == Some("dev"))
     }
 
     /// The graph ref this invocation ran against, if it has a resolvable one, for its telemetry
@@ -353,17 +380,9 @@ impl Rover {
     }
 
     pub async fn run(&self) -> RoverResult<()> {
-        // Must run before anything reads an environment variable, including the
-        // telemetry session below, not inside `Dev::run` or its arm in
-        // `execute_command` - `Rover`'s env-var cache (`env_store`, a
-        // `LazyCell<RoverEnv>`) is filled on first `get_env_var` call and never
-        // refreshed, so a `.env`-supplied `APOLLO_GRAPH_REF` loaded any later
-        // would be invisible to it, letting a stored profile value wrongly win
-        // instead of it, and spuriously triggering the "running without GraphOS
-        // credentials" notice.
-        if matches!(self.command, Command::Dev(_)) {
-            dotenvy::dotenv().ok();
-        }
+        // A `rover dev` `.env` has already been loaded, by `run_from_args`, ahead of
+        // anything that reads an environment variable: the arguments, and the telemetry
+        // session below.
         timber::init(self.log_level);
         tracing::trace!(command_structure = ?self);
         self.output_opts.set_no_color();
@@ -2066,6 +2085,26 @@ mod tests {
         assert_that!(outcome).is_equal_to(Outcome::Success);
         assert_that!(printed.is_err()).is_true();
         assert_that!(exit_code).is_equal_to(0);
+    }
+
+    #[rstest::rstest]
+    #[case::plain(&["rover", "dev"], true)]
+    #[case::with_flags(&["rover", "dev", "--supergraph-config", "s.yaml"], true)]
+    #[case::behind_a_global_flag_with_a_value(&["rover", "--log", "debug", "dev"], true)]
+    #[case::behind_a_global_flag_with_an_equals(&["rover", "--format=json", "dev"], true)]
+    #[case::asking_for_help(&["rover", "dev", "--help"], true)]
+    #[case::with_a_value_clap_rejects(&["rover", "dev", "--elv2-license", "bogus"], true)]
+    #[case::with_an_unknown_flag(&["rover", "dev", "--no-such-flag"], true)]
+    #[case::another_command(&["rover", "config", "list"], false)]
+    #[case::another_command_naming_dev(&["rover", "config", "list", "dev"], false)]
+    #[case::no_command(&["rover"], false)]
+    #[case::version(&["rover", "--version"], false)]
+    #[case::help(&["rover", "--help"], false)]
+    fn dev_is_recognised_before_the_arguments_are_parsed(
+        #[case] args: &[&str],
+        #[case] expected: bool,
+    ) {
+        assert_that!(Rover::runs_dev(args.iter().copied())).is_equal_to(expected);
     }
 
     #[test]
