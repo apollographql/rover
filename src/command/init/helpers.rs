@@ -1,4 +1,4 @@
-use camino::Utf8PathBuf;
+use camino::{Utf8Path, Utf8PathBuf};
 use indoc::formatdoc;
 use rover_std::{Style, hyperlink};
 use rover_studio::types::GraphRef;
@@ -378,7 +378,6 @@ pub struct MCPTemplateContext<'a> {
     pub graph_name: &'a str,
     pub variant_name: &'a str,
     pub organization_name: &'a str,
-    pub api_key: &'a str,
     pub graph_ref: &'a GraphRef,
     pub mcp_server_binary: Option<&'a str>,
     pub mcp_config_path: Option<&'a str>,
@@ -404,8 +403,6 @@ pub fn process_mcp_template_placeholders(content: &str, ctx: &MCPTemplateContext
         .replace("${GRAPH_NAME}", ctx.graph_name)
         .replace("${VARIANT_NAME}", ctx.variant_name)
         .replace("${ORGANIZATION_NAME}", ctx.organization_name)
-        .replace("${APOLLO_KEY}", ctx.api_key)
-        .replace("${APOLLO_API_KEY}", ctx.api_key)
         .replace("${APOLLO_GRAPH_REF}", &graph_ref_str)
         .replace("${GRAPHQL_ENDPOINT}", "http://localhost:4000/graphql")
         .replace("${LOCAL_GRAPHQL_ENDPOINT}", "http://localhost:4000/graphql")
@@ -430,8 +427,6 @@ pub fn process_mcp_template_placeholders(content: &str, ctx: &MCPTemplateContext
         .replace("{{GRAPH_NAME}}", ctx.graph_name)
         .replace("{{VARIANT_NAME}}", ctx.variant_name)
         .replace("{{ORGANIZATION_NAME}}", ctx.organization_name)
-        .replace("{{APOLLO_KEY}}", ctx.api_key)
-        .replace("{{APOLLO_API_KEY}}", ctx.api_key)
         .replace("{{APOLLO_GRAPH_REF}}", &graph_ref_str)
         .replace(
             "{{GRAPHQL_ENDPOINT}}",
@@ -456,7 +451,6 @@ pub fn process_mcp_template_placeholders(content: &str, ctx: &MCPTemplateContext
         )
         // Quoted versions for JSON/specific formats
         .replace("\"{{PROJECT_NAME}}\"", &format!("\"{}\"", ctx.project_name))
-        .replace("\"{{APOLLO_KEY}}\"", &format!("\"{}\"", ctx.api_key))
         .replace(
             "\"{{APOLLO_GRAPH_REF}}\"",
             &format!("\"{}\"", graph_ref_str),
@@ -484,6 +478,162 @@ pub fn process_mcp_template_placeholders(content: &str, ctx: &MCPTemplateContext
     );
 
     processed_content
+}
+
+/// Fills the Apollo API key placeholders in the content of a `.env` file.
+///
+/// The `.env` file generated from `.env.template` is the only file that receives the API key;
+/// other generated files read it from the environment.
+pub fn hydrate_env_api_key(content: &str, api_key: &str) -> String {
+    content
+        .replace("${APOLLO_KEY}", api_key)
+        .replace("${APOLLO_API_KEY}", api_key)
+        .replace("{{APOLLO_KEY}}", api_key)
+        .replace("{{APOLLO_API_KEY}}", api_key)
+}
+
+/// Returns the path to write a template file to when it is the `.env` template.
+///
+/// A file named `.env.template`, in any directory, is written as `.env` next to it, and it is the
+/// only file that receives the API key. Returns `None` for every other file.
+pub fn env_output_path(template_path: &Utf8Path) -> Option<Utf8PathBuf> {
+    (template_path.file_name() == Some(".env.template"))
+        .then(|| template_path.with_file_name(".env"))
+}
+
+/// Returns `true` when `path` names a generated `.env` file.
+pub fn is_env_file(path: &Utf8Path) -> bool {
+    path.file_name() == Some(".env")
+}
+
+/// Writes one generated project file.
+///
+/// A `.env` file is written so that only its owner can read or write it. Other files are written
+/// with the default permissions.
+pub fn write_project_file(path: &Utf8Path, content: impl AsRef<[u8]>) -> std::io::Result<()> {
+    if is_env_file(path) {
+        write_owner_only_file(path, content.as_ref())
+    } else {
+        std::fs::write(path, content)
+    }
+}
+
+/// Writes `content` to `path` so that only the owner can read or write it.
+///
+/// On Unix, a new file is created with mode `0600`, and an existing file is restricted to `0600`
+/// before the new content is written, so other users cannot open the file and read the new
+/// content. On other platforms this is a plain write.
+pub fn write_owner_only_file(path: &Utf8Path, content: &[u8]) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::{
+            io::Write,
+            os::unix::fs::{OpenOptionsExt, PermissionsExt},
+        };
+
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .mode(0o600)
+            .open(path)?;
+        // `mode` applies only when the file is created, so also restrict a file that already exists.
+        file.set_permissions(std::fs::Permissions::from_mode(0o600))?;
+        file.write_all(content)
+    }
+    #[cfg(not(unix))]
+    {
+        std::fs::write(path, content)
+    }
+}
+
+/// Values used to fill placeholders in `add-mcp` files when adding MCP to an existing graph
+pub struct ExistingGraphMCPContext<'a> {
+    pub project_name: &'a str,
+    pub graph_ref: &'a str,
+    pub graph_id: &'a str,
+    pub graph_name: &'a str,
+    pub variant_name: &'a str,
+    pub organization_name: &'a str,
+    pub api_key: &'a str,
+    pub graph_studio_url: &'a str,
+    pub mcp_server_binary: &'a str,
+    pub mcp_config_path: &'a str,
+    pub tools_path: &'a str,
+}
+
+/// Fills placeholders in one `add-mcp` file for an existing graph.
+///
+/// Returns the path to write the file to, relative to the project directory, and its content.
+/// `.env.template` is written as `.env`, and it is the only file that receives the API key.
+pub fn hydrate_existing_graph_file(
+    file_path: &Utf8Path,
+    content: &str,
+    ctx: &ExistingGraphMCPContext,
+) -> (Utf8PathBuf, String) {
+    // Replace template placeholders with selected graph information
+    // Use ${} format for YAML files (avoids linting issues)
+    // Use {{}} format for other templates and conditionals
+    let processed_content = content
+        // ${} format - primarily for YAML files
+        .replace("${PROJECT_NAME}", ctx.project_name)
+        .replace("${GRAPH_REF}", ctx.graph_ref)
+        .replace("${GRAPH_ID}", ctx.graph_id)
+        .replace("${GRAPH_NAME}", ctx.graph_name)
+        .replace("${VARIANT_NAME}", ctx.variant_name)
+        .replace("${ORGANIZATION_NAME}", ctx.organization_name)
+        .replace("${APOLLO_GRAPH_REF}", ctx.graph_ref)
+        .replace("${GRAPHQL_ENDPOINT}", "http://localhost:4000")
+        .replace("${STAGING_GRAPHQL_ENDPOINT}", "http://localhost:4000") // For staging YAML
+        .replace("${GRAPH_STUDIO_URL}", ctx.graph_studio_url)
+        .replace("${PROJECT_VERSION}", "1.0.0")
+        .replace(
+            "${PROJECT_REPOSITORY_URL}",
+            &format!("https://github.com/user/{}", ctx.project_name),
+        )
+        // {{}} format - for non-YAML templates and backwards compatibility
+        .replace("{{PROJECT_NAME}}", ctx.project_name)
+        .replace("{{GRAPH_REF}}", ctx.graph_ref)
+        .replace("{{GRAPH_ID}}", ctx.graph_id)
+        .replace("{{GRAPH_NAME}}", ctx.graph_name)
+        .replace("{{VARIANT_NAME}}", ctx.variant_name)
+        .replace("{{ORGANIZATION_NAME}}", ctx.organization_name)
+        .replace("{{APOLLO_GRAPH_REF}}", ctx.graph_ref)
+        .replace("{{MCP_SERVER_BINARY}}", ctx.mcp_server_binary)
+        .replace("{{MCP_CONFIG_PATH}}", ctx.mcp_config_path)
+        .replace("{{GRAPHQL_ENDPOINT}}", "http://localhost:4000")
+        .replace("{{GRAPH_STUDIO_URL}}", ctx.graph_studio_url)
+        .replace("{{PROJECT_VERSION}}", "1.0.0")
+        .replace(
+            "{{PROJECT_REPOSITORY_URL}}",
+            &format!("https://github.com/user/{}", ctx.project_name),
+        )
+        // Other replacements
+        .replace("- /tools", &format!("- {}", ctx.tools_path))
+        .replace(
+            "endpoint: http://host.docker.internal:4000",
+            "endpoint: http://localhost:4000",
+        );
+
+    // Handle the specific case where .env.template needs dynamic values populated
+    if let Some(env_path) = env_output_path(file_path) {
+        // Fill the quoted values in .env.template, then the API key
+        let env_content = processed_content
+            .replace("\"{{PROJECT_NAME}}\"", &format!("\"{}\"", ctx.project_name))
+            .replace(
+                "\"{{GRAPHQL_ENDPOINT}}\"",
+                "\"http://host.docker.internal:4000/graphql\"",
+            )
+            .replace(
+                "\"{{APOLLO_GRAPH_REF}}\"",
+                &format!("\"{}\"", ctx.graph_ref),
+            );
+
+        // Write processed template as .env file instead of .env.template
+        return (env_path, hydrate_env_api_key(&env_content, ctx.api_key));
+    }
+
+    (file_path.to_path_buf(), processed_content)
 }
 
 /// Update template files with real values from completed project
