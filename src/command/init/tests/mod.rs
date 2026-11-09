@@ -4,6 +4,7 @@ pub mod mcp_behavior_tests;
 pub mod mcp_flow_integration_test;
 pub mod mcp_integration_tests;
 pub mod mcp_next_steps_test;
+pub mod mcp_port_tests;
 pub mod mcp_prompting_tests;
 pub mod mcp_transitions_tests;
 pub mod project_authentication_tests;
