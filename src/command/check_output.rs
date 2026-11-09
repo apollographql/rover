@@ -331,7 +331,9 @@ enum CheckDetailsUrl<'a> {
 /// Whether Studio reported that the change had more diffs than a proposals
 /// check allows. Checks run before Studio reported this count as not exceeded.
 fn exceeded_max_diffs(response: &ProposalsCheckResponse) -> bool {
-    response.has_exceeded_max_diffs == Some(true)
+    // The message says Studio failed the task, so only show it for a task that did fail: a task
+    // that didn't run, or hasn't finished, has nothing to say about the limit.
+    response.has_exceeded_max_diffs == Some(true) && response.task_status == CheckTaskStatus::FAILED
 }
 
 /// Studio fails the proposals task outright when a change exceeds the limit,
@@ -793,6 +795,38 @@ mod test {
         let fallback_url = CheckDetailsUrl::Check("https://example.com/check");
         assert_that!(&strip_ansi_codes(&proposals_text(&response, &fallback_url)).to_string())
             .is_equal_to(expected);
+    }
+
+    #[rstest]
+    #[case::blocked(
+        CheckTaskStatus::BLOCKED,
+        ProposalsCoverage::PENDING,
+        "The proposals check did not run because an earlier task in this check failed.\n\
+         View check details at: https://example.com/check"
+    )]
+    #[case::pending(
+        CheckTaskStatus::PENDING,
+        ProposalsCoverage::PENDING,
+        "Proposal check has not completed.\n\
+         View check details at: https://example.com/check"
+    )]
+    fn proposals_text_reports_exceeded_max_diffs_only_for_a_failed_task(
+        #[case] task_status: CheckTaskStatus,
+        #[case] proposal_coverage: ProposalsCoverage,
+        #[case] expected: &str,
+    ) {
+        let response = ProposalsCheckResponse {
+            has_exceeded_max_diffs: Some(true),
+            ..proposals_response(
+                task_status,
+                ProposalsCheckSeverityLevel::ERROR,
+                proposal_coverage,
+                vec![],
+            )
+        };
+        let fallback_url = CheckDetailsUrl::Check("https://example.com/check");
+        assert_that!(&strip_ansi_codes(&proposals_text(&response, &fallback_url)).to_string())
+            .is_equal_to(expected.to_string());
     }
 
     #[test]
