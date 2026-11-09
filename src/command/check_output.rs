@@ -590,6 +590,7 @@ mod test {
                     display_name: "Add phone number".to_string(),
                 }],
                 has_exceeded_max_diffs: Some(false),
+                overridden: false,
             }),
             maybe_custom_response: Some(CustomCheckResponse {
                 task_status: CheckTaskStatus::FAILED,
@@ -676,6 +677,7 @@ mod test {
             ),
             related_proposals,
             has_exceeded_max_diffs: None,
+            overridden: false,
         }
     }
 
