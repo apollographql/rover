@@ -1512,7 +1512,7 @@ impl Init {
             completed_project.api_key, completed_project.graph_ref
         );
         let env_path = output_path.join(".env");
-        std::fs::write(&env_path, env_content)?;
+        helpers::write_owner_only_file(&env_path, env_content.as_bytes())?;
 
         // Generate Claude Desktop config with real API key and graph ref
         use crate::command::init::mcp::mcp_operations::MCPOperations;
