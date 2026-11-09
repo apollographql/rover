@@ -20,7 +20,6 @@ ENDPOINT={{GRAPHQL_ENDPOINT}}
 "#;
 
     let _project_name = "test_project";
-    let apollo_key = "service:test-graph:abc123"; // gitleaks:allow
     let graph_ref = rover_studio::types::GraphRef::from_str("test-graph@current").unwrap();
 
     // Test new state-based approach (should now use unified helper)
@@ -55,8 +54,7 @@ ENDPOINT={{GRAPHQL_ENDPOINT}}
         },
     };
 
-    let result =
-        mcp_creation_confirmed.process_template_placeholders(test_content, apollo_key, &graph_ref);
+    let result = mcp_creation_confirmed.process_template_placeholders(test_content, &graph_ref);
 
     println!("=== Original Content ===");
     println!("{}", test_content);
@@ -70,8 +68,8 @@ ENDPOINT={{GRAPHQL_ENDPOINT}}
         "PROJECT_NAME should be replaced"
     );
     assert!(
-        result.contains(&format!("APOLLO_KEY={}", apollo_key)),
-        "APOLLO_KEY should be replaced"
+        result.contains("APOLLO_KEY={{APOLLO_KEY}}"),
+        "APOLLO_KEY is only filled in .env, so the placeholder is left as is"
     );
     assert!(
         result.contains("DOCKER_TAG=test-graph"),
@@ -94,10 +92,6 @@ ENDPOINT={{GRAPHQL_ENDPOINT}}
     assert!(
         !result.contains("{{PROJECT_NAME}}"),
         "PROJECT_NAME placeholder should be removed"
-    );
-    assert!(
-        !result.contains("{{APOLLO_KEY}}"), // gitleaks:allow
-        "APOLLO_KEY placeholder should be removed"
     );
     assert!(
         !result.contains("{{DOCKER_TAG}}"),
@@ -136,7 +130,6 @@ fn test_unified_helper_directly() {
         graph_name: "my_project",
         variant_name: "current",
         organization_name: "my_org",
-        api_key: "service:key:123", // gitleaks:allow
         graph_ref: &graph_ref,
         mcp_server_binary: None,
         mcp_config_path: None,
@@ -150,13 +143,12 @@ fn test_unified_helper_directly() {
 
     // All placeholders should be replaced
     assert!(result.contains("PROJECT=my_project"));
-    assert!(result.contains("KEY=service:key:123"));
+    assert!(result.contains("KEY={{APOLLO_KEY}}"));
     assert!(result.contains("TAG=my-graph")); // This is the critical DOCKER_TAG fix
     assert!(result.contains("ID=my-graph"));
 
     // No placeholders should remain
     assert!(!result.contains("{{PROJECT_NAME}}"));
-    assert!(!result.contains("{{APOLLO_KEY}}"));
     assert!(!result.contains("{{DOCKER_TAG}}"));
     assert!(!result.contains("${GRAPH_ID}"));
 }

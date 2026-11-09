@@ -24,7 +24,6 @@ DOCKER_TAG={{DOCKER_TAG}}
 
     // Simulate the values that would be used
     let project_name = "test_project";
-    let apollo_key = "service:test-graph:abc123"; // gitleaks:allow
     let graph_ref = rover_studio::types::GraphRef::from_str("test-graph@current").unwrap();
     let graph_ref_str = graph_ref.to_string();
 
@@ -60,7 +59,7 @@ DOCKER_TAG={{DOCKER_TAG}}
     };
 
     let new_approach_result =
-        mcp_creation_confirmed.process_template_placeholders(test_content, apollo_key, &graph_ref);
+        mcp_creation_confirmed.process_template_placeholders(test_content, &graph_ref);
 
     // Test Method 2: Existing graph approach (simulated)
     let mut old_approach_result = test_content.to_string();
@@ -74,8 +73,6 @@ DOCKER_TAG={{DOCKER_TAG}}
         .replace("${GRAPH_NAME}", project_name)
         .replace("${VARIANT_NAME}", "current")
         .replace("${ORGANIZATION_NAME}", "test_org")
-        .replace("${APOLLO_API_KEY}", apollo_key)
-        .replace("${APOLLO_KEY}", apollo_key)
         .replace("${APOLLO_GRAPH_REF}", &graph_ref_str)
         .replace("${GRAPHQL_ENDPOINT}", "http://localhost:4000")
         .replace("${STAGING_GRAPHQL_ENDPOINT}", "http://localhost:4000")
@@ -87,8 +84,6 @@ DOCKER_TAG={{DOCKER_TAG}}
         .replace("{{GRAPH_NAME}}", project_name)
         .replace("{{VARIANT_NAME}}", "current")
         .replace("{{ORGANIZATION_NAME}}", "test_org")
-        .replace("{{APOLLO_API_KEY}}", apollo_key)
-        .replace("{{APOLLO_KEY}}", apollo_key)
         .replace("{{APOLLO_GRAPH_REF}}", &graph_ref_str)
         .replace("{{GRAPHQL_ENDPOINT}}", "http://localhost:4000")
         .replace("{{PROJECT_VERSION}}", "1.0.0");
@@ -105,7 +100,6 @@ DOCKER_TAG={{DOCKER_TAG}}
     // Check if they produce the same results for the common placeholders
     let placeholders_to_check = vec![
         ("{{PROJECT_NAME}}", project_name),
-        ("{{APOLLO_KEY}}", apollo_key),
         ("{{APOLLO_GRAPH_REF}}", &graph_ref_str),
         ("${GRAPH_ID}", "test-graph"),
         ("${VARIANT_NAME}", "current"),

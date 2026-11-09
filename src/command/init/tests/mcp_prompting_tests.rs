@@ -503,10 +503,9 @@ GRAPHQL_ENDPOINT="{{GRAPHQL_ENDPOINT}}"
     // Process the .env.template file
     // Use unified template processing instead of removed method
     let env_template_content = std::fs::read_to_string(&env_template_path).unwrap();
-    let processed_content = mcp_creation_confirmed.process_template_placeholders(
-        &env_template_content,
+    let processed_content = crate::command::init::helpers::hydrate_env_api_key(
+        &mcp_creation_confirmed.process_template_placeholders(&env_template_content, &graph_ref),
         api_key,
-        &graph_ref,
     );
     let env_path = mcp_creation_confirmed.output_path.join(".env");
     std::fs::write(&env_path, processed_content).unwrap();
@@ -596,10 +595,9 @@ APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}
     // Process the .env.template file
     // Use unified template processing instead of removed method
     let env_template_content = std::fs::read_to_string(&env_template_path).unwrap();
-    let processed_content = mcp_creation_confirmed.process_template_placeholders(
-        &env_template_content,
+    let processed_content = crate::command::init::helpers::hydrate_env_api_key(
+        &mcp_creation_confirmed.process_template_placeholders(&env_template_content, &graph_ref),
         api_key,
-        &graph_ref,
     );
     let env_path = mcp_creation_confirmed.output_path.join(".env");
     std::fs::write(&env_path, processed_content).unwrap();
@@ -672,17 +670,13 @@ fn test_mcp_env_no_file_processing() {
         output_path: temp_path.clone(),
     };
 
-    // Mock API key and graph ref
-    let api_key = "service:test-graph-id:mock-api-key"; // gitleaks:allow
+    // Mock graph ref
     let graph_ref = GraphRef::new("test-graph-id", Some("current")).unwrap();
 
     // Process should succeed even with no .env.template file
     // Test that template processing works (no actual file processing needed for this test)
-    let _processed = mcp_creation_confirmed.process_template_placeholders(
-        "test {{PROJECT_NAME}}",
-        api_key,
-        &graph_ref,
-    );
+    let _processed =
+        mcp_creation_confirmed.process_template_placeholders("test {{PROJECT_NAME}}", &graph_ref);
     let result: Result<(), crate::RoverError> = Ok(());
     assert!(result.is_ok());
 
@@ -764,16 +758,12 @@ fn test_mcp_creation_confirmed_has_complete_interface() {
 
     // 3. Verify MCP-specific interface exists (compilation test)
     // The fact that this compiles proves the interface exists and follows type safety
-    let api_key = "test-key";
     let graph_ref = rover_studio::types::GraphRef::new("test", Some("current")).unwrap();
 
     // This line verifies that MCPCreationConfirmed has the MCP-specific method
     // (will fail compilation if method doesn't exist or has wrong signature)
-    let _can_process_env = mcp_creation_confirmed.process_template_placeholders(
-        "test {{PROJECT_NAME}}",
-        api_key,
-        &graph_ref,
-    );
+    let _can_process_env =
+        mcp_creation_confirmed.process_template_placeholders("test {{PROJECT_NAME}}", &graph_ref);
 
     // The existence of create_project method is verified by the compiler
     // since the struct implements the required interface for complete project creation
@@ -845,10 +835,9 @@ APOLLO_GRAPH_REF={{APOLLO_GRAPH_REF}}
     // Process should succeed and rename .env.template to .env
     // Read the .env.template content and process it
     let env_template_content = fs::read_to_string(&env_template_path).unwrap();
-    let processed_content = mcp_creation_confirmed.process_template_placeholders(
-        &env_template_content,
+    let processed_content = crate::command::init::helpers::hydrate_env_api_key(
+        &mcp_creation_confirmed.process_template_placeholders(&env_template_content, &graph_ref),
         api_key,
-        &graph_ref,
     );
 
     // Write the processed content to .env and remove .env.template (simulating the actual flow)

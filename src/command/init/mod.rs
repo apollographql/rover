@@ -404,7 +404,6 @@ impl Init {
 
                 // Handle project creation result
                 if let CreateProjectResult::Created(project) = project_created {
-                    update_template_files_with_real_values(&project)?;
                     return Ok(project.complete().success());
                 }
 
@@ -889,88 +888,34 @@ impl Init {
         let tools_absolute_path = current_dir.join("tools");
         let tools_path_str = tools_absolute_path.as_str().replace("/./", "/");
 
+        let hydration_ctx = helpers::ExistingGraphMCPContext {
+            project_name: &project_name,
+            graph_ref: &graph_ref_str,
+            graph_id: &selected_graph.graph_id,
+            graph_name: &selected_graph.graph_name,
+            variant_name: &selected_graph.variant_name,
+            organization_name: &selected_graph.organization_name,
+            api_key: &apollo_key,
+            graph_studio_url: &graph_endpoint,
+            mcp_server_binary: mcp_server_binary.as_str(),
+            mcp_config_path: mcp_config_path.as_str(),
+            tools_path: &tools_path_str,
+        };
+
         // Write files to current directory with template replacement
         let template_writes_env = files
             .keys()
             .any(|path| path == ".env.template" || path == ".env");
         for (file_path, content) in &files {
-            let final_file_path = camino::Utf8PathBuf::from(file_path);
+            let (output_path, processed_content) =
+                helpers::hydrate_existing_graph_file(file_path, content, &hydration_ctx);
 
-            let target_path = current_dir.join(&final_file_path);
+            let target_path = current_dir.join(&output_path);
             if let Some(parent) = target_path.parent() {
                 std::fs::create_dir_all(parent)?;
             }
 
-            // Replace template placeholders with selected graph information
-            // Use ${} format for YAML files (avoids linting issues)
-            // Use {{}} format for other templates and conditionals
-            let mut processed_content = content
-                // ${} format - primarily for YAML files
-                .replace("${PROJECT_NAME}", &project_name)
-                .replace("${GRAPH_REF}", &graph_ref_str)
-                .replace("${GRAPH_ID}", &selected_graph.graph_id)
-                .replace("${GRAPH_NAME}", &selected_graph.graph_name)
-                .replace("${VARIANT_NAME}", &selected_graph.variant_name)
-                .replace("${ORGANIZATION_NAME}", &selected_graph.organization_name)
-                .replace("${APOLLO_API_KEY}", &apollo_key)
-                .replace("${APOLLO_KEY}", &apollo_key)
-                .replace("${APOLLO_GRAPH_REF}", &graph_ref_str)
-                .replace("${GRAPHQL_ENDPOINT}", "http://localhost:4000")
-                .replace("${STAGING_GRAPHQL_ENDPOINT}", "http://localhost:4000") // For staging YAML
-                .replace("${GRAPH_STUDIO_URL}", &graph_endpoint)
-                .replace("${PROJECT_VERSION}", "1.0.0")
-                .replace(
-                    "${PROJECT_REPOSITORY_URL}",
-                    &format!("https://github.com/user/{}", project_name),
-                )
-                // {{}} format - for non-YAML templates and backwards compatibility
-                .replace("{{PROJECT_NAME}}", &project_name)
-                .replace("{{GRAPH_REF}}", &graph_ref_str)
-                .replace("{{GRAPH_ID}}", &selected_graph.graph_id)
-                .replace("{{GRAPH_NAME}}", &selected_graph.graph_name)
-                .replace("{{VARIANT_NAME}}", &selected_graph.variant_name)
-                .replace("{{ORGANIZATION_NAME}}", &selected_graph.organization_name)
-                .replace("{{APOLLO_API_KEY}}", &apollo_key)
-                .replace("{{APOLLO_KEY}}", &apollo_key)
-                .replace("{{APOLLO_GRAPH_REF}}", &graph_ref_str)
-                .replace("{{MCP_SERVER_BINARY}}", mcp_server_binary.as_str())
-                .replace("{{MCP_CONFIG_PATH}}", mcp_config_path.as_str())
-                .replace("{{GRAPHQL_ENDPOINT}}", "http://localhost:4000")
-                .replace("{{GRAPH_STUDIO_URL}}", &graph_endpoint)
-                .replace("{{PROJECT_VERSION}}", "1.0.0")
-                .replace(
-                    "{{PROJECT_REPOSITORY_URL}}",
-                    &format!("https://github.com/user/{}", project_name),
-                )
-                // Other replacements
-                .replace("- /tools", &format!("- {}", tools_path_str))
-                .replace(
-                    "endpoint: http://host.docker.internal:4000",
-                    "endpoint: http://localhost:4000",
-                );
-
-            // Handle the specific case where .env.template needs dynamic values populated
-            if file_path == ".env.template" {
-                // Only replace the specific placeholders mentioned by user, leave others untouched
-                processed_content = processed_content
-                    .replace("\"{{PROJECT_NAME}}\"", &format!("\"{}\"", project_name))
-                    .replace(
-                        "\"{{GRAPHQL_ENDPOINT}}\"",
-                        "\"http://host.docker.internal:4000/graphql\"",
-                    )
-                    .replace("\"{{APOLLO_KEY}}\"", &format!("\"{}\"", apollo_key))
-                    .replace(
-                        "\"{{APOLLO_GRAPH_REF}}\"",
-                        &format!("\"{}\"", graph_ref_str),
-                    );
-
-                // Write processed template as .env file instead of .env.template
-                let env_path = current_dir.join(".env");
-                std::fs::write(&env_path, processed_content)?;
-                continue; // Skip writing .env.template
-            }
-
-            std::fs::write(&target_path, processed_content)?;
+            helpers::write_project_file(&target_path, processed_content)?;
         }
 
         // The summary below shows the API key masked and points to `.env`, so
@@ -987,7 +932,7 @@ impl Init {
                 env_contents.push('\n');
             }
             env_contents.push_str(&helpers::env_file_contents(&apollo_key, &graph_ref_str));
-            std::fs::write(&env_path, env_contents)?;
+            helpers::write_owner_only_file(&env_path, env_contents.as_bytes())?;
         }
 
         println!();
@@ -1566,7 +1511,7 @@ impl Init {
             completed_project.api_key, completed_project.graph_ref
         );
         let env_path = output_path.join(".env");
-        std::fs::write(&env_path, env_content)?;
+        helpers::write_owner_only_file(&env_path, env_content.as_bytes())?;
 
         // Generate Claude Desktop config with real API key and graph ref
         use crate::command::init::mcp::mcp_operations::MCPOperations;
