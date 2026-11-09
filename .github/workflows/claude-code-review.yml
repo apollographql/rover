@@ -12,6 +12,11 @@ jobs:
     if: >-
       !contains(fromJSON('["renovate[bot]", "dependabot[bot]"]'), github.event.pull_request.user.login)
       && github.event.pull_request.head.repo.full_name == github.repository
+    # A newer push replaces the review of the older one. Overlapping runs would
+    # also each snapshot before the other posts, leaving one review unhidden.
+    concurrency:
+      group: claude-review-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -24,6 +29,22 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 1
+
+      # Remember the review comments Claude left on earlier runs, before this
+      # run adds a new one, so only those get hidden afterwards. The `@claude`
+      # mention workflow posts as the same bot, so match on the heading the
+      # review command uses as well, to leave answers to people's questions
+      # alone.
+      - name: Snapshot previous Claude review comments
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh api --paginate "repos/${REPO}/issues/${PR_NUMBER}/comments" \
+            --jq '.[] | select(.user.login == "claude[bot]" and (.body | startswith("## Code review"))) | .node_id' \
+            > "$RUNNER_TEMP/previous-claude-comments.txt"
+          echo "Found $(wc -l < "$RUNNER_TEMP/previous-claude-comments.txt") earlier Claude review comments"
 
       - name: Run Claude Code Review
         id: claude-review
@@ -42,3 +63,19 @@ jobs:
           show_full_output: true
           additional_permissions: |
             actions: read
+
+      # Only after the new review has posted, so a failed run leaves the last
+      # good review visible. A failure to hide one comment shouldn't fail the
+      # job, since the review itself already succeeded.
+      - name: Hide previous Claude review comments as outdated
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          while read -r node_id; do
+            [ -n "$node_id" ] || continue
+            gh api graphql \
+              -f query='mutation($id: ID!) { minimizeComment(input: {subjectId: $id, classifier: OUTDATED}) { minimizedComment { isMinimized } } }' \
+              -f id="$node_id" >/dev/null \
+              || echo "::warning::Could not hide comment $node_id"
+          done < "$RUNNER_TEMP/previous-claude-comments.txt"
