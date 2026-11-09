@@ -141,8 +141,8 @@ impl Children {
     /// Held while a child is being started, until the task that owns it is registered with
     /// [`Children::spawn`]. [`Children::stop`] waits for it, so a signal that arrives in that
     /// gap doesn't leave the child that is about to appear orphaned.
-    pub(crate) fn starting(&self) -> impl Drop + use<> {
-        self.tasks.token()
+    pub(crate) fn starting(&self) -> Starting {
+        Starting(Box::new(self.tasks.token()))
     }
 
     /// Tells every child to stop and waits for them to, for no longer than `budget`. A child
@@ -158,6 +158,18 @@ impl Children {
             tracing::debug!(?budget, "child processes were still stopping at exit");
         }
     }
+}
+
+/// A child that is being started, which [`Children::stop`] waits for. It lasts until
+/// [`Starting::registered`] or until it is dropped, so a child that fails to start doesn't
+/// hold up the exit.
+#[must_use = "a start that is dropped at once doesn't make `stop` wait for the child"]
+pub(crate) struct Starting(#[allow(dead_code)] Box<dyn Send>);
+
+impl Starting {
+    /// The task that owns the child has been registered with [`Children::spawn`], so `stop`
+    /// waits for that from here on.
+    pub(crate) fn registered(self) {}
 }
 
 /// A signal that asks the process to stop.

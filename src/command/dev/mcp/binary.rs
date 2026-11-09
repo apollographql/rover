@@ -275,7 +275,7 @@ where
                         }
                     });
                     // The watcher is registered, so the harness waits for it from here on.
-                    drop(starting);
+                    starting.registered();
                 }
             }
         });

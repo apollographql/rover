@@ -338,7 +338,7 @@ where
                         }
                     });
                     // The watcher is registered, so the harness waits for it from here on.
-                    drop(starting);
+                    starting.registered();
                 }
             }
         });
@@ -411,11 +411,18 @@ mod tests {
         assert_eq!(args[license_flag_index + 1], "/fake/license.jwt");
     }
 
-    /// A router that is running when the harness stops the process's children is killed, and
-    /// is reaped before the stop returns, so it is gone by the time the process exits.
+    /// A router is killed when the harness stops the process's children, and is reaped before
+    /// the stop returns, so it is gone by the time the process exits. This holds when the
+    /// router is already running and when the signal arrives while it is still being spawned,
+    /// in which case stopping must wait for it rather than return at once and leave it behind.
     #[cfg(unix)]
+    #[rstest::rstest]
+    #[case::already_running(true)]
+    #[case::still_being_spawned(false)]
     #[tokio::test]
-    async fn the_router_is_killed_when_the_harness_stops_children() {
+    async fn the_router_is_killed_when_the_harness_stops_children(
+        #[case] spawned_before_stop: bool,
+    ) {
         use std::{sync::Mutex, time::Duration};
 
         use tower::service_fn;
@@ -441,8 +448,15 @@ mod tests {
         let (sender, _logs) = tokio::sync::mpsc::unbounded_channel();
         binary.handle(sender, None);
 
-        // The child is still being started, so stopping must wait for it rather than return
-        // at once and leave it behind.
+        if spawned_before_stop {
+            tokio::time::timeout(Duration::from_secs(5), async {
+                while pid.lock().unwrap().is_none() {
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+            })
+            .await
+            .expect("the router should have been spawned");
+        }
         children.stop(Duration::from_secs(5)).await;
 
         let pid = pid
