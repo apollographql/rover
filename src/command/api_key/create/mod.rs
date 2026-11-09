@@ -13,7 +13,6 @@ use rover_client::{
         pair_create::{CreatePair, CreatePairInput, service::CREATE_PAIR_ATTEMPT_TIMEOUT},
     },
 };
-use serde::Serialize;
 use tower::{Service, ServiceExt};
 
 use crate::{
@@ -25,7 +24,7 @@ use crate::{
     utils::{client::StudioClientConfig, parsers::FileDescriptorType},
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub(crate) struct Create {
     #[clap(flatten)]
     organization_opt: OrganizationOpt,

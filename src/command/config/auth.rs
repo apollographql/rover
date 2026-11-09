@@ -4,11 +4,10 @@ use config::Profile;
 use houston as config;
 use rover_print::print::{Print, PrintExt};
 use rover_std::Style;
-use serde::Serialize;
 
 use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult, options::ProfileOpt};
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 /// Authenticate a configuration profile with an API key
 ///
 /// Running this command with a --profile <name> argument will create a new

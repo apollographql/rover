@@ -1,5 +1,4 @@
 use clap::Parser;
-use serde::Serialize;
 use serde_json::json;
 
 use crate::{
@@ -8,7 +7,7 @@ use crate::{
     utils::{expansion::expand, parsers::FileDescriptorType},
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Expand {
     /// The relative path to the supergraph configuration file. You can pass `-` to use stdin instead of a file.
     #[arg(long = "config")]

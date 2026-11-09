@@ -7,7 +7,6 @@ use rover_client::{
         rename::{RenameKeyInput, run as run_rename},
     },
 };
-use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult,
@@ -16,7 +15,7 @@ use crate::{
     utils::client::StudioClientConfig,
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub(crate) struct Rename {
     #[clap(flatten)]
     organization_opt: OrganizationOpt,

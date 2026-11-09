@@ -3,19 +3,18 @@ mod preview;
 mod publish;
 
 use clap::Parser;
-use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult, cli::Rover, options::ProfileOpt, utils::client::StudioClientConfig,
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Contract {
     #[clap(subcommand)]
     command: Command,
 }
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub enum Command {
     /// Describe the configuration of a contract variant from the Apollo graph registry
     Describe(describe::Describe),

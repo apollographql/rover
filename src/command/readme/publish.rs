@@ -1,7 +1,6 @@
 use clap::Parser;
 use rover_client::operations::readme::publish::{self, ReadmePublishInput};
 use rover_std::Style;
-use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult,
@@ -9,14 +8,13 @@ use crate::{
     utils::{client::StudioClientConfig, parsers::FileDescriptorType},
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Publish {
     #[clap(flatten)]
     graph: GraphRefOpt,
 
     /// The file upload as the README. You can pass `-` to use stdin instead of a file.
     #[arg(long, short = 's')]
-    #[serde(skip_serializing)]
     file: FileDescriptorType,
 }
 

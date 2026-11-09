@@ -83,7 +83,7 @@ pub enum OutputChannelKind {
     Sdl(String),
 }
 
-#[derive(Debug, Parser, Serialize, Default)]
+#[derive(Debug, Parser, Default)]
 pub struct OutputOpts {
     /// Specify Rover's format type
     #[arg(long = "format", global = true, env = "APOLLO_FORMAT", default_value_t)]
@@ -103,7 +103,6 @@ pub struct OutputOpts {
     pub no_color: bool,
 
     #[arg(skip)]
-    #[serde(skip_serializing)]
     pub channel: Option<UnboundedSender<OutputChannelKind>>,
 }
 

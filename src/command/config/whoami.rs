@@ -8,7 +8,6 @@ use rover_client::{
     operations::config::who_am_i::{self, Actor, RegistryIdentity},
 };
 use rover_print::{print::Print, style::StyledText};
-use serde::Serialize;
 
 use crate::{
     RoverError, RoverOutput, RoverResult,
@@ -16,7 +15,7 @@ use crate::{
     utils::{client::StudioClientConfig, env::RoverEnvKey},
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct WhoAmI {
     /// Unmask the API key that will be sent to Apollo Studio
     ///

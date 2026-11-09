@@ -1,10 +1,9 @@
 use clap::Parser;
 use rover_client::operations::graph_artifact::untag::{self, DeleteGraphArtifactTagInput};
-use serde::Serialize;
 
 use crate::{RoverOutput, RoverResult, options::ProfileOpt, utils::client::StudioClientConfig};
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Untag {
     #[arg(long)]
     graph_id: String,

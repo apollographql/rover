@@ -2,7 +2,6 @@ mod output;
 
 use clap::Parser;
 use houston::{CredentialOrigin, Profile};
-use serde::Serialize;
 
 use self::output::{ConfigShowOutput, CredentialReport, Overridden, SettingReport, Source};
 use crate::{
@@ -12,7 +11,7 @@ use crate::{
     utils::env::RoverEnvKey,
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 /// Show every setting's effective value and which source supplied it
 pub struct Show {}
 

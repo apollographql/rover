@@ -7,7 +7,6 @@ mod publish;
 
 use clap::Parser;
 use rover_client::shared::GitContext;
-use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult,
@@ -16,13 +15,13 @@ use crate::{
     utils::client::StudioClientConfig,
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Graph {
     #[clap(subcommand)]
     command: Command,
 }
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub enum Command {
     /// Check for breaking changes in a local graph schema
     /// against a graph schema in the Apollo graph registry

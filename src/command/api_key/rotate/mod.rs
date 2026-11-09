@@ -8,7 +8,6 @@ use rover_client::{
         RotatePair, RotatePairInput, service::ROTATE_PAIR_ATTEMPT_TIMEOUT,
     },
 };
-use serde::Serialize;
 use tower::{Service, ServiceExt};
 
 use crate::{
@@ -16,7 +15,7 @@ use crate::{
     options::ProfileOpt, utils::client::StudioClientConfig,
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub(crate) struct Rotate {
     #[clap(flatten)]
     organization_opt: OrganizationOpt,

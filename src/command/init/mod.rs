@@ -33,7 +33,6 @@ use houston::{ApiKey, ApiKeyActor};
 use rover_client::RoverClientError;
 #[cfg(feature = "composition-js")]
 use rover_std::hyperlink;
-use serde::Serialize;
 
 #[cfg(feature = "composition-js")]
 use crate::RoverError;
@@ -189,7 +188,7 @@ async fn resolve_mcp_api_key(
     .await
 }
 
-#[derive(Debug, Parser, Clone, Serialize)]
+#[derive(Debug, Parser, Clone)]
 #[clap(about = "Initialize a new graph")]
 pub struct Init {
     #[clap(flatten)]

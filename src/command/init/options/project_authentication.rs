@@ -3,7 +3,7 @@ use config::Profile;
 use dialoguer::{Password, theme::ColorfulTheme};
 use houston::{self as config, ApiKey, ApiKeyActor, MalformedApiKey};
 use rover_std::hyperlink;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use crate::{
     RoverResult,
@@ -12,7 +12,7 @@ use crate::{
     utils::client::StudioClientConfig,
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
+#[derive(Debug, Clone, Deserialize, Parser, Default)]
 pub struct ProjectAuthenticationOpt {}
 
 impl ProjectAuthenticationOpt {

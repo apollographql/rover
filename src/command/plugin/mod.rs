@@ -4,7 +4,6 @@ mod list;
 use anyhow::anyhow;
 use camino::{Utf8Path, Utf8PathBuf};
 use clap::Parser;
-use serde::Serialize;
 
 pub(crate) use self::install::PluginInstall;
 use self::list::PluginList;
@@ -35,13 +34,13 @@ impl LockfileWrite {
     }
 }
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Plugins {
     #[clap(subcommand)]
     command: Command,
 }
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub enum Command {
     /// Download and install an officially supported plugin
     Install(PluginInstall),

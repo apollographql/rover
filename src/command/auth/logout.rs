@@ -8,7 +8,6 @@ use rover_auth::oauth2::{
 };
 use rover_http::ReqwestService;
 use rover_print::print::PrintExt;
-use serde::Serialize;
 use tower::{Service, ServiceBuilder, ServiceExt};
 
 use super::OauthConfig;
@@ -39,7 +38,7 @@ impl From<std::convert::Infallible> for RevokeHttpError {
     }
 }
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 /// Log out, clearing your stored OAuth session
 ///
 /// Revokes the access/refresh tokens stored for the given `--profile` (or

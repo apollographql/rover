@@ -1,6 +1,5 @@
 use camino::Utf8PathBuf;
 use clap::Parser;
-use serde::Serialize;
 
 use crate::{RoverOutput, RoverResult, options::ProfileOpt, utils::client::StudioClientConfig};
 
@@ -8,13 +7,13 @@ pub(crate) mod compose;
 mod config;
 mod fetch;
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Supergraph {
     #[clap(subcommand)]
     command: Command,
 }
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub enum Command {
     /// Locally compose supergraph SDL from a set of subgraph schemas
     Compose(compose::Compose),
