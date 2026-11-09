@@ -1,7 +1,7 @@
 use clap::Parser;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
-#[derive(Debug, Serialize, Deserialize, Parser)]
+#[derive(Debug, Deserialize, Parser)]
 pub struct LintOpts {
     /// Ignore existing lint violations for a published subgraph. If passed, the command will only report lint violations introduced by recent changes.
     #[arg(long)]

@@ -4,7 +4,6 @@ use rover_client::operations::subgraph::{
     preview,
 };
 use rover_std::{Style, prompt};
-use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult,
@@ -12,7 +11,7 @@ use crate::{
     utils::client::StudioClientConfig,
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Delete {
     #[clap(flatten)]
     graph: GraphRefOpt,

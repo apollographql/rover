@@ -6,7 +6,6 @@ use camino::Utf8PathBuf;
 use clap::Parser;
 use rover_print::print::{Print, PrintExt};
 use rover_std::Style;
-use serde::Serialize;
 
 #[cfg(feature = "composition-js")]
 use crate::plugin::{
@@ -26,7 +25,7 @@ pub(crate) use plugin::{
     PluginProvenanceTracker, PluginSource, federation_version,
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Install {
     /// Overwrite any existing binary without prompting for confirmation.
     #[arg(long = "force", short = 'f')]
@@ -350,8 +349,8 @@ mod tests {
         let noun =
             Plugins::try_parse_from(["plugin", "install", request].iter().chain(flags)).unwrap();
 
-        assert_that!(serde_json::to_value(alias.as_plugin_install()).unwrap())
-            .is_equal_to(serde_json::to_value(noun.install()).unwrap());
+        assert_that!(format!("{:?}", alias.as_plugin_install()))
+            .is_equal_to(format!("{:?}", noun.install()));
     }
 
     #[rstest]

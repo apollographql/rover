@@ -2,14 +2,13 @@ use std::path::PathBuf;
 
 use anyhow::anyhow;
 use clap::Parser;
-use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult, command::connector::output::ConnectorListOutput,
     composition::supergraph::binary::SupergraphBinary, utils::effect::exec::TokioCommand,
 };
 
-#[derive(Debug, Parser, Clone, Serialize)]
+#[derive(Debug, Parser, Clone)]
 pub struct ListConnector {
     /// The path to the schema file containing the connector.
     ///

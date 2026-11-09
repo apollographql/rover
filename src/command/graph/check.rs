@@ -7,7 +7,6 @@ use rover_client::{
     shared::{CheckConfig, GitContext},
 };
 use rover_std::Style;
-use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult,
@@ -15,13 +14,12 @@ use crate::{
     utils::client::StudioClientConfig,
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Check {
     #[clap(flatten)]
     graph: GraphRefOpt,
 
     #[clap(flatten)]
-    #[serde(skip_serializing)]
     schema: SchemaOpt,
 
     #[clap(flatten)]

@@ -6,7 +6,6 @@ use anyhow::anyhow;
 use camino::{Utf8Path, Utf8PathBuf};
 use clap::Parser;
 use rover_print::print::PrintExt;
-use serde::Serialize;
 
 use self::output::{ListedCopy, ListedLevel, PluginListOutput};
 use super::{absolute_manifest, target_manifest};
@@ -26,7 +25,7 @@ use crate::{
     utils::GLOBAL_ENV,
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct PluginList {
     /// List only the global install root, shared by every project, even
     /// inside a project that has its own.

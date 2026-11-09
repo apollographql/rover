@@ -1,9 +1,8 @@
 use clap::Parser;
-use serde::Serialize;
 
 /// Overrides where `rover template` fetches project templates from.
 #[cfg_attr(test, derive(Default))]
-#[derive(Debug, Clone, Serialize, Parser)]
+#[derive(Debug, Clone, Parser)]
 pub struct TemplatesApiOpt {
     /// Override where `rover template` fetches project templates from.
     ///

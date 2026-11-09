@@ -5,7 +5,6 @@ mod logout;
 mod whoami;
 
 use clap::{Parser, Subcommand};
-use serde::Serialize;
 
 pub use self::config::OauthConfig;
 use crate::{
@@ -15,13 +14,13 @@ use crate::{
     utils::client::StudioClientConfig,
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Auth {
     #[clap(subcommand)]
     command: AuthCommand,
 }
 
-#[derive(Debug, Serialize, Subcommand)]
+#[derive(Debug, Subcommand)]
 pub enum AuthCommand {
     /// Log in via your browser to authenticate `rover` with Apollo
     Login(login::Login),

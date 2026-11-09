@@ -17,14 +17,13 @@ use std::{net::IpAddr, str::FromStr};
 use clap::Parser;
 use derive_getters::Getters;
 use rover_studio::types::GraphRef;
-use serde::Serialize;
 
 use crate::{
     options::{OptionalSubgraphOpts, PluginOpts},
     utils::parsers::FileDescriptorType,
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 /// Command that represents running a local router, and composition to test local changes to
 /// subgraphs.
 pub struct Dev {
@@ -32,7 +31,7 @@ pub struct Dev {
     pub(crate) opts: DevOpts,
 }
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct DevOpts {
     #[clap(flatten)]
     pub plugin_opts: PluginOpts,
@@ -48,7 +47,7 @@ pub struct DevOpts {
     pub mcp: mcp::Opts,
 }
 
-#[derive(Debug, Parser, Serialize, Clone, Getters)]
+#[derive(Debug, Parser, Clone, Getters)]
 pub struct SupergraphOpts {
     /// The port the graph router should listen on.
     ///
@@ -70,7 +69,6 @@ pub struct SupergraphOpts {
     ///
     /// For information on the format of this file, please see https://www.apollographql.com/docs/router/configuration/overview/#yaml-config-file.
     #[arg(long = "router-config")]
-    #[serde(skip_serializing)]
     router_config_path: Option<Utf8PathBuf>,
 
     /// The path to a supergraph configuration file. If provided, subgraphs will be loaded from this

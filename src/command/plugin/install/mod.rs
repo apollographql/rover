@@ -6,7 +6,6 @@ use binstall::Installer;
 use camino::{Utf8Path, Utf8PathBuf};
 use clap::Parser;
 use rover_print::{print::Print, style::StyledText};
-use serde::Serialize;
 
 use self::{
     in_scope::{InScope, nothing_to_install},
@@ -27,7 +26,7 @@ use crate::{
     utils::{GLOBAL_ENV, client::StudioClientConfig},
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct PluginInstall {
     /// The plugin to install, as `<NAME>@<VERSION>`, e.g. `supergraph@=2.9.3` or `router@2`.
     /// Leave it out to install every plugin in scope

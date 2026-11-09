@@ -1,10 +1,9 @@
 use clap::Parser;
 use houston as config;
-use serde::Serialize;
 
 use crate::{RoverOutput, RoverResult};
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 /// Clear ALL configuration
 ///
 /// WARNING: This command will delete ALL configuration profiles, not just one.

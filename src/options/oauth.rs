@@ -1,7 +1,6 @@
 use std::sync::LazyLock;
 
 use clap::Parser;
-use serde::Serialize;
 use url::Url;
 use url_static::url;
 
@@ -44,7 +43,7 @@ pub(crate) const DEFAULT_CLIENT_ID: &str = "UOsTLIgQb6eFevYcnQewoCDJZagFswCfESvr
 // A plain comment, not a doc comment: clap turns a flattened struct's doc
 // comment into the parent command's description, which would replace
 // `rover --help`'s own.
-#[derive(Debug, Clone, Serialize, Parser)]
+#[derive(Debug, Clone, Parser)]
 pub struct OauthOpts {
     /// Override the OAuth authorization endpoint `rover auth login` uses.
     #[arg(

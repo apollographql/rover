@@ -37,13 +37,13 @@ pub enum ParsingError {
     UnexpectedContentType(String),
 }
 
-#[derive(Debug, Parser, Serialize)]
+#[derive(Debug, Parser)]
 pub struct AnalyzeCurl {
     #[clap(subcommand)]
     command: Command,
 }
 
-#[derive(Debug, Parser, Serialize)]
+#[derive(Debug, Parser)]
 pub enum Command {
     /// Analyze a curl command
     // Boxed to reduce enum size
@@ -55,18 +55,18 @@ pub enum Command {
 }
 
 /// Command to remove existing analysis files
-#[derive(Debug, Parser, Clone, Serialize)]
+#[derive(Debug, Parser, Clone)]
 pub struct Clean {}
 
 /// Start an interactive analysis session
-#[derive(Debug, Parser, Clone, Serialize)]
+#[derive(Debug, Parser, Clone)]
 pub struct Interactive {
     /// The port to run the proxy server for the interactive session. Defaults to 9999.
     #[clap(short, long, value_name = "PORT")]
     port: Option<u16>,
 }
 
-#[derive(Debug, Parser, Serialize)]
+#[derive(Debug, Parser)]
 pub struct Curl {
     /// Sets the endpoint to call
     url: Url,
@@ -77,7 +77,6 @@ pub struct Curl {
 
     /// Request method to use for call
     #[clap(short = 'X', long, value_name = "REQUEST")]
-    #[serde(skip_serializing)]
     method: Option<Method>,
 
     /// Connection timeout in seconds

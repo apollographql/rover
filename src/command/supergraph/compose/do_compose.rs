@@ -6,7 +6,6 @@ use clap::{Args, Parser};
 use derive_getters::Getters;
 use rover_print::{print::Print, style::StyledText};
 use rover_studio::types::GraphRef;
-use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult,
@@ -24,18 +23,17 @@ use crate::{
     },
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Compose {
     #[clap(flatten)]
     opts: SupergraphComposeOpts,
 }
 
 #[cfg_attr(test, derive(Default))]
-#[derive(Clone, Args, Debug, Serialize, Getters)]
+#[derive(Clone, Args, Debug, Getters)]
 #[group(required = true)]
 pub struct SupergraphConfigSource {
     /// The relative path to the supergraph configuration file. You can pass `-` to use stdin instead of a file.
-    #[serde(skip_serializing)]
     #[arg(long = "config")]
     pub supergraph_yaml: Option<FileDescriptorType>,
 
@@ -50,7 +48,7 @@ pub struct SupergraphConfigSource {
 }
 
 #[cfg_attr(test, derive(Default))]
-#[derive(Clone, Debug, Serialize, Parser, Getters)]
+#[derive(Clone, Debug, Parser, Getters)]
 pub struct SupergraphComposeOpts {
     #[clap(flatten)]
     pub plugin_opts: PluginOpts,

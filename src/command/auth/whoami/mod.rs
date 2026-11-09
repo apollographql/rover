@@ -10,7 +10,6 @@ use rover_auth::oauth2::{
     status::{Whoami as OauthWhoami, WhoamiError, WhoamiRequest},
 };
 use rover_http::{ReqwestService, retry::retry_with_attempt_timeout};
-use serde::Serialize;
 use tower::ServiceBuilder;
 
 use self::output::{AuthWhoAmILegacyOutput, AuthWhoAmIOutput, GrantTypeReport};
@@ -28,7 +27,7 @@ use crate::{
 /// the entire retry budget, leaving no room for an actual retry.
 const WHOAMI_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(10);
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 /// Display the identity of the currently authenticated profile
 ///
 /// For a profile logged in via `rover auth login`, this queries the OAuth

@@ -12,7 +12,6 @@ use rover_print::{
     print::{Print, PrintExt},
     style::{Style, StyledText},
 };
-use serde::Serialize;
 
 use crate::{
     RoverError, RoverOutput, RoverResult,
@@ -21,13 +20,12 @@ use crate::{
     utils::client::StudioClientConfig,
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Publish {
     #[clap(flatten)]
     graph: GraphRefOpt,
 
     #[clap(flatten)]
-    #[serde(skip_serializing)]
     schema: SchemaOpt,
 
     /// Run schema checks before publishing and abort if they fail
