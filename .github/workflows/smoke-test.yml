@@ -73,6 +73,17 @@ jobs:
     timeout-minutes: 15
     needs: build_binaries
     name: Run E2E Tests
+    # Pull requests from forks get no secrets, and most of this suite talks to
+    # GraphOS with them, so it can only fail there. Handing a fork the secrets
+    # (`pull_request_target`) would run its code with an org admin key in the
+    # environment, so skip instead: the merge queue runs this suite with
+    # secrets before anything lands on main. Keyed on the event name so a
+    # merge queue or main run can never take this path.
+    if: >-
+      ${{
+        !(github.event_name == 'pull_request'
+          && github.event.pull_request.head.repo.full_name != github.repository)
+      }}
     strategy:
       fail-fast: false
       matrix:
@@ -99,6 +110,20 @@ jobs:
 
     runs-on: ${{ matrix.testing_target.run_test_on }}
     steps:
+      # Every run that gets here should have secrets. If one is missing, fail
+      # loudly instead of letting the suite fail in confusing ways or, for any
+      # test that skips without a key, pass without testing anything.
+      - name: Require E2E credentials
+        shell: bash
+        env:
+          APOLLO_KEY: ${{ secrets.APOLLO_KEY_ROVER_E2E_TESTS }}
+          APOLLO_KEY_ROVER_E2E_MONOGRAPH: ${{ secrets.APOLLO_KEY_ROVER_E2E_MONOGRAPH }}
+        run: |
+          if [ -z "$APOLLO_KEY" ] || [ -z "$APOLLO_KEY_ROVER_E2E_MONOGRAPH" ]; then
+            echo '::error::APOLLO_KEY_ROVER_E2E_TESTS or APOLLO_KEY_ROVER_E2E_MONOGRAPH is empty on a run that is not a pull request from a fork.'
+            exit 1
+          fi
+
       - uses: actions/checkout@v7
         name: "Checkout rover repo"
 
@@ -228,7 +253,16 @@ jobs:
           cache-to: type=gha,mode=max,scope=docker-pr-${{ matrix.platform }}
 
       # Exercises rustls + ca-certificates + DNS by hitting Apollo Studio.
+      # Needs a key, so it's skipped on pull requests from forks for the same
+      # reason as the E2E suite; the image build above still runs there. An
+      # empty key on any other run makes whoami fail, so a missing secret
+      # can't pass silently.
       - name: Verify HTTPS path with rover config whoami
+        if: >-
+          ${{
+            !(github.event_name == 'pull_request'
+              && github.event.pull_request.head.repo.full_name != github.repository)
+          }}
         env:
           APOLLO_KEY: ${{ secrets.APOLLO_KEY_ROVER_E2E_TESTS }}
         run: docker run --rm -e APOLLO_KEY rover:pr config whoami
@@ -244,12 +278,20 @@ jobs:
     if: ${{ always() }}
     runs-on: ubuntu-latest
     name: Final Results
-    needs: [ smoke_tests, docker_smoke_tests ]
+    # build_binaries is listed directly: on a fork the E2E suite is expected to
+    # be skipped, so a build failure can no longer surface only as that skip.
+    needs: [ build_binaries, smoke_tests, docker_smoke_tests ]
     steps:
       - run: exit 1
         if: >-
           ${{
                contains(needs.*.result, 'failure')
             || contains(needs.*.result, 'cancelled')
-            || contains(needs.*.result, 'skipped')
+            || needs.build_binaries.result == 'skipped'
+            || needs.docker_smoke_tests.result == 'skipped'
+            || (
+                 needs.smoke_tests.result == 'skipped'
+                 && !(github.event_name == 'pull_request'
+                      && github.event.pull_request.head.repo.full_name != github.repository)
+               )
           }}
