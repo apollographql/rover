@@ -264,7 +264,13 @@ fn no_related_proposals_msg(response: &ProposalsCheckResponse) -> String {
             "Proposal check results have been overridden in Studio.".to_string()
         }
         ProposalsCoverage::PENDING => "Proposal check has not completed.".to_string(),
-        ProposalsCoverage::FULL | ProposalsCoverage::PARTIAL | ProposalsCoverage::NONE => {
+        // Studio reports full coverage with no related proposals when nothing needed one: no
+        // subgraph changed, or the only changes were ones it doesn't require a proposal for
+        // (such as description changes). The severity level doesn't come into it.
+        ProposalsCoverage::FULL => {
+            "None of the changes in this check need an approved proposal.".to_string()
+        }
+        ProposalsCoverage::PARTIAL | ProposalsCoverage::NONE => {
             let consequence = match response.severity_level {
                 ProposalsCheckSeverityLevel::ERROR => {
                     "Your proposals check severity level is set to ERROR, so changes that aren't in an approved proposal fail the check."
@@ -715,6 +721,18 @@ mod test {
         ProposalsCheckSeverityLevel::ERROR,
         ProposalsCoverage::OVERRIDDEN,
         "Proposal check results have been overridden in Studio."
+    )]
+    #[case::fully_covered_severity_error(
+        CheckTaskStatus::PASSED,
+        ProposalsCheckSeverityLevel::ERROR,
+        ProposalsCoverage::FULL,
+        "None of the changes in this check need an approved proposal."
+    )]
+    #[case::fully_covered_severity_warn(
+        CheckTaskStatus::PASSED,
+        ProposalsCheckSeverityLevel::WARN,
+        ProposalsCoverage::FULL,
+        "None of the changes in this check need an approved proposal."
     )]
     fn no_related_proposals_msg_explains_result(
         #[case] task_status: CheckTaskStatus,
