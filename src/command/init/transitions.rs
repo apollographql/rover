@@ -560,6 +560,21 @@ impl CreationConfirmed {
 }
 
 impl ProjectCreated {
+    /// Builds the "GraphOS credentials" section of the MCP success output.
+    /// The API key is shown masked, with a pointer to `.env` where it is saved.
+    pub(crate) fn mcp_credentials_section(&self) -> String {
+        use rover_std::Style;
+
+        format!(
+            "{}\n   • {}: {}\n   • {}: {}",
+            Style::Heading.paint("GraphOS credentials for your graph"),
+            Style::GraphRef.paint("APOLLO_GRAPH_REF"),
+            self.graph_ref,
+            Style::Command.paint("APOLLO_KEY"),
+            api_key_saved_line(&self.api_key)
+        )
+    }
+
     fn display_mcp_success(&self) {
         use rover_std::Style;
 
@@ -589,20 +604,7 @@ impl ProjectCreated {
         println!("   • GraphOS Organization: {}", self.config.organization);
         println!();
 
-        println!(
-            "{}",
-            Style::Heading.paint("GraphOS credentials for your graph")
-        );
-        println!(
-            "   • {}: {}",
-            Style::GraphRef.paint("APOLLO_GRAPH_REF"),
-            self.graph_ref
-        );
-        println!(
-            "   • {}: {} (This is your graph's API key)",
-            Style::Command.paint("APOLLO_KEY"),
-            self.api_key
-        );
+        println!("{}", self.mcp_credentials_section());
         println!();
 
         // Next Steps section
@@ -619,7 +621,7 @@ impl ProjectCreated {
         );
         println!(
             "   MCP endpoint: {}",
-            Style::Link.paint("http://127.0.0.1:5050/mcp")
+            Style::Link.paint(mcp_local_endpoint())
         );
         println!();
         println!(
@@ -681,7 +683,7 @@ impl ProjectCreated {
         println!(
             "   → API: {} | MCP: {}",
             Style::Link.paint("http://localhost:4000"),
-            Style::Link.paint("http://localhost:5050")
+            Style::Link.paint(mcp_local_endpoint())
         );
         println!();
 

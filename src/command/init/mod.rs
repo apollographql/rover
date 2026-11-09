@@ -806,54 +806,12 @@ impl Init {
         files.remove(&camino::Utf8PathBuf::from("supergraph.yaml"));
 
         // Add a basic README with graph info
-        let readme_content = format!(
-            r#"# {} MCP Server
-
-This MCP server provides AI-accessible tools for your Apollo graph.
-
-## Graph Information
-- **Graph ID**: {}
-- **Variant**: {}
-- **Organization**: {}
-- **Graph Reference**: {}
-{}
-
-## Quick Start
-
-1. Build the MCP server:
-   ```bash
-   docker build -f mcp.Dockerfile -t {}-mcp .
-   ```
-
-2. Run the MCP server:
-   ```bash
-   docker run --env-file .env -p5050:5050 {}-mcp
-   # Linux users may need: docker run --network=host --env-file .env {}-mcp
-   ```
-
-3. Test with MCP Inspector:
-   ```bash
-   npx @mcp/inspector
-   ```
-
-4. Configure Claude Desktop to use this server.
-
-## View in Apollo Studio
-{}"#,
-            selected_graph.graph_name,
-            selected_graph.graph_id,
-            selected_graph.variant_name,
-            selected_graph.organization_name,
-            graph_ref_str,
-            if !subgraph_info.is_empty() {
-                format!("\n- **{}**", subgraph_info)
-            } else {
-                String::new()
-            },
-            docker_tag,
-            docker_tag,
-            docker_tag,
-            graph_endpoint
+        let readme_content = helpers::existing_graph_mcp_readme(
+            &selected_graph,
+            &graph_ref_str,
+            &subgraph_info,
+            &docker_tag,
+            &graph_endpoint,
         );
         files.insert("README.md".into(), readme_content);
 
@@ -946,6 +904,9 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         };
 
         // Write files to current directory with template replacement
+        let template_writes_env = files
+            .keys()
+            .any(|path| path == ".env.template" || path == ".env");
         for (file_path, content) in &files {
             let (output_path, processed_content) =
                 helpers::hydrate_existing_graph_file(file_path, content, &hydration_ctx);
@@ -956,6 +917,23 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             }
 
             helpers::write_project_file(&target_path, processed_content)?;
+        }
+
+        // The summary below shows the API key masked and points to `.env`, so
+        // `.env` must exist even when the template doesn't ship `.env.template`.
+        if !template_writes_env {
+            // Append rather than overwrite, so an existing `.env` keeps its variables.
+            let env_path = current_dir.join(".env");
+            let mut env_contents = match std::fs::read_to_string(&env_path) {
+                Ok(existing) => existing,
+                Err(err) if err.kind() == std::io::ErrorKind::NotFound => String::new(),
+                Err(err) => return Err(err.into()),
+            };
+            if !env_contents.is_empty() && !env_contents.ends_with('\n') {
+                env_contents.push('\n');
+            }
+            env_contents.push_str(&helpers::env_file_contents(&apollo_key, &graph_ref_str));
+            helpers::write_owner_only_file(&env_path, env_contents.as_bytes())?;
         }
 
         println!();
@@ -974,18 +952,17 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             println!("{}", tool);
         }
 
-        println!("\n{}", Style::Heading.paint("Selected Graph:"));
         println!(
-            "  • Graph: {} ({})",
-            selected_graph.graph_name, selected_graph.variant_name
+            "{}",
+            helpers::existing_graph_mcp_summary(
+                &selected_graph.graph_name,
+                &selected_graph.variant_name,
+                &selected_graph.organization_name,
+                &graph_ref_str,
+                !supergraph_sdl.is_empty(),
+                &apollo_key,
+            )
         );
-        println!("  • Organization: {}", selected_graph.organization_name);
-        println!("  • Graph Reference: {}", graph_ref_str);
-        if !supergraph_sdl.is_empty() {
-            println!("  • Supergraph schema: Downloaded");
-        }
-        println!("  • Service API key: {}", apollo_key);
-        println!("  • ✓ Credentials saved to .env file");
 
         println!("\n{}", Style::Heading.paint("Next steps:"));
         println!("   1. Start the MCP server:");
@@ -1005,7 +982,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!(
             "      → API: {} | MCP: {}",
             Style::Link.paint("http://localhost:4000"),
-            Style::Link.paint("http://localhost:5050")
+            Style::Link.paint(helpers::mcp_local_endpoint())
         );
         println!();
         println!("   2. For containerized deployment:");
@@ -1018,10 +995,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         );
         println!(
             "      {}",
-            Style::Command.paint(format!(
-                "docker run --env-file .env -p5050:5050 {}-mcp",
-                docker_tag
-            ))
+            Style::Command.paint(helpers::mcp_docker_run_hint(&docker_tag))
         );
 
         Ok(RoverOutput::EmptySuccess)
@@ -1130,9 +1104,9 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             completed_project.graph_ref
         );
         println!(
-            "   • {}: {} (This is your graph's API key)", // gitleaks:allow
+            "   • {}: {}",
             Style::Command.paint("APOLLO_KEY"),
-            completed_project.api_key
+            helpers::api_key_saved_line(&completed_project.api_key)
         );
         println!();
 

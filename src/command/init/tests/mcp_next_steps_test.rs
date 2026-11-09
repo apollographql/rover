@@ -2,8 +2,10 @@ use std::str::FromStr;
 
 use camino::Utf8PathBuf;
 use rover_studio::types::GraphRef;
+use rstest::{fixture, rstest};
+use speculoos::prelude::*;
 
-use crate::command::init::{states::*, template_fetcher::*};
+use crate::command::init::{helpers, states::*, template_fetcher::*};
 
 // Tests verify the logic without trying to capture println! output
 
@@ -282,4 +284,103 @@ fn test_mcp_step_numbering_logic() {
         "   - Without commands: Step {} = MCP server directly",
         final_step_num_without_commands
     );
+}
+
+#[fixture]
+fn canary_api_key() -> &'static str {
+    "service:my-graph:abcdefghijklmnopqrstuv" // gitleaks:allow
+}
+
+#[fixture]
+fn project_created(canary_api_key: &str) -> ProjectCreated {
+    ProjectCreated {
+        output_path: Utf8PathBuf::from("test_project"),
+        config: crate::command::init::config::ProjectConfig {
+            organization: crate::command::init::options::OrganizationId::from_str("test_org")
+                .unwrap(),
+            use_case: crate::command::init::options::ProjectUseCase::Connectors,
+            project_name: crate::command::init::options::ProjectName::from_str("my_test_project")
+                .unwrap(),
+            graph_id: crate::command::init::graph_id::validation::GraphId::from_str("my-graph")
+                .unwrap(),
+            project_type: crate::command::init::options::ProjectType::CreateNew,
+        },
+        artifacts: vec![Utf8PathBuf::from(".env")],
+        api_key: canary_api_key.to_string(),
+        graph_ref: GraphRef::new("my-graph", Some("current")).unwrap(),
+        template: Template {
+            id: TemplateId("typescript".to_string()),
+            display_name: "TypeScript Subgraph".to_string(),
+            path: "start-with-typescript".to_string(),
+            language: "TypeScript".to_string(),
+            federation_version: "=2.10.0".to_string(),
+            max_schema_depth: 5,
+            routing_url: "http://localhost:4001".to_string(),
+            commands: None,
+            start_point_file: "GETTING_STARTED.md".to_string(),
+            print_depth: None,
+        },
+    }
+}
+
+/// Output with terminal styling removed, so snapshots don't depend on
+/// whether colors are enabled where the tests run.
+fn plain(output: &str) -> String {
+    console::strip_ansi_codes(output).into_owned()
+}
+
+#[rstest]
+fn test_api_key_saved_line_masks_key_and_points_to_env(canary_api_key: &str) {
+    let line = helpers::api_key_saved_line(canary_api_key);
+
+    assert_that!(line).does_not_contain(canary_api_key);
+    assert_that!(line).is_equal_to(format!(
+        "{} (saved to .env)",
+        houston::mask_key(canary_api_key)
+    ));
+}
+
+#[rstest]
+fn test_mcp_credentials_section_masks_api_key(
+    project_created: ProjectCreated,
+    canary_api_key: &str,
+) {
+    let section = plain(&project_created.mcp_credentials_section());
+
+    assert_that!(section).does_not_contain(canary_api_key);
+    insta::assert_snapshot!(section);
+}
+
+#[rstest]
+#[case::supergraph_downloaded(true)]
+#[case::supergraph_not_downloaded(false)]
+fn test_existing_graph_mcp_summary_masks_api_key(
+    #[case] supergraph_downloaded: bool,
+    canary_api_key: &str,
+) {
+    let summary = plain(&helpers::existing_graph_mcp_summary(
+        "My Graph",
+        "current",
+        "My Org",
+        "my-graph@current",
+        supergraph_downloaded,
+        canary_api_key,
+    ));
+
+    assert_that!(summary).does_not_contain(canary_api_key);
+    insta::assert_snapshot!(
+        format!("existing_graph_mcp_summary_supergraph_downloaded_{supergraph_downloaded}"),
+        summary
+    );
+}
+
+#[rstest]
+fn test_env_file_contents_holds_full_credentials(canary_api_key: &str) {
+    assert_that!(helpers::env_file_contents(
+        canary_api_key,
+        "my-graph@current"
+    ))
+    .is_equal_to(format!(
+        "APOLLO_KEY={canary_api_key}\nAPOLLO_GRAPH_REF=my-graph@current\n"
+    ));
 }

@@ -1,11 +1,12 @@
 use camino::{Utf8Path, Utf8PathBuf};
+use indoc::formatdoc;
 use rover_std::{Style, hyperlink};
 use rover_studio::types::GraphRef;
 
 use crate::{
     RoverResult,
     command::init::{
-        states,
+        GraphVariantOption, states,
         template_operations::{PrintMode::Confirmation, print_grouped_files},
     },
 };
@@ -22,6 +23,42 @@ pub fn display_welcome_message() {
         hyperlink("https://www.apollographql.com/docs/rover/commands/init")
     );
     println!();
+}
+
+/// Formats an API key for display after it has been written to `.env`:
+/// the key is masked and followed by a pointer to the file that holds it.
+pub(crate) fn api_key_saved_line(api_key: &str) -> String {
+    format!("{} (saved to .env)", houston::mask_key(api_key))
+}
+
+/// Builds the "Selected Graph" summary shown after `rover init --mcp`
+/// adds an MCP server to a project for an existing graph.
+pub(crate) fn existing_graph_mcp_summary(
+    graph_name: &str,
+    variant_name: &str,
+    organization_name: &str,
+    graph_ref: &str,
+    supergraph_downloaded: bool,
+    api_key: &str,
+) -> String {
+    let mut output = format!("\n{}\n", Style::Heading.paint("Selected Graph:"));
+    output.push_str(&format!("  • Graph: {} ({})\n", graph_name, variant_name));
+    output.push_str(&format!("  • Organization: {}\n", organization_name));
+    output.push_str(&format!("  • Graph Reference: {}\n", graph_ref));
+    if supergraph_downloaded {
+        output.push_str("  • Supergraph schema: Downloaded\n");
+    }
+    output.push_str(&format!(
+        "  • Service API key: {}\n",
+        api_key_saved_line(api_key)
+    ));
+    output
+}
+
+/// Contents of a minimal `.env` holding the credentials `rover init --mcp`
+/// points users to.
+pub(crate) fn env_file_contents(api_key: &str, graph_ref: &str) -> String {
+    format!("APOLLO_KEY={api_key}\nAPOLLO_GRAPH_REF={graph_ref}\n")
 }
 
 pub(crate) fn get_command(supergraph_config: bool) -> String {
@@ -258,6 +295,80 @@ pub fn normalize_docker_tag(graph_id: &str) -> String {
         .chars()
         .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_' || *c == '.')
         .collect()
+}
+
+/// Port the generated MCP server listens on.
+///
+/// Matches `transport.port` in the rover-init-starters `add-mcp` MCP config.
+pub(crate) const MCP_DEFAULT_PORT: u16 = 8000;
+
+/// Local MCP endpoint URL for a server started from the generated config.
+pub(crate) fn mcp_local_endpoint() -> String {
+    format!("http://127.0.0.1:{MCP_DEFAULT_PORT}/mcp")
+}
+
+/// `docker run` command for the MCP image built as `{docker_tag}-mcp`.
+pub(crate) fn mcp_docker_run_hint(docker_tag: &str) -> String {
+    format!(
+        "docker run -p 127.0.0.1:{MCP_DEFAULT_PORT}:{MCP_DEFAULT_PORT} --env-file .env {docker_tag}-mcp"
+    )
+}
+
+/// README written into an existing graph's directory by `rover init --mcp`.
+pub(super) fn existing_graph_mcp_readme(
+    selected_graph: &GraphVariantOption,
+    graph_ref_str: &str,
+    subgraph_info: &str,
+    docker_tag: &str,
+    graph_endpoint: &str,
+) -> String {
+    let subgraph_line = if subgraph_info.is_empty() {
+        String::new()
+    } else {
+        format!("\n- **{subgraph_info}**")
+    };
+
+    formatdoc!(
+        r#"
+        # {graph_name} MCP Server
+
+        This MCP server provides AI-accessible tools for your Apollo graph.
+
+        ## Graph Information
+        - **Graph ID**: {graph_id}
+        - **Variant**: {variant_name}
+        - **Organization**: {organization_name}
+        - **Graph Reference**: {graph_ref_str}
+        {subgraph_line}
+
+        ## Quick Start
+
+        1. Build the MCP server:
+           ```bash
+           docker build -f mcp.Dockerfile -t {docker_tag}-mcp .
+           ```
+
+        2. Run the MCP server:
+           ```bash
+           {docker_run_hint}
+           # Linux users may need: docker run --network=host --env-file .env {docker_tag}-mcp
+           ```
+
+        3. Test with MCP Inspector:
+           ```bash
+           npx @mcp/inspector
+           ```
+
+        4. Configure Claude Desktop to use this server.
+
+        ## View in Apollo Studio
+        {graph_endpoint}"#,
+        graph_name = selected_graph.graph_name,
+        graph_id = selected_graph.graph_id,
+        variant_name = selected_graph.variant_name,
+        organization_name = selected_graph.organization_name,
+        docker_run_hint = mcp_docker_run_hint(docker_tag),
+    )
 }
 
 /// Context for processing MCP template placeholders
