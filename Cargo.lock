@@ -1939,14 +1939,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "17933e749f2502cfcd1c27519292fbbea22e8fc64ce680e863f855e8cd8cce23"
 dependencies = [
  "heck",
- "indexmap 1.9.3",
- "itertools 0.14.0",
+ "indexmap 2.14.2",
+ "itertools 0.15.0",
  "proc-macro-crate",
  "proc-macro2",
  "quote",
  "sha3",
- "strum 0.27.2",
- "syn 2.0.119",
+ "strum 0.28.0",
+ "syn 3.0.9",
  "unicode-ident",
  "void",
 ]
@@ -2133,7 +2133,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users 0.5.3",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2290,7 +2290,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2309,6 +2309,17 @@ name = "fancy-regex"
 version = "0.19.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d301f5bf187b3c295fce6468d3875037a0bccc5f6b151c63cac2f85babf21912"
+dependencies = [
+ "bit-set",
+ "regex-automata",
+ "regex-syntax",
+]
+
+[[package]]
+name = "fancy-regex"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20ed7f62ce0ae0da1a8b93c3c7104ab7e0760a74491e097c701fff966e945390"
 dependencies = [
  "bit-set",
  "regex-automata",
@@ -3519,7 +3530,7 @@ checksum = "3640c1c38b8e4e43584d8df18be5fc6b0aa314ce6ebf51b53313d4306cca8e46"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3662,7 +3673,7 @@ dependencies = [
  "bytecount",
  "data-encoding",
  "email_address",
- "fancy-regex",
+ "fancy-regex 0.19.2",
  "fraction",
  "getrandom 0.3.4",
  "itoa",
@@ -3682,25 +3693,25 @@ dependencies = [
 
 [[package]]
 name = "jsonschema"
-version = "0.60.2"
+version = "0.61.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a42a11b47492e6a2cc76e9c7bcc8077776cb31dac444e0795d7f61bcc6441c08"
+checksum = "e1324c9bebe052584e96e7c80d2f9cf2d86e1a6d83d621a46932c5636996be18"
 dependencies = [
  "ahash 0.8.12",
  "bytecount",
  "data-encoding",
  "email_address",
- "fancy-regex",
+ "fancy-regex 0.20.0",
  "fraction",
  "getrandom 0.3.4",
  "idna",
  "itoa",
- "jsonschema-regex 0.60.2",
- "jsonschema-value 0.60.2",
+ "jsonschema-regex 0.61.0",
+ "jsonschema-value 0.61.0",
  "num-cmp",
  "num-traits",
  "percent-encoding",
- "referencing 0.60.2",
+ "referencing 0.61.0",
  "regex",
  "reqwest",
  "rustls",
@@ -3722,9 +3733,9 @@ dependencies = [
 
 [[package]]
 name = "jsonschema-regex"
-version = "0.60.2"
+version = "0.61.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "107aeb6ff14b8deb5610096a8ce5c554ec89806b521147eaeb3cae05b07edb7a"
+checksum = "fe90ff57cd46c2e873aa3628f87fdf32421c5f800b64e96e93efa094215235b5"
 dependencies = [
  "regex-syntax",
 ]
@@ -3747,9 +3758,9 @@ dependencies = [
 
 [[package]]
 name = "jsonschema-value"
-version = "0.60.2"
+version = "0.61.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e281d6b177bb4834f2ffd6f92aa0443cffe29c996b251c8d94eb6f456186feba"
+checksum = "65422cdf4b8d9b214579884c7125713e521e0cf11b738f232589360a7b61bcb5"
 dependencies = [
  "ahash 0.8.12",
  "bytecount",
@@ -4364,7 +4375,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4876,7 +4887,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d8fae84b431384b68627d0f9b3b1245fcf9f46f6c0e3dc902e9dce64edd1967"
 dependencies = [
  "libc",
- "windows-sys 0.45.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5316,7 +5327,7 @@ dependencies = [
  "derive-deftly",
  "libc",
  "paste",
- "thiserror 1.0.69",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -5409,7 +5420,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5637,9 +5648,9 @@ dependencies = [
 
 [[package]]
 name = "referencing"
-version = "0.60.2"
+version = "0.61.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f42818036d3b37cda6bd4c494543158a36e431cb717015ef7c93acc6ba214d3b"
+checksum = "aafb75c629a3f4cf1d1503eb9d588153392cde1bb4424adb75ed737e16201fd6"
 dependencies = [
  "ahash 0.8.12",
  "fluent-uri",
@@ -5828,7 +5839,7 @@ dependencies = [
  "insta",
  "itertools 0.15.0",
  "json-matcher",
- "jsonschema 0.60.2",
+ "jsonschema 0.61.0",
  "lazy_static",
  "lazycell",
  "mime",
@@ -6255,7 +6266,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.12.1",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -6313,7 +6324,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7304,10 +7315,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix 1.1.6",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7352,7 +7363,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "230a1b821ccbd75b185820a1f1ff7b14d21da1e442e22c0863ea5f08771a8874"
 dependencies = [
  "rustix 1.1.6",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -8406,7 +8417,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
