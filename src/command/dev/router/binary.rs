@@ -30,7 +30,10 @@ use crate::{
         install::PluginProvenance,
     },
     subtask::SubtaskHandleUnit,
-    utils::effect::exec::{ExecCommandConfig, ExecCommandOutput},
+    utils::{
+        effect::exec::{ExecCommandConfig, ExecCommandOutput},
+        lifecycle,
+    },
 };
 
 pub enum RouterLog {
@@ -303,10 +306,17 @@ where
                     // Spawn a task that just sits listening to the Router binary, and if it
                     // exits, fire an error to say so, such that we can stop Rover Dev
                     // running if this happens.
-                    tokio::spawn({
+                    // It is registered with the harness too, so that a signal that ends
+                    // Rover without the command's own cleanup still stops the child.
+                    let children = lifecycle::Children::global();
+                    let stopping = children.stopping();
+                    children.spawn({
                         async move {
                             tokio::select! {
                                 _ = cancellation_token.cancelled() => {
+                                    let _ = child.kill().await;
+                                },
+                                _ = stopping.cancelled() => {
                                     let _ = child.kill().await;
                                 },
                                 res = child.wait() => {

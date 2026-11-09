@@ -6,13 +6,15 @@ use std::{
     future::Future,
     panic::{self, AssertUnwindSafe},
     sync::{
-        Arc, Mutex, PoisonError,
+        Arc, LazyLock, Mutex, PoisonError,
         atomic::{AtomicBool, Ordering},
     },
+    time::Duration,
 };
 
 use futures::FutureExt;
 use sputnik::{Outcome, Session};
+use tokio_util::{sync::CancellationToken, task::TaskTracker};
 
 /// Set by the panic hook when a panic happens on any thread.
 static PANICKED: AtomicBool = AtomicBool::new(false);
@@ -92,6 +94,64 @@ impl Telemetry {
     }
 }
 
+/// How long stopping a command's child processes may delay the exit that follows a signal.
+/// It runs alongside the telemetry report, so it shares that report's budget rather than
+/// adding to it.
+const CHILD_STOP_BUDGET: Duration = Duration::from_millis(250);
+
+/// The child processes a command has started and that must not outlive it. A signal ends
+/// Rover by re-raising it, which runs no cleanup, so a child kept running by that is orphaned
+/// unless the harness stops it first. A command registers the task that owns each child
+/// through [`Children::spawn`], and that task stops the child when [`Children::stopping`] is
+/// cancelled.
+pub(crate) struct Children {
+    stopping: CancellationToken,
+    tasks: TaskTracker,
+}
+
+impl Children {
+    pub(crate) fn new() -> Arc<Self> {
+        Arc::new(Self {
+            stopping: CancellationToken::new(),
+            tasks: TaskTracker::new(),
+        })
+    }
+
+    /// The children of this process. Tests use [`Children::new`] instead, because once these
+    /// are told to stop, they stay stopped.
+    pub(crate) fn global() -> Arc<Self> {
+        static GLOBAL: LazyLock<Arc<Children>> = LazyLock::new(Children::new);
+        Arc::clone(&GLOBAL)
+    }
+
+    /// Cancelled when the harness is about to end the process, and the children must stop.
+    pub(crate) fn stopping(&self) -> CancellationToken {
+        self.stopping.clone()
+    }
+
+    /// Runs the task that owns a child, so that [`Children::stop`] can wait for it to finish.
+    pub(crate) fn spawn<F>(&self, task: F)
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
+        self.tasks.spawn(task);
+    }
+
+    /// Tells every child to stop and waits for them to, for no longer than `budget`. A child
+    /// that is slow to stop is left to the operating system, since it must not hold up the
+    /// exit.
+    async fn stop(&self, budget: Duration) {
+        self.stopping.cancel();
+        self.tasks.close();
+        if tokio::time::timeout(budget, self.tasks.wait())
+            .await
+            .is_err()
+        {
+            tracing::debug!(?budget, "child processes were still stopping at exit");
+        }
+    }
+}
+
 /// A signal that asks the process to stop.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub(crate) enum TerminationSignal {
@@ -141,25 +201,31 @@ pub(crate) enum Finish<T> {
 ///
 /// A signal is noticed by a task of its own, so that a command that never lets the runtime
 /// poll it can't hide the signal. That task reports `terminated`, with no duration because it
-/// would only say how long the command ran before it was stopped, and then calls `stop`, which
-/// is meant to end the process. If the command ends first it gets to report instead, and a
-/// signal that arrives while it does is passed straight to `stop`.
+/// would only say how long the command ran before it was stopped, stops the command's
+/// `children`, and then calls `stop`, which is meant to end the process. If the command ends
+/// first it gets to report instead, and a signal that arrives while it does is passed straight
+/// to `stop`.
 pub(crate) async fn run<F: Future>(
     telemetry: &Arc<Telemetry>,
+    children: &Arc<Children>,
     stop: impl FnOnce(TerminationSignal) + Send + 'static,
     command: F,
 ) -> Finish<F::Output> {
     // Listening before the command starts means a signal in its first moments isn't missed.
     let signals = Signals::listen();
     let watcher = Arc::clone(telemetry);
+    let children = Arc::clone(children);
     tokio::spawn(async move {
         let signal = signals.received().await;
-        if let Some(Claim {
-            session: Some(session),
-        }) = watcher.claim()
-        {
-            quietly(session.with_outcome(Outcome::Terminated).report()).await;
-        }
+        let report = async {
+            if let Some(Claim {
+                session: Some(session),
+            }) = watcher.claim()
+            {
+                quietly(session.with_outcome(Outcome::Terminated).report()).await;
+            }
+        };
+        tokio::join!(report, children.stop(CHILD_STOP_BUDGET));
         stop(signal);
     });
 
@@ -233,7 +299,13 @@ impl Signals {
 
 #[cfg(all(test, unix))]
 mod tests {
-    use std::time::Duration;
+    use std::{
+        sync::{
+            Arc,
+            atomic::{AtomicBool, Ordering},
+        },
+        time::Duration,
+    };
 
     use serial_test::serial;
     use signal_hook::{
@@ -243,7 +315,7 @@ mod tests {
     use speculoos::prelude::*;
     use tokio::sync::oneshot;
 
-    use super::{Finish, Telemetry, TerminationSignal, quietly, run};
+    use super::{Children, Finish, Telemetry, TerminationSignal, quietly, run};
 
     /// What a [`Finish`] came to, in a form that can be compared whole.
     #[derive(Debug, PartialEq, Eq)]
@@ -301,7 +373,13 @@ mod tests {
     #[serial(signals)]
     async fn a_completed_command_finishes_with_its_output() {
         let (stop, _) = oneshot::channel();
-        let finish = run(&Telemetry::new(None), stop_with(stop), async { 7 }).await;
+        let finish = run(
+            &Telemetry::new(None),
+            &Children::new(),
+            stop_with(stop),
+            async { 7 },
+        )
+        .await;
         assert_that!(Ended::from(finish)).is_equal_to(Ended::Completed(7));
     }
 
@@ -309,9 +387,12 @@ mod tests {
     #[serial(signals)]
     async fn a_panicking_command_is_caught() {
         let (stop, _) = oneshot::channel();
-        let finish = run(&Telemetry::new(None), stop_with(stop), async {
-            panic!("boom")
-        })
+        let finish = run(
+            &Telemetry::new(None),
+            &Children::new(),
+            stop_with(stop),
+            async { panic!("boom") },
+        )
         .await;
         assert_that!(Ended::from(finish)).is_equal_to(Ended::Panicked);
     }
@@ -328,7 +409,13 @@ mod tests {
                 let _ = started.send(());
                 command.await
             };
-            run(&Telemetry::new(None), stop_with(sender), command).await;
+            run(
+                &Telemetry::new(None),
+                &Children::new(),
+                stop_with(sender),
+                command,
+            )
+            .await;
         });
         // `run` listens for signals before it polls the command, so once the command
         // has started, a signal is certain to be noticed.
@@ -372,6 +459,61 @@ mod tests {
         assert_that!(received).is_equal_to(Ok(TerminationSignal::Interrupt));
     }
 
+    /// Runs a command that has started a child, which `child` is given the harness's
+    /// `Children` to own, then sends `SIGTERM` and says what the child had done by the time
+    /// the harness handed over to `stop`.
+    async fn child_state_at_stop<Fut: Future<Output = ()> + Send + 'static>(
+        child: impl FnOnce(Arc<Children>, Arc<AtomicBool>) -> Fut,
+    ) -> Result<bool, String> {
+        let children = Children::new();
+        let stopped = Arc::new(AtomicBool::new(false));
+        let (sender, receiver) = oneshot::channel();
+        let (started, running) = oneshot::channel();
+        let child = child(Arc::clone(&children), Arc::clone(&stopped));
+        children.spawn(child);
+        let observed = Arc::clone(&stopped);
+        tokio::spawn(async move {
+            let command = async move {
+                let _ = started.send(());
+                std::future::pending::<i32>().await
+            };
+            let stop = move |_| {
+                let _ = sender.send(observed.load(Ordering::SeqCst));
+            };
+            run(&Telemetry::new(None), &children, stop, command).await;
+        });
+        running.await.unwrap();
+        raise(SIGTERM).unwrap();
+        match tokio::time::timeout(Duration::from_secs(2), receiver).await {
+            Ok(Ok(was_stopped)) => Ok(was_stopped),
+            Ok(Err(_)) => Err("the harness dropped its stop".to_string()),
+            Err(_) => Err("the harness never handed over to stop".to_string()),
+        }
+    }
+
+    /// A child's owner is told to stop it, and has finished doing so before the process is
+    /// ended, which is what keeps the child from being orphaned.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
+    #[serial(signals)]
+    async fn children_are_stopped_before_the_process_is_ended() {
+        let was_stopped = child_state_at_stop(|children, stopped| async move {
+            children.stopping().cancelled().await;
+            // Stopping a real child takes a moment, which the harness must wait out.
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            stopped.store(true, Ordering::SeqCst);
+        })
+        .await;
+        assert_that!(was_stopped).is_equal_to(Ok(true));
+    }
+
+    /// A child that won't stop can't keep the process from ending.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
+    #[serial(signals)]
+    async fn a_child_that_will_not_stop_does_not_hold_up_the_exit() {
+        let was_stopped = child_state_at_stop(|_, _| std::future::pending()).await;
+        assert_that!(was_stopped).is_equal_to(Ok(false));
+    }
+
     /// A command blocked in synchronous code, like a prompt or a read from stdin, never lets
     /// the runtime poll it, but a signal still stops it. As in `main`, the command is driven
     /// by `block_on` on a thread that isn't one of the runtime's workers.
@@ -400,7 +542,7 @@ mod tests {
         // waits forever as it would in a process that was exiting.
         let _ = tokio::time::timeout(
             Duration::from_secs(3),
-            run(&Telemetry::new(None), stop, async move {
+            run(&Telemetry::new(None), &Children::new(), stop, async move {
                 started.send(()).unwrap();
                 std::thread::sleep(Duration::from_secs(2));
                 0

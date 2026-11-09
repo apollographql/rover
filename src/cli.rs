@@ -378,11 +378,16 @@ impl Rover {
         let telemetry = lifecycle::Telemetry::new(session);
 
         let started = std::time::Instant::now();
-        let finish = lifecycle::run(&telemetry, |signal| signal.exit_by_default(), async {
-            // The command isn't finished until its output is written, so
-            // printing is part of its duration.
-            conclude(self.execute_command().await, &self.output_opts)
-        })
+        let finish = lifecycle::run(
+            &telemetry,
+            &lifecycle::Children::global(),
+            |signal| signal.exit_by_default(),
+            async {
+                // The command isn't finished until its output is written, so
+                // printing is part of its duration.
+                conclude(self.execute_command().await, &self.output_opts)
+            },
+        )
         .await;
         let duration = started.elapsed();
 
