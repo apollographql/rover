@@ -382,8 +382,8 @@ impl Rover {
         // attempt to create a new `Session` to capture anonymous usage data
         let session = Session::new(self)
             .ok()
-            .map(|session| match self.graph_id() {
-                Some(graph_id) => session.with_graph_id(graph_id),
+            .map(|session| match self.graph_id_hash() {
+                Some(graph_id_hash) => session.with_graph_id_hash(graph_id_hash),
                 None => session,
             });
         let telemetry = lifecycle::Telemetry::new(session);
