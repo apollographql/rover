@@ -4,6 +4,7 @@ use std::{
     fmt::Formatter,
     io,
     process::{ExitStatus, Stdio},
+    sync::Arc,
 };
 
 use buildstructor::Builder;
@@ -95,6 +96,7 @@ pub struct RunMcpServerBinary<Spawn: Send> {
     router_url_path: Option<String>,
     mcp_config_path: Option<Utf8PathBuf>,
     env: HashMap<String, String>,
+    children: Arc<lifecycle::Children>,
 }
 
 impl<Spawn: Send> RunMcpServerBinary<Spawn> {
@@ -144,6 +146,10 @@ where
     ) {
         let mut spawn = self.spawn.clone();
         let cancellation_token = cancellation_token.unwrap_or_default();
+        let children = Arc::clone(&self.children);
+        // Held until the child's watcher is registered, so that a signal arriving while the
+        // child is still being spawned waits for it instead of leaving it orphaned.
+        let starting = children.starting();
         tokio::task::spawn(async move {
             let child = spawn
                 .ready()
@@ -245,7 +251,6 @@ where
                     // running if this happens.
                     // It is registered with the harness too, so that a signal that ends
                     // Rover without the command's own cleanup still stops the child.
-                    let children = lifecycle::Children::global();
                     let stopping = children.stopping();
                     children.spawn({
                         async move {
@@ -269,6 +274,8 @@ where
                             }
                         }
                     });
+                    // The watcher is registered, so the harness waits for it from here on.
+                    drop(starting);
                 }
             }
         });
@@ -322,6 +329,7 @@ mod tests {
             .and_router_url_path(router_url_path)
             .and_mcp_config_path(mcp_config_path)
             .env(HashMap::new())
+            .children(lifecycle::Children::new())
             .build();
 
         let env = runner.opts_into_env();
@@ -351,6 +359,7 @@ mod tests {
             .and_router_url_path(Some("/graphql".to_string()))
             .and_mcp_config_path(mcp_config_path)
             .env(HashMap::new())
+            .children(lifecycle::Children::new())
             .build();
 
         let env = runner.opts_into_env();
@@ -380,6 +389,7 @@ mod tests {
             .and_router_url_path(Some("/custom-path".to_string()))
             .and_mcp_config_path(mcp_config_path)
             .env(HashMap::new())
+            .children(lifecycle::Children::new())
             .build();
 
         let env = runner.opts_into_env();
@@ -416,6 +426,7 @@ mod tests {
             .and_router_url_path(router_url_path)
             .and_mcp_config_path(mcp_config_path)
             .env(env)
+            .children(lifecycle::Children::new())
             .build();
 
         let env = runner.opts_into_env();

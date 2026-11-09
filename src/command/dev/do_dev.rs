@@ -357,9 +357,9 @@ impl Dev {
                     _ = tokio::signal::ctrl_c() => {
                         eprintln!("\nreceived shutdown signal, stopping `rover dev` processes...");
 
-                        // These calls aren't strictly necessary: a terminal sends SIGINT to the
-                        // children too, and the signal harness stops them before Rover exits
-                        // even when only Rover is signalled.
+                        // These calls aren't strictly necessary on a signal: a terminal sends
+                        // SIGINT to the children too, and the signal harness stops them before
+                        // Rover exits even when only Rover is signalled.
                         run_router.shutdown();
                         run_mcp_server.shutdown();
                         break

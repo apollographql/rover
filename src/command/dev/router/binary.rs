@@ -5,6 +5,7 @@ use std::{
     io,
     net::{AddrParseError, SocketAddr},
     process::{ExitStatus, Stdio},
+    sync::Arc,
 };
 
 use buildstructor::Builder;
@@ -180,6 +181,7 @@ pub struct RunRouterBinary<Spawn: Send> {
     env: HashMap<String, String>,
     listen_address: RouterAddress,
     license: Option<Utf8PathBuf>,
+    children: Arc<lifecycle::Children>,
 }
 
 impl<Spawn: Send> RunRouterBinary<Spawn> {
@@ -218,6 +220,10 @@ where
     ) {
         let mut spawn = self.spawn.clone();
         let cancellation_token = cancellation_token.unwrap_or_default();
+        let children = Arc::clone(&self.children);
+        // Held until the child's watcher is registered, so that a signal arriving while the
+        // child is still being spawned waits for it instead of leaving it orphaned.
+        let starting = children.starting();
         tokio::task::spawn(async move {
             let args = self.args();
 
@@ -308,7 +314,6 @@ where
                     // running if this happens.
                     // It is registered with the harness too, so that a signal that ends
                     // Rover without the command's own cleanup still stops the child.
-                    let children = lifecycle::Children::global();
                     let stopping = children.stopping();
                     children.spawn({
                         async move {
@@ -332,6 +337,8 @@ where
                             }
                         }
                     });
+                    // The watcher is registered, so the harness waits for it from here on.
+                    drop(starting);
                 }
             }
         });
@@ -351,13 +358,20 @@ mod tests {
     struct MockSpawn;
 
     fn test_binary() -> RunRouterBinary<MockSpawn> {
+        test_binary_with(MockSpawn, lifecycle::Children::new())
+    }
+
+    fn test_binary_with<Spawn: Send>(
+        spawn: Spawn,
+        children: Arc<lifecycle::Children>,
+    ) -> RunRouterBinary<Spawn> {
         let router_address = RouterAddress::new(
             Some(RouterHost::Default(IpAddr::V4(std::net::Ipv4Addr::new(
                 127, 0, 0, 1,
             )))),
             Some(RouterPort::Default(4000)),
         );
-        RunRouterBinary::<MockSpawn>::builder()
+        RunRouterBinary::<Spawn>::builder()
             .router_binary(RouterBinary::new(
                 Utf8PathBuf::from("/fake/path"),
                 PluginProvenance::new(
@@ -370,9 +384,10 @@ mod tests {
             ))
             .config_path(Utf8PathBuf::from("/fake/config.yaml"))
             .supergraph_schema_path(Utf8PathBuf::from("/fake/schema.graphql"))
-            .spawn(MockSpawn)
+            .spawn(spawn)
             .listen_address(router_address)
             .env(HashMap::new())
+            .children(children)
             .build()
     }
 
@@ -394,5 +409,52 @@ mod tests {
             .position(|arg| arg == "--license")
             .expect("--license flag should be present");
         assert_eq!(args[license_flag_index + 1], "/fake/license.jwt");
+    }
+
+    /// A router that is running when the harness stops the process's children is killed, and
+    /// is reaped before the stop returns, so it is gone by the time the process exits.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn the_router_is_killed_when_the_harness_stops_children() {
+        use std::{sync::Mutex, time::Duration};
+
+        use tower::service_fn;
+
+        let pid = Arc::new(Mutex::new(None));
+        let spawn = service_fn({
+            let pid = Arc::clone(&pid);
+            move |_: ExecCommandConfig| {
+                let pid = Arc::clone(&pid);
+                async move {
+                    let child = tokio::process::Command::new("sleep")
+                        .arg("60")
+                        .stdout(Stdio::piped())
+                        .stderr(Stdio::piped())
+                        .spawn()?;
+                    *pid.lock().unwrap() = child.id();
+                    Ok::<_, io::Error>(child)
+                }
+            }
+        });
+        let children = lifecycle::Children::new();
+        let binary = test_binary_with(spawn, Arc::clone(&children));
+        let (sender, _logs) = tokio::sync::mpsc::unbounded_channel();
+        binary.handle(sender, None);
+
+        // The child is still being started, so stopping must wait for it rather than return
+        // at once and leave it behind.
+        children.stop(Duration::from_secs(5)).await;
+
+        let pid = pid
+            .lock()
+            .unwrap()
+            .expect("the router should have been spawned");
+        let still_running = std::process::Command::new("kill")
+            .args(["-0", &pid.to_string()])
+            .stderr(Stdio::null())
+            .status()
+            .unwrap()
+            .success();
+        assert!(!still_running, "the router child {pid} outlived the stop");
     }
 }

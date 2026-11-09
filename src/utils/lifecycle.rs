@@ -103,7 +103,8 @@ const CHILD_STOP_BUDGET: Duration = Duration::from_millis(250);
 /// Rover by re-raising it, which runs no cleanup, so a child kept running by that is orphaned
 /// unless the harness stops it first. A command registers the task that owns each child
 /// through [`Children::spawn`], and that task stops the child when [`Children::stopping`] is
-/// cancelled.
+/// cancelled. Stopping is abrupt: a child is killed rather than asked to shut down, so one
+/// that a terminal has already interrupted doesn't get to finish a graceful shutdown.
 pub(crate) struct Children {
     stopping: CancellationToken,
     tasks: TaskTracker,
@@ -137,10 +138,17 @@ impl Children {
         self.tasks.spawn(task);
     }
 
+    /// Held while a child is being started, until the task that owns it is registered with
+    /// [`Children::spawn`]. [`Children::stop`] waits for it, so a signal that arrives in that
+    /// gap doesn't leave the child that is about to appear orphaned.
+    pub(crate) fn starting(&self) -> impl Drop + use<> {
+        self.tasks.token()
+    }
+
     /// Tells every child to stop and waits for them to, for no longer than `budget`. A child
     /// that is slow to stop is left to the operating system, since it must not hold up the
     /// exit.
-    async fn stop(&self, budget: Duration) {
+    pub(crate) async fn stop(&self, budget: Duration) {
         self.stopping.cancel();
         self.tasks.close();
         if tokio::time::timeout(budget, self.tasks.wait())
@@ -304,7 +312,7 @@ mod tests {
             Arc,
             atomic::{AtomicBool, Ordering},
         },
-        time::Duration,
+        time::{Duration, Instant},
     };
 
     use serial_test::serial;
@@ -464,7 +472,7 @@ mod tests {
     /// the harness handed over to `stop`.
     async fn child_state_at_stop<Fut: Future<Output = ()> + Send + 'static>(
         child: impl FnOnce(Arc<Children>, Arc<AtomicBool>) -> Fut,
-    ) -> Result<bool, String> {
+    ) -> Result<(bool, Duration), String> {
         let children = Children::new();
         let stopped = Arc::new(AtomicBool::new(false));
         let (sender, receiver) = oneshot::channel();
@@ -478,14 +486,15 @@ mod tests {
                 std::future::pending::<i32>().await
             };
             let stop = move |_| {
-                let _ = sender.send(observed.load(Ordering::SeqCst));
+                let _ = sender.send((observed.load(Ordering::SeqCst), Instant::now()));
             };
             run(&Telemetry::new(None), &children, stop, command).await;
         });
         running.await.unwrap();
+        let raised = Instant::now();
         raise(SIGTERM).unwrap();
         match tokio::time::timeout(Duration::from_secs(2), receiver).await {
-            Ok(Ok(was_stopped)) => Ok(was_stopped),
+            Ok(Ok((was_stopped, at))) => Ok((was_stopped, at.duration_since(raised))),
             Ok(Err(_)) => Err("the harness dropped its stop".to_string()),
             Err(_) => Err("the harness never handed over to stop".to_string()),
         }
@@ -503,15 +512,19 @@ mod tests {
             stopped.store(true, Ordering::SeqCst);
         })
         .await;
-        assert_that!(was_stopped).is_equal_to(Ok(true));
+        assert_that!(was_stopped.map(|(stopped, _)| stopped)).is_equal_to(Ok(true));
     }
 
     /// A child that won't stop can't keep the process from ending.
     #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
     #[serial(signals)]
     async fn a_child_that_will_not_stop_does_not_hold_up_the_exit() {
-        let was_stopped = child_state_at_stop(|_, _| std::future::pending()).await;
-        assert_that!(was_stopped).is_equal_to(Ok(false));
+        let (was_stopped, waited) = child_state_at_stop(|_, _| std::future::pending())
+            .await
+            .unwrap();
+        assert_that!(was_stopped).is_equal_to(false);
+        // The budget is 250ms; the rest is slack for a loaded machine.
+        assert_that!(waited).is_less_than(Duration::from_millis(750));
     }
 
     /// A command blocked in synchronous code, like a prompt or a read from stdin, never lets
