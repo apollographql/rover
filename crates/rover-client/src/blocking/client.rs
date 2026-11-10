@@ -47,7 +47,7 @@ impl GraphQLClient {
     ///
     /// Only Platform API clients should do this: a client for any other endpoint, like a
     /// customer's own subgraph being introspected, must not carry trace headers.
-    pub const fn with_trace_id(mut self, trace_id: TraceId) -> GraphQLClient {
+    pub(crate) const fn with_trace_id(mut self, trace_id: TraceId) -> GraphQLClient {
         self.trace_id = Some(trace_id);
         self
     }
@@ -121,12 +121,7 @@ impl GraphQLClient {
             // new parent ID.
             let mut headers = header_map.clone();
             if let Some(trace_id) = &self.trace_id {
-                match trace_id.traceparent() {
-                    Ok(traceparent) => {
-                        headers.insert("traceparent", traceparent);
-                    }
-                    Err(err) => tracing::debug!(%err, "could not attach a traceparent header"),
-                }
+                headers.insert("traceparent", trace_id.traceparent().header_value());
             }
             let response = self
                 .client

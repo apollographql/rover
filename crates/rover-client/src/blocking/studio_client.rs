@@ -79,11 +79,13 @@ impl StudioClient {
         }
     }
 
-    /// Sends `trace_id` on this client's requests instead of the process's own trace ID.
+    /// Sends `trace_id` on this client's requests instead of the process's own trace ID, so a
+    /// test can tell which trace a request belongs to.
     ///
-    /// Every request this client makes carries a `traceparent` with a trace ID, which is the
-    /// process's unless this says otherwise.
-    pub fn with_trace_id(mut self, trace_id: TraceId) -> StudioClient {
+    /// Outside of tests every client shares the process's trace ID, so that all of a run's
+    /// requests are one trace.
+    #[cfg(test)]
+    pub(crate) fn with_trace_id(mut self, trace_id: TraceId) -> StudioClient {
         self.client = self.client.with_trace_id(trace_id);
         self.trace_id = trace_id;
         self
@@ -325,10 +327,14 @@ impl StudioClient {
     }
 
     pub fn http_service(&self) -> Result<HttpService, RoverClientError> {
-        let service = ReqwestService::builder()
-            .client(self.reqwest_client.clone())
-            .build()
-            .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?
+        let service = ServiceBuilder::new()
+            .layer(TraceparentLayer::new(self.trace_id))
+            .service(
+                ReqwestService::builder()
+                    .client(self.reqwest_client.clone())
+                    .build()
+                    .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?,
+            )
             .boxed_clone();
         Ok(service)
     }
@@ -644,13 +650,13 @@ mod tests {
         let mut parent_ids = Vec::new();
         for traceparent in traceparents {
             let traceparent = traceparent.as_deref().expect("a traceparent header");
-            let fields: Vec<String> = traceparent.split('-').map(str::to_string).collect();
+            let fields: Vec<&str> = traceparent.split('-').collect();
             assert_that!(fields.len()).is_equal_to(4);
-            assert_that!(fields[0].clone()).is_equal_to("00".to_string());
-            assert_that!(fields[1].clone()).is_equal_to(trace_id.to_string());
+            assert_that!(fields[0]).is_equal_to("00");
+            assert_that!(fields[1]).is_equal_to(trace_id.to_string().as_str());
             assert_that!(fields[2].len()).is_equal_to(16);
-            assert_that!(fields[3].clone()).is_equal_to("01".to_string());
-            parent_ids.push(fields[2].clone());
+            assert_that!(fields[3]).is_equal_to("01");
+            parent_ids.push(fields[2]);
         }
         parent_ids.sort();
         parent_ids.dedup();
@@ -754,7 +760,7 @@ mod tests {
     // Two clients in one process, as when a command builds a client more than once, still
     // make one trace.
     #[tokio::test]
-    async fn clients_share_the_process_trace_id_unless_given_another() {
+    async fn clients_share_the_process_trace_id() {
         let recorder = TraceRecorder::start(vec![200]).await;
 
         client_for(&recorder)
@@ -766,17 +772,43 @@ mod tests {
             .await
             .unwrap();
 
-        assert_one_trace_per_request(&recorder.traceparents(), TraceId::for_process());
+        assert_one_trace_per_request(&recorder.traceparents(), TraceId::for_process(), 2);
     }
 
     /// Like [`assert_one_trace`], for requests that are separate logical requests
-    fn assert_one_trace_per_request(traceparents: &[Option<String>], trace_id: TraceId) {
-        assert_that!(traceparents.len()).is_equal_to(2);
+    fn assert_one_trace_per_request(
+        traceparents: &[Option<String>],
+        trace_id: TraceId,
+        requests: usize,
+    ) {
+        assert_that!(traceparents.len()).is_equal_to(requests);
         for traceparent in traceparents {
             let traceparent = traceparent.as_deref().expect("a traceparent header");
             assert_that!(traceparent.split('-').nth(1).unwrap().to_string())
                 .is_equal_to(trace_id.to_string());
         }
+    }
+
+    #[tokio::test]
+    async fn a_request_through_the_plain_http_service_carries_the_trace_id() {
+        let recorder = TraceRecorder::start(vec![200]).await;
+        let trace_id = TraceId::generate();
+        let client = client_for(&recorder).with_trace_id(trace_id);
+        let request = http::Request::post(recorder.url())
+            .body(rover_http::Full::default())
+            .unwrap();
+
+        client
+            .http_service()
+            .unwrap()
+            .ready()
+            .await
+            .unwrap()
+            .call(request)
+            .await
+            .unwrap();
+
+        assert_one_trace(&recorder.traceparents(), trace_id, 1);
     }
 
     // The blocking client also introspects endpoints that aren't the Platform API, such as a
