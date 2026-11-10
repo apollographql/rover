@@ -3,7 +3,7 @@ use std::str::FromStr;
 use clap::Parser;
 use dialoguer::Input;
 use rover_std::Style;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use crate::{
     RoverResult,
@@ -14,7 +14,7 @@ use crate::{
     },
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
+#[derive(Debug, Clone, Deserialize, Parser, Default)]
 pub struct GraphIdOpt {
     #[arg(long = "graph-id", short = 'g')]
     pub graph_id: Option<String>,

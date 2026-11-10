@@ -3,14 +3,13 @@ use std::{collections::HashMap, time::Duration};
 use clap::Parser;
 use reqwest::Client;
 use rover_client::operations::subgraph::introspect::{self, SubgraphIntrospectInput};
-use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult,
     options::{IntrospectOpts, OutputOpts},
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Introspect {
     #[clap(flatten)]
     pub opts: IntrospectOpts,

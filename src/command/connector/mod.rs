@@ -7,7 +7,6 @@ use clap::Parser;
 use rover_print::{print::Print, style::StyledText};
 use rover_studio::types::GraphRef;
 use semver::Version;
-use serde::Serialize;
 
 #[cfg(target_os = "macos")]
 use crate::command::connector::{analyze::AnalyzeCurl, generate::GenerateConnector};
@@ -33,7 +32,7 @@ pub mod output;
 pub mod run;
 pub mod test;
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Connector {
     #[clap(subcommand)]
     command: Command,
@@ -47,7 +46,6 @@ pub struct Connector {
     pub federation_version: Option<FederationVersion>,
 
     /// The relative path to the supergraph configuration file. You can pass `-` to use stdin instead of a file.
-    #[serde(skip_serializing)]
     #[arg(long = "supergraph-config")]
     pub supergraph_yaml: Option<FileDescriptorType>,
 
@@ -61,7 +59,7 @@ pub struct Connector {
     pub graph_ref: Option<GraphRef>,
 }
 
-#[derive(Debug, Parser, Serialize)]
+#[derive(Debug, Parser)]
 #[clap(about = "Work with Apollo Connectors")]
 pub enum Command {
     #[cfg(target_os = "macos")]

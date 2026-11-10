@@ -15,7 +15,7 @@ use rover_print::{
     style::{Style, StyledText},
 };
 use rover_std::Fs;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use crate::{
     RoverError, RoverOutput, RoverResult,
@@ -23,7 +23,7 @@ use crate::{
     utils::{client::StudioClientConfig, parsers::FileDescriptorType},
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 #[clap(
     group = ArgGroup::new("include_tags_group")
         .args(&["include_tag", "no_include_tags"]),
@@ -53,42 +53,35 @@ pub struct Preview {
     /// A subgraph entry may set `remove: true` to preview composition as if
     /// the subgraph had been removed.
     #[arg(long = "subgraph-changes", value_name = "FILE", verbatim_doc_comment)]
-    #[serde(skip_serializing)]
     subgraph_changes_file: Option<FileDescriptorType>,
 
     /// List of tag names to include in the previewed contract schema (e.g. '--include-tag foo --include-tag bar').
     /// Omit all of --include-tag/--exclude-tag/--hide-unreachable-types (and their --no-* counterparts)
     /// to preview composition only, with no filtering applied.
     #[arg(long)]
-    #[serde(skip_serializing)]
     include_tag: Vec<String>,
 
     /// Use an empty include list of tag names for the previewed contract schema.
     /// To specify a non-empty list, use --include-tag instead.
     #[arg(long)]
-    #[serde(skip_serializing)]
     no_include_tags: bool,
 
     /// List of tag names to exclude from the previewed contract schema (e.g. '--exclude-tag foo --exclude-tag bar').
     /// To specify an empty list, use --no-exclude-tags instead.
     #[arg(long)]
-    #[serde(skip_serializing)]
     exclude_tag: Vec<String>,
 
     /// Use an empty exclude list of tag names for the previewed contract schema.
     /// To specify a non-empty list, use --exclude-tag instead.
     #[arg(long)]
-    #[serde(skip_serializing)]
     no_exclude_tags: bool,
 
     /// Automatically hide types that can never be reached in operations on the previewed contract schema.
     #[arg(long)]
-    #[serde(skip_serializing)]
     hide_unreachable_types: bool,
 
     /// Do not automatically hide types that can never be reached in operations on the previewed contract schema.
     #[arg(long)]
-    #[serde(skip_serializing)]
     no_hide_unreachable_types: bool,
 
     /// Start the build and return immediately with a job ID, instead of

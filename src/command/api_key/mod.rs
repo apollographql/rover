@@ -10,7 +10,6 @@ mod rotate;
 use std::fmt::{Display, Formatter};
 
 use clap::{Parser, ValueEnum};
-use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult,
@@ -21,13 +20,13 @@ use crate::{
     utils::client::StudioClientConfig,
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct ApiKeys {
     #[clap(subcommand)]
     command: Command,
 }
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub enum Command {
     #[clap(name = "create", about = "Create a new API key")]
     Create(Create),
@@ -64,8 +63,7 @@ impl ApiKeys {
 // enum contained within this crate rather than leaking it out. Further it allows us to selectively
 // add support for more key types as they are required, rather than them changing as the schema
 // does.
-#[derive(Debug, Clone, Serialize, ValueEnum, Copy, PartialEq, Eq)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[derive(Debug, Clone, ValueEnum, Copy, PartialEq, Eq)]
 pub enum ApiKeyType {
     Operator,
     Subgraph,
@@ -86,13 +84,13 @@ impl Display for ApiKeyType {
     }
 }
 
-#[derive(Debug, Parser, Serialize)]
+#[derive(Debug, Parser)]
 pub struct OrganizationOpt {
     #[clap(help = "The ID of the Organization")]
     organization_id: String,
 }
 
-#[derive(Debug, Parser, Serialize)]
+#[derive(Debug, Parser)]
 pub struct IdOpt {
     #[clap(help = "The ID of the API key")]
     id: String,

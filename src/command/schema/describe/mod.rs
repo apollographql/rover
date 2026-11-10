@@ -6,7 +6,6 @@ use std::{
 use clap::Parser;
 use rover_schema::{ParsedSchema, SchemaCoordinate};
 use rover_std::Fs;
-use serde::Serialize;
 
 use crate::{RoverOutput, RoverResult};
 
@@ -19,8 +18,7 @@ enum OutputFormat {
     Sdl,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, clap::ValueEnum)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
 pub enum ViewMode {
     /// Human-readable description (default)
     Description,
@@ -28,7 +26,7 @@ pub enum ViewMode {
     Sdl,
 }
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 /// Describe a GraphQL schema by type, field, or directive
 ///
 /// Displays a structured description of a GraphQL schema. Start with an
@@ -56,7 +54,6 @@ pub struct Describe {
     ///   @directive            — directive definition
     ///   @directive(arg:)      — argument on a directive
     #[arg(short = 'c', long = "coord", value_name = "SCHEMA_COORDINATE", value_parser = clap::value_parser!(SchemaCoordinate))]
-    #[serde(serialize_with = "serialize_coord")]
     schema_coordinate: Option<SchemaCoordinate>,
 
     /// Inline the definitions of referenced types in the output, up to N levels deep.
@@ -135,15 +132,5 @@ impl Describe {
         })?;
         let label = utf8_path.to_string();
         Ok((Fs::read_file(utf8_path)?, label))
-    }
-}
-
-fn serialize_coord<S>(coord: &Option<SchemaCoordinate>, s: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    match coord {
-        Some(c) => s.serialize_some(&c.to_string()),
-        None => s.serialize_none(),
     }
 }

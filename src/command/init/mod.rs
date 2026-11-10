@@ -25,12 +25,14 @@ pub mod transitions;
 use std::path::PathBuf;
 
 use clap::Parser;
+#[cfg(feature = "composition-js")]
+use futures::future::OptionFuture;
+#[cfg(feature = "composition-js")]
 use houston::{ApiKey, ApiKeyActor};
 #[cfg(feature = "composition-js")]
 use rover_client::RoverClientError;
 #[cfg(feature = "composition-js")]
 use rover_std::hyperlink;
-use serde::Serialize;
 
 #[cfg(feature = "composition-js")]
 use crate::RoverError;
@@ -133,7 +135,60 @@ pub use template_fetcher::InitTemplateFetcher;
 #[cfg(feature = "composition-js")]
 use transitions::{CreateProjectResult, RestartReason};
 
-#[derive(Debug, Parser, Clone, Serialize)]
+/// Asks the user a yes/no question. A trait so tests can answer without a terminal.
+#[cfg(feature = "composition-js")]
+#[cfg_attr(test, mockall::automock)]
+pub(crate) trait ConfirmPrompt {
+    fn confirm(&self, message: &str) -> RoverResult<bool>;
+}
+
+/// Asks on stderr, defaulting to yes. Escape or `q` counts as no.
+#[cfg(feature = "composition-js")]
+pub(crate) struct TerminalPrompt;
+
+#[cfg(feature = "composition-js")]
+impl ConfirmPrompt for TerminalPrompt {
+    fn confirm(&self, message: &str) -> RoverResult<bool> {
+        Ok(dialoguer::Confirm::new()
+            .with_prompt(message)
+            .default(true)
+            .interact_on_opt(&dialoguer::console::Term::stderr())?
+            .unwrap_or(false))
+    }
+}
+
+/// Returns the graph API key for the MCP server: `APOLLO_KEY` from the environment
+/// when it holds a graph key, or a new key created for `graph` otherwise.
+#[cfg(feature = "composition-js")]
+async fn resolve_mcp_api_key(
+    client_config: &StudioClientConfig,
+    profile: &ProfileOpt,
+    graph: &GraphVariantOption,
+) -> RoverResult<String> {
+    use rover_std::Style;
+
+    use crate::command::init::operations::create_api_key;
+
+    if let Ok(key) = std::env::var("APOLLO_KEY")
+        && matches!(ApiKey::try_from(key.as_str()), Ok(k) if k.actor() == ApiKeyActor::Graph)
+    {
+        println!(
+            "{}",
+            Style::Success.paint("✓ Using existing APOLLO_KEY from environment")
+        );
+        return Ok(key);
+    }
+    println!("{}", Style::Heading.paint("Creating service API key"));
+    create_api_key(
+        client_config,
+        profile,
+        graph.graph_id.clone(),
+        format!("{}-mcp-server", graph.graph_name),
+    )
+    .await
+}
+
+#[derive(Debug, Parser, Clone)]
 #[clap(about = "Initialize a new graph")]
 pub struct Init {
     #[clap(flatten)]
@@ -348,7 +403,6 @@ impl Init {
 
                 // Handle project creation result
                 if let CreateProjectResult::Created(project) = project_created {
-                    update_template_files_with_real_values(&project)?;
                     return Ok(project.complete().success());
                 }
 
@@ -524,15 +578,9 @@ impl Init {
         Ok(confirmed.unwrap_or(false))
     }
 
-    /// Preview files to be created before generation with confirm dialog
+    /// Prints the files that are about to be created.
     #[cfg(feature = "composition-js")]
-    async fn preview_mcp_files(
-        &self,
-        _selected_graph: &GraphVariantOption,
-        files: &std::collections::HashMap<camino::Utf8PathBuf, String>,
-    ) -> RoverResult<bool> {
-        use dialoguer::{Confirm, console::Term};
-
+    fn print_mcp_preview(files: &std::collections::HashMap<camino::Utf8PathBuf, String>) {
         use crate::command::init::helpers::print_mcp_file_categories;
 
         println!();
@@ -540,13 +588,6 @@ impl Init {
         let file_paths: Vec<camino::Utf8PathBuf> = files.keys().cloned().collect();
         print_mcp_file_categories(file_paths);
         println!();
-
-        let confirmed = Confirm::new()
-            .with_prompt("Create this template?")
-            .default(true)
-            .interact_on_opt(&Term::stderr())?;
-
-        Ok(confirmed.unwrap_or(false))
     }
 
     /// Prompt user to select a graph variant
@@ -807,120 +848,34 @@ impl Init {
         files.remove(&camino::Utf8PathBuf::from("supergraph.yaml"));
 
         // Add a basic README with graph info
-        let readme_content = format!(
-            r#"# {} MCP Server
-
-This MCP server provides AI-accessible tools for your Apollo graph.
-
-## Graph Information
-- **Graph ID**: {}
-- **Variant**: {}
-- **Organization**: {}
-- **Graph Reference**: {}
-{}
-
-## Quick Start
-
-1. Build the MCP server:
-   ```bash
-   docker build -f mcp.Dockerfile -t {}-mcp .
-   ```
-
-2. Run the MCP server:
-   ```bash
-   docker run --env-file .env -p5050:5050 {}-mcp
-   # Linux users may need: docker run --network=host --env-file .env {}-mcp
-   ```
-
-3. Test with MCP Inspector:
-   ```bash
-   npx @mcp/inspector
-   ```
-
-4. Configure Claude Desktop to use this server.
-
-## View in Apollo Studio
-{}"#,
-            selected_graph.graph_name,
-            selected_graph.graph_id,
-            selected_graph.variant_name,
-            selected_graph.organization_name,
-            graph_ref_str,
-            if !subgraph_info.is_empty() {
-                format!("\n- **{}**", subgraph_info)
-            } else {
-                String::new()
-            },
-            docker_tag,
-            docker_tag,
-            docker_tag,
-            graph_endpoint
+        let readme_content = helpers::existing_graph_mcp_readme(
+            &selected_graph,
+            &graph_ref_str,
+            &subgraph_info,
+            &docker_tag,
+            &graph_endpoint,
         );
         files.insert("README.md".into(), readme_content);
 
-        // Get or create Apollo service key
-        // First check if APOLLO_KEY is already set in environment
-        let apollo_key = if let Ok(key) = std::env::var("APOLLO_KEY") {
-            let is_graph_key = matches!(
-                ApiKey::try_from(key.as_str()),
-                Ok(parsed) if parsed.actor() == ApiKeyActor::Graph
-            );
-            if is_graph_key {
-                println!(
-                    "{}",
-                    Style::Success.paint("✓ Using existing APOLLO_KEY from environment")
-                );
-                key
-            } else {
-                // Need to create a new service key for this graph
-                println!("{}", Style::Heading.paint("Creating service API key"));
+        // Get the user's home directory for the MCP server binary path. This runs
+        // before the prompt, so it fails before anything is created.
+        let home_dir = binstall::get_home_dir_path()?;
 
-                // Use the operations module to create API key
-                use crate::command::init::operations::create_api_key;
-                create_api_key(
-                    client_config,
-                    profile,
-                    selected_graph.graph_id.clone(),
-                    format!("{}-mcp-server", selected_graph.graph_name),
-                )
-                .await?
-            }
-        } else {
-            // Create new service key
-            println!("{}", Style::Heading.paint("Creating service API key"));
+        // Preview files, then get or create the API key only if the user confirms
+        Self::print_mcp_preview(&files);
 
-            use crate::command::init::operations::create_api_key;
-            create_api_key(
-                client_config,
-                profile,
-                selected_graph.graph_id.clone(),
-                format!("{}-mcp-server", selected_graph.graph_name),
-            )
-            .await?
-        };
+        let key = OptionFuture::from(
+            TerminalPrompt
+                .confirm("Create this template?")?
+                .then(|| resolve_mcp_api_key(client_config, profile, &selected_graph)),
+        )
+        .await
+        .transpose()?;
 
-        // Preview files and get user confirmation before creating them
-        let confirmed = self.preview_mcp_files(&selected_graph, &files).await?;
-        if !confirmed {
+        let Some(apollo_key) = key else {
             println!("Setup cancelled.");
             return Ok(RoverOutput::EmptySuccess);
-        }
-
-        // Get the user's home directory for MCP server binary path
-        let home_dir = if cfg!(windows) {
-            std::env::var("USERPROFILE")
-                .or_else(|_| {
-                    std::env::var("HOMEDRIVE").and_then(|drive| {
-                        std::env::var("HOMEPATH").map(|path| format!("{}{}", drive, path))
-                    })
-                })
-                .map_err(|_| anyhow!("Could not determine home directory on Windows"))
-        } else {
-            std::env::var("HOME").map_err(|_| {
-                anyhow!("Could not determine home directory from HOME environment variable")
-            })
-        }?;
-        let home_dir = camino::Utf8PathBuf::from(home_dir);
+        };
 
         // Generate the MCP server binary path
         let mcp_server_binary = home_dir.join(".rover/bin/apollo-mcp-server-v0.8.0");
@@ -932,85 +887,51 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         let tools_absolute_path = current_dir.join("tools");
         let tools_path_str = tools_absolute_path.as_str().replace("/./", "/");
 
-        // Write files to current directory with template replacement
-        for (file_path, content) in &files {
-            let final_file_path = camino::Utf8PathBuf::from(file_path);
+        let hydration_ctx = helpers::ExistingGraphMCPContext {
+            project_name: &project_name,
+            graph_ref: &graph_ref_str,
+            graph_id: &selected_graph.graph_id,
+            graph_name: &selected_graph.graph_name,
+            variant_name: &selected_graph.variant_name,
+            organization_name: &selected_graph.organization_name,
+            api_key: &apollo_key,
+            graph_studio_url: &graph_endpoint,
+            mcp_server_binary: mcp_server_binary.as_str(),
+            mcp_config_path: mcp_config_path.as_str(),
+            tools_path: &tools_path_str,
+        };
 
-            let target_path = current_dir.join(&final_file_path);
+        // Write files to current directory with template replacement
+        let template_writes_env = files
+            .keys()
+            .any(|path| path == ".env.template" || path == ".env");
+        for (file_path, content) in &files {
+            let (output_path, processed_content) =
+                helpers::hydrate_existing_graph_file(file_path, content, &hydration_ctx);
+
+            let target_path = current_dir.join(&output_path);
             if let Some(parent) = target_path.parent() {
                 std::fs::create_dir_all(parent)?;
             }
 
-            // Replace template placeholders with selected graph information
-            // Use ${} format for YAML files (avoids linting issues)
-            // Use {{}} format for other templates and conditionals
-            let mut processed_content = content
-                // ${} format - primarily for YAML files
-                .replace("${PROJECT_NAME}", &project_name)
-                .replace("${GRAPH_REF}", &graph_ref_str)
-                .replace("${GRAPH_ID}", &selected_graph.graph_id)
-                .replace("${GRAPH_NAME}", &selected_graph.graph_name)
-                .replace("${VARIANT_NAME}", &selected_graph.variant_name)
-                .replace("${ORGANIZATION_NAME}", &selected_graph.organization_name)
-                .replace("${APOLLO_API_KEY}", &apollo_key)
-                .replace("${APOLLO_KEY}", &apollo_key)
-                .replace("${APOLLO_GRAPH_REF}", &graph_ref_str)
-                .replace("${GRAPHQL_ENDPOINT}", "http://localhost:4000")
-                .replace("${STAGING_GRAPHQL_ENDPOINT}", "http://localhost:4000") // For staging YAML
-                .replace("${GRAPH_STUDIO_URL}", &graph_endpoint)
-                .replace("${PROJECT_VERSION}", "1.0.0")
-                .replace(
-                    "${PROJECT_REPOSITORY_URL}",
-                    &format!("https://github.com/user/{}", project_name),
-                )
-                // {{}} format - for non-YAML templates and backwards compatibility
-                .replace("{{PROJECT_NAME}}", &project_name)
-                .replace("{{GRAPH_REF}}", &graph_ref_str)
-                .replace("{{GRAPH_ID}}", &selected_graph.graph_id)
-                .replace("{{GRAPH_NAME}}", &selected_graph.graph_name)
-                .replace("{{VARIANT_NAME}}", &selected_graph.variant_name)
-                .replace("{{ORGANIZATION_NAME}}", &selected_graph.organization_name)
-                .replace("{{APOLLO_API_KEY}}", &apollo_key)
-                .replace("{{APOLLO_KEY}}", &apollo_key)
-                .replace("{{APOLLO_GRAPH_REF}}", &graph_ref_str)
-                .replace("{{MCP_SERVER_BINARY}}", mcp_server_binary.as_str())
-                .replace("{{MCP_CONFIG_PATH}}", mcp_config_path.as_str())
-                .replace("{{GRAPHQL_ENDPOINT}}", "http://localhost:4000")
-                .replace("{{GRAPH_STUDIO_URL}}", &graph_endpoint)
-                .replace("{{PROJECT_VERSION}}", "1.0.0")
-                .replace(
-                    "{{PROJECT_REPOSITORY_URL}}",
-                    &format!("https://github.com/user/{}", project_name),
-                )
-                // Other replacements
-                .replace("- /tools", &format!("- {}", tools_path_str))
-                .replace(
-                    "endpoint: http://host.docker.internal:4000",
-                    "endpoint: http://localhost:4000",
-                );
+            helpers::write_project_file(&target_path, processed_content)?;
+        }
 
-            // Handle the specific case where .env.template needs dynamic values populated
-            if file_path == ".env.template" {
-                // Only replace the specific placeholders mentioned by user, leave others untouched
-                processed_content = processed_content
-                    .replace("\"{{PROJECT_NAME}}\"", &format!("\"{}\"", project_name))
-                    .replace(
-                        "\"{{GRAPHQL_ENDPOINT}}\"",
-                        "\"http://host.docker.internal:4000/graphql\"",
-                    )
-                    .replace("\"{{APOLLO_KEY}}\"", &format!("\"{}\"", apollo_key))
-                    .replace(
-                        "\"{{APOLLO_GRAPH_REF}}\"",
-                        &format!("\"{}\"", graph_ref_str),
-                    );
-
-                // Write processed template as .env file instead of .env.template
-                let env_path = current_dir.join(".env");
-                std::fs::write(&env_path, processed_content)?;
-                continue; // Skip writing .env.template
+        // The summary below shows the API key masked and points to `.env`, so
+        // `.env` must exist even when the template doesn't ship `.env.template`.
+        if !template_writes_env {
+            // Append rather than overwrite, so an existing `.env` keeps its variables.
+            let env_path = current_dir.join(".env");
+            let mut env_contents = match std::fs::read_to_string(&env_path) {
+                Ok(existing) => existing,
+                Err(err) if err.kind() == std::io::ErrorKind::NotFound => String::new(),
+                Err(err) => return Err(err.into()),
+            };
+            if !env_contents.is_empty() && !env_contents.ends_with('\n') {
+                env_contents.push('\n');
             }
-
-            std::fs::write(&target_path, processed_content)?;
+            env_contents.push_str(&helpers::env_file_contents(&apollo_key, &graph_ref_str));
+            helpers::write_owner_only_file(&env_path, env_contents.as_bytes())?;
         }
 
         println!();
@@ -1029,18 +950,17 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             println!("{}", tool);
         }
 
-        println!("\n{}", Style::Heading.paint("Selected Graph:"));
         println!(
-            "  • Graph: {} ({})",
-            selected_graph.graph_name, selected_graph.variant_name
+            "{}",
+            helpers::existing_graph_mcp_summary(
+                &selected_graph.graph_name,
+                &selected_graph.variant_name,
+                &selected_graph.organization_name,
+                &graph_ref_str,
+                !supergraph_sdl.is_empty(),
+                &apollo_key,
+            )
         );
-        println!("  • Organization: {}", selected_graph.organization_name);
-        println!("  • Graph Reference: {}", graph_ref_str);
-        if !supergraph_sdl.is_empty() {
-            println!("  • Supergraph schema: Downloaded");
-        }
-        println!("  • Service API key: {}", apollo_key);
-        println!("  • ✓ Credentials saved to .env file");
 
         println!("\n{}", Style::Heading.paint("Next steps:"));
         println!("   1. Start the MCP server:");
@@ -1060,7 +980,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         println!(
             "      → API: {} | MCP: {}",
             Style::Link.paint("http://localhost:4000"),
-            Style::Link.paint("http://localhost:5050")
+            Style::Link.paint(helpers::mcp_local_endpoint())
         );
         println!();
         println!("   2. For containerized deployment:");
@@ -1073,10 +993,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
         );
         println!(
             "      {}",
-            Style::Command.paint(format!(
-                "docker run --env-file .env -p5050:5050 {}-mcp",
-                docker_tag
-            ))
+            Style::Command.paint(helpers::mcp_docker_run_hint(&docker_tag))
         );
 
         Ok(RoverOutput::EmptySuccess)
@@ -1185,9 +1102,9 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             completed_project.graph_ref
         );
         println!(
-            "   • {}: {} (This is your graph's API key)", // gitleaks:allow
+            "   • {}: {}",
             Style::Command.paint("APOLLO_KEY"),
-            completed_project.api_key
+            helpers::api_key_saved_line(&completed_project.api_key)
         );
         println!();
 
@@ -1593,7 +1510,7 @@ This MCP server provides AI-accessible tools for your Apollo graph.
             completed_project.api_key, completed_project.graph_ref
         );
         let env_path = output_path.join(".env");
-        std::fs::write(&env_path, env_content)?;
+        helpers::write_owner_only_file(&env_path, env_content.as_bytes())?;
 
         // Generate Claude Desktop config with real API key and graph ref
         use crate::command::init::mcp::mcp_operations::MCPOperations;

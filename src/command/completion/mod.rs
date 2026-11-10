@@ -2,17 +2,16 @@ mod bash;
 mod zsh;
 
 use clap::Parser;
-use serde::Serialize;
 
 use crate::{RoverOutput, RoverResult};
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Completion {
     #[clap(subcommand)]
     command: Command,
 }
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 enum Command {
     /// Generate bash completion script
     Bash(bash::Bash),

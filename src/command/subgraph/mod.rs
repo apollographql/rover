@@ -9,7 +9,6 @@ mod publish;
 
 use clap::Parser;
 use rover_client::shared::GitContext;
-use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult,
@@ -18,13 +17,13 @@ use crate::{
     utils::client::StudioClientConfig,
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Subgraph {
     #[clap(subcommand)]
     command: Command,
 }
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub enum Command {
     /// Check for build errors and breaking changes caused by an updated
     /// subgraph schema against the federated graph in the Apollo graph

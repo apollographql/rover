@@ -25,7 +25,6 @@ use rover_print::{
     print::Print,
     style::{Style, StyledText},
 };
-use serde::Serialize;
 use tower::{Service, ServiceExt};
 
 use crate::{
@@ -36,7 +35,7 @@ use crate::{
 /// FR47-FR49: the sweep is the only accepted form. `--org`, `--user`, and `--all` are each
 /// required, so every other combination - including a bare grant ID, which has no positional
 /// to land in - is a usage error, raised before any request.
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub(crate) struct Revoke {
     /// The organization whose OAuth clients to revoke under
     #[clap(long = "org", value_name = "ORGANIZATION_ID", required = true)]

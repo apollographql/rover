@@ -10,7 +10,7 @@ use crate::{
     command::template::queries::{get_templates_for_language, list_templates_for_language},
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize, Parser)]
+#[derive(Debug, Clone, Deserialize, Parser)]
 pub struct TemplateOpt {
     /// Filter templates by the available language
     #[arg(long = "language", value_enum)]

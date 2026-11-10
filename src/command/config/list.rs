@@ -1,10 +1,9 @@
 use clap::Parser;
 use houston as config;
-use serde::Serialize;
 
 use crate::{RoverOutput, RoverResult};
 
-#[derive(Serialize, Debug, Parser)]
+#[derive(Debug, Parser)]
 /// List all configuration profiles
 pub struct List {}
 

@@ -3,7 +3,7 @@ use std::time::Duration;
 use clap::Parser;
 use futures::Future;
 use reqwest::Url;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use super::OutputChannelKind;
 use crate::{
@@ -12,16 +12,14 @@ use crate::{
     utils::parsers::parse_header,
 };
 
-#[derive(Debug, Serialize, Deserialize, Parser)]
+#[derive(Debug, Deserialize, Parser)]
 pub struct IntrospectOpts {
     /// The endpoint of the subgraph to introspect
-    #[serde(skip_serializing)]
     pub endpoint: Url,
 
     // The `value_name` here is for the help text and error messages, to print like
     // --header <KEY:VALUE> rather than the plural field name --header <headers>
     #[arg(value_name="KEY:VALUE", long="header", short='H', value_parser = parse_header)]
-    #[serde(skip_serializing)]
     /// Headers to pass to the endpoint. Values must be key:value pairs.
     /// If a value has a space in it, use quotes around the pair,
     /// ex. -H "Auth:some key"
@@ -32,7 +30,6 @@ pub struct IntrospectOpts {
     pub watch: bool,
 
     /// The interval at which to poll the endpoint
-    #[serde(skip_serializing)]
     // We skip this because we're already using one from the dev command
     // TODO: eventually we should reocncile the dev option with this one and figure out which is
     // best to use

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{RoverError, RoverResult};
 
-#[derive(Debug, Clone, Serialize, Deserialize, Parser)]
+#[derive(Debug, Clone, Deserialize, Parser)]
 pub struct ProjectUseCaseOpt {
     #[arg(long = "project-use-case", short = 'u', value_enum)]
     pub project_use_case: Option<ProjectUseCase>,

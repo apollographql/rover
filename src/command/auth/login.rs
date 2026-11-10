@@ -9,7 +9,6 @@ use rover_auth::oauth2::{
 };
 use rover_http::{ReqwestService, retry::RetryPolicy, timeout::TimeoutLayer};
 use rover_open::{NoopOpenUrl, OpenUrl, SystemOpenUrl};
-use serde::Serialize;
 use tower::{ServiceBuilder, retry::RetryLayer};
 use url::Url;
 
@@ -40,7 +39,7 @@ const DEVICE_CODE_RETRY_PERIOD: Duration = Duration::from_secs(30);
 /// would start a short clock that then cuts off an otherwise-legitimate poll.
 const TOKEN_POLL_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(10);
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 /// Log in via your browser to authenticate `rover` with Apollo
 ///
 /// Opens your default browser to complete an OAuth login. Once you

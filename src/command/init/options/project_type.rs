@@ -3,7 +3,7 @@ use std::fmt::{self, Display};
 use clap::Parser;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
+#[derive(Debug, Clone, Deserialize, Parser, Default)]
 pub struct ProjectTypeOpt {
     #[arg(long = "project-type", short = 't', value_enum)]
     pub project_type: Option<crate::command::init::options::ProjectType>,

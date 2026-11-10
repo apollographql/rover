@@ -15,7 +15,6 @@ use reqwest::Client;
 use rover_client::shared::GitContext;
 use rover_std::Style;
 use rover_studio::types::GraphRef;
-use serde::Serialize;
 use sputnik::{Outcome, Session};
 use timber::Level;
 
@@ -30,7 +29,6 @@ use crate::{
         client::{ClientBuilder, ClientTimeout, StudioClientConfig},
         env::{RoverEnv, RoverEnvKey},
         lifecycle::{self, Finish},
-        stringify::option_from_display,
         version,
     },
 };
@@ -79,7 +77,7 @@ impl StoredLayer {
     }
 }
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 #[command(
     name = "Rover",
     author,
@@ -113,14 +111,12 @@ pub struct Rover {
 
     /// Specify Rover's log level
     #[arg(long = "log", short = 'l', global = true, env = "APOLLO_LOG_LEVEL")]
-    #[serde(serialize_with = "option_from_display")]
     log_level: Option<Level>,
 
     /// Name of configuration profile to use
     // `Option` rather than defaulted here, so `--profile default` typed
     // literally can be told apart from omitting the flag.
     #[arg(long = "profile", global = true)]
-    #[serde(skip_serializing)]
     profile_name: Option<String>,
 
     #[clap(flatten)]
@@ -246,32 +242,26 @@ pub struct Rover {
     /// flags were supplied. Empty when `Rover` wasn't built from the real
     /// command line, in which case telemetry reports no flags.
     #[arg(skip)]
-    #[serde(skip_serializing)]
     arg_matches: Option<clap::ArgMatches>,
 
     #[arg(skip)]
-    #[serde(skip_serializing)]
     env_store: LazyCell<RoverEnv>,
 
     #[arg(skip)]
-    #[serde(skip_serializing)]
     client_builder: AtomicLazyCell<ClientBuilder>,
 
     #[arg(skip)]
-    #[serde(skip_serializing)]
     client: AtomicLazyCell<Client>,
 
     /// Settings this invocation has already printed a §3.9 override notice
     /// for - at most one notice per setting per process (FR61), keyed by
     /// canonical setting name.
     #[arg(skip)]
-    #[serde(skip_serializing)]
     noticed_settings: std::sync::Mutex<std::collections::HashSet<&'static str>>,
 
     /// The project file's `settings:` section, discovered and read on first
     /// use (see `project_settings`).
     #[arg(skip)]
-    #[serde(skip_serializing)]
     project_settings: std::sync::OnceLock<ProjectSettings>,
 
     /// Where a test's manifests live, in place of discovery from the
@@ -280,7 +270,6 @@ pub struct Rover {
     /// real working directory's `.rover/`.
     #[cfg(test)]
     #[arg(skip)]
-    #[serde(skip_serializing)]
     test_manifest_dirs: Option<crate::plugin::discovery::ManifestDirs>,
 }
 
@@ -382,8 +371,8 @@ impl Rover {
         // attempt to create a new `Session` to capture anonymous usage data
         let session = Session::new(self)
             .ok()
-            .map(|session| match self.graph_id() {
-                Some(graph_id) => session.with_graph_id(graph_id),
+            .map(|session| match self.graph_id_hash() {
+                Some(graph_id_hash) => session.with_graph_id_hash(graph_id_hash),
                 None => session,
             });
         let telemetry = lifecycle::Telemetry::new(session);
@@ -1802,7 +1791,7 @@ impl Rover {
     }
 }
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub enum Command {
     /// Initialize a federated graph in your current directory
     Init(command::Init),
@@ -1891,7 +1880,7 @@ pub enum Command {
     GraphArtifact(command::GraphArtifact),
 }
 
-#[derive(Default, ValueEnum, Debug, Serialize, Clone, Copy, Eq, PartialEq)]
+#[derive(Default, ValueEnum, Debug, Clone, Copy, Eq, PartialEq)]
 pub enum RoverOutputFormatKind {
     #[default]
     Plain,
@@ -1907,7 +1896,7 @@ impl Display for RoverOutputFormatKind {
     }
 }
 
-#[derive(ValueEnum, Debug, Serialize, Clone, Copy, Eq, PartialEq)]
+#[derive(ValueEnum, Debug, Clone, Copy, Eq, PartialEq)]
 pub enum RoverOutputKind {
     RoverOutput,
     RoverError,

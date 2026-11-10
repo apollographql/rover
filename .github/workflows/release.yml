@@ -55,10 +55,10 @@ jobs:
             target: aarch64-unknown-linux-gnu
           - platform: amd_macos
             # macos-xx-large images are intel Macs: https://github.com/actions/runner-images
-            runs-on: macos-14-large
+            runs-on: macos-15-large
             target: x86_64-apple-darwin
           - platform: arm_macos
-            runs-on: macos-14
+            runs-on: macos-15
             target: aarch64-apple-darwin
           - platform: amd_windows
             runs-on: windows-2022
@@ -222,7 +222,7 @@ jobs:
           name: artifacts-${{ matrix.build_platform }}
           path: artifacts
 
-      - uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
+      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
 
       - name: Resolve release parameters
         id: params
@@ -275,7 +275,7 @@ jobs:
           pattern: artifacts-*
           merge-multiple: true
 
-      - uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
+      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
 
       - name: Resolve release parameters
         id: params

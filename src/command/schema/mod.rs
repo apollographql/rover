@@ -2,18 +2,17 @@ mod describe;
 mod search;
 
 use clap::Parser;
-use serde::Serialize;
 
 use crate::{RoverOutput, RoverResult, utils::client::StudioClientConfig};
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 /// Schema inspection commands
 pub struct Schema {
     #[clap(subcommand)]
     command: Command,
 }
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub enum Command {
     /// Describe a graph's schema by type or field
     Describe(describe::Describe),

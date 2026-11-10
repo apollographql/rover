@@ -5,20 +5,19 @@ use clap::Parser;
 pub use generate::Generate;
 pub use publish::Publish;
 use rover_print::print::Print;
-use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult, command::persisted_queries, options::ProfileOpt,
     utils::client::StudioClientConfig,
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct PersistedQueries {
     #[clap(subcommand)]
     command: Command,
 }
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub enum Command {
     /// Generate a persisted query manifest from GraphQL operation files
     Generate(persisted_queries::Generate),

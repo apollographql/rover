@@ -560,6 +560,21 @@ impl CreationConfirmed {
 }
 
 impl ProjectCreated {
+    /// Builds the "GraphOS credentials" section of the MCP success output.
+    /// The API key is shown masked, with a pointer to `.env` where it is saved.
+    pub(crate) fn mcp_credentials_section(&self) -> String {
+        use rover_std::Style;
+
+        format!(
+            "{}\n   • {}: {}\n   • {}: {}",
+            Style::Heading.paint("GraphOS credentials for your graph"),
+            Style::GraphRef.paint("APOLLO_GRAPH_REF"),
+            self.graph_ref,
+            Style::Command.paint("APOLLO_KEY"),
+            api_key_saved_line(&self.api_key)
+        )
+    }
+
     fn display_mcp_success(&self) {
         use rover_std::Style;
 
@@ -589,20 +604,7 @@ impl ProjectCreated {
         println!("   • GraphOS Organization: {}", self.config.organization);
         println!();
 
-        println!(
-            "{}",
-            Style::Heading.paint("GraphOS credentials for your graph")
-        );
-        println!(
-            "   • {}: {}",
-            Style::GraphRef.paint("APOLLO_GRAPH_REF"),
-            self.graph_ref
-        );
-        println!(
-            "   • {}: {} (This is your graph's API key)",
-            Style::Command.paint("APOLLO_KEY"),
-            self.api_key
-        );
+        println!("{}", self.mcp_credentials_section());
         println!();
 
         // Next Steps section
@@ -619,7 +621,7 @@ impl ProjectCreated {
         );
         println!(
             "   MCP endpoint: {}",
-            Style::Link.paint("http://127.0.0.1:5050/mcp")
+            Style::Link.paint(mcp_local_endpoint())
         );
         println!();
         println!(
@@ -681,7 +683,7 @@ impl ProjectCreated {
         println!(
             "   → API: {} | MCP: {}",
             Style::Link.paint("http://localhost:4000"),
-            Style::Link.paint("http://localhost:5050")
+            Style::Link.paint(mcp_local_endpoint())
         );
         println!();
 
@@ -1085,12 +1087,7 @@ impl MCPCreationConfirmed {
 
     /// Process template placeholders in any file content (for MCP projects)
     /// Handles both ${} and {{}} placeholder formats for comprehensive compatibility
-    pub fn process_template_placeholders(
-        &self,
-        content: &str,
-        api_key: &str,
-        graph_ref: &GraphRef,
-    ) -> String {
+    pub fn process_template_placeholders(&self, content: &str, graph_ref: &GraphRef) -> String {
         use crate::command::init::helpers::{
             MCPTemplateContext, process_mcp_template_placeholders,
         };
@@ -1106,7 +1103,6 @@ impl MCPCreationConfirmed {
             graph_name: &project_name, // graph_name same as project_name for new projects
             variant_name: "current",
             organization_name: &organization,
-            api_key,
             graph_ref,
             mcp_server_binary: None,
             mcp_config_path: None,
@@ -1114,6 +1110,31 @@ impl MCPCreationConfirmed {
         };
 
         process_mcp_template_placeholders(content, &ctx)
+    }
+
+    /// Fills placeholders in every merged template file and returns the files to write.
+    /// `.env.template` is written as `.env`, and it is the only file that receives the API key.
+    pub fn hydrate_merged_files(
+        &self,
+        api_key: &str,
+        graph_ref: &GraphRef,
+    ) -> HashMap<Utf8PathBuf, Vec<u8>> {
+        use crate::command::init::helpers::{env_output_path, hydrate_env_api_key};
+
+        let mut processed_files = HashMap::new();
+        for (file_path, content) in &self.composed_template.merged_files {
+            let content_str = String::from_utf8_lossy(content);
+            let processed_content = self.process_template_placeholders(&content_str, graph_ref);
+
+            // Handle .env.template → .env renaming for MCP projects
+            let (final_path, processed_content) = match env_output_path(file_path) {
+                Some(env_path) => (env_path, hydrate_env_api_key(&processed_content, api_key)),
+                None => (file_path.clone(), processed_content),
+            };
+
+            processed_files.insert(final_path, processed_content.into_bytes());
+        }
+        processed_files
     }
 
     pub async fn create_project(
@@ -1209,21 +1230,7 @@ impl MCPCreationConfirmed {
         .expect("graph ref should be valid");
 
         // Process ALL template placeholders in merged files (including add-MCP files)
-        let mut processed_files = HashMap::new();
-        for (file_path, content) in &self.composed_template.merged_files {
-            let content_str = String::from_utf8_lossy(content);
-            let processed_content =
-                self.process_template_placeholders(&content_str, &api_key, &graph_ref);
-
-            // Handle .env.template → .env renaming for MCP projects
-            let final_path = if file_path.as_str().ends_with(".env.template") {
-                Utf8PathBuf::from(file_path.as_str().replace(".env.template", ".env"))
-            } else {
-                file_path.clone()
-            };
-
-            processed_files.insert(final_path, processed_content.into_bytes());
-        }
+        let processed_files = self.hydrate_merged_files(&api_key, &graph_ref);
 
         // Create a temporary SelectedTemplateState with processed files
         let selected_template = SelectedTemplateState {

@@ -1,14 +1,12 @@
 use clap::Parser;
 use rover_client::operations::license::fetch::LicenseFetchInput;
 use rover_std::Style;
-use serde::Serialize;
 
 use crate::{RoverOutput, RoverResult, options::ProfileOpt, utils::client::StudioClientConfig};
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Fetch {
     /// The Graph ID to fetch the license for.
-    #[serde(skip_serializing)]
     #[arg(long)]
     graph_id: String,
 }
