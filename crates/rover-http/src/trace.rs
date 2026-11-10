@@ -1,133 +1,67 @@
 //! Adds a W3C Trace Context `traceparent` header to HTTP requests
 //!
-//! A [`TraceId`] identifies one trace, and every request sent with the same one belongs to
-//! it. [`TraceparentLayer`] stamps each request it sees with that trace ID and a new random
-//! parent ID, so place it _inside_ any retry layer to give every attempt of a request its own
-//! parent ID and the same trace ID.
+//! Trace IDs, span IDs and the header's wire format come from OpenTelemetry, which is the source
+//! of truth for them. What is Rover's own is when they are made: one trace ID for the whole
+//! process, and a new span ID, which the header calls the parent ID, for each attempt.
+//! [`TraceparentLayer`] does that for [`tower`] services, so place it _inside_ any retry layer to
+//! give every attempt of a request its own parent ID and the same trace ID. [`stamp`] does it for
+//! a client that retries outside of one.
 
-use std::{fmt, sync::OnceLock, task::Context};
+use std::{sync::OnceLock, task::Context};
 
-use http::{HeaderName, HeaderValue};
+use http::{HeaderMap, HeaderName};
+pub use opentelemetry::trace::{SpanContext, SpanId, TraceId};
+use opentelemetry::{
+    propagation::TextMapPropagator,
+    trace::{TraceContextExt, TraceFlags, TraceState},
+    Context as OtelContext,
+};
+use opentelemetry_http::HeaderInjector;
+use opentelemetry_sdk::{
+    propagation::TraceContextPropagator,
+    trace::{IdGenerator, RandomIdGenerator},
+};
 use tower::{Layer, Service};
 
-const TRACEPARENT: HeaderName = HeaderName::from_static("traceparent");
+const TRACESTATE: HeaderName = HeaderName::from_static("tracestate");
 
-/// The only `traceparent` version the W3C Trace Context recommendation defines
-const VERSION: &str = "00";
-
-/// The trace flags with only the "sampled" flag set
-const SAMPLED: &str = "01";
-
-/// The 16-byte identifier shared by every request in one trace.
+/// Generates a random trace ID.
 ///
-/// Always non-zero, as the W3C Trace Context recommendation requires.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct TraceId(u128);
-
-impl TraceId {
-    /// Generates a random trace ID.
-    ///
-    /// It comes straight from a cryptographically secure random source and is derived from
-    /// nothing else, so it can't be tied back to a session, a machine, or a person.
-    pub fn generate() -> TraceId {
-        loop {
-            let value: u128 = rand::random();
-            if value != 0 {
-                return TraceId(value);
-            }
-        }
-    }
-
-    /// The trace ID for this process, generated the first time it is asked for.
-    ///
-    /// Rover is a one-shot command, so a process is an invocation: every Platform API request
-    /// in one run shares this ID, however many clients it builds along the way.
-    pub fn for_process() -> TraceId {
-        static PROCESS: OnceLock<TraceId> = OnceLock::new();
-        *PROCESS.get_or_init(TraceId::generate)
-    }
-
-    /// The `traceparent` for one more request in this trace, with a new random parent ID.
-    ///
-    /// Call it once per attempt of a request. [`TraceparentLayer`] does that for [`tower`]
-    /// services; this is for clients that retry outside of one.
-    pub fn traceparent(&self) -> Traceparent {
-        Traceparent {
-            trace_id: *self,
-            parent_id: ParentId::generate(),
-        }
-    }
+/// OpenTelemetry's generator makes it, so it is derived from nothing about the session, the
+/// machine, or the person running Rover.
+pub fn new_trace_id() -> TraceId {
+    RandomIdGenerator::default().new_trace_id()
 }
 
-impl fmt::Display for TraceId {
-    /// Writes the ID as 32 lowercase hexadecimal digits
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:032x}", self.0)
-    }
-}
-
-/// The 8-byte identifier of one attempt of a request within a trace.
+/// The trace ID for this process, generated the first time it is asked for.
 ///
-/// Always non-zero, as the W3C Trace Context recommendation requires.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct ParentId(u64);
-
-impl ParentId {
-    fn generate() -> ParentId {
-        loop {
-            let value: u64 = rand::random();
-            if value != 0 {
-                return ParentId(value);
-            }
-        }
-    }
+/// Rover is a one-shot command, so a process is an invocation: every Platform API request in one
+/// run shares this ID, however many clients it builds along the way.
+pub fn process_trace_id() -> TraceId {
+    static PROCESS: OnceLock<TraceId> = OnceLock::new();
+    *PROCESS.get_or_init(new_trace_id)
 }
 
-impl fmt::Display for ParentId {
-    /// Writes the ID as 16 lowercase hexadecimal digits
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:016x}", self.0)
-    }
-}
-
-/// The value of a `traceparent` header: which trace a request belongs to, and which attempt of
-/// it this is.
+/// Sets `traceparent` in `headers` for one more request in the trace `trace_id`.
 ///
-/// Its [`Display`](fmt::Display) form is the header value, so a client that logs an attempt can
-/// name the same IDs it sent.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Traceparent {
-    trace_id: TraceId,
-    parent_id: ParentId,
-}
-
-impl Traceparent {
-    /// The trace this request belongs to
-    pub const fn trace_id(&self) -> TraceId {
-        self.trace_id
-    }
-
-    /// The attempt of the request this is
-    pub const fn parent_id(&self) -> ParentId {
-        self.parent_id
-    }
-
-    /// The header value to send
-    pub fn header_value(&self) -> HeaderValue {
-        HeaderValue::from_str(&self.to_string())
-            .expect("a traceparent is made only of hexadecimal digits and dashes")
-    }
-}
-
-impl fmt::Display for Traceparent {
-    /// Writes `00-<trace id>-<parent id>-01`
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{VERSION}-{}-{}-{SAMPLED}",
-            self.trace_id, self.parent_id
-        )
-    }
+/// The header carries `trace_id`, a new random span ID as its parent ID, and the sampled flag.
+/// Call it once per attempt of a request, and use the returned [`SpanContext`] to say which IDs
+/// that attempt sent.
+///
+/// A `traceparent` the headers already had is replaced. So is a `tracestate`, which belongs to a
+/// different trace, and none is sent in its place: W3C says to avoid sending an empty one.
+pub fn stamp(trace_id: TraceId, headers: &mut HeaderMap) -> SpanContext {
+    let span_context = SpanContext::new(
+        trace_id,
+        RandomIdGenerator::default().new_span_id(),
+        TraceFlags::SAMPLED,
+        true,
+        TraceState::default(),
+    );
+    let context = OtelContext::new().with_remote_span_context(span_context.clone());
+    TraceContextPropagator::new().inject_context(&context, &mut HeaderInjector(headers));
+    headers.remove(TRACESTATE);
+    span_context
 }
 
 /// Layer that applies [`TraceparentService`], which adds a `traceparent` header to HTTP requests
@@ -154,10 +88,7 @@ impl<S> Layer<S> for TraceparentLayer {
     }
 }
 
-/// Middleware that adds a `traceparent` header to every HTTP request it sends
-///
-/// Each request gets the same trace ID, a new random parent ID, and the sampled flag. A
-/// `traceparent` the request already had is replaced.
+/// Middleware that adds a `traceparent` header to every HTTP request it sends, as [`stamp`] does
 #[derive(Clone, Debug)]
 pub struct TraceparentService<S> {
     trace_id: TraceId,
@@ -177,8 +108,7 @@ where
     }
 
     fn call(&mut self, mut req: http::Request<B>) -> Self::Future {
-        req.headers_mut()
-            .insert(TRACEPARENT, self.trace_id.traceparent().header_value());
+        stamp(self.trace_id, req.headers_mut());
         self.inner.call(req)
     }
 }
@@ -191,15 +121,15 @@ mod tests {
         sync::{Arc, Mutex},
     };
 
-    use http::{HeaderValue, Request};
+    use http::{HeaderMap, HeaderValue, Request};
     use rstest::{fixture, rstest};
     use speculoos::prelude::*;
     use tower::{service_fn, Service, ServiceBuilder, ServiceExt};
 
-    use super::{ParentId, TraceId, TraceparentLayer};
+    use super::{new_trace_id, process_trace_id, stamp, TraceId, TraceparentLayer};
 
     /// The headers a service saw, in order
-    type Seen = Arc<Mutex<Vec<http::HeaderMap>>>;
+    type Seen = Arc<Mutex<Vec<HeaderMap>>>;
 
     /// A service stacked under [`TraceparentLayer`] that records each request's headers
     fn traced(trace_id: TraceId) -> (impl Service<Request<()>, Error = Infallible> + Clone, Seen) {
@@ -226,7 +156,7 @@ mod tests {
     }
 
     /// The only `traceparent` a request carried
-    fn only_traceparent(headers: &http::HeaderMap) -> &HeaderValue {
+    fn only_traceparent(headers: &HeaderMap) -> &HeaderValue {
         let mut values = headers.get_all("traceparent").iter();
         let value = values.next().expect("a traceparent header");
         assert_that!(values.next()).is_none();
@@ -243,16 +173,9 @@ mod tests {
             .collect()
     }
 
-    fn is_lowercase_hex(value: &str, length: usize) -> bool {
-        value.len() == length
-            && value
-                .chars()
-                .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c))
-    }
-
     #[fixture]
     fn trace_id() -> TraceId {
-        TraceId::generate()
+        new_trace_id()
     }
 
     #[rstest]
@@ -264,12 +187,11 @@ mod tests {
         let seen = seen.lock().unwrap();
         let value = only_traceparent(&seen[0]);
         let parent_id = fields(value)[2].clone();
-        assert_that!(is_lowercase_hex(&parent_id, 16)).is_true();
-        assert_that!(parent_id.as_str()).is_not_equal_to("0".repeat(16).as_str());
         assert_that!(value.to_str().unwrap())
             .is_equal_to(format!("00-{trace_id}-{parent_id}-01").as_str());
-        assert_that!(is_lowercase_hex(&trace_id.to_string(), 32)).is_true();
-        assert_that!(trace_id.to_string().as_str()).is_not_equal_to("0".repeat(32).as_str());
+        assert_that!(parent_id.len()).is_equal_to(16);
+        assert_that!(parent_id.as_str()).is_not_equal_to("0".repeat(16).as_str());
+        assert_that!(seen[0].get("tracestate")).is_none();
     }
 
     #[rstest]
@@ -308,12 +230,13 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn a_traceparent_the_request_already_had_is_replaced(trace_id: TraceId) {
+    async fn a_traceparent_and_tracestate_the_request_already_had_are_replaced(trace_id: TraceId) {
         let (mut service, seen) = traced(trace_id);
         let stale = "00-00000000000000000000000000000001-0000000000000002-00";
         let request = Request::builder()
             .uri("http://example.com")
             .header("traceparent", stale)
+            .header("tracestate", "other=vendor")
             .body(())
             .unwrap();
         service.ready().await.unwrap().call(request).await.unwrap();
@@ -322,47 +245,28 @@ mod tests {
         let value = only_traceparent(&seen[0]);
         assert_that!(value.to_str().unwrap()).is_not_equal_to(stale);
         assert_that!(fields(value)[1].clone()).is_equal_to(trace_id.to_string());
+        assert_that!(seen[0].get("tracestate")).is_none();
     }
 
     #[rstest]
-    fn each_traceparent_has_the_trace_id_and_its_own_parent_id(trace_id: TraceId) {
-        let first = trace_id.traceparent();
-        let second = trace_id.traceparent();
+    fn stamping_names_the_ids_it_sent(trace_id: TraceId) {
+        let mut headers = HeaderMap::new();
 
-        assert_that!(first.trace_id()).is_equal_to(trace_id);
-        assert_that!(second.trace_id()).is_equal_to(trace_id);
-        assert_that!(first.parent_id()).is_not_equal_to(second.parent_id());
-    }
+        let span_context = stamp(trace_id, &mut headers);
 
-    #[rstest]
-    fn a_traceparent_is_its_header_value_and_names_its_ids(trace_id: TraceId) {
-        let traceparent = trace_id.traceparent();
-        let expected = format!("00-{trace_id}-{}-01", traceparent.parent_id());
-
-        assert_that!(traceparent.to_string()).is_equal_to(expected.clone());
-        assert_that!(traceparent.header_value())
-            .is_equal_to(HeaderValue::from_str(&expected).unwrap());
+        assert_that!(span_context.trace_id()).is_equal_to(trace_id);
+        assert_that!(headers.get("traceparent").unwrap().to_str().unwrap())
+            .is_equal_to(format!("00-{trace_id}-{}-01", span_context.span_id()).as_str());
     }
 
     #[test]
     fn the_process_has_one_trace_id() {
-        assert_that!(TraceId::for_process()).is_equal_to(TraceId::for_process());
+        assert_that!(process_trace_id()).is_equal_to(process_trace_id());
     }
 
     #[test]
-    fn generated_trace_ids_are_distinct() {
-        let ids: HashSet<_> = (0..1000).map(|_| TraceId::generate()).collect();
+    fn new_trace_ids_are_distinct() {
+        let ids: HashSet<_> = (0..1000).map(|_| new_trace_id()).collect();
         assert_that!(ids.len()).is_equal_to(1000);
-    }
-
-    #[test]
-    fn a_trace_id_is_written_as_32_lowercase_hex_digits() {
-        assert_that!(TraceId(0xAB).to_string())
-            .is_equal_to("000000000000000000000000000000ab".to_string());
-    }
-
-    #[test]
-    fn a_parent_id_is_written_as_16_lowercase_hex_digits() {
-        assert_that!(ParentId(0xAB).to_string()).is_equal_to("00000000000000ab".to_string());
     }
 }

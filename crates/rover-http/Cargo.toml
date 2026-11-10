@@ -17,6 +17,9 @@ http = { workspace = true }
 http-body = { workspace = true }
 http-body-util = { workspace = true }
 mockall = { workspace = true, optional = true }
+opentelemetry = { workspace = true }
+opentelemetry-http = { workspace = true }
+opentelemetry_sdk = { workspace = true }
 reqwest = { workspace = true, features = [
     "blocking",
     "brotli",
@@ -25,7 +28,6 @@ reqwest = { workspace = true, features = [
     "rustls",
     "socks",
 ] }
-rand = { workspace = true }
 rover-tower = { workspace = true, features = ["test"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["macros", "time"] }
