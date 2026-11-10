@@ -190,6 +190,13 @@ pub enum ManifestProblem {
     /// honor. Ignoring it would install binaries somewhere the manifest did
     /// not ask for, and move them once a later version starts honoring it.
     UnsupportedInstallRoot,
+    /// The file could not be written, after the install or removal it
+    /// records had succeeded.
+    Unwritable(PluginFailureCause),
+    /// The file is a valid manifest, but its `plugins` entry is written in a
+    /// way Rover can't change without risking what else is in the file; the
+    /// cause says how.
+    Uneditable(PluginFailureCause),
 }
 
 /// Why a lockfile cannot be used.
@@ -278,6 +285,12 @@ impl fmt::Display for PluginFailure {
                     f,
                     "`{path}` sets `install_root`, which this version of Rover doesn't support."
                 ),
+                ManifestProblem::Unwritable(_) => {
+                    write!(f, "Couldn't write the manifest `{path}`.")
+                }
+                ManifestProblem::Uneditable(_) => {
+                    write!(f, "Rover can't update the plugins declared in `{path}`.")
+                }
             },
             Self::Lockfile { path, problem } => match problem {
                 LockfileProblem::Unreadable(_) => {
@@ -323,7 +336,11 @@ impl Error for PluginFailure {
             | Self::Download { source, .. }
             | Self::Installation { source, .. }
             | Self::Manifest {
-                problem: ManifestProblem::Unreadable(source) | ManifestProblem::Malformed(source),
+                problem:
+                    ManifestProblem::Unreadable(source)
+                    | ManifestProblem::Malformed(source)
+                    | ManifestProblem::Unwritable(source)
+                    | ManifestProblem::Uneditable(source),
                 ..
             }
             | Self::Lockfile {
@@ -450,6 +467,8 @@ impl PluginFailure {
                     ManifestProblem::UnsupportedInstallRoot => {
                         PluginNextStep::RemoveInstallRoot { path }
                     }
+                    ManifestProblem::Unwritable(_) => PluginNextStep::MakeWritable { path },
+                    ManifestProblem::Uneditable(_) => PluginNextStep::EditByHand { path },
                 }
             }
             Self::DownloadsDisabled {
@@ -627,6 +646,9 @@ pub enum PluginNextStep {
     MakeWritable {
         path: Utf8PathBuf,
     },
+    EditByHand {
+        path: Utf8PathBuf,
+    },
     InstallAhead {
         plugin: PluginName,
         /// What to install, spelled as `rover plugin install` takes it, or
@@ -728,6 +750,10 @@ impl fmt::Display for PluginNextStep {
             Self::MakeWritable { path } => write!(
                 f,
                 "Make sure you can write to `{path}` and the directory holding it, then re-run the command."
+            ),
+            Self::EditByHand { path } => write!(
+                f,
+                "Write `plugins:` in `{path}` as a block mapping of plugin names to versions, or make the change by hand, then re-run the command."
             ),
             Self::InstallAhead {
                 plugin,

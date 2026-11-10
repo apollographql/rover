@@ -21,7 +21,7 @@ pub const MANIFEST_FILE: &str = "rover.yaml";
 
 /// A manifest at `path` that cannot be used, for `problem`. Boxed, as every
 /// error carrying a [`PluginFailure`] is, to keep the `Result` small.
-fn unusable(path: &Utf8Path, problem: ManifestProblem) -> Box<PluginFailure> {
+pub(super) fn unusable(path: &Utf8Path, problem: ManifestProblem) -> Box<PluginFailure> {
     Box::new(PluginFailure::Manifest {
         path: path.to_path_buf(),
         problem,

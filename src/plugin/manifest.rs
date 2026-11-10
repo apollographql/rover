@@ -19,8 +19,10 @@ use serde::{
 
 use super::version::{ACCEPTED_FORMS, PluginName, VersionRequest};
 
+mod edit;
 mod load;
 
+pub use edit::ManifestEditor;
 pub use load::{MANIFEST_FILE, ManifestSettings};
 
 /// The contents of one `rover.yaml`, at either the global or the project level.

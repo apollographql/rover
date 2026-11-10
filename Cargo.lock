@@ -5924,6 +5924,7 @@ dependencies = [
  "url-static",
  "uuid",
  "which 8.0.6",
+ "yaml-edit",
 ]
 
 [[package]]
@@ -8763,6 +8764,15 @@ dependencies = [
  "url",
  "which 8.0.6",
  "zip",
+]
+
+[[package]]
+name = "yaml-edit"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5df55a38673279c691015377f55503186026bc41d448892b01886cb7475cd121"
+dependencies = [
+ "rowan",
 ]
 
 [[package]]

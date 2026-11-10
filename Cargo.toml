@@ -236,6 +236,7 @@ tracing-subscriber = "0.3"
 tracing-test = "0.2"
 which = "8"
 wsl = "0.1"
+yaml-edit = { version = "0.3", default-features = false }
 uuid = "1"
 url = "2"
 url-static = "1.0"
@@ -331,6 +332,7 @@ tree-sitter = { workspace = true }
 tree-sitter-typescript = { workspace = true }
 tree-sitter-swift = { workspace = true }
 tree-sitter-kotlin-ng = { workspace = true }
+yaml-edit = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
 signal-hook = "0.4"
