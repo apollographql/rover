@@ -20,6 +20,3 @@ pub mod releases;
 
 /// Module for shared functionality
 pub mod shared;
-
-#[cfg(test)]
-mod testing;

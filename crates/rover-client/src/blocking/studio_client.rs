@@ -204,14 +204,6 @@ impl StudioClient {
     pub fn studio_graphql_service(
         &self,
     ) -> Result<GraphQLService<HttpService>, InitStudioServiceError> {
-        self.studio_graphql_service_over(self.reqwest_service()?)
-    }
-
-    /// [`Self::studio_graphql_service`] over `inner` rather than the network, so a test can stand in for it.
-    fn studio_graphql_service_over(
-        &self,
-        inner: HttpService,
-    ) -> Result<GraphQLService<HttpService>, InitStudioServiceError> {
         let service = ServiceBuilder::new()
             .layer(GraphQLLayer::default())
             .layer(BoxCloneServiceLayer::new(
@@ -231,7 +223,11 @@ impl StudioClient {
             .layer(RetryLayer::new(RetryPolicy::new(self.retry_period)))
             // Inside the retry, so each attempt gets its own parent ID.
             .layer(TraceparentLayer::new(self.trace_id))
-            .service(inner);
+            .service(
+                ReqwestService::builder()
+                    .client(self.reqwest_client.clone())
+                    .build()?,
+            );
 
         Ok(service)
     }
@@ -253,18 +249,6 @@ impl StudioClient {
     pub fn studio_graphql_service_with_attempt_timeout(
         &self,
         attempt_timeout: Duration,
-    ) -> Result<GraphQLService<HttpService>, InitStudioServiceError> {
-        self.studio_graphql_service_with_attempt_timeout_over(
-            attempt_timeout,
-            self.reqwest_service()?,
-        )
-    }
-
-    /// [`Self::studio_graphql_service_with_attempt_timeout`] over `inner` rather than the network, so a test can stand in for it.
-    fn studio_graphql_service_with_attempt_timeout_over(
-        &self,
-        attempt_timeout: Duration,
-        inner: HttpService,
     ) -> Result<GraphQLService<HttpService>, InitStudioServiceError> {
         let service = ServiceBuilder::new()
             .layer(GraphQLLayer::default())
@@ -289,7 +273,11 @@ impl StudioClient {
             ))
             // Inside the retry, so each attempt gets its own parent ID.
             .layer(TraceparentLayer::new(self.trace_id))
-            .service(inner);
+            .service(
+                ReqwestService::builder()
+                    .client(self.reqwest_client.clone())
+                    .build()?,
+            );
 
         Ok(service)
     }
@@ -303,15 +291,6 @@ impl StudioClient {
     pub fn studio_graphql_service_with_timeout(
         &self,
         timeout: Duration,
-    ) -> Result<GraphQLService<HttpService>, InitStudioServiceError> {
-        self.studio_graphql_service_with_timeout_over(timeout, self.reqwest_service()?)
-    }
-
-    /// [`Self::studio_graphql_service_with_timeout`] over `inner` rather than the network, so a test can stand in for it.
-    fn studio_graphql_service_with_timeout_over(
-        &self,
-        timeout: Duration,
-        inner: HttpService,
     ) -> Result<GraphQLService<HttpService>, InitStudioServiceError> {
         let service = ServiceBuilder::new()
             .layer(GraphQLLayer::default())
@@ -338,32 +317,26 @@ impl StudioClient {
             // question here - `timeout` simply bounds the network call underneath.
             .layer(TimeoutLayer::new(timeout))
             .layer(TraceparentLayer::new(self.trace_id))
-            .service(inner);
+            .service(
+                ReqwestService::builder()
+                    .client(self.reqwest_client.clone())
+                    .build()?,
+            );
 
         Ok(service)
     }
 
     pub fn http_service(&self) -> Result<HttpService, RoverClientError> {
-        let inner = self
-            .reqwest_service()
-            .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?;
-        Ok(self.http_service_over(inner))
-    }
-
-    /// [`Self::http_service`] over `inner` rather than the network, so a test can stand in for it.
-    fn http_service_over(&self, inner: HttpService) -> HttpService {
-        ServiceBuilder::new()
+        let service = ServiceBuilder::new()
             .layer(TraceparentLayer::new(self.trace_id))
-            .service(inner)
-            .boxed_clone()
-    }
-
-    /// The service that sends requests over the network
-    fn reqwest_service(&self) -> Result<HttpService, reqwest::Error> {
-        Ok(ReqwestService::builder()
-            .client(self.reqwest_client.clone())
-            .build()?
-            .boxed_clone())
+            .service(
+                ReqwestService::builder()
+                    .client(self.reqwest_client.clone())
+                    .build()
+                    .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?,
+            )
+            .boxed_clone();
+        Ok(service)
     }
 }
 
@@ -371,27 +344,22 @@ impl StudioClient {
 mod tests {
     use std::{
         sync::{Arc, Mutex},
-        task::Poll,
         time::{Duration, Instant},
     };
 
-    use bytes::Bytes;
-    use futures::future;
     use graphql_client::{GraphQLQuery, QueryBody};
     use httpmock::prelude::*;
     use rover_graphql::{GraphQLRequest, GraphQLServiceError};
-    use rover_http::{test::MockHttpService, trace::new_trace_id, Full, HttpServiceError};
+    use rover_http::{trace::new_trace_id, HttpServiceError};
     use rover_studio::service::{
         permission_denied::permission_denied, rejected_credential::rejected_credential,
     };
-    use rover_tower::test::MockCloneService;
     use rstest::{fixture, rstest};
     use serde::{Deserialize, Serialize};
     use speculoos::prelude::*;
     use tower::{Service, ServiceExt};
 
     use super::*;
-    use crate::testing::TraceRecorder;
 
     #[fixture]
     fn credential() -> Credential {
@@ -661,63 +629,51 @@ mod tests {
         assert_that!(mock.calls()).is_equal_to(1);
     }
 
-    /// The `traceparent` of each request a [`fake_network`] received, in order, `None` for a
+    /// The `traceparent` of each request a [`recording_server`] received, in order, `None` for a
     /// request that had none
     type Sent = Arc<Mutex<Vec<Option<String>>>>;
 
-    /// A stand-in for the network. It answers the Nth request with the Nth status it was given,
-    /// and the last status to every request after that. A `200` carries an empty GraphQL `data`
-    /// object.
-    fn fake_network(statuses: Vec<u16>) -> (HttpService, Sent) {
+    /// A mock server that records the `traceparent` of each request to `/graphql`. It answers the
+    /// Nth request with the Nth status it was given, and the last status to every request after
+    /// that. A `200` carries an empty GraphQL `data` object.
+    fn recording_server(statuses: Vec<u16>) -> (MockServer, Sent) {
+        let server = MockServer::start();
         let sent = Sent::default();
         let recorder = Arc::clone(&sent);
-        let mut mock = MockHttpService::new();
-        mock.expect_poll_ready().returning(|_| Poll::Ready(Ok(())));
-        mock.expect_call().returning(move |req| {
-            let mut sent = recorder.lock().unwrap();
-            sent.push(
-                req.headers()
-                    .get("traceparent")
-                    .map(|value| value.to_str().unwrap().to_string()),
-            );
-            let status = statuses[(sent.len() - 1).min(statuses.len() - 1)];
-            let body = if status == 200 { r#"{"data":{}}"# } else { "" };
-            future::ready(Ok(http::Response::builder()
-                .status(status)
-                .body(Full::new(Bytes::from(body)))
-                .unwrap()))
+        server.mock(|when, then| {
+            when.method(POST).path("/graphql");
+            then.respond_with(move |req| {
+                let mut sent = recorder.lock().unwrap();
+                sent.push(
+                    req.headers()
+                        .get("traceparent")
+                        .map(|value| value.to_str().unwrap().to_string()),
+                );
+                let status = statuses[(sent.len() - 1).min(statuses.len() - 1)];
+                let body = if status == 200 { r#"{"data":{}}"# } else { "" };
+                http::Response::builder()
+                    .status(status)
+                    .header("content-type", "application/json")
+                    .body(body.to_string())
+                    .unwrap()
+                    .into()
+            });
         });
-        (MockCloneService::new(mock).boxed_clone(), sent)
+        (server, sent)
     }
 
     fn sent(sent: &Sent) -> Vec<Option<String>> {
         sent.lock().unwrap().clone()
     }
 
-    /// A client that retries for long enough that no test here is cut short
-    fn retrying_client() -> StudioClient {
+    fn client_for(server: &MockServer) -> StudioClient {
         StudioClient::new(
             Credential {
                 api_key: "an-api-key".to_string(),
                 origin: CredentialOrigin::EnvVar,
                 expires_at: None,
             },
-            "https://example.com/graphql",
-            "test-version",
-            false,
-            ReqwestClient::new(),
-            Duration::from_secs(10),
-        )
-    }
-
-    fn client_for(recorder: &TraceRecorder) -> StudioClient {
-        StudioClient::new(
-            Credential {
-                api_key: "an-api-key".to_string(),
-                origin: CredentialOrigin::EnvVar,
-                expires_at: None,
-            },
-            &recorder.url(),
+            &server.url("/graphql"),
             "test-version",
             false,
             ReqwestClient::new(),
@@ -767,54 +723,54 @@ mod tests {
 
     #[tokio::test]
     async fn a_request_through_the_blocking_client_carries_the_trace_id() {
-        let recorder = TraceRecorder::start(vec![200]).await;
+        let (server, traceparents) = recording_server(vec![200]);
         let trace_id = new_trace_id();
 
-        client_for(&recorder)
+        client_for(&server)
             .with_trace_id(trace_id)
             .post::<TestQuery>(TestQueryVariables {})
             .await
             .unwrap();
 
-        assert_one_trace(recorder.traceparents(), trace_id, 1);
+        assert_one_trace(sent(&traceparents), trace_id, 1);
     }
 
     #[tokio::test]
     async fn a_request_with_no_retry_through_the_blocking_client_carries_the_trace_id() {
-        let recorder = TraceRecorder::start(vec![200]).await;
+        let (server, traceparents) = recording_server(vec![200]);
         let trace_id = new_trace_id();
 
-        client_for(&recorder)
+        client_for(&server)
             .with_trace_id(trace_id)
             .post_no_retry::<TestQuery>(TestQueryVariables {})
             .await
             .unwrap();
 
-        assert_one_trace(recorder.traceparents(), trace_id, 1);
+        assert_one_trace(sent(&traceparents), trace_id, 1);
     }
 
     #[tokio::test]
     async fn each_retry_through_the_blocking_client_has_its_own_parent_id() {
-        let recorder = TraceRecorder::start(vec![500, 200]).await;
+        let (server, traceparents) = recording_server(vec![500, 200]);
         let trace_id = new_trace_id();
 
-        client_for(&recorder)
+        client_for(&server)
             .with_trace_id(trace_id)
             .post::<TestQuery>(TestQueryVariables {})
             .await
             .unwrap();
 
-        assert_one_trace(recorder.traceparents(), trace_id, 2);
+        assert_one_trace(sent(&traceparents), trace_id, 2);
     }
 
     #[tokio::test]
     async fn each_retry_through_the_service_has_its_own_parent_id() {
-        let (network, traceparents) = fake_network(vec![500, 200]);
+        let (server, traceparents) = recording_server(vec![500, 200]);
         let trace_id = new_trace_id();
+        let client = client_for(&server).with_trace_id(trace_id);
 
-        retrying_client()
-            .with_trace_id(trace_id)
-            .studio_graphql_service_over(network)
+        client
+            .studio_graphql_service()
             .unwrap()
             .oneshot(GraphQLRequest::<TestQuery>::new(TestQueryVariables {}))
             .await
@@ -825,12 +781,12 @@ mod tests {
 
     #[tokio::test]
     async fn each_retry_through_the_attempt_timeout_service_has_its_own_parent_id() {
-        let (network, traceparents) = fake_network(vec![500, 200]);
+        let (server, traceparents) = recording_server(vec![500, 200]);
         let trace_id = new_trace_id();
+        let client = client_for(&server).with_trace_id(trace_id);
 
-        retrying_client()
-            .with_trace_id(trace_id)
-            .studio_graphql_service_with_attempt_timeout_over(Duration::from_secs(5), network)
+        client
+            .studio_graphql_service_with_attempt_timeout(Duration::from_secs(5))
             .unwrap()
             .oneshot(GraphQLRequest::<TestQuery>::new(TestQueryVariables {}))
             .await
@@ -841,12 +797,12 @@ mod tests {
 
     #[tokio::test]
     async fn a_request_through_the_timeout_service_carries_the_trace_id() {
-        let (network, traceparents) = fake_network(vec![200]);
+        let (server, traceparents) = recording_server(vec![200]);
         let trace_id = new_trace_id();
+        let client = client_for(&server).with_trace_id(trace_id);
 
-        retrying_client()
-            .with_trace_id(trace_id)
-            .studio_graphql_service_with_timeout_over(Duration::from_secs(5), network)
+        client
+            .studio_graphql_service_with_timeout(Duration::from_secs(5))
             .unwrap()
             .oneshot(GraphQLRequest::<TestQuery>::new(TestQueryVariables {}))
             .await
@@ -859,23 +815,18 @@ mod tests {
     // make one trace.
     #[tokio::test]
     async fn clients_share_the_process_trace_id() {
-        let (first_network, first_sent) = fake_network(vec![200]);
-        let (second_network, second_sent) = fake_network(vec![200]);
+        let (server, traceparents) = recording_server(vec![200]);
 
-        for network in [first_network, second_network] {
-            retrying_client()
-                .studio_graphql_service_over(network)
-                .unwrap()
-                .oneshot(GraphQLRequest::<TestQuery>::new(TestQueryVariables {}))
-                .await
-                .unwrap();
-        }
+        client_for(&server)
+            .post::<TestQuery>(TestQueryVariables {})
+            .await
+            .unwrap();
+        client_for(&server)
+            .post::<TestQuery>(TestQueryVariables {})
+            .await
+            .unwrap();
 
-        assert_one_trace_per_request(
-            [sent(&first_sent), sent(&second_sent)].concat(),
-            process_trace_id(),
-            2,
-        );
+        assert_one_trace_per_request(sent(&traceparents), process_trace_id(), 2);
     }
 
     /// Like [`assert_one_trace`], for requests that are separate logical requests
@@ -892,15 +843,16 @@ mod tests {
 
     #[tokio::test]
     async fn a_request_through_the_plain_http_service_carries_the_trace_id() {
-        let (network, traceparents) = fake_network(vec![200]);
+        let (server, traceparents) = recording_server(vec![200]);
         let trace_id = new_trace_id();
-        let request = http::Request::post("https://example.com/graphql")
-            .body(Full::default())
+        let client = client_for(&server).with_trace_id(trace_id);
+        let request = http::Request::post(server.url("/graphql"))
+            .body(rover_http::Full::default())
             .unwrap();
 
-        retrying_client()
-            .with_trace_id(trace_id)
-            .http_service_over(network)
+        client
+            .http_service()
+            .unwrap()
             .oneshot(request)
             .await
             .unwrap();
@@ -912,10 +864,10 @@ mod tests {
     // customer's own subgraph, and those must not carry trace headers.
     #[tokio::test]
     async fn a_client_that_is_not_for_the_platform_api_sends_no_traceparent() {
-        let recorder = TraceRecorder::start(vec![200]).await;
+        let (server, traceparents) = recording_server(vec![200]);
 
         GraphQLClient::new(
-            &recorder.url(),
+            &server.url("/graphql"),
             ReqwestClient::new(),
             Duration::from_secs(1),
         )
@@ -927,6 +879,6 @@ mod tests {
         .await
         .unwrap();
 
-        assert_that!(recorder.traceparents()).is_equal_to(vec![None]);
+        assert_that!(sent(&traceparents)).is_equal_to(vec![None]);
     }
 }
