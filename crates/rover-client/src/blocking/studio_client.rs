@@ -667,8 +667,8 @@ mod tests {
 
     /// Checks that `traceparents` holds one valid `traceparent` per expected attempt, all with
     /// `trace_id`, and no two with the same parent ID.
-    fn assert_one_trace(traceparents: &[Option<String>], trace_id: TraceId, attempts: usize) {
-        assert_that!(traceparents.len()).is_equal_to(attempts);
+    fn assert_one_trace(traceparents: Vec<Option<String>>, trace_id: TraceId, attempts: usize) {
+        assert_that!(&traceparents).has_length(attempts);
         let traceparents: Vec<_> = traceparents.iter().map(Traceparent::parse).collect();
         for traceparent in &traceparents {
             assert_that!(traceparent.version).is_equal_to("00");
@@ -702,7 +702,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_one_trace(&recorder.traceparents(), trace_id, 1);
+        assert_one_trace(recorder.traceparents(), trace_id, 1);
     }
 
     #[tokio::test]
@@ -716,7 +716,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_one_trace(&recorder.traceparents(), trace_id, 1);
+        assert_one_trace(recorder.traceparents(), trace_id, 1);
     }
 
     #[tokio::test]
@@ -730,7 +730,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_one_trace(&recorder.traceparents(), trace_id, 2);
+        assert_one_trace(recorder.traceparents(), trace_id, 2);
     }
 
     #[tokio::test]
@@ -741,7 +741,7 @@ mod tests {
 
         call_service(&mut client.studio_graphql_service().unwrap()).await;
 
-        assert_one_trace(&recorder.traceparents(), trace_id, 2);
+        assert_one_trace(recorder.traceparents(), trace_id, 2);
     }
 
     #[tokio::test]
@@ -757,7 +757,7 @@ mod tests {
         )
         .await;
 
-        assert_one_trace(&recorder.traceparents(), trace_id, 2);
+        assert_one_trace(recorder.traceparents(), trace_id, 2);
     }
 
     #[tokio::test]
@@ -773,7 +773,7 @@ mod tests {
         )
         .await;
 
-        assert_one_trace(&recorder.traceparents(), trace_id, 1);
+        assert_one_trace(recorder.traceparents(), trace_id, 1);
     }
 
     // Two clients in one process, as when a command builds a client more than once, still
@@ -791,16 +791,16 @@ mod tests {
             .await
             .unwrap();
 
-        assert_one_trace_per_request(&recorder.traceparents(), process_trace_id(), 2);
+        assert_one_trace_per_request(recorder.traceparents(), process_trace_id(), 2);
     }
 
     /// Like [`assert_one_trace`], for requests that are separate logical requests
     fn assert_one_trace_per_request(
-        traceparents: &[Option<String>],
+        traceparents: Vec<Option<String>>,
         trace_id: TraceId,
         requests: usize,
     ) {
-        assert_that!(traceparents.len()).is_equal_to(requests);
+        assert_that!(&traceparents).has_length(requests);
         for traceparent in traceparents.iter().map(Traceparent::parse) {
             assert_that!(traceparent.trace_id).is_equal_to(trace_id.to_string().as_str());
         }
@@ -825,7 +825,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_one_trace(&recorder.traceparents(), trace_id, 1);
+        assert_one_trace(recorder.traceparents(), trace_id, 1);
     }
 
     // The blocking client also introspects endpoints that aren't the Platform API, such as a
