@@ -6,4 +6,4 @@ authors: [dotdat]
 
 Add a layer that stamps a W3C `traceparent` header on HTTP requests
 
-Groundwork for sending trace headers on Platform API requests. Nothing in Rover uses it yet, so Rover's behavior doesn't change.
+The building block for request tracing: it gives each request the trace's ID and a new random parent ID.
