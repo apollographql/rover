@@ -154,22 +154,36 @@ mod tests {
         (service, seen)
     }
 
-    /// The only `traceparent` a request carried
-    fn only_traceparent(headers: &HeaderMap) -> &HeaderValue {
-        let mut values = headers.get_all("traceparent").iter();
-        let value = values.next().expect("a traceparent header");
-        assert_that!(values.next()).is_none();
-        value
+    /// A `traceparent` header value, with its parts named
+    struct Traceparent {
+        value: String,
+        version: String,
+        trace_id: String,
+        parent_id: String,
+        flags: String,
     }
 
-    /// The fields of a `traceparent` value: version, trace ID, parent ID, flags
-    fn fields(value: &HeaderValue) -> Vec<String> {
-        value
-            .to_str()
-            .unwrap()
-            .split('-')
-            .map(str::to_string)
-            .collect()
+    impl Traceparent {
+        /// The only `traceparent` in `headers`
+        fn of(headers: &HeaderMap) -> Traceparent {
+            let mut values = headers.get_all("traceparent").iter();
+            let value = values
+                .next()
+                .expect("a traceparent header")
+                .to_str()
+                .unwrap()
+                .to_string();
+            assert_that!(values.next()).is_none();
+            let parts: Vec<&str> = value.split('-').collect();
+            assert_that!(&parts).has_length(4);
+            Traceparent {
+                version: parts[0].to_string(),
+                trace_id: parts[1].to_string(),
+                parent_id: parts[2].to_string(),
+                flags: parts[3].to_string(),
+                value,
+            }
+        }
     }
 
     #[fixture]
@@ -192,12 +206,14 @@ mod tests {
         service.oneshot(request).await.unwrap();
 
         let seen = seen.lock().unwrap();
-        let value = only_traceparent(&seen[0]);
-        let parent_id = fields(value)[2].clone();
-        assert_that!(value.to_str().unwrap())
-            .is_equal_to(format!("00-{trace_id}-{parent_id}-01").as_str());
-        assert_that!(parent_id.len()).is_equal_to(16);
-        assert_that!(parent_id.as_str()).is_not_equal_to("0".repeat(16).as_str());
+        let traceparent = Traceparent::of(&seen[0]);
+        assert_that!(traceparent.version.as_str()).is_equal_to("00");
+        assert_that!(traceparent.trace_id).is_equal_to(trace_id.to_string());
+        assert_that!(traceparent.parent_id.len()).is_equal_to(16);
+        assert_that!(traceparent.parent_id.as_str()).is_not_equal_to("0".repeat(16).as_str());
+        assert_that!(traceparent.flags.as_str()).is_equal_to("01");
+        assert_that!(traceparent.value.as_str())
+            .is_equal_to(format!("00-{trace_id}-{}-01", traceparent.parent_id).as_str());
         assert_that!(seen[0].get("tracestate")).is_none();
     }
 
@@ -213,9 +229,9 @@ mod tests {
         }
 
         let seen = seen.lock().unwrap();
-        let fields: Vec<_> = seen.iter().map(|h| fields(only_traceparent(h))).collect();
-        let trace_ids: HashSet<_> = fields.iter().map(|f| f[1].clone()).collect();
-        let parent_ids: HashSet<_> = fields.iter().map(|f| f[2].clone()).collect();
+        let traceparents: Vec<_> = seen.iter().map(Traceparent::of).collect();
+        let trace_ids: HashSet<_> = traceparents.iter().map(|t| t.trace_id.clone()).collect();
+        let parent_ids: HashSet<_> = traceparents.iter().map(|t| t.parent_id.clone()).collect();
         assert_that!(trace_ids).is_equal_to(HashSet::from([trace_id.to_string()]));
         assert_that!(parent_ids).has_length(50);
     }
@@ -231,11 +247,11 @@ mod tests {
         service.oneshot(request).await.unwrap();
 
         let seen = seen.lock().unwrap();
-        let first = fields(only_traceparent(&seen[0]));
-        let second = fields(only_traceparent(&seen[1]));
-        assert_that!(first[1].clone()).is_equal_to(trace_id.to_string());
-        assert_that!(second[1].clone()).is_equal_to(trace_id.to_string());
-        assert_that!(first[2].clone()).is_not_equal_to(second[2].clone());
+        let first = Traceparent::of(&seen[0]);
+        let second = Traceparent::of(&seen[1]);
+        assert_that!(first.trace_id).is_equal_to(trace_id.to_string());
+        assert_that!(second.trace_id).is_equal_to(trace_id.to_string());
+        assert_that!(first.parent_id).is_not_equal_to(second.parent_id);
     }
 
     #[rstest]
@@ -255,9 +271,9 @@ mod tests {
         service.oneshot(request).await.unwrap();
 
         let seen = seen.lock().unwrap();
-        let value = only_traceparent(&seen[0]);
-        assert_that!(value.to_str().unwrap()).is_not_equal_to(stale);
-        assert_that!(fields(value)[1].clone()).is_equal_to(trace_id.to_string());
+        let traceparent = Traceparent::of(&seen[0]);
+        assert_that!(traceparent.value.as_str()).is_not_equal_to(stale);
+        assert_that!(traceparent.trace_id).is_equal_to(trace_id.to_string());
         assert_that!(seen[0].get("tracestate")).is_none();
     }
 
