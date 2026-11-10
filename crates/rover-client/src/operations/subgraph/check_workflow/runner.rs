@@ -418,6 +418,7 @@ fn get_proposals_response_from_result(
                 proposal_coverage: coverage,
                 related_proposals,
                 has_exceeded_max_diffs: result.has_exceeded_max_diffs,
+                overridden: result.did_override_proposals_check_task,
             })
         }
         None => None,
@@ -727,6 +728,48 @@ mod tests {
             ),
             related_proposals: vec![],
             has_exceeded_max_diffs: expected,
+            overridden: false,
+        }));
+    }
+
+    #[rstest]
+    #[case::overridden(true)]
+    #[case::not_overridden(false)]
+    fn test_get_check_response_carries_proposals_override(
+        graph_ref: GraphRef,
+        #[case] did_override: bool,
+    ) {
+        let data = create_check_workflow_data(
+            CheckWorkflowStatus::PASSED,
+            json!([
+                {
+                    "__typename": "ProposalsCheckTask",
+                    "status": "PASSED",
+                    "targetURL": "https://studio.apollographql.com/graph/test-graph/variant/test-variant/proposal/abc",
+                    "didOverrideProposalsCheckTask": did_override,
+                    "hasExceededMaxDiffs": false,
+                    "proposalCoverage": "NONE",
+                    "relatedProposalResults": [],
+                    "severityLevel": "ERROR"
+                }
+            ]),
+        );
+
+        let response =
+            get_check_response_from_data(data, graph_ref, "test-subgraph".to_string(), true)
+                .unwrap();
+
+        assert_that!(response.maybe_proposals_response).is_equal_to(Some(ProposalsCheckResponse {
+            task_status: CheckTaskStatus::PASSED,
+            severity_level: ProposalsCheckSeverityLevel::ERROR,
+            proposal_coverage: ProposalsCoverage::NONE,
+            target_url: Some(
+                "https://studio.apollographql.com/graph/test-graph/variant/test-variant/proposal/abc"
+                    .to_string(),
+            ),
+            related_proposals: vec![],
+            has_exceeded_max_diffs: Some(false),
+            overridden: did_override,
         }));
     }
 

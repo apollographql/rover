@@ -51,7 +51,8 @@ expression: json
           "display_name": "Add phone number"
         }
       ],
-      "has_exceeded_max_diffs": false
+      "has_exceeded_max_diffs": false,
+      "overridden": false
     },
     "custom": {
       "task_status": "FAILED",

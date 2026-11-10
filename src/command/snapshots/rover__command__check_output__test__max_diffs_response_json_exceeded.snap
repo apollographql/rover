@@ -18,7 +18,8 @@ expression: json
       "proposal_coverage": "NONE",
       "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/proposal/abc",
       "related_proposals": [],
-      "has_exceeded_max_diffs": true
+      "has_exceeded_max_diffs": true,
+      "overridden": false
     }
   }
 }
