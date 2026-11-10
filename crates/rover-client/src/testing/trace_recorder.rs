@@ -1,7 +1,8 @@
 //! A bare-bones HTTP server for tests that need to see the `traceparent` each request carried.
 //!
-//! `httpmock` can match on a header but can't report back what a request sent, and these tests
-//! need to compare the values sent across attempts.
+//! It is for the blocking client, which sends requests with `reqwest` directly and so has no
+//! service to replace with a mock. `httpmock` can match on a header but can't report back what a
+//! request sent, and these tests need to compare the values sent across attempts.
 
 use std::{
     net::SocketAddr,
