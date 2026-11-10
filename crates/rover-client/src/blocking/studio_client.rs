@@ -682,15 +682,6 @@ mod tests {
         assert_that!(parent_ids).has_length(attempts);
     }
 
-    async fn call_service(service: &mut GraphQLService<HttpService>) {
-        ServiceExt::<GraphQLRequest<TestQuery>>::ready(service)
-            .await
-            .unwrap()
-            .call(GraphQLRequest::<TestQuery>::new(TestQueryVariables {}))
-            .await
-            .expect("the request should have succeeded");
-    }
-
     #[tokio::test]
     async fn a_request_through_the_blocking_client_carries_the_trace_id() {
         let recorder = TraceRecorder::start(vec![200]).await;
@@ -739,7 +730,12 @@ mod tests {
         let trace_id = new_trace_id();
         let client = client_for(&recorder).with_trace_id(trace_id);
 
-        call_service(&mut client.studio_graphql_service().unwrap()).await;
+        client
+            .studio_graphql_service()
+            .unwrap()
+            .oneshot(GraphQLRequest::<TestQuery>::new(TestQueryVariables {}))
+            .await
+            .unwrap();
 
         assert_one_trace(recorder.traceparents(), trace_id, 2);
     }
@@ -750,12 +746,12 @@ mod tests {
         let trace_id = new_trace_id();
         let client = client_for(&recorder).with_trace_id(trace_id);
 
-        call_service(
-            &mut client
-                .studio_graphql_service_with_attempt_timeout(Duration::from_secs(5))
-                .unwrap(),
-        )
-        .await;
+        client
+            .studio_graphql_service_with_attempt_timeout(Duration::from_secs(5))
+            .unwrap()
+            .oneshot(GraphQLRequest::<TestQuery>::new(TestQueryVariables {}))
+            .await
+            .unwrap();
 
         assert_one_trace(recorder.traceparents(), trace_id, 2);
     }
@@ -766,12 +762,12 @@ mod tests {
         let trace_id = new_trace_id();
         let client = client_for(&recorder).with_trace_id(trace_id);
 
-        call_service(
-            &mut client
-                .studio_graphql_service_with_timeout(Duration::from_secs(5))
-                .unwrap(),
-        )
-        .await;
+        client
+            .studio_graphql_service_with_timeout(Duration::from_secs(5))
+            .unwrap()
+            .oneshot(GraphQLRequest::<TestQuery>::new(TestQueryVariables {}))
+            .await
+            .unwrap();
 
         assert_one_trace(recorder.traceparents(), trace_id, 1);
     }
@@ -818,10 +814,7 @@ mod tests {
         client
             .http_service()
             .unwrap()
-            .ready()
-            .await
-            .unwrap()
-            .call(request)
+            .oneshot(request)
             .await
             .unwrap();
 
