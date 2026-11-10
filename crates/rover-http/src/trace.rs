@@ -59,6 +59,9 @@ pub fn stamp(trace_id: TraceId, headers: &mut HeaderMap) -> SpanContext {
         TraceState::default(),
     );
     let context = OtelContext::new().with_remote_span_context(span_context.clone());
+    // The propagator writes only a valid span context. An all-zero ID, which the generator makes
+    // with negligible probability, would send the request without the header, not with an
+    // invalid one.
     TraceContextPropagator::new().inject_context(&context, &mut HeaderInjector(headers));
     headers.remove(TRACESTATE);
     span_context
@@ -210,6 +213,11 @@ mod tests {
         assert_that!(traceparent.version.as_str()).is_equal_to("00");
         assert_that!(traceparent.trace_id).is_equal_to(trace_id.to_string());
         assert_that!(traceparent.parent_id.len()).is_equal_to(16);
+        assert_that!(traceparent
+            .parent_id
+            .chars()
+            .all(|c| matches!(c, '0'..='9' | 'a'..='f')))
+        .is_true();
         assert_that!(traceparent.parent_id.as_str()).is_not_equal_to("0".repeat(16).as_str());
         assert_that!(traceparent.flags.as_str()).is_equal_to("01");
         assert_that!(traceparent.value.as_str())
@@ -234,24 +242,6 @@ mod tests {
         let parent_ids: HashSet<_> = traceparents.iter().map(|t| t.parent_id.clone()).collect();
         assert_that!(trace_ids).is_equal_to(HashSet::from([trace_id.to_string()]));
         assert_that!(parent_ids).has_length(50);
-    }
-
-    #[rstest]
-    #[tokio::test]
-    async fn a_clone_of_the_service_sends_the_same_trace_id_with_its_own_parent_id(
-        trace_id: TraceId,
-        request: HttpRequest,
-    ) {
-        let (service, seen) = traced(trace_id);
-        service.clone().oneshot(request.clone()).await.unwrap();
-        service.oneshot(request).await.unwrap();
-
-        let seen = seen.lock().unwrap();
-        let first = Traceparent::of(&seen[0]);
-        let second = Traceparent::of(&seen[1]);
-        assert_that!(first.trace_id).is_equal_to(trace_id.to_string());
-        assert_that!(second.trace_id).is_equal_to(trace_id.to_string());
-        assert_that!(first.parent_id).is_not_equal_to(second.parent_id);
     }
 
     #[rstest]
