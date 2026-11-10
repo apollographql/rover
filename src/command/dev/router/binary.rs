@@ -220,11 +220,12 @@ where
     ) {
         let mut spawn = self.spawn.clone();
         let cancellation_token = cancellation_token.unwrap_or_default();
+        // The task is tracked by the harness from here, not only once it has a child, so that a
+        // signal arriving while the child is still being spawned waits for it instead of
+        // leaving it orphaned.
         let children = Arc::clone(&self.children);
-        // Held until the child's watcher is registered, so that a signal arriving while the
-        // child is still being spawned waits for it instead of leaving it orphaned.
-        let starting = children.starting();
-        tokio::task::spawn(async move {
+        let stopping = children.stopping();
+        children.spawn(async move {
             let args = self.args();
 
             let child = spawn
@@ -309,36 +310,28 @@ where
                         });
                     }
 
-                    // Spawn a task that just sits listening to the Router binary, and if it
-                    // exits, fire an error to say so, such that we can stop Rover Dev
-                    // running if this happens.
-                    // It is registered with the harness too, so that a signal that ends
-                    // Rover without the command's own cleanup still stops the child.
-                    let stopping = children.stopping();
-                    children.spawn({
-                        async move {
-                            tokio::select! {
-                                _ = cancellation_token.cancelled() => {
-                                    let _ = child.kill().await;
-                                },
-                                _ = stopping.cancelled() => {
-                                    let _ = child.kill().await;
-                                },
-                                res = child.wait() => {
-                                    let _ = sender
-                                        .send(Err(RunRouterBinaryError::BinaryExited(res)))
-                                        .tap_err(|err| {
-                                            tracing::error!(
-                                                "Failed to send router stderr message. {:?}",
-                                                err
-                                            )
-                                        });
-                                }
-                            }
+                    // Sit listening to the router binary, and if it exits, fire an error to say so,
+                    // such that we can stop Rover Dev running if this happens. The harness stops
+                    // it too when a signal is about to end Rover without the command's own
+                    // cleanup.
+                    tokio::select! {
+                        _ = cancellation_token.cancelled() => {
+                            let _ = child.kill().await;
+                        },
+                        _ = stopping.cancelled() => {
+                            let _ = child.kill().await;
+                        },
+                        res = child.wait() => {
+                            let _ = sender
+                                .send(Err(RunRouterBinaryError::BinaryExited(res)))
+                                .tap_err(|err| {
+                                    tracing::error!(
+                                        "Failed to send router stderr message. {:?}",
+                                        err
+                                    )
+                                });
                         }
-                    });
-                    // The watcher is registered, so the harness waits for it from here on.
-                    starting.registered();
+                    }
                 }
             }
         });

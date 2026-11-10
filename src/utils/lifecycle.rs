@@ -101,9 +101,9 @@ const CHILD_STOP_BUDGET: Duration = Duration::from_millis(250);
 
 /// The child processes a command has started and that must not outlive it. A signal ends
 /// Rover by re-raising it, which runs no cleanup, so a child kept running by that is orphaned
-/// unless the harness stops it first. A command registers the task that owns each child
-/// through [`Children::spawn`], and that task stops the child when [`Children::stopping`] is
-/// cancelled. Stopping is abrupt: a child is killed rather than asked to shut down, so one
+/// unless the harness stops it first. A command runs the task that owns each child through
+/// [`Children::spawn`], from before the child exists so that one still being started is waited
+/// for too, and that task stops the child when [`Children::stopping`] is cancelled. Stopping is abrupt: a child is killed rather than asked to shut down, so one
 /// that a terminal has already interrupted doesn't get to finish a graceful shutdown.
 pub(crate) struct Children {
     stopping: CancellationToken,
@@ -131,18 +131,13 @@ impl Children {
     }
 
     /// Runs the task that owns a child, so that [`Children::stop`] can wait for it to finish.
+    /// Run it from before the child is started, so that a stop that comes in the meantime still
+    /// waits for the child that is about to appear.
     pub(crate) fn spawn<F>(&self, task: F)
     where
         F: Future<Output = ()> + Send + 'static,
     {
         self.tasks.spawn(task);
-    }
-
-    /// Held while a child is being started, until the task that owns it is registered with
-    /// [`Children::spawn`]. [`Children::stop`] waits for it, so a signal that arrives in that
-    /// gap doesn't leave the child that is about to appear orphaned.
-    pub(crate) fn starting(&self) -> Starting {
-        Starting(Box::new(self.tasks.token()))
     }
 
     /// Tells every child to stop and waits for them to, for no longer than `budget`. A child
@@ -158,18 +153,6 @@ impl Children {
             tracing::debug!(?budget, "child processes were still stopping at exit");
         }
     }
-}
-
-/// A child that is being started, which [`Children::stop`] waits for. It lasts until
-/// [`Starting::registered`] or until it is dropped, so a child that fails to start doesn't
-/// hold up the exit.
-#[must_use = "a start that is dropped at once doesn't make `stop` wait for the child"]
-pub(crate) struct Starting(#[allow(dead_code)] Box<dyn Send>);
-
-impl Starting {
-    /// The task that owns the child has been registered with [`Children::spawn`], so `stop`
-    /// waits for that from here on.
-    pub(crate) fn registered(self) {}
 }
 
 /// A signal that asks the process to stop.
