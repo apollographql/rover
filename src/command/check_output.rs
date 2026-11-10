@@ -57,7 +57,7 @@ impl CliOutput for CheckWorkflowOutput<'_> {
                 "Proposals Check",
                 proposals_response.task_status.clone(),
             );
-            msg.push_str(proposals_text(proposals_response).as_str());
+            msg.push_str(proposals_text(proposals_response, &check_details_url(response)).as_str());
         }
 
         if let Some(custom_response) = &response.maybe_custom_response {
@@ -251,23 +251,108 @@ fn proposals_msg(response: &ProposalsCheckResponse) -> String {
     }
 }
 
-fn proposals_text(response: &ProposalsCheckResponse) -> String {
+/// The message shown when the proposals task found no proposals related to
+/// the changes, which says why (it didn't run, it's pending, it was
+/// overridden) or what the configured severity level means for the check.
+fn no_related_proposals_msg(response: &ProposalsCheckResponse) -> String {
+    if response.task_status == CheckTaskStatus::BLOCKED {
+        return "The proposals check did not run because an earlier task in this check failed."
+            .to_string();
+    }
+    match response.proposal_coverage {
+        ProposalsCoverage::OVERRIDDEN => {
+            "Proposal check results have been overridden in Studio.".to_string()
+        }
+        ProposalsCoverage::PENDING => "Proposal check has not completed.".to_string(),
+        // Studio reports full coverage with no related proposals when nothing needed one: no
+        // subgraph changed, or the only changes were ones it doesn't require a proposal for
+        // (such as description changes). The severity level doesn't come into it.
+        ProposalsCoverage::FULL => {
+            "None of the changes in this check need an approved proposal.".to_string()
+        }
+        ProposalsCoverage::PARTIAL | ProposalsCoverage::NONE => {
+            let consequence = match response.severity_level {
+                ProposalsCheckSeverityLevel::ERROR => {
+                    "Your proposals check severity level is set to ERROR, so changes that aren't in an approved proposal fail the check."
+                }
+                ProposalsCheckSeverityLevel::WARN => {
+                    "Your proposals check severity level is set to WARN, so changes that aren't in an approved proposal are reported as warnings and don't fail the check."
+                }
+                ProposalsCheckSeverityLevel::OFF => {
+                    "Proposal checks are disabled, so this doesn't affect the check result."
+                }
+            };
+            format!("No proposals are associated with these changes. {consequence}")
+        }
+    }
+}
+
+/// The link to show in place of the proposals task's own link when no
+/// proposals are related to the changes: Studio points that task's link at a
+/// proposal page, which is meaningless without a proposal. Prefer another
+/// task's link, since each of those opens this specific check, and fall back
+/// to the variant's list of checks.
+fn check_details_url(response: &CheckWorkflowResponse) -> CheckDetailsUrl<'_> {
+    [
+        response
+            .maybe_operations_response
+            .as_ref()
+            .and_then(|task| task.target_url.as_deref()),
+        response
+            .maybe_lint_response
+            .as_ref()
+            .and_then(|task| task.target_url.as_deref()),
+        response
+            .maybe_custom_response
+            .as_ref()
+            .and_then(|task| task.target_url.as_deref()),
+        response
+            .maybe_downstream_response
+            .as_ref()
+            .and_then(|task| task.target_url.as_deref()),
+    ]
+    .into_iter()
+    .flatten()
+    .next()
+    .map(CheckDetailsUrl::Check)
+    .unwrap_or(CheckDetailsUrl::VariantChecks(&response.default_target_url))
+}
+
+/// Where the proposals section links when no proposals are related to the
+/// changes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CheckDetailsUrl<'a> {
+    /// A page of this specific check.
+    Check(&'a str),
+    /// The list of checks run against the variant.
+    VariantChecks(&'a str),
+}
+
+fn proposals_text(response: &ProposalsCheckResponse, fallback_url: &CheckDetailsUrl) -> String {
     let mut msg = String::new();
 
     if !response.related_proposals.is_empty() {
         msg.push_str(&proposals_msg(response));
         msg.push('\n');
         msg.push_str(&proposals_table(response));
+        if let Some(url) = &response.target_url {
+            msg.push_str("View proposal check details at: ");
+            msg.push_str(&Style::Link.paint(url));
+        }
     } else {
-        msg.push_str(
-            "Your proposals task did not return any approved proposals associated with these changes.",
-        );
+        msg.push_str(&no_related_proposals_msg(response));
         msg.push('\n');
-    }
-
-    if let Some(url) = &response.target_url {
-        msg.push_str("View proposal check details at: ");
-        msg.push_str(&Style::Link.paint(url));
+        match fallback_url {
+            CheckDetailsUrl::Check(url) => {
+                msg.push_str("View check details at: ");
+                msg.push_str(&Style::Link.paint(url));
+            }
+            CheckDetailsUrl::VariantChecks(url) if !url.is_empty() => {
+                msg.push_str("View checks for this variant at: ");
+                msg.push_str(&Style::Link.paint(url));
+            }
+            CheckDetailsUrl::VariantChecks(_) => {}
+        }
     }
 
     msg
@@ -550,6 +635,187 @@ mod test {
             .json()
             .expect("check workflow JSON rendering cannot fail");
         insta::assert_json_snapshot!(json);
+    }
+
+    fn proposals_response(
+        task_status: CheckTaskStatus,
+        severity_level: ProposalsCheckSeverityLevel,
+        proposal_coverage: ProposalsCoverage,
+        related_proposals: Vec<RelatedProposal>,
+    ) -> ProposalsCheckResponse {
+        ProposalsCheckResponse {
+            task_status,
+            severity_level,
+            proposal_coverage,
+            target_url: Some(
+                "https://studio.apollographql.com/graph/my-graph/variant/current/proposal/abc"
+                    .to_string(),
+            ),
+            related_proposals,
+        }
+    }
+
+    /// The response for a check whose proposals task found no proposals, on a
+    /// graph that has never had one created.
+    fn no_proposals_response() -> CheckWorkflowResponse {
+        CheckWorkflowResponse {
+            maybe_operations_response: Some(OperationCheckResponse::try_new(
+                CheckTaskStatus::PASSED,
+                Some(
+                    "https://studio.apollographql.com/graph/my-graph/variant/current/checks/123/operations"
+                        .to_string(),
+                ),
+                3,
+                vec![],
+            )),
+            maybe_proposals_response: Some(proposals_response(
+                CheckTaskStatus::PASSED,
+                ProposalsCheckSeverityLevel::WARN,
+                ProposalsCoverage::NONE,
+                vec![],
+            )),
+            ..build_only_response()
+        }
+    }
+
+    #[test]
+    fn no_proposals_response_text_snapshot() {
+        let text =
+            strip_ansi_codes(&CheckWorkflowOutput(&no_proposals_response()).text()).to_string();
+        insta::assert_snapshot!(text);
+    }
+
+    #[rstest]
+    #[case::severity_error(
+        CheckTaskStatus::FAILED,
+        ProposalsCheckSeverityLevel::ERROR,
+        ProposalsCoverage::NONE,
+        "No proposals are associated with these changes. Your proposals check severity level is set to ERROR, so changes that aren't in an approved proposal fail the check."
+    )]
+    #[case::severity_warn(
+        CheckTaskStatus::PASSED,
+        ProposalsCheckSeverityLevel::WARN,
+        ProposalsCoverage::NONE,
+        "No proposals are associated with these changes. Your proposals check severity level is set to WARN, so changes that aren't in an approved proposal are reported as warnings and don't fail the check."
+    )]
+    #[case::severity_off(
+        CheckTaskStatus::PASSED,
+        ProposalsCheckSeverityLevel::OFF,
+        ProposalsCoverage::NONE,
+        "No proposals are associated with these changes. Proposal checks are disabled, so this doesn't affect the check result."
+    )]
+    #[case::blocked_by_earlier_task(
+        CheckTaskStatus::BLOCKED,
+        ProposalsCheckSeverityLevel::WARN,
+        ProposalsCoverage::PENDING,
+        "The proposals check did not run because an earlier task in this check failed."
+    )]
+    #[case::pending(
+        CheckTaskStatus::PENDING,
+        ProposalsCheckSeverityLevel::ERROR,
+        ProposalsCoverage::PENDING,
+        "Proposal check has not completed."
+    )]
+    #[case::overridden(
+        CheckTaskStatus::PASSED,
+        ProposalsCheckSeverityLevel::ERROR,
+        ProposalsCoverage::OVERRIDDEN,
+        "Proposal check results have been overridden in Studio."
+    )]
+    #[case::fully_covered_severity_error(
+        CheckTaskStatus::PASSED,
+        ProposalsCheckSeverityLevel::ERROR,
+        ProposalsCoverage::FULL,
+        "None of the changes in this check need an approved proposal."
+    )]
+    #[case::fully_covered_severity_warn(
+        CheckTaskStatus::PASSED,
+        ProposalsCheckSeverityLevel::WARN,
+        ProposalsCoverage::FULL,
+        "None of the changes in this check need an approved proposal."
+    )]
+    fn no_related_proposals_msg_explains_result(
+        #[case] task_status: CheckTaskStatus,
+        #[case] severity_level: ProposalsCheckSeverityLevel,
+        #[case] proposal_coverage: ProposalsCoverage,
+        #[case] expected: &str,
+    ) {
+        let response = proposals_response(task_status, severity_level, proposal_coverage, vec![]);
+        assert_that!(&no_related_proposals_msg(&response)).is_equal_to(expected.to_string());
+    }
+
+    #[rstest]
+    #[case::links_to_check_not_proposal_page(
+        CheckDetailsUrl::Check(
+            "https://studio.apollographql.com/graph/my-graph/variant/current/checks/123/operations"
+        ),
+        "No proposals are associated with these changes. Your proposals check severity level is set to WARN, so changes that aren't in an approved proposal are reported as warnings and don't fail the check.\n\
+         View check details at: https://studio.apollographql.com/graph/my-graph/variant/current/checks/123/operations"
+    )]
+    #[case::links_to_variant_checks_when_no_check_link(
+        CheckDetailsUrl::VariantChecks(
+            "https://studio.apollographql.com/graph/my-graph/checks?variant=current"
+        ),
+        "No proposals are associated with these changes. Your proposals check severity level is set to WARN, so changes that aren't in an approved proposal are reported as warnings and don't fail the check.\n\
+         View checks for this variant at: https://studio.apollographql.com/graph/my-graph/checks?variant=current"
+    )]
+    #[case::no_link_when_none_available(
+        CheckDetailsUrl::VariantChecks(""),
+        "No proposals are associated with these changes. Your proposals check severity level is set to WARN, so changes that aren't in an approved proposal are reported as warnings and don't fail the check.\n"
+    )]
+    fn proposals_text_without_related_proposals_does_not_link_to_proposal_page(
+        #[case] fallback_url: CheckDetailsUrl,
+        #[case] expected: &str,
+    ) {
+        let response = proposals_response(
+            CheckTaskStatus::PASSED,
+            ProposalsCheckSeverityLevel::WARN,
+            ProposalsCoverage::NONE,
+            vec![],
+        );
+        assert_that!(&strip_ansi_codes(&proposals_text(&response, &fallback_url)).to_string())
+            .is_equal_to(expected.to_string());
+    }
+
+    #[test]
+    fn proposals_text_with_related_proposals_links_to_proposals_task() {
+        let response = proposals_response(
+            CheckTaskStatus::FAILED,
+            ProposalsCheckSeverityLevel::ERROR,
+            ProposalsCoverage::PARTIAL,
+            vec![RelatedProposal {
+                status: "OPEN".to_string(),
+                display_name: "Add phone number".to_string(),
+            }],
+        );
+        let fallback_url = CheckDetailsUrl::Check("https://example.com/unused");
+        let expected = format!(
+            "Your check failed because some or all of the diffs in this change are not in an approved Proposal, and your schema check severity level is set to ERROR.\n{}View proposal check details at: https://studio.apollographql.com/graph/my-graph/variant/current/proposal/abc",
+            proposals_table(&response)
+        );
+        assert_that!(&strip_ansi_codes(&proposals_text(&response, &fallback_url)).to_string())
+            .is_equal_to(strip_ansi_codes(&expected).to_string());
+    }
+
+    #[rstest]
+    #[case::prefers_a_task_link(
+        no_proposals_response(),
+        CheckDetailsUrl::Check(
+            "https://studio.apollographql.com/graph/my-graph/variant/current/checks/123/operations"
+        )
+    )]
+    #[case::falls_back_to_variant_checks(
+        CheckWorkflowResponse {
+            maybe_proposals_response: no_proposals_response().maybe_proposals_response,
+            ..build_only_response()
+        },
+        CheckDetailsUrl::VariantChecks("https://studio.apollographql.com/graph/my-graph/checks?variant=current")
+    )]
+    fn check_details_url_never_uses_proposals_link(
+        #[case] response: CheckWorkflowResponse,
+        #[case] expected: CheckDetailsUrl<'static>,
+    ) {
+        assert_that!(&check_details_url(&response)).is_equal_to(expected);
     }
 
     #[rstest]
