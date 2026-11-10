@@ -704,16 +704,20 @@ mod tests {
         }
     }
 
+    fn assert_valid_traceparent(traceparent: &Traceparent, trace_id: TraceId) {
+        assert_that!(traceparent.version).is_equal_to("00");
+        assert_that!(traceparent.trace_id).is_equal_to(trace_id.to_string().as_str());
+        assert_that!(traceparent.parent_id.len()).is_equal_to(16);
+        assert_that!(traceparent.flags).is_equal_to("01");
+    }
+
     /// Checks that `traceparents` holds one valid `traceparent` per expected attempt, all with
     /// `trace_id`, and no two with the same parent ID.
     fn assert_one_trace(traceparents: Vec<Option<String>>, trace_id: TraceId, attempts: usize) {
         assert_that!(&traceparents).has_length(attempts);
         let traceparents: Vec<_> = traceparents.iter().map(Traceparent::parse).collect();
         for traceparent in &traceparents {
-            assert_that!(traceparent.version).is_equal_to("00");
-            assert_that!(traceparent.trace_id).is_equal_to(trace_id.to_string().as_str());
-            assert_that!(traceparent.parent_id.len()).is_equal_to(16);
-            assert_that!(traceparent.flags).is_equal_to("01");
+            assert_valid_traceparent(traceparent, trace_id);
         }
         let mut parent_ids: Vec<&str> = traceparents.iter().map(|t| t.parent_id).collect();
         parent_ids.sort();
@@ -837,7 +841,7 @@ mod tests {
     ) {
         assert_that!(&traceparents).has_length(requests);
         for traceparent in traceparents.iter().map(Traceparent::parse) {
-            assert_that!(traceparent.trace_id).is_equal_to(trace_id.to_string().as_str());
+            assert_valid_traceparent(&traceparent, trace_id);
         }
     }
 

@@ -462,6 +462,7 @@ mod tests {
     use std::time::Duration;
 
     use rover_http::trace::process_trace_id;
+    use tower::ServiceExt;
 
     use super::ClientBuilder;
 
@@ -510,8 +511,6 @@ mod tests {
     /// A Platform API request sent without a `StudioClient` carries the process's trace ID.
     #[tokio::test]
     async fn the_authenticated_service_sends_the_process_trace_id() {
-        use tower::ServiceExt;
-
         let server = httpmock::MockServer::start();
         let carrying_trace = server.mock(|when, then| {
             when.method(httpmock::Method::HEAD)
@@ -551,15 +550,13 @@ mod tests {
     /// The plugin registry and the downloads it points to aren't the Platform API.
     #[tokio::test]
     async fn plugin_registry_and_download_requests_carry_no_traceparent() {
-        use tower::ServiceExt;
-
         let server = httpmock::MockServer::start();
         let carrying_trace = server.mock(|when, then| {
             when.header_exists("traceparent");
             then.status(200);
         });
         let anything = server.mock(|when, then| {
-            when.path("/plugin");
+            when.path("/plugin").header_missing("traceparent");
             then.status(200);
         });
         let config = test_client_config();
@@ -605,8 +602,6 @@ mod tests {
     /// resolved version; following it would lose the header.
     #[tokio::test]
     async fn plugin_version_service_reads_the_registry_redirect_instead_of_following_it() {
-        use tower::ServiceExt;
-
         let server = httpmock::MockServer::start();
         let redirect = server.mock(|when, then| {
             when.method(httpmock::Method::HEAD)
@@ -637,8 +632,6 @@ mod tests {
     /// failing the run on its first transient error.
     #[tokio::test]
     async fn plugin_version_service_retries_within_the_client_timeout() {
-        use tower::ServiceExt;
-
         let server = httpmock::MockServer::start();
         let unavailable = server.mock(|when, then| {
             when.method(httpmock::Method::HEAD)
