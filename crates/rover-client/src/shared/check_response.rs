@@ -139,7 +139,7 @@ pub struct ProposalsCheckResponse {
     /// `None` for checks run before Studio reported this.
     pub has_exceeded_max_diffs: Option<bool>,
     /// Whether someone overrode this task's result in Studio. Studio reports
-    /// an override only here, never as the task's proposal coverage.
+    /// an override only here.
     pub overridden: bool,
 }
 

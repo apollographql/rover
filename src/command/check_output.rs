@@ -244,9 +244,11 @@ fn proposals_overridden(response: &ProposalsCheckResponse) -> bool {
     response.overridden || response.proposal_coverage == ProposalsCoverage::OVERRIDDEN
 }
 
+const PROPOSALS_OVERRIDDEN_MSG: &str = "Proposal check results have been overridden in Studio.";
+
 fn proposals_msg(response: &ProposalsCheckResponse) -> String {
     if proposals_overridden(response) {
-        return "Proposal check results have been overridden in Studio".to_string();
+        return PROPOSALS_OVERRIDDEN_MSG.to_string();
     }
     match response.proposal_coverage {
         ProposalsCoverage::FULL => "All of the diffs in this change are associated with an approved Proposal.".to_string(),
@@ -255,7 +257,7 @@ fn proposals_msg(response: &ProposalsCheckResponse) -> String {
             ProposalsCheckSeverityLevel::WARN => "Your check passed with warnings because some or all of the diffs in this change are not in an approved Proposal, and your schema check severity level is set to WARN.".to_string(),
             ProposalsCheckSeverityLevel::OFF => "Proposal checks are disabled".to_string(),
         },
-        ProposalsCoverage::OVERRIDDEN => "Proposal check results have been overridden in Studio".to_string(),
+        ProposalsCoverage::OVERRIDDEN => PROPOSALS_OVERRIDDEN_MSG.to_string(),
         ProposalsCoverage::PENDING => "Proposal check has not completed".to_string(),
     }
 }
@@ -269,12 +271,10 @@ fn no_related_proposals_msg(response: &ProposalsCheckResponse) -> String {
             .to_string();
     }
     if proposals_overridden(response) {
-        return "Proposal check results have been overridden in Studio.".to_string();
+        return PROPOSALS_OVERRIDDEN_MSG.to_string();
     }
     match response.proposal_coverage {
-        ProposalsCoverage::OVERRIDDEN => {
-            "Proposal check results have been overridden in Studio.".to_string()
-        }
+        ProposalsCoverage::OVERRIDDEN => PROPOSALS_OVERRIDDEN_MSG.to_string(),
         ProposalsCoverage::PENDING => "Proposal check has not completed.".to_string(),
         // Studio reports full coverage with no related proposals when nothing needed one: no
         // subgraph changed, or the only changes were ones it doesn't require a proposal for
@@ -979,7 +979,7 @@ mod test {
         };
         let fallback_url = CheckDetailsUrl::Check("https://example.com/unused");
         let expected = format!(
-            "Proposal check results have been overridden in Studio\n{}View proposal check details at: https://studio.apollographql.com/graph/my-graph/variant/current/proposal/abc",
+            "Proposal check results have been overridden in Studio.\n{}View proposal check details at: https://studio.apollographql.com/graph/my-graph/variant/current/proposal/abc",
             proposals_table(&response)
         );
         assert_that!(&strip_ansi_codes(&proposals_text(&response, &fallback_url)).to_string())
