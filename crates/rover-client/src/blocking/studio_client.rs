@@ -357,7 +357,7 @@ mod tests {
     use tower::{Service, ServiceExt};
 
     use super::*;
-    use crate::blocking::trace_recorder::TraceRecorder;
+    use crate::testing::TraceRecorder;
 
     #[fixture]
     fn credential() -> Credential {
