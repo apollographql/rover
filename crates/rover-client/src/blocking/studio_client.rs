@@ -10,7 +10,7 @@ use rover_graphql::{GraphQLLayer, GraphQLService};
 use rover_http::{
     retry::{retry_with_attempt_timeout, RetryPolicy},
     timeout::TimeoutLayer,
-    trace::{TraceId, TraceparentLayer},
+    trace::{process_trace_id, TraceId, TraceparentLayer},
     HttpService, ReqwestService,
 };
 use rover_studio::service::{
@@ -65,7 +65,7 @@ impl StudioClient {
         client: ReqwestClient,
         retry_period: Duration,
     ) -> StudioClient {
-        let trace_id = TraceId::for_process();
+        let trace_id = process_trace_id();
         StudioClient {
             credential,
             graphql_endpoint: graphql_endpoint.to_string(),
@@ -347,7 +347,7 @@ mod tests {
     use graphql_client::{GraphQLQuery, QueryBody};
     use httpmock::prelude::*;
     use rover_graphql::{GraphQLRequest, GraphQLServiceError};
-    use rover_http::HttpServiceError;
+    use rover_http::{trace::new_trace_id, HttpServiceError};
     use rover_studio::service::{
         permission_denied::permission_denied, rejected_credential::rejected_credential,
     };
@@ -675,7 +675,7 @@ mod tests {
     #[tokio::test]
     async fn a_request_through_the_blocking_client_carries_the_trace_id() {
         let recorder = TraceRecorder::start(vec![200]).await;
-        let trace_id = TraceId::generate();
+        let trace_id = new_trace_id();
 
         client_for(&recorder)
             .with_trace_id(trace_id)
@@ -689,7 +689,7 @@ mod tests {
     #[tokio::test]
     async fn a_request_with_no_retry_through_the_blocking_client_carries_the_trace_id() {
         let recorder = TraceRecorder::start(vec![200]).await;
-        let trace_id = TraceId::generate();
+        let trace_id = new_trace_id();
 
         client_for(&recorder)
             .with_trace_id(trace_id)
@@ -703,7 +703,7 @@ mod tests {
     #[tokio::test]
     async fn each_retry_through_the_blocking_client_has_its_own_parent_id() {
         let recorder = TraceRecorder::start(vec![500, 200]).await;
-        let trace_id = TraceId::generate();
+        let trace_id = new_trace_id();
 
         client_for(&recorder)
             .with_trace_id(trace_id)
@@ -717,7 +717,7 @@ mod tests {
     #[tokio::test]
     async fn each_retry_through_the_service_has_its_own_parent_id() {
         let recorder = TraceRecorder::start(vec![500, 200]).await;
-        let trace_id = TraceId::generate();
+        let trace_id = new_trace_id();
         let client = client_for(&recorder).with_trace_id(trace_id);
 
         call_service(&mut client.studio_graphql_service().unwrap()).await;
@@ -728,7 +728,7 @@ mod tests {
     #[tokio::test]
     async fn each_retry_through_the_attempt_timeout_service_has_its_own_parent_id() {
         let recorder = TraceRecorder::start(vec![500, 200]).await;
-        let trace_id = TraceId::generate();
+        let trace_id = new_trace_id();
         let client = client_for(&recorder).with_trace_id(trace_id);
 
         call_service(
@@ -744,7 +744,7 @@ mod tests {
     #[tokio::test]
     async fn a_request_through_the_timeout_service_carries_the_trace_id() {
         let recorder = TraceRecorder::start(vec![200]).await;
-        let trace_id = TraceId::generate();
+        let trace_id = new_trace_id();
         let client = client_for(&recorder).with_trace_id(trace_id);
 
         call_service(
@@ -772,7 +772,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_one_trace_per_request(&recorder.traceparents(), TraceId::for_process(), 2);
+        assert_one_trace_per_request(&recorder.traceparents(), process_trace_id(), 2);
     }
 
     /// Like [`assert_one_trace`], for requests that are separate logical requests
@@ -792,7 +792,7 @@ mod tests {
     #[tokio::test]
     async fn a_request_through_the_plain_http_service_carries_the_trace_id() {
         let recorder = TraceRecorder::start(vec![200]).await;
-        let trace_id = TraceId::generate();
+        let trace_id = new_trace_id();
         let client = client_for(&recorder).with_trace_id(trace_id);
         let request = http::Request::post(recorder.url())
             .body(rover_http::Full::default())

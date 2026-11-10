@@ -14,7 +14,7 @@ use rover_client::blocking::StudioClient;
 use rover_http::{
     HttpService, ReqwestService,
     retry::retry_with_attempt_timeout,
-    trace::{TraceId, TraceparentLayer},
+    trace::{TraceparentLayer, process_trace_id},
 };
 use rover_studio::service::{HttpStudioServiceLayer, rejected_credential::RejectedCredentialLayer};
 use serde::Serialize;
@@ -436,7 +436,7 @@ impl StudioClientConfig {
                 self.is_sudo,
             )?)
             .layer(RejectedCredentialLayer::new(credential))
-            .layer(TraceparentLayer::new(TraceId::for_process()))
+            .layer(TraceparentLayer::new(process_trace_id()))
             .service(ReqwestService::builder().client(client).build()?)
             .boxed_clone();
         Ok(service)
@@ -461,7 +461,7 @@ impl StudioClientConfig {
 mod tests {
     use std::time::Duration;
 
-    use rover_http::trace::TraceId;
+    use rover_http::trace::process_trace_id;
 
     use super::ClientBuilder;
 
@@ -518,7 +518,7 @@ mod tests {
                 .path("/graphql")
                 .header_matches(
                     "traceparent",
-                    format!("^00-{}-[0-9a-f]{{16}}-01$", TraceId::for_process()),
+                    format!("^00-{}-[0-9a-f]{{16}}-01$", process_trace_id()),
                 );
             then.status(200);
         });

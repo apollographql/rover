@@ -6,7 +6,10 @@ use reqwest::{
     header::{HeaderMap, HeaderValue},
     Client as ReqwestClient, Response, StatusCode,
 };
-use rover_http::{retry::is_retryable_status, trace::TraceId};
+use rover_http::{
+    retry::is_retryable_status,
+    trace::{stamp, TraceId},
+};
 
 use crate::error::{EndpointKind, RoverClientError};
 
@@ -120,8 +123,8 @@ impl GraphQLClient {
             // Built inside the operation so that each attempt, including each retry, gets a
             // new parent ID.
             let mut headers = header_map.clone();
-            if let Some(trace_id) = &self.trace_id {
-                headers.insert("traceparent", trace_id.traceparent().header_value());
+            if let Some(trace_id) = self.trace_id {
+                stamp(trace_id, &mut headers);
             }
             let response = self
                 .client
