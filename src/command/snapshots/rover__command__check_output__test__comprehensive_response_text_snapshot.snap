@@ -3,7 +3,7 @@ source: src/command/check_output.rs
 expression: text
 ---
 Build Check [PASSED]:
-There were no changes detected in the composed API schema, but the core schema was modified.
+The composed API schema was modified.
 
 Operation Check [FAILED]:
 Compared 2 schema changes against 12 operations.

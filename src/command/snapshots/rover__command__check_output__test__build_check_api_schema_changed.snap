@@ -1,0 +1,5 @@
+---
+source: src/command/check_output.rs
+expression: build_check_body(&response)
+---
+The composed API schema was modified.

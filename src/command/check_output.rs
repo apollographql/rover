@@ -30,11 +30,10 @@ impl CliOutput for CheckWorkflowOutput<'_> {
             response.maybe_core_schema_status.clone(),
         ) {
             append_task_title(&mut msg, "Build Check", core_schema_status);
-            if core_schema_modified {
-                msg.push_str("There were no changes detected in the composed API schema, but the core schema was modified.")
-            } else {
-                msg.push_str("There were no changes detected in the composed schema.")
-            }
+            msg.push_str(build_check_summary(
+                core_schema_modified,
+                response.maybe_operations_response.as_ref(),
+            ));
         }
 
         if let Some(operations_response) = &response.maybe_operations_response {
@@ -83,6 +82,39 @@ impl CliOutput for CheckWorkflowOutput<'_> {
 
     fn json(&self) -> Result<Value, serde_json::Error> {
         Ok(self.0.get_json())
+    }
+}
+
+const NO_SCHEMA_CHANGES: &str = "There were no changes detected in the composed schema.";
+const CORE_SCHEMA_ONLY_CHANGES: &str =
+    "There were no changes detected in the composed API schema, but the core schema was modified.";
+const API_SCHEMA_CHANGES: &str = "The composed API schema was modified.";
+const UNKNOWN_API_SCHEMA_CHANGES: &str = "The composed schema was modified.";
+
+/// Summarizes what the build changed, for the `Build Check` section.
+///
+/// The composition task only reports whether the core (supergraph) schema changed. Whether the
+/// API schema changed is known only from the operations check, whose changes are the API schema
+/// diff, so a "no API schema changes" claim is made only when that check ran and found none.
+fn build_check_summary(
+    core_schema_modified: bool,
+    maybe_operations_response: Option<&OperationCheckResponse>,
+) -> &'static str {
+    // Takes precedence over `core_schema_modified`: GraphOS compares the core schema with the
+    // active publish when the field is read, not when the check started, so a matching publish
+    // during the check reports it as unchanged even though the API schema diff is not empty.
+    let api_schema_modified = maybe_operations_response
+        .is_some_and(|operations_response| !operations_response.changes.is_empty());
+
+    match (
+        api_schema_modified,
+        core_schema_modified,
+        maybe_operations_response,
+    ) {
+        (true, _, _) => API_SCHEMA_CHANGES,
+        (false, false, _) => NO_SCHEMA_CHANGES,
+        (false, true, Some(_)) => CORE_SCHEMA_ONLY_CHANGES,
+        (false, true, None) => UNKNOWN_API_SCHEMA_CHANGES,
     }
 }
 
@@ -1112,5 +1144,171 @@ mod test {
         // fails for anyone running `cargo test` from a terminal.
         assert_that!(&strip_ansi_codes(&downstream_msg(&response)).to_string())
             .is_equal_to(expected.to_string());
+    }
+
+    fn schema_change(severity: ChangeSeverity) -> SchemaChange {
+        SchemaChange {
+            code: "FIELD_REMOVED".to_string(),
+            description: "type `Query`: field `user` removed".to_string(),
+            severity,
+        }
+    }
+
+    fn operations_result(changes: Vec<SchemaChange>) -> Option<OperationCheckResponse> {
+        let task_status = if changes
+            .iter()
+            .any(|change| matches!(change.severity, ChangeSeverity::FAIL))
+        {
+            CheckTaskStatus::FAILED
+        } else {
+            CheckTaskStatus::PASSED
+        };
+        Some(OperationCheckResponse::try_new(
+            task_status,
+            None,
+            12,
+            changes,
+        ))
+    }
+
+    fn subgraph_check_response(
+        core_schema_modified: bool,
+        maybe_operations_response: Option<OperationCheckResponse>,
+    ) -> CheckWorkflowResponse {
+        CheckWorkflowResponse {
+            maybe_core_schema_modified: Some(core_schema_modified),
+            maybe_operations_response,
+            ..build_only_response()
+        }
+    }
+
+    /// The text under the `Build Check` heading, up to the next section.
+    fn build_check_body(response: &CheckWorkflowResponse) -> String {
+        let text = strip_ansi_codes(&CheckWorkflowOutput(response).text()).to_string();
+        let body = text
+            .strip_prefix("Build Check [PASSED]:\n")
+            .unwrap_or_else(|| {
+                panic!("expected the output to start with the Build Check section:\n{text}")
+            });
+        body.split("\n\n")
+            .next()
+            .expect("split always yields at least one item")
+            .to_string()
+    }
+
+    #[rstest]
+    #[case::core_schema_unchanged_without_an_operations_result(false, None, NO_SCHEMA_CHANGES)]
+    #[case::core_schema_unchanged_and_no_api_schema_changes(
+        false,
+        operations_result(vec![]),
+        NO_SCHEMA_CHANGES
+    )]
+    #[case::only_the_core_schema_changed(true, operations_result(vec![]), CORE_SCHEMA_ONLY_CHANGES)]
+    #[case::api_schema_change_that_fails_operation_checks(
+        true,
+        operations_result(vec![schema_change(ChangeSeverity::FAIL)]),
+        API_SCHEMA_CHANGES
+    )]
+    #[case::api_schema_change_that_passes_operation_checks(
+        true,
+        operations_result(vec![schema_change(ChangeSeverity::PASS)]),
+        API_SCHEMA_CHANGES
+    )]
+    #[case::passing_and_failing_api_schema_changes(
+        true,
+        operations_result(vec![
+            schema_change(ChangeSeverity::PASS),
+            schema_change(ChangeSeverity::FAIL),
+        ]),
+        API_SCHEMA_CHANGES
+    )]
+    // GraphOS computes `coreSchemaModified` against the active publish when the field is read,
+    // not when the check started, so an identical schema published mid-check reports the core
+    // schema as unchanged while the operations check still lists the API changes it found.
+    #[case::api_schema_changes_with_core_schema_reported_unchanged(
+        false,
+        operations_result(vec![schema_change(ChangeSeverity::FAIL)]),
+        API_SCHEMA_CHANGES
+    )]
+    // Without an operations result (the task is pending, was not run, or has no result yet),
+    // Rover cannot tell whether the API schema changed, so it must not claim either way.
+    #[case::core_schema_changed_without_an_operations_result(
+        true,
+        None,
+        UNKNOWN_API_SCHEMA_CHANGES
+    )]
+    fn build_check_summarizes_schema_changes(
+        #[case] core_schema_modified: bool,
+        #[case] maybe_operations_response: Option<OperationCheckResponse>,
+        #[case] expected: &str,
+    ) {
+        let response = subgraph_check_response(core_schema_modified, maybe_operations_response);
+        assert_that!(build_check_body(&response)).is_equal_to(expected.to_string());
+    }
+
+    /// Pins the exact wording of each Build Check message with a checked-in snapshot, so the
+    /// production message constants can be shared with the code under test without letting a
+    /// reworded or mistyped message pass unnoticed.
+    #[rstest]
+    #[case::core_schema_unchanged("build_check_core_schema_unchanged", false, operations_result(vec![]))]
+    #[case::only_the_core_schema_changed("build_check_only_core_schema_changed", true, operations_result(vec![]))]
+    #[case::api_schema_changed(
+        "build_check_api_schema_changed",
+        true,
+        operations_result(vec![schema_change(ChangeSeverity::FAIL)])
+    )]
+    #[case::unknown_api_schema_changes("build_check_unknown_api_schema_changes", true, None)]
+    fn build_check_wording_snapshot(
+        #[case] snapshot_name: &str,
+        #[case] core_schema_modified: bool,
+        #[case] maybe_operations_response: Option<OperationCheckResponse>,
+    ) {
+        let response = subgraph_check_response(core_schema_modified, maybe_operations_response);
+        insta::assert_snapshot!(snapshot_name, build_check_body(&response));
+    }
+
+    /// Regression guard: no combination that reports schema changes may also say that no
+    /// changes were detected.
+    #[rstest]
+    fn output_with_schema_changes_never_claims_no_changes(
+        #[values(true, false)] core_schema_modified: bool,
+        #[values(
+            vec![schema_change(ChangeSeverity::PASS)],
+            vec![schema_change(ChangeSeverity::FAIL)],
+            vec![schema_change(ChangeSeverity::PASS), schema_change(ChangeSeverity::FAIL)]
+        )]
+        changes: Vec<SchemaChange>,
+    ) {
+        let response = subgraph_check_response(core_schema_modified, operations_result(changes));
+        let text = strip_ansi_codes(&CheckWorkflowOutput(&response).text()).to_string();
+        assert_that!(text).does_not_contain("no changes detected");
+    }
+
+    /// A subgraph removal check (every field removed, operations still using them) as Rover
+    /// printed it in the reported bug, end to end.
+    #[test]
+    fn subgraph_removal_check_text() {
+        let response = subgraph_check_response(
+            true,
+            operations_result(vec![
+                SchemaChange {
+                    code: "FIELD_REMOVED".to_string(),
+                    description: "type `Mutation`: field `claimSlug` removed".to_string(),
+                    severity: ChangeSeverity::FAIL,
+                },
+                SchemaChange {
+                    code: "FIELD_REMOVED".to_string(),
+                    description: "type `Mutation`: field `revokeSlug` removed".to_string(),
+                    severity: ChangeSeverity::PASS,
+                },
+            ]),
+        );
+        let text = strip_ansi_codes(&CheckWorkflowOutput(&response).text()).to_string();
+        assert_that!(text.lines().take(4).collect::<Vec<_>>()).is_equal_to(vec![
+            "Build Check [PASSED]:",
+            API_SCHEMA_CHANGES,
+            "",
+            "Operation Check [FAILED]:",
+        ]);
     }
 }
