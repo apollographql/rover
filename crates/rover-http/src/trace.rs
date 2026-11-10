@@ -217,7 +217,7 @@ mod tests {
         let trace_ids: HashSet<_> = fields.iter().map(|f| f[1].clone()).collect();
         let parent_ids: HashSet<_> = fields.iter().map(|f| f[2].clone()).collect();
         assert_that!(trace_ids).is_equal_to(HashSet::from([trace_id.to_string()]));
-        assert_that!(parent_ids.len()).is_equal_to(50);
+        assert_that!(parent_ids).has_length(50);
     }
 
     #[rstest]
@@ -280,6 +280,6 @@ mod tests {
     #[test]
     fn new_trace_ids_are_distinct() {
         let ids: HashSet<_> = (0..1000).map(|_| new_trace_id()).collect();
-        assert_that!(ids.len()).is_equal_to(1000);
+        assert_that!(ids).has_length(1000);
     }
 }
