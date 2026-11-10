@@ -147,12 +147,12 @@ mod tests {
         (service, seen)
     }
 
-    async fn send(service: &mut (impl Service<Request<()>, Error = Infallible> + Clone)) {
+    async fn send(service: &(impl Service<Request<()>, Error = Infallible> + Clone)) {
         let request = Request::builder()
             .uri("http://example.com")
             .body(())
             .unwrap();
-        service.ready().await.unwrap().call(request).await.unwrap();
+        service.clone().oneshot(request).await.unwrap();
     }
 
     /// The only `traceparent` a request carried
@@ -181,8 +181,8 @@ mod tests {
     #[rstest]
     #[tokio::test]
     async fn a_request_carries_a_valid_traceparent(trace_id: TraceId) {
-        let (mut service, seen) = traced(trace_id);
-        send(&mut service).await;
+        let (service, seen) = traced(trace_id);
+        send(&service).await;
 
         let seen = seen.lock().unwrap();
         let value = only_traceparent(&seen[0]);
@@ -197,9 +197,9 @@ mod tests {
     #[rstest]
     #[tokio::test]
     async fn every_request_shares_a_trace_id_and_has_its_own_parent_id(trace_id: TraceId) {
-        let (mut service, seen) = traced(trace_id);
+        let (service, seen) = traced(trace_id);
         for _ in 0..50 {
-            send(&mut service).await;
+            send(&service).await;
         }
 
         let seen = seen.lock().unwrap();
@@ -215,10 +215,10 @@ mod tests {
     async fn a_clone_of_the_service_sends_the_same_trace_id_with_its_own_parent_id(
         trace_id: TraceId,
     ) {
-        let (mut service, seen) = traced(trace_id);
-        let mut clone = service.clone();
-        send(&mut service).await;
-        send(&mut clone).await;
+        let (service, seen) = traced(trace_id);
+        let clone = service.clone();
+        send(&service).await;
+        send(&clone).await;
 
         let seen = seen.lock().unwrap();
         let first = fields(only_traceparent(&seen[0]));
@@ -231,7 +231,7 @@ mod tests {
     #[rstest]
     #[tokio::test]
     async fn a_traceparent_and_tracestate_the_request_already_had_are_replaced(trace_id: TraceId) {
-        let (mut service, seen) = traced(trace_id);
+        let (service, seen) = traced(trace_id);
         let stale = "00-00000000000000000000000000000001-0000000000000002-00";
         let request = Request::builder()
             .uri("http://example.com")
@@ -239,7 +239,7 @@ mod tests {
             .header("tracestate", "other=vendor")
             .body(())
             .unwrap();
-        service.ready().await.unwrap().call(request).await.unwrap();
+        service.oneshot(request).await.unwrap();
 
         let seen = seen.lock().unwrap();
         let value = only_traceparent(&seen[0]);
