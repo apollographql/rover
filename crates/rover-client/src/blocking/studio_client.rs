@@ -651,7 +651,7 @@ mod tests {
         for traceparent in traceparents {
             let traceparent = traceparent.as_deref().expect("a traceparent header");
             let fields: Vec<&str> = traceparent.split('-').collect();
-            assert_that!(fields.len()).is_equal_to(4);
+            assert_that!(&fields).has_length(4);
             assert_that!(fields[0]).is_equal_to("00");
             assert_that!(fields[1]).is_equal_to(trace_id.to_string().as_str());
             assert_that!(fields[2].len()).is_equal_to(16);
@@ -660,7 +660,7 @@ mod tests {
         }
         parent_ids.sort();
         parent_ids.dedup();
-        assert_that!(parent_ids.len()).is_equal_to(attempts);
+        assert_that!(parent_ids).has_length(attempts);
     }
 
     async fn call_service(service: &mut GraphQLService<HttpService>) {
