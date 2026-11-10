@@ -2,7 +2,6 @@
 category: fix
 breaking: false
 authors: [dotdat]
-fixes: [ROVER-512]
 ---
 
 `rover dev` reads settings from a `.env` file as it does from the environment
