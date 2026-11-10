@@ -643,21 +643,40 @@ mod tests {
         )
     }
 
+    /// A `traceparent` header value, with its parts named
+    struct Traceparent<'a> {
+        version: &'a str,
+        trace_id: &'a str,
+        parent_id: &'a str,
+        flags: &'a str,
+    }
+
+    impl<'a> Traceparent<'a> {
+        fn parse(value: &'a Option<String>) -> Traceparent<'a> {
+            let value = value.as_deref().expect("a traceparent header");
+            let parts: Vec<&str> = value.split('-').collect();
+            assert_that!(&parts).has_length(4);
+            Traceparent {
+                version: parts[0],
+                trace_id: parts[1],
+                parent_id: parts[2],
+                flags: parts[3],
+            }
+        }
+    }
+
     /// Checks that `traceparents` holds one valid `traceparent` per expected attempt, all with
     /// `trace_id`, and no two with the same parent ID.
     fn assert_one_trace(traceparents: &[Option<String>], trace_id: TraceId, attempts: usize) {
         assert_that!(traceparents.len()).is_equal_to(attempts);
-        let mut parent_ids = Vec::new();
-        for traceparent in traceparents {
-            let traceparent = traceparent.as_deref().expect("a traceparent header");
-            let fields: Vec<&str> = traceparent.split('-').collect();
-            assert_that!(&fields).has_length(4);
-            assert_that!(fields[0]).is_equal_to("00");
-            assert_that!(fields[1]).is_equal_to(trace_id.to_string().as_str());
-            assert_that!(fields[2].len()).is_equal_to(16);
-            assert_that!(fields[3]).is_equal_to("01");
-            parent_ids.push(fields[2]);
+        let traceparents: Vec<_> = traceparents.iter().map(Traceparent::parse).collect();
+        for traceparent in &traceparents {
+            assert_that!(traceparent.version).is_equal_to("00");
+            assert_that!(traceparent.trace_id).is_equal_to(trace_id.to_string().as_str());
+            assert_that!(traceparent.parent_id.len()).is_equal_to(16);
+            assert_that!(traceparent.flags).is_equal_to("01");
         }
+        let mut parent_ids: Vec<&str> = traceparents.iter().map(|t| t.parent_id).collect();
         parent_ids.sort();
         parent_ids.dedup();
         assert_that!(parent_ids).has_length(attempts);
@@ -782,10 +801,8 @@ mod tests {
         requests: usize,
     ) {
         assert_that!(traceparents.len()).is_equal_to(requests);
-        for traceparent in traceparents {
-            let traceparent = traceparent.as_deref().expect("a traceparent header");
-            assert_that!(traceparent.split('-').nth(1).unwrap().to_string())
-                .is_equal_to(trace_id.to_string());
+        for traceparent in traceparents.iter().map(Traceparent::parse) {
+            assert_that!(traceparent.trace_id).is_equal_to(trace_id.to_string().as_str());
         }
     }
 
