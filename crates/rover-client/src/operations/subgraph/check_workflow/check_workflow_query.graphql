@@ -84,6 +84,7 @@ query SubgraphCheckWorkflowQuery($workflowId: ID!, $graphId: ID!) {
         }
         ... on ProposalsCheckTask {
           didOverrideProposalsCheckTask
+          hasExceededMaxDiffs
           proposalCoverage
           relatedProposalResults {
             statusAtCheck
