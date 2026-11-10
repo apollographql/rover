@@ -7,7 +7,7 @@
 
 use std::{fmt, task::Context};
 
-use http::{HeaderName, HeaderValue};
+use http::{header::InvalidHeaderValue, HeaderName, HeaderValue};
 use tower::{Layer, Service};
 
 const TRACEPARENT: HeaderName = HeaderName::from_static("traceparent");
@@ -31,6 +31,20 @@ impl TraceId {
     /// nothing else, so it can't be tied back to a session, a machine, or a person.
     pub fn generate() -> TraceId {
         TraceId(random_trace_id())
+    }
+}
+
+impl TraceId {
+    /// A `traceparent` header value for one more request in this trace.
+    ///
+    /// It carries this trace ID, a new random non-zero parent ID, and the sampled flag, so call
+    /// it once per attempt of a request. [`TraceparentLayer`] does that for [`tower`] services;
+    /// this is for clients that retry outside of one.
+    pub fn traceparent(&self) -> Result<HeaderValue, InvalidHeaderValue> {
+        HeaderValue::try_from(format!(
+            "{VERSION}-{self}-{:016x}-{SAMPLED}",
+            random_parent_id()
+        ))
     }
 }
 
@@ -109,12 +123,7 @@ where
     }
 
     fn call(&mut self, mut req: http::Request<B>) -> Self::Future {
-        let traceparent = format!(
-            "{VERSION}-{}-{:016x}-{SAMPLED}",
-            self.trace_id,
-            random_parent_id()
-        );
-        match HeaderValue::try_from(traceparent) {
+        match self.trace_id.traceparent() {
             Ok(value) => {
                 req.headers_mut().insert(TRACEPARENT, value);
             }
@@ -252,6 +261,16 @@ mod tests {
 
         let seen = seen.lock().unwrap();
         assert_that!(fields(seen[0].as_ref().unwrap())[1]).is_equal_to(trace_id.to_string());
+    }
+
+    #[rstest]
+    fn each_traceparent_value_has_the_trace_id_and_its_own_parent_id(trace_id: TraceId) {
+        let first = fields(&trace_id.traceparent().unwrap());
+        let second = fields(&trace_id.traceparent().unwrap());
+
+        assert_that!(first[1]).is_equal_to(trace_id.to_string());
+        assert_that!(second[1]).is_equal_to(trace_id.to_string());
+        assert_that!(first[2]).is_not_equal_to(second[2].clone());
     }
 
     #[test]
