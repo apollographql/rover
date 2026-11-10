@@ -52,6 +52,10 @@ fn dev_uses_a_flag_value_from_dotenv() {
 }
 
 /// A variable that is already set in the environment wins over the same one in `.env`.
+///
+/// The invalid license in `.env` would be rejected while the arguments are parsed. With a valid
+/// one in the environment the arguments parse, and the run goes on to fail for an unrelated
+/// reason: a subgraph URL is needed when there is no terminal to ask for one.
 #[test]
 fn the_environment_wins_over_dotenv() {
     let project = tempfile::tempdir().unwrap();
@@ -62,7 +66,10 @@ fn the_environment_wins_over_dotenv() {
         .arg("dev")
         .assert()
         .failure()
-        .stderr(predicate::str::contains("invalid value").not());
+        .stderr(predicate::str::contains("invalid value").not())
+        .stderr(predicate::str::contains(
+            "--url <SUBGRAPH_URL> is required when not attached to a TTY",
+        ));
 }
 
 /// Only `rover dev` reads `.env`, so another command is unaffected by one.
