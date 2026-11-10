@@ -328,10 +328,28 @@ enum CheckDetailsUrl<'a> {
     VariantChecks(&'a str),
 }
 
+/// Whether Studio reported that the change had more diffs than a proposals
+/// check allows. Checks run before Studio reported this count as not exceeded.
+fn exceeded_max_diffs(response: &ProposalsCheckResponse) -> bool {
+    // The message says Studio failed the task, so only show it for a task that did fail: a task
+    // that didn't run, or hasn't finished, has nothing to say about the limit.
+    response.has_exceeded_max_diffs == Some(true) && response.task_status == CheckTaskStatus::FAILED
+}
+
+/// Studio fails the proposals task outright when a change exceeds the limit,
+/// whatever the severity level, without comparing the diffs to proposals, so
+/// neither the severity nor the coverage wording applies. The limit itself
+/// is set by Apollo and may change, so it isn't stated here.
+const EXCEEDED_MAX_DIFFS_MSG: &str = "This change has more schema diffs than Studio allows for a proposals check, so Studio didn't compare the changes against proposals. Studio fails the proposals check whenever a change exceeds this limit, whatever the proposals check severity level.";
+
 fn proposals_text(response: &ProposalsCheckResponse, fallback_url: &CheckDetailsUrl) -> String {
     let mut msg = String::new();
 
-    if !response.related_proposals.is_empty() {
+    if exceeded_max_diffs(response) {
+        msg.push_str(EXCEEDED_MAX_DIFFS_MSG);
+        msg.push('\n');
+        push_check_details_link(&mut msg, fallback_url);
+    } else if !response.related_proposals.is_empty() {
         msg.push_str(&proposals_msg(response));
         msg.push('\n');
         msg.push_str(&proposals_table(response));
@@ -342,20 +360,24 @@ fn proposals_text(response: &ProposalsCheckResponse, fallback_url: &CheckDetails
     } else {
         msg.push_str(&no_related_proposals_msg(response));
         msg.push('\n');
-        match fallback_url {
-            CheckDetailsUrl::Check(url) => {
-                msg.push_str("View check details at: ");
-                msg.push_str(&Style::Link.paint(url));
-            }
-            CheckDetailsUrl::VariantChecks(url) if !url.is_empty() => {
-                msg.push_str("View checks for this variant at: ");
-                msg.push_str(&Style::Link.paint(url));
-            }
-            CheckDetailsUrl::VariantChecks(_) => {}
-        }
+        push_check_details_link(&mut msg, fallback_url);
     }
 
     msg
+}
+
+fn push_check_details_link(msg: &mut String, url: &CheckDetailsUrl) {
+    match url {
+        CheckDetailsUrl::Check(url) => {
+            msg.push_str("View check details at: ");
+            msg.push_str(&Style::Link.paint(url));
+        }
+        CheckDetailsUrl::VariantChecks(url) if !url.is_empty() => {
+            msg.push_str("View checks for this variant at: ");
+            msg.push_str(&Style::Link.paint(url));
+        }
+        CheckDetailsUrl::VariantChecks(_) => {}
+    }
 }
 
 fn custom_table(response: &CustomCheckResponse) -> String {
@@ -682,13 +704,16 @@ mod test {
 
     /// A check whose proposals task failed with no related proposals, where
     /// Studio reported `has_exceeded_max_diffs` as given.
-    fn max_diffs_response(has_exceeded_max_diffs: Option<bool>) -> CheckWorkflowResponse {
+    fn max_diffs_response(
+        has_exceeded_max_diffs: Option<bool>,
+        severity_level: ProposalsCheckSeverityLevel,
+    ) -> CheckWorkflowResponse {
         let mut response = no_proposals_response();
         response.maybe_proposals_response = Some(ProposalsCheckResponse {
             has_exceeded_max_diffs,
             ..proposals_response(
                 CheckTaskStatus::FAILED,
-                ProposalsCheckSeverityLevel::ERROR,
+                severity_level,
                 ProposalsCoverage::NONE,
                 vec![],
             )
@@ -704,10 +729,104 @@ mod test {
         #[case] name: &str,
         #[case] has_exceeded_max_diffs: Option<bool>,
     ) {
-        let json = CheckWorkflowOutput(&max_diffs_response(has_exceeded_max_diffs))
-            .json()
-            .expect("check workflow JSON rendering cannot fail");
+        let json = CheckWorkflowOutput(&max_diffs_response(
+            has_exceeded_max_diffs,
+            ProposalsCheckSeverityLevel::ERROR,
+        ))
+        .json()
+        .expect("check workflow JSON rendering cannot fail");
         insta::assert_json_snapshot!(format!("max_diffs_response_json_{name}"), json);
+    }
+
+    #[rstest]
+    #[case::exceeded_error("exceeded_error", Some(true), ProposalsCheckSeverityLevel::ERROR)]
+    #[case::exceeded_warn("exceeded_warn", Some(true), ProposalsCheckSeverityLevel::WARN)]
+    #[case::not_exceeded("not_exceeded", Some(false), ProposalsCheckSeverityLevel::ERROR)]
+    #[case::not_reported("not_reported", None, ProposalsCheckSeverityLevel::ERROR)]
+    fn max_diffs_response_text_snapshot(
+        #[case] name: &str,
+        #[case] has_exceeded_max_diffs: Option<bool>,
+        #[case] severity_level: ProposalsCheckSeverityLevel,
+    ) {
+        let text = strip_ansi_codes(
+            &CheckWorkflowOutput(&max_diffs_response(has_exceeded_max_diffs, severity_level))
+                .text(),
+        )
+        .to_string();
+        insta::assert_snapshot!(format!("max_diffs_response_text_{name}"), text);
+    }
+
+    #[rstest]
+    #[case::exceeded_error(Some(true), ProposalsCheckSeverityLevel::ERROR, format!(
+        "{EXCEEDED_MAX_DIFFS_MSG}\nView check details at: https://example.com/check"
+    ))]
+    #[case::exceeded_warn(Some(true), ProposalsCheckSeverityLevel::WARN, format!(
+        "{EXCEEDED_MAX_DIFFS_MSG}\nView check details at: https://example.com/check"
+    ))]
+    #[case::exceeded_off(Some(true), ProposalsCheckSeverityLevel::OFF, format!(
+        "{EXCEEDED_MAX_DIFFS_MSG}\nView check details at: https://example.com/check"
+    ))]
+    #[case::not_exceeded(
+        Some(false),
+        ProposalsCheckSeverityLevel::WARN,
+        "No proposals are associated with these changes. Your proposals check severity level is set to WARN, so changes that aren't in an approved proposal are reported as warnings and don't fail the check.\n\
+         View check details at: https://example.com/check".to_string()
+    )]
+    #[case::not_reported(
+        None,
+        ProposalsCheckSeverityLevel::WARN,
+        "No proposals are associated with these changes. Your proposals check severity level is set to WARN, so changes that aren't in an approved proposal are reported as warnings and don't fail the check.\n\
+         View check details at: https://example.com/check".to_string()
+    )]
+    fn proposals_text_reports_exceeded_max_diffs(
+        #[case] has_exceeded_max_diffs: Option<bool>,
+        #[case] severity_level: ProposalsCheckSeverityLevel,
+        #[case] expected: String,
+    ) {
+        let response = ProposalsCheckResponse {
+            has_exceeded_max_diffs,
+            ..proposals_response(
+                CheckTaskStatus::FAILED,
+                severity_level,
+                ProposalsCoverage::NONE,
+                vec![],
+            )
+        };
+        let fallback_url = CheckDetailsUrl::Check("https://example.com/check");
+        assert_that!(&strip_ansi_codes(&proposals_text(&response, &fallback_url)).to_string())
+            .is_equal_to(expected);
+    }
+
+    #[rstest]
+    #[case::blocked(
+        CheckTaskStatus::BLOCKED,
+        ProposalsCoverage::PENDING,
+        "The proposals check did not run because an earlier task in this check failed.\n\
+         View check details at: https://example.com/check"
+    )]
+    #[case::pending(
+        CheckTaskStatus::PENDING,
+        ProposalsCoverage::PENDING,
+        "Proposal check has not completed.\n\
+         View check details at: https://example.com/check"
+    )]
+    fn proposals_text_reports_exceeded_max_diffs_only_for_a_failed_task(
+        #[case] task_status: CheckTaskStatus,
+        #[case] proposal_coverage: ProposalsCoverage,
+        #[case] expected: &str,
+    ) {
+        let response = ProposalsCheckResponse {
+            has_exceeded_max_diffs: Some(true),
+            ..proposals_response(
+                task_status,
+                ProposalsCheckSeverityLevel::ERROR,
+                proposal_coverage,
+                vec![],
+            )
+        };
+        let fallback_url = CheckDetailsUrl::Check("https://example.com/check");
+        assert_that!(&strip_ansi_codes(&proposals_text(&response, &fallback_url)).to_string())
+            .is_equal_to(expected.to_string());
     }
 
     #[test]
