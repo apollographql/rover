@@ -117,42 +117,52 @@ where
 mod tests {
     use std::{
         collections::HashSet,
-        convert::Infallible,
         sync::{Arc, Mutex},
+        task::Poll,
     };
 
-    use http::{HeaderMap, HeaderValue, Request};
+    use futures::future;
+    use http::{HeaderMap, HeaderValue};
+    use rover_tower::test::MockCloneService;
     use rstest::{fixture, rstest};
     use speculoos::prelude::*;
-    use tower::{service_fn, Service, ServiceBuilder, ServiceExt};
+    use tower::{ServiceBuilder, ServiceExt};
 
-    use super::{new_trace_id, process_trace_id, stamp, TraceId, TraceparentLayer};
+    use super::{
+        new_trace_id, process_trace_id, stamp, TraceId, TraceparentLayer, TraceparentService,
+    };
+    use crate::{test::MockHttpService, Full, HttpRequest, HttpResponse};
 
-    /// The headers a service saw, in order
+    /// The headers the inner service saw, in order
     type Seen = Arc<Mutex<Vec<HeaderMap>>>;
 
-    /// A service stacked under [`TraceparentLayer`] that records each request's headers
-    fn traced(trace_id: TraceId) -> (impl Service<Request<()>, Error = Infallible> + Clone, Seen) {
+    type Traced = TraceparentService<MockCloneService<MockHttpService>>;
+
+    /// A [`TraceparentLayer`] over a mock service that records each request's headers
+    fn traced(trace_id: TraceId) -> (Traced, Seen) {
         let seen = Seen::default();
         let recorder = Arc::clone(&seen);
+        let mut mock = MockHttpService::new();
+        mock.expect_poll_ready().returning(|_| Poll::Ready(Ok(())));
+        mock.expect_call().returning(move |req| {
+            recorder.lock().unwrap().push(req.headers().clone());
+            future::ready(Ok(HttpResponse::default()))
+        });
         let service = ServiceBuilder::new()
             .layer(TraceparentLayer::new(trace_id))
-            .service(service_fn(move |req: Request<()>| {
-                let recorder = Arc::clone(&recorder);
-                async move {
-                    recorder.lock().unwrap().push(req.headers().clone());
-                    Ok::<_, Infallible>(())
-                }
-            }));
+            .service(MockCloneService::new(mock));
         (service, seen)
     }
 
-    async fn send(service: &(impl Service<Request<()>, Error = Infallible> + Clone)) {
-        let request = Request::builder()
+    fn request() -> HttpRequest {
+        http::Request::builder()
             .uri("http://example.com")
-            .body(())
-            .unwrap();
-        service.clone().oneshot(request).await.unwrap();
+            .body(Full::default())
+            .unwrap()
+    }
+
+    async fn send(service: &Traced) {
+        service.clone().oneshot(request()).await.unwrap();
     }
 
     /// The only `traceparent` a request carried
@@ -233,12 +243,13 @@ mod tests {
     async fn a_traceparent_and_tracestate_the_request_already_had_are_replaced(trace_id: TraceId) {
         let (service, seen) = traced(trace_id);
         let stale = "00-00000000000000000000000000000001-0000000000000002-00";
-        let request = Request::builder()
-            .uri("http://example.com")
-            .header("traceparent", stale)
-            .header("tracestate", "other=vendor")
-            .body(())
-            .unwrap();
+        let mut request = request();
+        request
+            .headers_mut()
+            .insert("traceparent", HeaderValue::from_static(stale));
+        request
+            .headers_mut()
+            .insert("tracestate", HeaderValue::from_static("other=vendor"));
         service.oneshot(request).await.unwrap();
 
         let seen = seen.lock().unwrap();
