@@ -11,7 +11,11 @@ use derive_getters::Getters;
 use houston as config;
 use reqwest::Client;
 use rover_client::blocking::StudioClient;
-use rover_http::{HttpService, ReqwestService, retry::retry_with_attempt_timeout};
+use rover_http::{
+    HttpService, ReqwestService,
+    retry::retry_with_attempt_timeout,
+    trace::{TraceId, TraceparentLayer},
+};
 use rover_studio::service::{HttpStudioServiceLayer, rejected_credential::RejectedCredentialLayer};
 use serde::Serialize;
 use tower::{ServiceBuilder, ServiceExt};
@@ -432,6 +436,7 @@ impl StudioClientConfig {
                 self.is_sudo,
             )?)
             .layer(RejectedCredentialLayer::new(credential))
+            .layer(TraceparentLayer::new(TraceId::for_process()))
             .service(ReqwestService::builder().client(client).build()?)
             .boxed_clone();
         Ok(service)
@@ -455,6 +460,8 @@ impl StudioClientConfig {
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
+
+    use rover_http::trace::TraceId;
 
     use super::ClientBuilder;
 
@@ -498,6 +505,80 @@ mod tests {
         http::Request::head(uri)
             .body(rover_http::Full::default())
             .unwrap()
+    }
+
+    /// A Platform API request sent without a `StudioClient` carries the process's trace ID.
+    #[tokio::test]
+    async fn the_authenticated_service_sends_the_process_trace_id() {
+        use tower::ServiceExt;
+
+        let server = httpmock::MockServer::start();
+        let carrying_trace = server.mock(|when, then| {
+            when.method(httpmock::Method::HEAD)
+                .path("/graphql")
+                .header_matches(
+                    "traceparent",
+                    format!("^00-{}-[0-9a-f]{{16}}-01$", TraceId::for_process()),
+                );
+            then.status(200);
+        });
+        let config = super::StudioClientConfig::new(
+            Some(server.url("/graphql")),
+            houston::Config {
+                home: camino::Utf8PathBuf::from("/tmp/rover-client-test"),
+                override_api_key: Some("user:gh.someone:a-key".to_string()),
+                override_client_credentials_token: None,
+            },
+            false,
+            ClientBuilder::default(),
+            super::ClientTimeout::default(),
+        );
+        let profile = crate::options::ProfileOpt {
+            profile_name: "default".to_string(),
+            selection: crate::options::ProfileSelection::Default,
+        };
+
+        config
+            .authenticated_service(&profile)
+            .unwrap()
+            .oneshot(head(server.url("/graphql")))
+            .await
+            .unwrap();
+
+        carrying_trace.assert_calls(1);
+    }
+
+    /// The plugin registry and the downloads it points to aren't the Platform API.
+    #[tokio::test]
+    async fn plugin_registry_and_download_requests_carry_no_traceparent() {
+        use tower::ServiceExt;
+
+        let server = httpmock::MockServer::start();
+        let carrying_trace = server.mock(|when, then| {
+            when.header_exists("traceparent");
+            then.status(200);
+        });
+        let anything = server.mock(|when, then| {
+            when.path("/plugin");
+            then.status(200);
+        });
+        let config = test_client_config();
+
+        config
+            .plugin_version_service()
+            .unwrap()
+            .oneshot(head(server.url("/plugin")))
+            .await
+            .unwrap();
+        config
+            .download_service()
+            .unwrap()
+            .oneshot(head(server.url("/plugin")))
+            .await
+            .unwrap();
+
+        anything.assert_calls(2);
+        carrying_trace.assert_calls(0);
     }
 
     #[test]

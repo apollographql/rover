@@ -6,7 +6,7 @@ use reqwest::{
     header::{HeaderMap, HeaderValue},
     Client as ReqwestClient, Response, StatusCode,
 };
-use rover_http::retry::is_retryable_status;
+use rover_http::{retry::is_retryable_status, trace::TraceId};
 
 use crate::error::{EndpointKind, RoverClientError};
 
@@ -24,6 +24,7 @@ pub struct GraphQLClient {
     graphql_endpoint: String,
     client: ReqwestClient,
     retry_period: Duration,
+    trace_id: Option<TraceId>,
 }
 
 impl GraphQLClient {
@@ -38,7 +39,17 @@ impl GraphQLClient {
             graphql_endpoint: graphql_endpoint.to_string(),
             client,
             retry_period,
+            trace_id: None,
         }
+    }
+
+    /// Sends a `traceparent` header with `trace_id` on every attempt of every request.
+    ///
+    /// Only Platform API clients should do this: a client for any other endpoint, like a
+    /// customer's own subgraph being introspected, must not carry trace headers.
+    pub const fn with_trace_id(mut self, trace_id: TraceId) -> GraphQLClient {
+        self.trace_id = Some(trace_id);
+        self
     }
 
     /// Client method for making a GraphQL request.
@@ -106,10 +117,21 @@ impl GraphQLClient {
         tracing::trace!(request_headers = ?header_map);
         tracing::debug!("Request Body: {}", request_body);
         let graphql_operation = || async {
+            // Built inside the operation so that each attempt, including each retry, gets a
+            // new parent ID.
+            let mut headers = header_map.clone();
+            if let Some(trace_id) = &self.trace_id {
+                match trace_id.traceparent() {
+                    Ok(traceparent) => {
+                        headers.insert("traceparent", traceparent);
+                    }
+                    Err(err) => tracing::debug!(%err, "could not attach a traceparent header"),
+                }
+            }
             let response = self
                 .client
                 .post(&self.graphql_endpoint)
-                .headers(header_map.clone())
+                .headers(headers)
                 .body(request_body.clone())
                 .send()
                 .await;

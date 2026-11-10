@@ -10,6 +10,7 @@ use rover_graphql::{GraphQLLayer, GraphQLService};
 use rover_http::{
     retry::{retry_with_attempt_timeout, RetryPolicy},
     timeout::TimeoutLayer,
+    trace::{TraceId, TraceparentLayer},
     HttpService, ReqwestService,
 };
 use rover_studio::service::{
@@ -50,6 +51,7 @@ pub struct StudioClient {
     version: String,
     is_sudo: bool,
     retry_period: Duration,
+    trace_id: TraceId,
 }
 
 impl StudioClient {
@@ -63,15 +65,28 @@ impl StudioClient {
         client: ReqwestClient,
         retry_period: Duration,
     ) -> StudioClient {
+        let trace_id = TraceId::for_process();
         StudioClient {
             credential,
             graphql_endpoint: graphql_endpoint.to_string(),
             reqwest_client: client.clone(),
-            client: GraphQLClient::new(graphql_endpoint, client, retry_period),
+            client: GraphQLClient::new(graphql_endpoint, client, retry_period)
+                .with_trace_id(trace_id),
             version: version.to_string(),
             is_sudo,
             retry_period,
+            trace_id,
         }
+    }
+
+    /// Sends `trace_id` on this client's requests instead of the process's own trace ID.
+    ///
+    /// Every request this client makes carries a `traceparent` with a trace ID, which is the
+    /// process's unless this says otherwise.
+    pub fn with_trace_id(mut self, trace_id: TraceId) -> StudioClient {
+        self.client = self.client.with_trace_id(trace_id);
+        self.trace_id = trace_id;
+        self
     }
 
     /// Client method for making a GraphQL request to Apollo Studio.
@@ -204,6 +219,8 @@ impl StudioClient {
                     .into_inner(),
             ))
             .layer(RetryLayer::new(RetryPolicy::new(self.retry_period)))
+            // Inside the retry, so each attempt gets its own parent ID.
+            .layer(TraceparentLayer::new(self.trace_id))
             .service(
                 ReqwestService::builder()
                     .client(self.reqwest_client.clone())
@@ -252,6 +269,8 @@ impl StudioClient {
                 self.retry_period,
                 attempt_timeout,
             ))
+            // Inside the retry, so each attempt gets its own parent ID.
+            .layer(TraceparentLayer::new(self.trace_id))
             .service(
                 ReqwestService::builder()
                     .client(self.reqwest_client.clone())
@@ -295,6 +314,7 @@ impl StudioClient {
             // No retry layer is present, so unlike `studio_graphql_service`, there's no ordering
             // question here - `timeout` simply bounds the network call underneath.
             .layer(TimeoutLayer::new(timeout))
+            .layer(TraceparentLayer::new(self.trace_id))
             .service(
                 ReqwestService::builder()
                     .client(self.reqwest_client.clone())
@@ -331,6 +351,7 @@ mod tests {
     use tower::{Service, ServiceExt};
 
     use super::*;
+    use crate::blocking::trace_recorder::TraceRecorder;
 
     #[fixture]
     fn credential() -> Credential {
@@ -598,5 +619,185 @@ mod tests {
 
         assert_that!(upstream_http_error(&err).and_then(permission_denied)).is_some();
         assert_that!(mock.calls()).is_equal_to(1);
+    }
+
+    fn client_for(recorder: &TraceRecorder) -> StudioClient {
+        StudioClient::new(
+            Credential {
+                api_key: "an-api-key".to_string(),
+                origin: CredentialOrigin::EnvVar,
+                expires_at: None,
+            },
+            &recorder.url(),
+            "test-version",
+            false,
+            ReqwestClient::new(),
+            // Long enough that the retries these tests wait for are never cut short
+            Duration::from_secs(10),
+        )
+    }
+
+    /// Checks that `traceparents` holds one valid `traceparent` per expected attempt, all with
+    /// `trace_id`, and no two with the same parent ID.
+    fn assert_one_trace(traceparents: &[Option<String>], trace_id: TraceId, attempts: usize) {
+        assert_that!(traceparents.len()).is_equal_to(attempts);
+        let mut parent_ids = Vec::new();
+        for traceparent in traceparents {
+            let traceparent = traceparent.as_deref().expect("a traceparent header");
+            let fields: Vec<String> = traceparent.split('-').map(str::to_string).collect();
+            assert_that!(fields.len()).is_equal_to(4);
+            assert_that!(fields[0].clone()).is_equal_to("00".to_string());
+            assert_that!(fields[1].clone()).is_equal_to(trace_id.to_string());
+            assert_that!(fields[2].len()).is_equal_to(16);
+            assert_that!(fields[3].clone()).is_equal_to("01".to_string());
+            parent_ids.push(fields[2].clone());
+        }
+        parent_ids.sort();
+        parent_ids.dedup();
+        assert_that!(parent_ids.len()).is_equal_to(attempts);
+    }
+
+    async fn call_service(service: &mut GraphQLService<HttpService>) {
+        ServiceExt::<GraphQLRequest<TestQuery>>::ready(service)
+            .await
+            .unwrap()
+            .call(GraphQLRequest::<TestQuery>::new(TestQueryVariables {}))
+            .await
+            .expect("the request should have succeeded");
+    }
+
+    #[tokio::test]
+    async fn a_request_through_the_blocking_client_carries_the_trace_id() {
+        let recorder = TraceRecorder::start(vec![200]).await;
+        let trace_id = TraceId::generate();
+
+        client_for(&recorder)
+            .with_trace_id(trace_id)
+            .post::<TestQuery>(TestQueryVariables {})
+            .await
+            .unwrap();
+
+        assert_one_trace(&recorder.traceparents(), trace_id, 1);
+    }
+
+    #[tokio::test]
+    async fn a_request_with_no_retry_through_the_blocking_client_carries_the_trace_id() {
+        let recorder = TraceRecorder::start(vec![200]).await;
+        let trace_id = TraceId::generate();
+
+        client_for(&recorder)
+            .with_trace_id(trace_id)
+            .post_no_retry::<TestQuery>(TestQueryVariables {})
+            .await
+            .unwrap();
+
+        assert_one_trace(&recorder.traceparents(), trace_id, 1);
+    }
+
+    #[tokio::test]
+    async fn each_retry_through_the_blocking_client_has_its_own_parent_id() {
+        let recorder = TraceRecorder::start(vec![500, 200]).await;
+        let trace_id = TraceId::generate();
+
+        client_for(&recorder)
+            .with_trace_id(trace_id)
+            .post::<TestQuery>(TestQueryVariables {})
+            .await
+            .unwrap();
+
+        assert_one_trace(&recorder.traceparents(), trace_id, 2);
+    }
+
+    #[tokio::test]
+    async fn each_retry_through_the_service_has_its_own_parent_id() {
+        let recorder = TraceRecorder::start(vec![500, 200]).await;
+        let trace_id = TraceId::generate();
+        let client = client_for(&recorder).with_trace_id(trace_id);
+
+        call_service(&mut client.studio_graphql_service().unwrap()).await;
+
+        assert_one_trace(&recorder.traceparents(), trace_id, 2);
+    }
+
+    #[tokio::test]
+    async fn each_retry_through_the_attempt_timeout_service_has_its_own_parent_id() {
+        let recorder = TraceRecorder::start(vec![500, 200]).await;
+        let trace_id = TraceId::generate();
+        let client = client_for(&recorder).with_trace_id(trace_id);
+
+        call_service(
+            &mut client
+                .studio_graphql_service_with_attempt_timeout(Duration::from_secs(5))
+                .unwrap(),
+        )
+        .await;
+
+        assert_one_trace(&recorder.traceparents(), trace_id, 2);
+    }
+
+    #[tokio::test]
+    async fn a_request_through_the_timeout_service_carries_the_trace_id() {
+        let recorder = TraceRecorder::start(vec![200]).await;
+        let trace_id = TraceId::generate();
+        let client = client_for(&recorder).with_trace_id(trace_id);
+
+        call_service(
+            &mut client
+                .studio_graphql_service_with_timeout(Duration::from_secs(5))
+                .unwrap(),
+        )
+        .await;
+
+        assert_one_trace(&recorder.traceparents(), trace_id, 1);
+    }
+
+    // Two clients in one process, as when a command builds a client more than once, still
+    // make one trace.
+    #[tokio::test]
+    async fn clients_share_the_process_trace_id_unless_given_another() {
+        let recorder = TraceRecorder::start(vec![200]).await;
+
+        client_for(&recorder)
+            .post::<TestQuery>(TestQueryVariables {})
+            .await
+            .unwrap();
+        client_for(&recorder)
+            .post::<TestQuery>(TestQueryVariables {})
+            .await
+            .unwrap();
+
+        assert_one_trace_per_request(&recorder.traceparents(), TraceId::for_process());
+    }
+
+    /// Like [`assert_one_trace`], for requests that are separate logical requests
+    fn assert_one_trace_per_request(traceparents: &[Option<String>], trace_id: TraceId) {
+        assert_that!(traceparents.len()).is_equal_to(2);
+        for traceparent in traceparents {
+            let traceparent = traceparent.as_deref().expect("a traceparent header");
+            assert_that!(traceparent.split('-').nth(1).unwrap().to_string())
+                .is_equal_to(trace_id.to_string());
+        }
+    }
+
+    // The blocking client also introspects endpoints that aren't the Platform API, such as a
+    // customer's own subgraph, and those must not carry trace headers.
+    #[tokio::test]
+    async fn a_client_that_is_not_for_the_platform_api_sends_no_traceparent() {
+        let recorder = TraceRecorder::start(vec![200]).await;
+
+        GraphQLClient::new(
+            &recorder.url(),
+            ReqwestClient::new(),
+            Duration::from_secs(1),
+        )
+        .post::<TestQuery>(
+            TestQueryVariables {},
+            &mut HeaderMap::new(),
+            EndpointKind::Customer,
+        )
+        .await
+        .unwrap();
+
+        assert_that!(recorder.traceparents()).is_equal_to(vec![None]);
     }
 }
