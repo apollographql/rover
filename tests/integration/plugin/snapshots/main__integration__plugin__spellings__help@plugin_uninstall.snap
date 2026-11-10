@@ -1,0 +1,17 @@
+---
+source: tests/integration/plugin/spellings.rs
+expression: own
+---
+Remove installed plugins from this project, or globally
+
+Usage: rover plugin uninstall [OPTIONS] <NAME[@=VERSION]>...
+
+Arguments:
+  <NAME[@=VERSION]>...
+          The plugins to remove, each as `<NAME>` to remove every installed version, or `<NAME>@=<VERSION>` to remove only that one, e.g. `supergraph` or `router@=2.1.0`
+
+Options:
+  -g, --global
+          Remove from the global install root, shared by every project, even inside a project that has its own
+  -m, --manifest-path <FILE>
+          Remove from the project whose manifest this is, rather than the one found by searching up from the working directory
