@@ -156,7 +156,7 @@ fn get_check_response_from_data(
 
     for task in check_workflow.tasks {
         task_summaries.push(CheckTaskSummary {
-            kind: task_kind(&task.on),
+            kind: CheckTaskKind::from(&task.on),
             status: Some(task.status.clone()).into(),
             target_url: task.target_url.clone(),
         });
@@ -290,15 +290,17 @@ fn get_check_response_from_data(
     }
 }
 
-const fn task_kind(task: &SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOn) -> CheckTaskKind {
-    match task {
-        CompositionCheckTask(_) => CheckTaskKind::Build,
-        FilterCheckTask => CheckTaskKind::ContractFilter,
-        OperationsCheckTask(_) => CheckTaskKind::Operations,
-        LintCheckTask(_) => CheckTaskKind::Lint,
-        ProposalsCheckTask(_) => CheckTaskKind::Proposals,
-        CustomCheckTask(_) => CheckTaskKind::Custom,
-        DownstreamCheckTask(_) => CheckTaskKind::Downstream,
+impl From<&SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOn> for CheckTaskKind {
+    fn from(task: &SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOn) -> Self {
+        match task {
+            CompositionCheckTask(_) => CheckTaskKind::Build,
+            FilterCheckTask => CheckTaskKind::ContractFilter,
+            OperationsCheckTask(_) => CheckTaskKind::Operations,
+            LintCheckTask(_) => CheckTaskKind::Lint,
+            ProposalsCheckTask(_) => CheckTaskKind::Proposals,
+            CustomCheckTask(_) => CheckTaskKind::Custom,
+            DownstreamCheckTask(_) => CheckTaskKind::Downstream,
+        }
     }
 }
 
