@@ -178,7 +178,9 @@ jobs:
           target: ${{ matrix.runner == 'ubuntu-latest' && 'x86_64-unknown-linux-musl' || '' }}
       - if: ${{ matrix.runner == 'ubuntu-latest' }}
         name: Install musl-tools for cross-compiling
-        run: sudo apt-get install --yes --no-install-recommends musl-tools
+        run: |
+          sudo apt-get update -o Acquire::Retries=3
+          sudo apt-get install --yes --no-install-recommends -o Acquire::Retries=3 musl-tools
       - run: mise run test ${{ matrix.runner == 'ubuntu-latest' && ' --target x86_64-unknown-linux-musl' || '' }}
       - uses: ./.github/actions/upload-artifact-with-retry
         with:
