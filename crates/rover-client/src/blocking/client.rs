@@ -1,4 +1,7 @@
-use std::time::{Duration, Instant};
+use std::{
+    sync::atomic::{AtomicU32, Ordering},
+    time::{Duration, Instant},
+};
 
 use backon::Retryable;
 use graphql_client::{Error as GraphQLError, GraphQLQuery, Response as GraphQLResponse};
@@ -119,12 +122,14 @@ impl GraphQLClient {
 
         tracing::trace!(request_headers = ?header_map);
         tracing::debug!("Request Body: {}", request_body);
+        let attempts = AtomicU32::new(0);
         let graphql_operation = || async {
             // Built inside the operation so that each attempt, including each retry, gets a
-            // new parent ID.
+            // new parent ID and says how many attempts came before it.
+            let retries = attempts.fetch_add(1, Ordering::Relaxed);
             let mut headers = header_map.clone();
             if let Some(trace_id) = self.trace_id {
-                stamp(trace_id, &mut headers);
+                stamp(trace_id, retries, &mut headers);
             }
             let response = self
                 .client

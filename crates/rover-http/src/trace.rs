@@ -1,4 +1,4 @@
-//! Adds a W3C Trace Context `traceparent` header to HTTP requests
+//! Adds W3C Trace Context `traceparent` and `tracestate` headers to HTTP requests
 //!
 //! Trace IDs, span IDs and the header's wire format come from OpenTelemetry, which is the source
 //! of truth for them. What is Rover's own is when they are made: one trace ID for the whole
@@ -9,7 +9,7 @@
 
 use std::{sync::OnceLock, task::Context};
 
-use http::{HeaderMap, HeaderName};
+use http::HeaderMap;
 pub use opentelemetry::trace::{SpanContext, SpanId, TraceId};
 use opentelemetry::{
     propagation::TextMapPropagator,
@@ -23,7 +23,7 @@ use opentelemetry_sdk::{
 };
 use tower::{Layer, Service};
 
-const TRACESTATE: HeaderName = HeaderName::from_static("tracestate");
+use crate::retry::RetryCount;
 
 /// Generates a random trace ID.
 ///
@@ -42,32 +42,34 @@ pub fn process_trace_id() -> TraceId {
     *PROCESS.get_or_init(new_trace_id)
 }
 
-/// Sets `traceparent` in `headers` for one more request in the trace `trace_id`.
+/// Sets `traceparent` and `tracestate` in `headers` for one more request in the trace `trace_id`.
 ///
-/// The header carries `trace_id`, a new random span ID as its parent ID, and the sampled flag.
-/// Call it once per attempt of a request, and use the returned [`SpanContext`] to say which IDs
-/// that attempt sent.
+/// `traceparent` carries `trace_id`, a new random span ID as its parent ID, and the sampled flag.
+/// `tracestate` carries one entry, `rover=retries:<retries>`, where `retries` is how many earlier
+/// attempts of the same request there were: 0 for the first attempt. Call it once per attempt of a
+/// request, and use the returned [`SpanContext`] to say which IDs that attempt sent.
 ///
-/// A `traceparent` the headers already had is replaced. So is a `tracestate`, which belongs to a
-/// different trace, and none is sent in its place: W3C says to avoid sending an empty one.
-pub fn stamp(trace_id: TraceId, headers: &mut HeaderMap) -> SpanContext {
+/// A `traceparent` or `tracestate` the headers already had is replaced.
+pub fn stamp(trace_id: TraceId, retries: u32, headers: &mut HeaderMap) -> SpanContext {
+    let trace_state =
+        TraceState::from_key_value([("rover", format!("retries:{retries}"))]).unwrap_or_default();
     let span_context = SpanContext::new(
         trace_id,
         RandomIdGenerator::default().new_span_id(),
         TraceFlags::SAMPLED,
         true,
-        TraceState::default(),
+        trace_state,
     );
     let context = OtelContext::new().with_remote_span_context(span_context.clone());
     // The propagator writes only a valid span context. An all-zero ID, which the generator makes
     // with negligible probability, would send the request without the header, not with an
     // invalid one.
     TraceContextPropagator::new().inject_context(&context, &mut HeaderInjector(headers));
-    headers.remove(TRACESTATE);
     span_context
 }
 
-/// Layer that applies [`TraceparentService`], which adds a `traceparent` header to HTTP requests
+/// Layer that applies [`TraceparentService`], which adds `traceparent` and `tracestate` headers to
+/// HTTP requests
 #[derive(Clone, Copy, Debug)]
 pub struct TraceparentLayer {
     trace_id: TraceId,
@@ -91,7 +93,8 @@ impl<S> Layer<S> for TraceparentLayer {
     }
 }
 
-/// Middleware that adds a `traceparent` header to every HTTP request it sends, as [`stamp`] does
+/// Middleware that adds trace headers to every HTTP request it sends, as [`stamp`] does, with the
+/// retry count [`RetryPolicy`](crate::retry::RetryPolicy) left on the request
 #[derive(Clone, Debug)]
 pub struct TraceparentService<S> {
     trace_id: TraceId,
@@ -111,7 +114,8 @@ where
     }
 
     fn call(&mut self, mut req: http::Request<B>) -> Self::Future {
-        stamp(self.trace_id, req.headers_mut());
+        let RetryCount(retries) = RetryCount::of(&req);
+        stamp(self.trace_id, retries, req.headers_mut());
         self.inner.call(req)
     }
 }
@@ -122,19 +126,27 @@ mod tests {
         collections::HashSet,
         sync::{Arc, Mutex},
         task::Poll,
+        time::Duration,
     };
 
     use futures::future;
-    use http::{HeaderMap, HeaderValue};
-    use rover_tower::test::MockCloneService;
+    use http::{HeaderMap, HeaderValue, StatusCode};
+    use rover_tower::{
+        poll_retry::{poll_until_complete, SimplePollOutcome},
+        test::MockCloneService,
+    };
     use rstest::{fixture, rstest};
     use speculoos::prelude::*;
-    use tower::{ServiceBuilder, ServiceExt};
+    use tower::{retry::RetryLayer, ServiceBuilder, ServiceExt};
 
     use super::{
         new_trace_id, process_trace_id, stamp, TraceId, TraceparentLayer, TraceparentService,
     };
-    use crate::{test::MockHttpService, Full, HttpRequest, HttpResponse};
+    use crate::{
+        retry::{RetryCount, RetryPolicy},
+        test::MockHttpService,
+        Full, HttpRequest, HttpResponse, HttpServiceError,
+    };
 
     /// The headers the inner service saw, in order
     type Seen = Arc<Mutex<Vec<HeaderMap>>>;
@@ -222,7 +234,8 @@ mod tests {
         assert_that!(traceparent.flags.as_str()).is_equal_to("01");
         assert_that!(traceparent.value.as_str())
             .is_equal_to(format!("00-{trace_id}-{}-01", traceparent.parent_id).as_str());
-        assert_that!(seen[0].get("tracestate")).is_none();
+        assert_that!(seen[0].get("tracestate"))
+            .is_equal_to(Some(&HeaderValue::from_static("rover=retries:0")));
     }
 
     #[rstest]
@@ -264,16 +277,177 @@ mod tests {
         let traceparent = Traceparent::of(&seen[0]);
         assert_that!(traceparent.value.as_str()).is_not_equal_to(stale);
         assert_that!(traceparent.trace_id).is_equal_to(trace_id.to_string());
-        assert_that!(seen[0].get("tracestate")).is_none();
+        assert_that!(seen[0].get_all("tracestate").iter().collect::<Vec<_>>())
+            .is_equal_to(vec![&HeaderValue::from_static("rover=retries:0")]);
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn the_retry_count_on_a_request_is_the_retries_it_says(
+        trace_id: TraceId,
+        mut request: HttpRequest,
+    ) {
+        let (service, seen) = traced(trace_id);
+        request.extensions_mut().insert(RetryCount(7));
+        service.oneshot(request).await.unwrap();
+
+        let seen = seen.lock().unwrap();
+        assert_that!(seen[0].get("tracestate").unwrap().to_str().unwrap())
+            .is_equal_to("rover=retries:7");
+    }
+
+    /// A service that answers each call with the next of `statuses`, recording the headers
+    fn flaky(statuses: Vec<StatusCode>) -> (MockCloneService<MockHttpService>, Seen) {
+        let seen = Seen::default();
+        let recorder = Arc::clone(&seen);
+        let statuses = Arc::new(Mutex::new(statuses.into_iter()));
+        let mut mock = MockHttpService::new();
+        mock.expect_poll_ready().returning(|_| Poll::Ready(Ok(())));
+        mock.expect_call().returning(move |req| {
+            recorder.lock().unwrap().push(req.headers().clone());
+            let status = statuses
+                .lock()
+                .unwrap()
+                .next()
+                .expect("an expected attempt");
+            let mut response = HttpResponse::default();
+            *response.status_mut() = status;
+            future::ready(Ok(response))
+        });
+        (MockCloneService::new(mock), seen)
+    }
+
+    fn tracestates(seen: &Seen) -> Vec<String> {
+        seen.lock()
+            .unwrap()
+            .iter()
+            .map(|headers| {
+                headers
+                    .get("tracestate")
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_string()
+            })
+            .collect()
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn each_retry_says_how_many_attempts_came_before_it(
+        trace_id: TraceId,
+        request: HttpRequest,
+    ) {
+        let (inner, seen) = flaky(vec![
+            StatusCode::INTERNAL_SERVER_ERROR,
+            StatusCode::SERVICE_UNAVAILABLE,
+            StatusCode::OK,
+        ]);
+        let service = ServiceBuilder::new()
+            .layer(RetryLayer::new(RetryPolicy::new(Duration::from_secs(30))))
+            .layer(TraceparentLayer::new(trace_id))
+            .service(inner);
+
+        let response = service.oneshot(request).await.unwrap();
+
+        assert_that!(response.status()).is_equal_to(StatusCode::OK);
+        assert_that!(tracestates(&seen)).is_equal_to(vec![
+            "rover=retries:0".to_string(),
+            "rover=retries:1".to_string(),
+            "rover=retries:2".to_string(),
+        ]);
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn the_next_request_starts_again_from_zero(trace_id: TraceId, request: HttpRequest) {
+        let (inner, seen) = flaky(vec![
+            StatusCode::INTERNAL_SERVER_ERROR,
+            StatusCode::OK,
+            StatusCode::OK,
+        ]);
+        let service = ServiceBuilder::new()
+            .layer(RetryLayer::new(RetryPolicy::new(Duration::from_secs(30))))
+            .layer(TraceparentLayer::new(trace_id))
+            .service(inner);
+
+        service.clone().oneshot(request.clone()).await.unwrap();
+        service.oneshot(request).await.unwrap();
+
+        assert_that!(tracestates(&seen)).is_equal_to(vec![
+            "rover=retries:0".to_string(),
+            "rover=retries:1".to_string(),
+            "rover=retries:0".to_string(),
+        ]);
+    }
+
+    // Asking again to see whether something has finished is a new request each time, not a
+    // retry, so it starts again from zero however many retries an earlier poll needed.
+    #[rstest]
+    #[tokio::test]
+    async fn each_poll_starts_again_from_zero(trace_id: TraceId, request: HttpRequest) {
+        let (inner, seen) = flaky(vec![
+            StatusCode::ACCEPTED,
+            StatusCode::INTERNAL_SERVER_ERROR,
+            StatusCode::ACCEPTED,
+            StatusCode::OK,
+        ]);
+        let platform_api = ServiceBuilder::new()
+            .map_response(|response: HttpResponse| {
+                if response.status() == StatusCode::OK {
+                    SimplePollOutcome::Complete
+                } else {
+                    SimplePollOutcome::Incomplete
+                }
+            })
+            .layer(RetryLayer::new(RetryPolicy::new(Duration::from_secs(30))))
+            .layer(TraceparentLayer::new(trace_id))
+            .service(inner);
+        let service = poll_until_complete(
+            platform_api,
+            Duration::from_millis(10),
+            Duration::from_secs(30),
+            || HttpServiceError::TimedOut,
+        );
+
+        service.oneshot(request).await.unwrap();
+
+        // The first poll is answered. The second is retried once, and is answered. The third
+        // is a new request.
+        assert_that!(tracestates(&seen)).is_equal_to(vec![
+            "rover=retries:0".to_string(),
+            "rover=retries:0".to_string(),
+            "rover=retries:1".to_string(),
+            "rover=retries:0".to_string(),
+        ]);
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn a_response_that_is_not_retried_is_sent_once_with_no_retries(
+        trace_id: TraceId,
+        request: HttpRequest,
+    ) {
+        let (inner, seen) = flaky(vec![StatusCode::NOT_FOUND]);
+        let service = ServiceBuilder::new()
+            .layer(RetryLayer::new(RetryPolicy::new(Duration::from_secs(30))))
+            .layer(TraceparentLayer::new(trace_id))
+            .service(inner);
+
+        service.oneshot(request).await.unwrap();
+
+        assert_that!(tracestates(&seen)).is_equal_to(vec!["rover=retries:0".to_string()]);
     }
 
     #[rstest]
     fn stamping_names_the_ids_it_sent(trace_id: TraceId) {
         let mut headers = HeaderMap::new();
 
-        let span_context = stamp(trace_id, &mut headers);
+        let span_context = stamp(trace_id, 2, &mut headers);
 
         assert_that!(span_context.trace_id()).is_equal_to(trace_id);
+        assert_that!(headers.get("tracestate").unwrap().to_str().unwrap())
+            .is_equal_to("rover=retries:2");
         assert_that!(headers.get("traceparent").unwrap().to_str().unwrap())
             .is_equal_to(format!("00-{trace_id}-{}-01", span_context.span_id()).as_str());
     }

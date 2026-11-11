@@ -637,9 +637,18 @@ mod tests {
     /// Nth request with the Nth status it was given, and the last status to every request after
     /// that. A `200` carries an empty GraphQL `data` object.
     fn recording_server(statuses: Vec<u16>) -> (MockServer, Sent) {
+        let (server, sent, _) = recording_server_with_tracestates(statuses);
+        (server, sent)
+    }
+
+    /// Like [`recording_server`], and records the `tracestate` of each request too, in the
+    /// same order
+    fn recording_server_with_tracestates(statuses: Vec<u16>) -> (MockServer, Sent, Sent) {
         let server = MockServer::start();
         let sent = Sent::default();
+        let tracestates = Sent::default();
         let recorder = Arc::clone(&sent);
+        let state_recorder = Arc::clone(&tracestates);
         server.mock(|when, then| {
             when.method(POST).path("/graphql");
             then.respond_with(move |req| {
@@ -647,6 +656,11 @@ mod tests {
                 sent.push(
                     req.headers()
                         .get("traceparent")
+                        .map(|value| value.to_str().unwrap().to_string()),
+                );
+                state_recorder.lock().unwrap().push(
+                    req.headers()
+                        .get("tracestate")
                         .map(|value| value.to_str().unwrap().to_string()),
                 );
                 let status = statuses[(sent.len() - 1).min(statuses.len() - 1)];
@@ -659,7 +673,15 @@ mod tests {
                     .into()
             });
         });
-        (server, sent)
+        (server, sent, tracestates)
+    }
+
+    /// The `tracestate` each of `count` attempts sent, if the retry count is right: 0, 1, 2...
+    fn assert_counted_from_zero(tracestates: &Sent, count: usize) {
+        let expected: Vec<Option<String>> = (0..count)
+            .map(|retries| Some(format!("rover=retries:{retries}")))
+            .collect();
+        assert_that!(sent(tracestates)).is_equal_to(expected);
     }
 
     fn sent(sent: &Sent) -> Vec<Option<String>> {
@@ -797,6 +819,62 @@ mod tests {
             .unwrap();
 
         assert_one_trace(sent(&traceparents), trace_id, 2);
+    }
+
+    #[tokio::test]
+    async fn each_retry_through_the_blocking_client_says_how_many_attempts_came_before() {
+        let (server, _, tracestates) = recording_server_with_tracestates(vec![500, 500, 200]);
+
+        client_for(&server)
+            .with_trace_id(new_trace_id())
+            .post::<TestQuery>(TestQueryVariables {})
+            .await
+            .unwrap();
+
+        assert_counted_from_zero(&tracestates, 3);
+    }
+
+    #[tokio::test]
+    async fn each_retry_through_the_service_says_how_many_attempts_came_before() {
+        let (server, _, tracestates) = recording_server_with_tracestates(vec![500, 500, 200]);
+
+        client_for(&server)
+            .with_trace_id(new_trace_id())
+            .studio_graphql_service()
+            .unwrap()
+            .oneshot(GraphQLRequest::<TestQuery>::new(TestQueryVariables {}))
+            .await
+            .unwrap();
+
+        assert_counted_from_zero(&tracestates, 3);
+    }
+
+    #[tokio::test]
+    async fn each_retry_through_the_attempt_timeout_service_says_how_many_attempts_came_before() {
+        let (server, _, tracestates) = recording_server_with_tracestates(vec![500, 500, 200]);
+
+        client_for(&server)
+            .with_trace_id(new_trace_id())
+            .studio_graphql_service_with_attempt_timeout(Duration::from_secs(5))
+            .unwrap()
+            .oneshot(GraphQLRequest::<TestQuery>::new(TestQueryVariables {}))
+            .await
+            .unwrap();
+
+        assert_counted_from_zero(&tracestates, 3);
+    }
+
+    #[tokio::test]
+    async fn a_request_with_no_retry_says_it_has_not_been_retried() {
+        let (server, _, tracestates) = recording_server_with_tracestates(vec![200]);
+
+        client_for(&server)
+            .with_trace_id(new_trace_id())
+            .post_no_retry::<TestQuery>(TestQueryVariables {})
+            .await
+            .unwrap();
+
+        assert_counted_from_zero(&tracestates, 1);
     }
 
     #[tokio::test]
