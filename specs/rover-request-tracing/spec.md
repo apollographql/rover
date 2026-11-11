@@ -33,7 +33,7 @@ Gateway behavior (parsing the headers, forwarding to observability backends, and
 - **FR5** (Goal 1): Rover must generate one random trace ID per invocation. Every Platform API request in that invocation, and every attempt of each, must carry the same trace ID, so a set of failures can be followed together.
 - **FR6** (Goal 1): Each attempt must carry a new random parent ID. Two attempts must not share a parent ID.
 - **FR7** (Goal 1): The sampled flag in the trace flags must be set on every attempt.
-- **FR8** (Goal 2): The trace ID and parent IDs must be generated from a cryptographically secure random source. They must not be computed from, or set equal to, the telemetry session identifier, the machine identifier, or any other identifier, hash, or stored value.
+- **FR8** (Goal 2): The trace ID and parent IDs must be randomly generated. They must not be computed from, or set equal to, the telemetry session identifier, the machine identifier, or any other identifier, hash, or stored value, and the generator must take no such identifier as input.
 
 ### 3.3 Retry count
 
@@ -95,7 +95,7 @@ Given a command run at the debug log level that makes a Platform API request, wh
 Given `APOLLO_TELEMETRY_DISABLED` set to any value or `--telemetry-disabled` passed, when a command makes a Platform API request, then it still carries both headers.
 
 **Randomness and independence**
-Given a large sample of invocations, when their trace IDs are compared with each other and with the telemetry session identifier and machine identifier, then none is equal. The generator draws from a cryptographically secure random source and takes no identifier as input.
+Given a large sample of invocations, when their trace IDs are compared with each other and with the telemetry session identifier and machine identifier, then none is equal. The IDs are randomly generated and the generator takes no identifier as input.
 
 **Anonymity**
 Given any Platform API request, when its headers are inspected, then `tracestate` contains only the `rover` entry, `traceparent` contains only the fields in FR4 through FR7, and there is no `baggage` header.

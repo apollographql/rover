@@ -187,6 +187,9 @@ nix = "0.31.3"
 notify = "8"
 oauth2 = { version = "5.0.0", default-features = false }
 opener = "0.9"
+opentelemetry = { version = "0.33", default-features = false, features = ["trace"] }
+opentelemetry-http = { version = "0.33", default-features = false }
+opentelemetry_sdk = { version = "0.33", default-features = false, features = ["trace"] }
 os_info = "3"
 os_type = "2"
 pathfinding = "4"
