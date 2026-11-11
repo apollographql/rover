@@ -130,7 +130,7 @@ impl GraphQLClient {
             let mut headers = header_map.clone();
             let span_context = self
                 .trace_id
-                .map(|trace_id| stamp(trace_id, retries, &mut headers));
+                .and_then(|trace_id| stamp(trace_id, retries, &mut headers));
             let response = self
                 .client
                 .post(&self.graphql_endpoint)
