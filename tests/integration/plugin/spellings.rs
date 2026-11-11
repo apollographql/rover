@@ -284,7 +284,7 @@ fn installing_what_is_already_installed_says_so(global_level: GlobalLevel, #[cas
     let bin_dir = global_level.bin_dir();
     std::fs::create_dir_all(&bin_dir).unwrap();
     let binary = bin_dir.join(format!("supergraph-v2.9.3{}", std::env::consts::EXE_SUFFIX));
-    std::fs::write(&binary, b"#!/bin/sh\nexit 0\n").unwrap();
+    std::fs::write(binary, b"#!/bin/sh\nexit 0\n").unwrap();
 
     let output = Command::cargo_bin("rover")
         .unwrap()
@@ -300,7 +300,6 @@ fn installing_what_is_already_installed_says_so(global_level: GlobalLevel, #[cas
     assert_that!(output.status.success())
         .named(&stderr)
         .is_true();
-    assert_that!(stderr.trim().to_string()).is_equal_to(format!(
-        "the 'supergraph' plugin v2.9.3 is already installed at {binary}"
-    ));
+    assert_that!(stderr.trim().to_string())
+        .is_equal_to("`supergraph` v2.9.3 is already installed globally.".to_string());
 }
