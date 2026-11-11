@@ -65,8 +65,18 @@ pub fn process_trace_id() -> TraceId {
 /// Tracing is there to help, so it never gets in the way of the request. If the headers can't be
 /// made, which is the case for an all-zero trace ID, none is sent, any the headers already had
 /// are removed so a stale one isn't sent in their place, the reason is logged at debug level, and
-/// this returns `None`.
+/// this returns `None`: no IDs were sent.
 pub fn stamp(trace_id: TraceId, retries: u32, headers: &mut HeaderMap) -> Option<SpanContext> {
+    // The propagator writes only a valid span context, and then writes a `tracestate` even if it
+    // is empty. So clear both first, so that nothing the request already had can survive, and
+    // don't send an empty one, which W3C says to avoid.
+    headers.remove(TRACEPARENT);
+    headers.remove(TRACESTATE);
+    // Checked before anything says this is the run's trace ID, which it isn't if it isn't valid.
+    if trace_id == TraceId::INVALID {
+        tracing::debug!("Not adding trace headers: the trace ID is not valid");
+        return None;
+    }
     // A run has one trace ID, so this logs it once, with the first request. Remembering which IDs
     // were logged, rather than whether any was, keeps that true for a caller that makes its own.
     static LOGGED: OnceLock<Mutex<HashSet<TraceId>>> = OnceLock::new();
@@ -87,20 +97,13 @@ pub fn stamp(trace_id: TraceId, retries: u32, headers: &mut HeaderMap) -> Option
         true,
         trace_state,
     );
-    // The propagator writes nothing for an invalid span context, and would leave a header the
-    // request already had in place.
+    // The propagator writes nothing for an invalid span context. The span ID is the other part
+    // that could make it one, if the generator ever made an all-zero ID.
     if !span_context.is_valid() {
-        headers.remove(TRACEPARENT);
-        headers.remove(TRACESTATE);
-        tracing::debug!("Not adding trace headers: the trace ID {trace_id} is not valid");
+        tracing::debug!("Not adding trace headers: could not make a valid span context");
         return None;
     }
     let context = OtelContext::new().with_remote_span_context(span_context.clone());
-    // The propagator writes only a valid span context, and then writes a `tracestate` even if it
-    // is empty. So clear both first, so that nothing the request already had can survive, and
-    // don't send an empty one, which W3C says to avoid.
-    headers.remove(TRACEPARENT);
-    headers.remove(TRACESTATE);
     TraceContextPropagator::new().inject_context(&context, &mut HeaderInjector(headers));
     if span_context.trace_state().header().is_empty() {
         headers.remove(TRACESTATE);
@@ -224,7 +227,8 @@ impl<S> Layer<S> for TraceparentLayer {
 }
 
 /// Middleware that adds trace headers to every HTTP request it sends, as [`stamp`] does, with the
-/// retry count [`RetryPolicy`](crate::retry::RetryPolicy) left on the request.
+/// retry count [`RetryPolicy`](crate::retry::RetryPolicy) left on the request. If the headers can't
+/// be made it sends the request without them: see [`stamp`].
 ///
 /// It also logs each failed attempt, at debug level, with the IDs it sent: see
 /// [`log_attempt_outcome`]. To do that it needs the inner service's future to be `Send + 'static`,
@@ -835,7 +839,7 @@ mod tests {
 
         service.oneshot(request).await.unwrap();
 
-        assert!(!logs_contain("request attempt failed"));
+        assert_that!(logs_contain("request attempt failed")).is_false();
     }
 
     #[rstest]
@@ -874,6 +878,9 @@ mod tests {
         let response = service.oneshot(request).await.unwrap();
 
         assert_that!(response.status()).is_equal_to(StatusCode::OK);
+        assert_that!(logs_contain("Not adding trace headers")).is_true();
+        // It was never the trace ID of any request, so it is not announced as one.
+        assert_that!(logs_contain("carry trace ID")).is_false();
         let seen = seen.lock().unwrap();
         assert_that!(seen.len()).is_equal_to(1);
         assert_that!(seen[0].get("traceparent")).is_none();
@@ -905,7 +912,7 @@ mod tests {
         let response = service.oneshot(request).await.unwrap();
 
         assert_that!(response.status()).is_equal_to(StatusCode::INTERNAL_SERVER_ERROR);
-        assert!(!logs_contain("request attempt failed"));
+        assert_that!(logs_contain("request attempt failed")).is_false();
     }
 
     #[rstest]
