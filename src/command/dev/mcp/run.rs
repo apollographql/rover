@@ -18,6 +18,7 @@ use crate::{
     utils::{
         client::StudioClientConfig,
         effect::{exec::ExecCommandConfig, install::InstallBinary},
+        lifecycle,
     },
 };
 
@@ -77,6 +78,7 @@ impl RunMcpServer<state::Run> {
             .and_router_url_path(router_url_path)
             .and_mcp_config_path(mcp_config_path)
             .env(env)
+            .children(lifecycle::Children::global())
             .build();
 
         let (mcp_server_logs, run_mcp_server_binary_subtask): (
