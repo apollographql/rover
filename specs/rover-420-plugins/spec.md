@@ -168,7 +168,10 @@ The duplication this implies is accepted. `rover plugin install` is not a prereq
   Required text:
   > Warning: `rover install --plugin` is deprecated. Use `rover plugin install supergraph@=2.9.3` instead.
 
-- **FR35**: `rover plugin install` must accept any number of `<name>@<version>` positional arguments, installing each in one invocation. With none, and a manifest or lockfile in scope, it must install every plugin declared there.
+- **FR35**: `rover plugin install` must accept any number of `<name>@<version>` positional arguments, installing each in one invocation. With none, and a manifest or lockfile in scope, it must install every plugin declared there. Naming the same plugin more than once must be rejected before anything is installed, since a level's lockfile records one release per plugin.
+
+  Required text:
+  > `router` is named more than once. Name each plugin once.
 - **FR36**: With a lockfile in scope, `rover plugin install` installs exactly the `resolved` versions it records and makes no resolution request to the registry, the way `npm ci` does. A locked version the registry no longer serves fails per FR61; Rover must not silently substitute a neighbouring version.
 - **FR37**: `rover plugin resolve` must re-resolve every floating alias in the in-scope manifest against the registry, install the results, and rewrite the lockfile at the target level. It is the only operation that rewrites a lockfile wholesale. Because it must reach the registry by definition, `rover plugin resolve --no-download` is a contradiction and must be rejected before any work begins.
 - **FR38**: A named `rover plugin install <name>@<version>` must record what it installed at the target level, as `npm install <pkg>` does: the plugin and its requested version are written to that level's `rover.yaml`, and the resolved exact version to its `plugin-versions.lock`. Both files are created if absent, along with the `.rover/` directory and its `.gitignore` (FR27). `--no-save` must suppress the manifest write while still updating the lockfile.
@@ -183,6 +186,17 @@ The duplication this implies is accepted. `rover plugin install` is not a prereq
 
 - **FR40**: `--force` must reinstall a plugin that is already present at the target level, replacing the binary on disk. It must not touch the other level.
 - **FR41**: A batch install must be resumable: each plugin's outcome is reported as it completes, and re-running after a partial failure must skip the plugins that already succeeded. A failure on one plugin must not abort the remaining ones; every plugin is attempted, and the command exits non-zero if any failed.
+
+  A batch is any install of more than one plugin, whether named on the command line or declared in scope. Each plugin's outcome is printed on stderr as it completes: a download as today, an exact version already present with the FR39 text, and a failure as the full error, with its code, cause, and suggestion. The run then ends with one summary line counting the plugins installed, already installed, and failed, leaving out any count of zero and naming each plugin that failed. When every plugin succeeded it is printed on stderr; when any failed it is the command's error, carrying the code of the first failure. An install of a single plugin prints no summary, and fails with that plugin's own error, as it does today. A plugin used from an existing install because the registry couldn't be reached counts as already installed.
+
+  Required text, for a batch that succeeded and one that did not:
+  > 3 plugins: 2 installed, 1 already installed.
+
+  > error[E049]: 3 plugins: 1 installed, 1 already installed, 1 failed (`router`).
+
+  In `--format json`, a batch with any failure is a failed command: `data.plugins` lists each plugin that installed or was already installed, exactly as FR57 describes for a successful install, and `data.failed` lists each failure as the same error object a single plugin's failure reports, `code`, `plugin`, and `requested_version` included (FR87), in the order the plugins were attempted. The top-level `error` is the first of them, so a script matching `error.code` sees a plugin failure's own code and no batch-specific one. A batch with no failure has no `data.failed`.
+
+  A project root that a named manifest is creating (FR25) is kept when at least one plugin in the batch installed into it, and is not created when every plugin failed.
 - **FR42**: `rover plugin list` must list every installed copy of every plugin with its exact version, install location, and level, in text and in JSON. Inside a project it lists both levels, the project's first; `--global` restricts it to the global level, and `--manifest-path` names the project, as for `install` (FR23–FR25). It never contacts the network.
 
   For each plugin, it must mark the one copy a plugin-using command would use without downloading: the request is the one FR29 takes from the declarations in scope, pinned by a lockfile per FR31, or the plugin's built-in default when nothing declares it, and the copy is the one FR26 finds for that request — the newest matching release at the first level that has one, the project before the global level. Under `--global`, only the global level's declarations and copies count. A plugin with no copy matching its request has none marked. A version flag, an environment variable, or `supergraph.yaml` outranks the declarations (FR29), so the listing must say that the marker does not account for them.
@@ -431,6 +445,9 @@ Given `supergraph` installed at no level, when `rover plugin uninstall supergrap
 
 **Batch install with one failure**
 Given three declared plugins where the second's artifact is unavailable, when `rover plugin install` runs, then all three are attempted, the first and third are installed, the second's failure is reported with its error code, the command exits non-zero, and re-running installs only the second.
+
+**Batch install reports each plugin and a summary**
+Given `supergraph` v2.9.3 already installed in the project, when `rover plugin install supergraph@=2.9.3 router@=2.1.0 apollo-mcp-server@=1.0.0` runs and the registry refuses the `router` artifact, then stderr shows, in order, the FR39 text for `supergraph`, the `router` error with code E049, and the `apollo-mcp-server` download, and the command ends with `error[E049]: 3 plugins: 1 installed, 1 already installed, 1 failed (`router`).` and exits non-zero. With `--format json`, `data.plugins` holds `supergraph` and `apollo-mcp-server`, `data.failed` holds the `router` error, and the top-level `error` is that same error. When the registry serves every artifact instead, the command ends with `3 plugins: 2 installed, 1 already installed.` on stderr and exits 0.
 
 **Fallback provenance**
 Given `supergraph` 2.9.2 installed and the registry unreachable, when `rover supergraph compose` runs without `--skip-update`, then composition succeeds using 2.9.2, both the existing staleness warning and `Using the supergraph plugin v2.9.2 (fallback: couldn't reach the plugin registry).` are printed, and `--format json` reports `"source": "fallback"`.
