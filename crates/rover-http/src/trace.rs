@@ -7,7 +7,14 @@
 //! give every attempt of a request its own parent ID and the same trace ID. [`stamp`] does it for
 //! a client that retries outside of one.
 
-use std::{sync::OnceLock, task::Context};
+use std::{
+    collections::HashSet,
+    fmt::Display,
+    future::Future,
+    pin::Pin,
+    sync::{Mutex, OnceLock},
+    task::Context,
+};
 
 use http::{HeaderMap, HeaderName};
 pub use opentelemetry::trace::{SpanContext, SpanId, TraceId};
@@ -55,6 +62,16 @@ pub fn process_trace_id() -> TraceId {
 /// A `traceparent` or `tracestate` the headers already had is replaced, and is never left in place
 /// beside, or instead of, the ones this makes.
 pub fn stamp(trace_id: TraceId, retries: u32, headers: &mut HeaderMap) -> SpanContext {
+    // A run has one trace ID, so this logs it once, with the first request. Remembering which IDs
+    // were logged, rather than whether any was, keeps that true for a caller that makes its own.
+    static LOGGED: OnceLock<Mutex<HashSet<TraceId>>> = OnceLock::new();
+    let first_with_this_id = LOGGED
+        .get_or_init(Mutex::default)
+        .lock()
+        .is_ok_and(|mut logged| logged.insert(trace_id));
+    if first_with_this_id {
+        tracing::debug!(%trace_id, "Platform API requests in this run carry trace ID {trace_id}");
+    }
     let trace_state =
         TraceState::from_key_value([("rover", format!("retries:{retries}"))]).unwrap_or_default();
     let span_context = SpanContext::new(
@@ -75,6 +92,19 @@ pub fn stamp(trace_id: TraceId, retries: u32, headers: &mut HeaderMap) -> SpanCo
         headers.remove(TRACESTATE);
     }
     span_context
+}
+
+/// Logs, at debug level, that the attempt `span_context` was stamped for failed.
+///
+/// The entry carries the trace ID, the attempt's parent ID and its retry count, which is what a
+/// person needs to give support so that attempt can be found.
+pub fn log_failed_attempt(span_context: &SpanContext, retries: u32, failure: impl Display) {
+    tracing::debug!(
+        trace_id = %span_context.trace_id(),
+        parent_id = %span_context.span_id(),
+        retries,
+        "Platform API request attempt failed: {failure}"
+    );
 }
 
 /// Layer that applies [`TraceparentService`], which adds `traceparent` and `tracestate` headers to
@@ -110,13 +140,15 @@ pub struct TraceparentService<S> {
     inner: S,
 }
 
-impl<S, B> Service<http::Request<B>> for TraceparentService<S>
+impl<S, B, RB> Service<http::Request<B>> for TraceparentService<S>
 where
-    S: Service<http::Request<B>>,
+    S: Service<http::Request<B>, Response = http::Response<RB>>,
+    S::Future: Send + 'static,
+    S::Error: Display,
 {
     type Response = S::Response;
     type Error = S::Error;
-    type Future = S::Future;
+    type Future = Pin<Box<dyn Future<Output = Result<S::Response, S::Error>> + Send>>;
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
         self.inner.poll_ready(cx)
@@ -124,9 +156,25 @@ where
 
     fn call(&mut self, mut req: http::Request<B>) -> Self::Future {
         let RetryCount(retries) = RetryCount::of(&req);
-        stamp(self.trace_id, retries, req.headers_mut());
-        self.inner.call(req)
+        let span_context = stamp(self.trace_id, retries, req.headers_mut());
+        let response = self.inner.call(req);
+        Box::pin(async move {
+            let result = response.await;
+            match &result {
+                Err(error) => log_failed_attempt(&span_context, retries, error),
+                Ok(response) if is_failure(response.status()) => {
+                    log_failed_attempt(&span_context, retries, response.status())
+                }
+                Ok(_) => {}
+            }
+            result
+        })
     }
+}
+
+/// Whether a response with this status is a failed attempt, worth logging for support
+pub fn is_failure(status: http::StatusCode) -> bool {
+    status.is_client_error() || status.is_server_error()
 }
 
 #[cfg(test)]
@@ -150,6 +198,7 @@ mod tests {
         retry::{Policy, RetryLayer},
         ServiceBuilder, ServiceExt,
     };
+    use tracing_test::traced_test;
 
     use super::{
         new_trace_id, process_trace_id, stamp, TraceId, TraceparentLayer, TraceparentService,
@@ -520,6 +569,85 @@ mod tests {
             "rover=retries:1".to_string(),
             "rover=retries:0".to_string(),
         ]);
+    }
+
+    #[traced_test]
+    #[rstest]
+    #[tokio::test]
+    async fn the_trace_id_is_logged_once_with_the_first_request(
+        trace_id: TraceId,
+        request: HttpRequest,
+    ) {
+        let (service, _) = traced(trace_id);
+        for _ in 0..3 {
+            service.clone().oneshot(request.clone()).await.unwrap();
+        }
+
+        logs_assert(|lines: &[&str]| {
+            let logged = lines
+                .iter()
+                .filter(|line| line.contains(&format!("carry trace ID {trace_id}")))
+                .count();
+            match logged {
+                1 => Ok(()),
+                other => Err(format!(
+                    "expected the trace ID once, found it {other} times"
+                )),
+            }
+        });
+    }
+
+    #[traced_test]
+    #[rstest]
+    #[tokio::test]
+    async fn a_failed_attempt_is_logged_with_its_ids_and_retry_count(
+        trace_id: TraceId,
+        request: HttpRequest,
+    ) {
+        let (inner, seen) = flaky(vec![StatusCode::INTERNAL_SERVER_ERROR, StatusCode::OK]);
+        let service = ServiceBuilder::new()
+            .layer(RetryLayer::new(RetryPolicy::new(Duration::from_secs(30))))
+            .layer(TraceparentLayer::new(trace_id))
+            .service(inner);
+
+        service.oneshot(request).await.unwrap();
+
+        let failed_parent_id = Traceparent::of(&seen.lock().unwrap()[0]).parent_id;
+        let succeeded_parent_id = Traceparent::of(&seen.lock().unwrap()[1]).parent_id;
+        logs_assert(|lines: &[&str]| {
+            let failures: Vec<_> = lines
+                .iter()
+                .filter(|line| line.contains("request attempt failed"))
+                .collect();
+            let [failure] = failures.as_slice() else {
+                return Err(format!("expected one failed attempt, found {failures:?}"));
+            };
+            for expected in [
+                format!("trace_id={trace_id}"),
+                format!("parent_id={failed_parent_id}"),
+                "retries=0".to_string(),
+                "500 Internal Server Error".to_string(),
+            ] {
+                if !failure.contains(&expected) {
+                    return Err(format!("{failure} lacks {expected}"));
+                }
+            }
+            if failure.contains(&succeeded_parent_id) {
+                return Err(format!("{failure} names the attempt that succeeded"));
+            }
+            Ok(())
+        });
+    }
+
+    #[traced_test]
+    #[rstest]
+    #[tokio::test]
+    async fn a_successful_attempt_is_not_logged_as_failed(trace_id: TraceId, request: HttpRequest) {
+        let (service, _) = traced(trace_id);
+
+        service.oneshot(request).await.unwrap();
+
+        assert!(!logs_contain("request attempt failed"));
     }
 
     #[rstest]

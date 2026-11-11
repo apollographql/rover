@@ -6008,6 +6008,7 @@ dependencies = [
  "tower 0.5.3",
  "tower-test",
  "tracing",
+ "tracing-subscriber",
  "tracing-test",
  "url",
 ]
@@ -6062,6 +6063,7 @@ dependencies = [
  "tokio",
  "tower 0.5.3",
  "tracing",
+ "tracing-test",
 ]
 
 [[package]]
