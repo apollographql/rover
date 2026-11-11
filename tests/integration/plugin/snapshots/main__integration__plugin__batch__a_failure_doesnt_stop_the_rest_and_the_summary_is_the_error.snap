@@ -1,0 +1,14 @@
+---
+source: tests/integration/plugin/batch.rs
+expression: run.stderr
+---
+`supergraph` v2.9.3 is already installed in this project.
+downloading the 'router' plugin from [registry]/tar/router/[target]/v2.1.0
+error[E049]: Couldn't download the `router` plugin v2.1.0.
+
+Caused by:
+    Bad Status code: 403 Forbidden
+        Re-run the command to retry downloading `router` v2.1.0. If the download keeps failing or timing out, check your connection to the plugin registry, or allow it longer by passing `--client-timeout` a value above the 300-second default for plugin downloads.
+downloading the 'apollo-mcp-server' plugin from [registry]/tar/apollo-mcp-server/[target]/v1.0.0
+the 'apollo-mcp-server' plugin was successfully installed to [project]/.rover/bin/apollo-mcp-server-v1.0.0
+error[E049]: 3 plugins: 1 installed, 1 already installed, 1 failed (`router`).
