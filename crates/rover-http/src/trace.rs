@@ -16,7 +16,7 @@ use std::{
     task::Context,
 };
 
-use http::{HeaderMap, HeaderName};
+use http::{HeaderMap, HeaderName, StatusCode};
 pub use opentelemetry::trace::{SpanContext, SpanId, TraceId};
 use opentelemetry::{
     propagation::TextMapPropagator,
@@ -107,6 +107,59 @@ pub fn log_failed_attempt(span_context: &SpanContext, retries: u32, failure: imp
     );
 }
 
+/// Logs the attempt `span_context` was stamped for, if `outcome` says it failed.
+///
+/// `outcome` is the status of the response, or the error that took its place. An error is
+/// logged with its causes, because the reason a connection failed is usually in one of them. A
+/// response fails the attempt if its status is a client or server error.
+///
+/// Both request paths report through this, so what counts as a failed attempt is the same on each.
+pub fn log_attempt_outcome(
+    span_context: &SpanContext,
+    retries: u32,
+    outcome: Result<StatusCode, &dyn std::error::Error>,
+) {
+    match outcome {
+        Err(error) => log_failed_attempt(span_context, retries, error_chain(error)),
+        Ok(status) if status.is_client_error() || status.is_server_error() => {
+            log_failed_attempt(span_context, retries, status)
+        }
+        Ok(_) => {}
+    }
+}
+
+/// `error` and each of its causes, from the outermost in
+fn error_chain(error: &dyn std::error::Error) -> String {
+    let mut message = error.to_string();
+    let mut cause = error.source();
+    while let Some(source) = cause {
+        message.push_str(": ");
+        message.push_str(&source.to_string());
+        cause = source.source();
+    }
+    message
+}
+
+/// Logs an attempt that was dropped before it had an outcome, unless it is disarmed first.
+///
+/// An outer layer, like a timeout, can drop the future of an attempt that is still waiting. That
+/// attempt's IDs were sent all the same, so this logs them as a failed attempt when it is dropped.
+struct AbandonedAttempt {
+    attempt: Option<(SpanContext, u32)>,
+}
+
+impl Drop for AbandonedAttempt {
+    fn drop(&mut self) {
+        if let Some((span_context, retries)) = &self.attempt {
+            log_failed_attempt(
+                span_context,
+                *retries,
+                "abandoned before a response, such as by a timeout",
+            );
+        }
+    }
+}
+
 /// Layer that applies [`TraceparentService`], which adds `traceparent` and `tracestate` headers to
 /// HTTP requests
 #[derive(Clone, Copy, Debug)]
@@ -133,7 +186,12 @@ impl<S> Layer<S> for TraceparentLayer {
 }
 
 /// Middleware that adds trace headers to every HTTP request it sends, as [`stamp`] does, with the
-/// retry count [`RetryPolicy`](crate::retry::RetryPolicy) left on the request
+/// retry count [`RetryPolicy`](crate::retry::RetryPolicy) left on the request.
+///
+/// It also logs each failed attempt, at debug level, with the IDs it sent: see
+/// [`log_attempt_outcome`]. To do that it needs the inner service's future to be `Send + 'static`,
+/// its response to be an [`http::Response`] and its error to be a [`std::error::Error`]. An attempt
+/// that an outer layer gives up on, such as a timeout, is logged as abandoned.
 #[derive(Clone, Debug)]
 pub struct TraceparentService<S> {
     trace_id: TraceId,
@@ -144,7 +202,7 @@ impl<S, B, RB> Service<http::Request<B>> for TraceparentService<S>
 where
     S: Service<http::Request<B>, Response = http::Response<RB>>,
     S::Future: Send + 'static,
-    S::Error: Display,
+    S::Error: std::error::Error + 'static,
 {
     type Response = S::Response;
     type Error = S::Error;
@@ -156,25 +214,27 @@ where
 
     fn call(&mut self, mut req: http::Request<B>) -> Self::Future {
         let RetryCount(retries) = RetryCount::of(&req);
-        let span_context = stamp(self.trace_id, retries, req.headers_mut());
+        let span_context = Some(stamp(self.trace_id, retries, req.headers_mut()));
         let response = self.inner.call(req);
         Box::pin(async move {
+            let mut abandoned = AbandonedAttempt {
+                attempt: span_context.map(|span_context| (span_context, retries)),
+            };
             let result = response.await;
-            match &result {
-                Err(error) => log_failed_attempt(&span_context, retries, error),
-                Ok(response) if is_failure(response.status()) => {
-                    log_failed_attempt(&span_context, retries, response.status())
-                }
-                Ok(_) => {}
+            // It has an outcome now, so it wasn't abandoned.
+            if let Some((span_context, _)) = abandoned.attempt.take() {
+                log_attempt_outcome(
+                    &span_context,
+                    retries,
+                    result
+                        .as_ref()
+                        .map(|response| response.status())
+                        .map_err(|error| error as &dyn std::error::Error),
+                );
             }
             result
         })
     }
-}
-
-/// Whether a response with this status is a failed attempt, worth logging for support
-pub fn is_failure(status: http::StatusCode) -> bool {
-    status.is_client_error() || status.is_server_error()
 }
 
 #[cfg(test)]
@@ -206,6 +266,7 @@ mod tests {
     use crate::{
         retry::{RetryCount, RetryPolicy},
         test::MockHttpService,
+        timeout::TimeoutLayer,
         Full, HttpRequest, HttpResponse, HttpServiceError,
     };
 
@@ -637,6 +698,64 @@ mod tests {
             }
             Ok(())
         });
+    }
+
+    // An outer timeout drops the future of an attempt it gives up on. The attempt's IDs were sent
+    // all the same, so they are what a person gives support to find it.
+    #[traced_test]
+    #[rstest]
+    #[tokio::test]
+    async fn an_attempt_cut_off_by_a_timeout_is_logged_with_its_ids(
+        trace_id: TraceId,
+        request: HttpRequest,
+    ) {
+        let hung = tower::service_fn(|_: HttpRequest| {
+            std::future::pending::<Result<HttpResponse, HttpServiceError>>()
+        });
+        let service = ServiceBuilder::new()
+            .layer(TimeoutLayer::new(Duration::from_millis(50)))
+            .layer(TraceparentLayer::new(trace_id))
+            .service(hung);
+
+        let error = service.oneshot(request).await.unwrap_err();
+
+        assert_that!(error.is_timeout()).is_true();
+        logs_assert(|lines: &[&str]| {
+            let failures: Vec<_> = lines
+                .iter()
+                .filter(|line| line.contains("request attempt failed"))
+                .collect();
+            let [failure] = failures.as_slice() else {
+                return Err(format!("expected one failed attempt, found {failures:?}"));
+            };
+            for expected in [
+                format!("trace_id={trace_id}"),
+                "parent_id=".to_string(),
+                "retries=0".to_string(),
+                "abandoned before a response".to_string(),
+            ] {
+                if !failure.contains(&expected) {
+                    return Err(format!("{failure} lacks {expected}"));
+                }
+            }
+            Ok(())
+        });
+    }
+
+    #[rstest]
+    fn an_error_is_logged_with_its_causes() {
+        #[derive(Debug, thiserror::Error)]
+        #[error("connecting failed")]
+        struct Outer(#[source] Inner);
+
+        #[derive(Debug, thiserror::Error)]
+        #[error("dns error")]
+        struct Inner(#[source] std::io::Error);
+
+        let error = Outer(Inner(std::io::Error::other("no such host")));
+
+        assert_that!(super::error_chain(&error))
+            .is_equal_to("connecting failed: dns error: no such host".to_string());
     }
 
     #[traced_test]

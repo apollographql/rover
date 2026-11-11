@@ -11,7 +11,7 @@ use reqwest::{
 };
 use rover_http::{
     retry::is_retryable_status,
-    trace::{is_failure, log_failed_attempt, stamp, TraceId},
+    trace::{log_attempt_outcome, stamp, TraceId},
 };
 
 use crate::error::{EndpointKind, RoverClientError};
@@ -140,13 +140,14 @@ impl GraphQLClient {
                 .await;
 
             if let Some(span_context) = &span_context {
-                match &response {
-                    Err(client_error) => log_failed_attempt(span_context, retries, client_error),
-                    Ok(success) if is_failure(success.status()) => {
-                        log_failed_attempt(span_context, retries, success.status())
-                    }
-                    Ok(_) => {}
-                }
+                log_attempt_outcome(
+                    span_context,
+                    retries,
+                    response
+                        .as_ref()
+                        .map(|response| response.status())
+                        .map_err(|error| error as &dyn std::error::Error),
+                );
             }
 
             match response {

@@ -2,7 +2,8 @@
 //!
 //! This is its own test binary because it installs the process's one log subscriber. A
 //! subscriber that a test installs just for itself can lose events when other tests in the same
-//! process are logging at the same time.
+//! process are logging at the same time. For the same reason, keep this to one test: installing
+//! a second global subscriber panics.
 
 use std::{
     io,
@@ -72,6 +73,7 @@ async fn a_failed_attempt_is_logged_with_its_ids_and_retry_count() {
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::DEBUG)
         .with_ansi(false)
+        .without_time()
         .with_writer(log.clone())
         .init();
 
@@ -128,12 +130,19 @@ async fn a_failed_attempt_is_logged_with_its_ids_and_retry_count() {
         .lines()
         .filter(|line| line.contains("request attempt failed"))
         .collect();
-    assert_that!(failures).has_length(1);
-    assert_that!(failures[0]).contains(format!("trace_id={}", process_trace_id()).as_str());
-    assert_that!(failures[0]).contains(format!("parent_id={failed}").as_str());
-    assert_that!(failures[0]).contains("retries=0");
-    assert_that!(failures[0]).contains("500 Internal Server Error");
-    assert_that!(failures[0].contains(&succeeded)).is_false();
+    assert_that!(failures).is_equal_to(vec![format!(
+        "DEBUG rover_http::trace: Platform API request attempt failed: 500 Internal Server Error \
+         trace_id={} parent_id={failed} retries=0",
+        process_trace_id()
+    )
+    .as_str()]);
+    // The mock server logs every request it gets, headers included, so look only at Rover's own
+    // lines for the attempt that succeeded.
+    assert_that!(log
+        .lines()
+        .filter(|line| line.contains("rover_http::trace") && line.contains(&succeeded))
+        .count())
+    .is_equal_to(0);
     assert_that!(log
         .lines()
         .filter(|line| line.contains("carry trace ID"))
