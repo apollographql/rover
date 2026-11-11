@@ -85,6 +85,11 @@ pub fn is_retryable_status(status: StatusCode) -> bool {
 /// [`RetryPolicy`] raises the count each time it retries, so the attempt about to be sent knows
 /// how many came before it. The count lives on the request, not in the policy, so each new
 /// request starts again from zero without anything resetting it.
+///
+/// It counts every attempt of the logical request, across all the [`RetryPolicy`]s that handle it.
+/// A service that retries inside another one that retries would count both, as one running total.
+/// A retry [`Policy`] of any other kind has to raise this count in its own `retry`, as
+/// [`RetryPolicy`] does, for the retry count sent with each attempt to be right.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct RetryCount(pub u32);
 

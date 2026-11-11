@@ -9,7 +9,7 @@
 
 use std::{sync::OnceLock, task::Context};
 
-use http::HeaderMap;
+use http::{HeaderMap, HeaderName};
 pub use opentelemetry::trace::{SpanContext, SpanId, TraceId};
 use opentelemetry::{
     propagation::TextMapPropagator,
@@ -24,6 +24,9 @@ use opentelemetry_sdk::{
 use tower::{Layer, Service};
 
 use crate::retry::RetryCount;
+
+const TRACEPARENT: HeaderName = HeaderName::from_static("traceparent");
+const TRACESTATE: HeaderName = HeaderName::from_static("tracestate");
 
 /// Generates a random trace ID.
 ///
@@ -49,7 +52,8 @@ pub fn process_trace_id() -> TraceId {
 /// attempts of the same request there were: 0 for the first attempt. Call it once per attempt of a
 /// request, and use the returned [`SpanContext`] to say which IDs that attempt sent.
 ///
-/// A `traceparent` or `tracestate` the headers already had is replaced.
+/// A `traceparent` or `tracestate` the headers already had is replaced, and is never left in place
+/// beside, or instead of, the ones this makes.
 pub fn stamp(trace_id: TraceId, retries: u32, headers: &mut HeaderMap) -> SpanContext {
     let trace_state =
         TraceState::from_key_value([("rover", format!("retries:{retries}"))]).unwrap_or_default();
@@ -61,10 +65,15 @@ pub fn stamp(trace_id: TraceId, retries: u32, headers: &mut HeaderMap) -> SpanCo
         trace_state,
     );
     let context = OtelContext::new().with_remote_span_context(span_context.clone());
-    // The propagator writes only a valid span context. An all-zero ID, which the generator makes
-    // with negligible probability, would send the request without the header, not with an
-    // invalid one.
+    // The propagator writes only a valid span context, and then writes a `tracestate` even if it
+    // is empty. So clear both first, so that nothing the request already had can survive, and
+    // don't send an empty one, which W3C says to avoid.
+    headers.remove(TRACEPARENT);
+    headers.remove(TRACESTATE);
     TraceContextPropagator::new().inject_context(&context, &mut HeaderInjector(headers));
+    if span_context.trace_state().header().is_empty() {
+        headers.remove(TRACESTATE);
+    }
     span_context
 }
 
@@ -292,8 +301,8 @@ mod tests {
         service.oneshot(request).await.unwrap();
 
         let seen = seen.lock().unwrap();
-        assert_that!(seen[0].get("tracestate").unwrap().to_str().unwrap())
-            .is_equal_to("rover=retries:7");
+        assert_that!(seen[0].get_all("tracestate").iter().collect::<Vec<_>>())
+            .is_equal_to(vec![&HeaderValue::from_static("rover=retries:7")]);
     }
 
     /// A service that answers each call with the next of `statuses`, recording the headers

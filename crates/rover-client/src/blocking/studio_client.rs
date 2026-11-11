@@ -629,40 +629,37 @@ mod tests {
         assert_that!(mock.calls()).is_equal_to(1);
     }
 
-    /// The `traceparent` of each request a [`recording_server`] received, in order, `None` for a
-    /// request that had none
-    type Sent = Arc<Mutex<Vec<Option<String>>>>;
-
-    /// A mock server that records the `traceparent` of each request to `/graphql`. It answers the
-    /// Nth request with the Nth status it was given, and the last status to every request after
-    /// that. A `200` carries an empty GraphQL `data` object.
-    fn recording_server(statuses: Vec<u16>) -> (MockServer, Sent) {
-        let (server, sent, _) = recording_server_with_tracestates(statuses);
-        (server, sent)
+    /// The trace headers of one request a [`recording_server`] received, `None` for a header the
+    /// request didn't have
+    #[derive(Clone, Debug)]
+    struct Attempt {
+        traceparent: Option<String>,
+        tracestate: Option<String>,
     }
 
-    /// Like [`recording_server`], and records the `tracestate` of each request too, in the
-    /// same order
-    fn recording_server_with_tracestates(statuses: Vec<u16>) -> (MockServer, Sent, Sent) {
+    /// The requests a [`recording_server`] received, in order
+    type Sent = Arc<Mutex<Vec<Attempt>>>;
+
+    /// A mock server that records the `traceparent` and `tracestate` of each request to
+    /// `/graphql`. It answers the Nth request with the Nth status it was given, and the last status
+    /// to every request after that. A `200` carries an empty GraphQL `data` object.
+    fn recording_server(statuses: Vec<u16>) -> (MockServer, Sent) {
         let server = MockServer::start();
         let sent = Sent::default();
-        let tracestates = Sent::default();
         let recorder = Arc::clone(&sent);
-        let state_recorder = Arc::clone(&tracestates);
         server.mock(|when, then| {
             when.method(POST).path("/graphql");
             then.respond_with(move |req| {
+                let header = |name: &str| {
+                    req.headers()
+                        .get(name)
+                        .map(|value| value.to_str().unwrap().to_string())
+                };
                 let mut sent = recorder.lock().unwrap();
-                sent.push(
-                    req.headers()
-                        .get("traceparent")
-                        .map(|value| value.to_str().unwrap().to_string()),
-                );
-                state_recorder.lock().unwrap().push(
-                    req.headers()
-                        .get("tracestate")
-                        .map(|value| value.to_str().unwrap().to_string()),
-                );
+                sent.push(Attempt {
+                    traceparent: header("traceparent"),
+                    tracestate: header("tracestate"),
+                });
                 let status = statuses[(sent.len() - 1).min(statuses.len() - 1)];
                 let body = if status == 200 { r#"{"data":{}}"# } else { "" };
                 http::Response::builder()
@@ -673,19 +670,31 @@ mod tests {
                     .into()
             });
         });
-        (server, sent, tracestates)
+        (server, sent)
     }
 
     /// The `tracestate` each of `count` attempts sent, if the retry count is right: 0, 1, 2...
-    fn assert_counted_from_zero(tracestates: &Sent, count: usize) {
+    fn assert_counted_from_zero(sent: &Sent, count: usize) {
         let expected: Vec<Option<String>> = (0..count)
             .map(|retries| Some(format!("rover=retries:{retries}")))
             .collect();
-        assert_that!(sent(tracestates)).is_equal_to(expected);
+        assert_that!(sent_tracestates(sent)).is_equal_to(expected);
     }
 
     fn sent(sent: &Sent) -> Vec<Option<String>> {
-        sent.lock().unwrap().clone()
+        sent.lock()
+            .unwrap()
+            .iter()
+            .map(|attempt| attempt.traceparent.clone())
+            .collect()
+    }
+
+    fn sent_tracestates(sent: &Sent) -> Vec<Option<String>> {
+        sent.lock()
+            .unwrap()
+            .iter()
+            .map(|attempt| attempt.tracestate.clone())
+            .collect()
     }
 
     fn client_for(server: &MockServer) -> StudioClient {
@@ -823,7 +832,7 @@ mod tests {
 
     #[tokio::test]
     async fn each_retry_through_the_blocking_client_says_how_many_attempts_came_before() {
-        let (server, _, tracestates) = recording_server_with_tracestates(vec![500, 500, 200]);
+        let (server, sent) = recording_server(vec![500, 500, 200]);
 
         client_for(&server)
             .with_trace_id(new_trace_id())
@@ -831,12 +840,12 @@ mod tests {
             .await
             .unwrap();
 
-        assert_counted_from_zero(&tracestates, 3);
+        assert_counted_from_zero(&sent, 3);
     }
 
     #[tokio::test]
     async fn each_retry_through_the_service_says_how_many_attempts_came_before() {
-        let (server, _, tracestates) = recording_server_with_tracestates(vec![500, 500, 200]);
+        let (server, sent) = recording_server(vec![500, 500, 200]);
 
         client_for(&server)
             .with_trace_id(new_trace_id())
@@ -846,12 +855,12 @@ mod tests {
             .await
             .unwrap();
 
-        assert_counted_from_zero(&tracestates, 3);
+        assert_counted_from_zero(&sent, 3);
     }
 
     #[tokio::test]
     async fn each_retry_through_the_attempt_timeout_service_says_how_many_attempts_came_before() {
-        let (server, _, tracestates) = recording_server_with_tracestates(vec![500, 500, 200]);
+        let (server, sent) = recording_server(vec![500, 500, 200]);
 
         client_for(&server)
             .with_trace_id(new_trace_id())
@@ -861,12 +870,12 @@ mod tests {
             .await
             .unwrap();
 
-        assert_counted_from_zero(&tracestates, 3);
+        assert_counted_from_zero(&sent, 3);
     }
 
     #[tokio::test]
     async fn a_request_with_no_retry_says_it_has_not_been_retried() {
-        let (server, _, tracestates) = recording_server_with_tracestates(vec![200]);
+        let (server, sent) = recording_server(vec![200]);
 
         client_for(&server)
             .with_trace_id(new_trace_id())
@@ -874,7 +883,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_counted_from_zero(&tracestates, 1);
+        assert_counted_from_zero(&sent, 1);
     }
 
     #[tokio::test]
