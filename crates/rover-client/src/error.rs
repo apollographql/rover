@@ -15,7 +15,7 @@ use thiserror::Error;
 
 use crate::{
     operations::api_key::list::ApiKey,
-    shared::{CheckTaskStatus, CheckWorkflowResponse, LintResponse},
+    shared::{CheckTaskKind, CheckWorkflowResponse, LintResponse},
 };
 
 /// RoverClientError represents all possible failures that can occur during a client request.
@@ -555,56 +555,11 @@ pub enum EndpointKind {
 }
 
 fn check_workflow_error_msg(check_response: &CheckWorkflowResponse) -> String {
-    let failed_tasks: Vec<&str> = [
-        if let Some(operations_response) = &check_response.maybe_operations_response {
-            if operations_response.task_status == CheckTaskStatus::FAILED {
-                Some("operation")
-            } else {
-                None
-            }
-        } else {
-            None
-        },
-        if let Some(lint_response) = &check_response.maybe_lint_response {
-            if lint_response.task_status == CheckTaskStatus::FAILED {
-                Some("linter")
-            } else {
-                None
-            }
-        } else {
-            None
-        },
-        if let Some(downstream_response) = &check_response.maybe_downstream_response {
-            if downstream_response.task_status == CheckTaskStatus::FAILED {
-                Some("downstream")
-            } else {
-                None
-            }
-        } else {
-            None
-        },
-        if let Some(proposals_response) = &check_response.maybe_proposals_response {
-            if proposals_response.task_status == CheckTaskStatus::FAILED {
-                Some("proposal")
-            } else {
-                None
-            }
-        } else {
-            None
-        },
-        if let Some(custom_response) = &check_response.maybe_custom_response {
-            if custom_response.task_status == CheckTaskStatus::FAILED {
-                Some("custom")
-            } else {
-                None
-            }
-        } else {
-            None
-        },
-    ]
-    .iter()
-    .filter_map(|&x| x)
-    .collect();
+    let failed_tasks: Vec<&str> = check_response
+        .failed_tasks()
+        .into_iter()
+        .map(CheckTaskKind::noun)
+        .collect();
 
     match failed_tasks.as_slice() {
         [] => "The changes in the schema you proposed resulted in an unknown check task to fail."
