@@ -1,0 +1,27 @@
+---
+source: tests/integration/graph/check.rs
+expression: json
+---
+{
+  "json_version": "3",
+  "data": {
+    "tasks": {},
+    "task_statuses": [
+      {
+        "task": "build",
+        "status": "FAILED",
+        "target_url": "https://studio.apollographql.com/graph/my-graph/checks/build"
+      },
+      {
+        "task": "operations",
+        "status": "BLOCKED",
+        "target_url": null
+      }
+    ],
+    "success": false
+  },
+  "error": {
+    "message": "The changes in the schema you proposed caused build checks to fail.",
+    "code": "E043"
+  }
+}
