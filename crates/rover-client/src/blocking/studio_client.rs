@@ -10,6 +10,7 @@ use rover_graphql::{GraphQLLayer, GraphQLService};
 use rover_http::{
     retry::{retry_with_attempt_timeout, RetryPolicy},
     timeout::TimeoutLayer,
+    trace::{process_trace_id, TraceId, TraceparentLayer},
     HttpService, ReqwestService,
 };
 use rover_studio::service::{
@@ -50,6 +51,7 @@ pub struct StudioClient {
     version: String,
     is_sudo: bool,
     retry_period: Duration,
+    trace_id: TraceId,
 }
 
 impl StudioClient {
@@ -63,15 +65,30 @@ impl StudioClient {
         client: ReqwestClient,
         retry_period: Duration,
     ) -> StudioClient {
+        let trace_id = process_trace_id();
         StudioClient {
             credential,
             graphql_endpoint: graphql_endpoint.to_string(),
             reqwest_client: client.clone(),
-            client: GraphQLClient::new(graphql_endpoint, client, retry_period),
+            client: GraphQLClient::new(graphql_endpoint, client, retry_period)
+                .with_trace_id(trace_id),
             version: version.to_string(),
             is_sudo,
             retry_period,
+            trace_id,
         }
+    }
+
+    /// Sends `trace_id` on this client's requests instead of the process's own trace ID, so a
+    /// test can tell which trace a request belongs to.
+    ///
+    /// Outside of tests every client shares the process's trace ID, so that all of a run's
+    /// requests are one trace.
+    #[cfg(test)]
+    pub(crate) fn with_trace_id(mut self, trace_id: TraceId) -> StudioClient {
+        self.client = self.client.with_trace_id(trace_id);
+        self.trace_id = trace_id;
+        self
     }
 
     /// Client method for making a GraphQL request to Apollo Studio.
@@ -204,6 +221,8 @@ impl StudioClient {
                     .into_inner(),
             ))
             .layer(RetryLayer::new(RetryPolicy::new(self.retry_period)))
+            // Inside the retry, so each attempt gets its own parent ID.
+            .layer(TraceparentLayer::new(self.trace_id))
             .service(
                 ReqwestService::builder()
                     .client(self.reqwest_client.clone())
@@ -252,6 +271,8 @@ impl StudioClient {
                 self.retry_period,
                 attempt_timeout,
             ))
+            // Inside the retry, so each attempt gets its own parent ID.
+            .layer(TraceparentLayer::new(self.trace_id))
             .service(
                 ReqwestService::builder()
                     .client(self.reqwest_client.clone())
@@ -295,6 +316,7 @@ impl StudioClient {
             // No retry layer is present, so unlike `studio_graphql_service`, there's no ordering
             // question here - `timeout` simply bounds the network call underneath.
             .layer(TimeoutLayer::new(timeout))
+            .layer(TraceparentLayer::new(self.trace_id))
             .service(
                 ReqwestService::builder()
                     .client(self.reqwest_client.clone())
@@ -305,10 +327,14 @@ impl StudioClient {
     }
 
     pub fn http_service(&self) -> Result<HttpService, RoverClientError> {
-        let service = ReqwestService::builder()
-            .client(self.reqwest_client.clone())
-            .build()
-            .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?
+        let service = ServiceBuilder::new()
+            .layer(TraceparentLayer::new(self.trace_id))
+            .service(
+                ReqwestService::builder()
+                    .client(self.reqwest_client.clone())
+                    .build()
+                    .map_err(|err| RoverClientError::ServiceReady(Box::new(err)))?,
+            )
             .boxed_clone();
         Ok(service)
     }
@@ -316,12 +342,15 @@ impl StudioClient {
 
 #[cfg(test)]
 mod tests {
-    use std::time::{Duration, Instant};
+    use std::{
+        sync::{Arc, Mutex},
+        time::{Duration, Instant},
+    };
 
     use graphql_client::{GraphQLQuery, QueryBody};
     use httpmock::prelude::*;
     use rover_graphql::{GraphQLRequest, GraphQLServiceError};
-    use rover_http::HttpServiceError;
+    use rover_http::{trace::new_trace_id, HttpServiceError};
     use rover_studio::service::{
         permission_denied::permission_denied, rejected_credential::rejected_credential,
     };
@@ -598,5 +627,262 @@ mod tests {
 
         assert_that!(upstream_http_error(&err).and_then(permission_denied)).is_some();
         assert_that!(mock.calls()).is_equal_to(1);
+    }
+
+    /// The `traceparent` of each request a [`recording_server`] received, in order, `None` for a
+    /// request that had none
+    type Sent = Arc<Mutex<Vec<Option<String>>>>;
+
+    /// A mock server that records the `traceparent` of each request to `/graphql`. It answers the
+    /// Nth request with the Nth status it was given, and the last status to every request after
+    /// that. A `200` carries an empty GraphQL `data` object.
+    fn recording_server(statuses: Vec<u16>) -> (MockServer, Sent) {
+        let server = MockServer::start();
+        let sent = Sent::default();
+        let recorder = Arc::clone(&sent);
+        server.mock(|when, then| {
+            when.method(POST).path("/graphql");
+            then.respond_with(move |req| {
+                let mut sent = recorder.lock().unwrap();
+                sent.push(
+                    req.headers()
+                        .get("traceparent")
+                        .map(|value| value.to_str().unwrap().to_string()),
+                );
+                let status = statuses[(sent.len() - 1).min(statuses.len() - 1)];
+                let body = if status == 200 { r#"{"data":{}}"# } else { "" };
+                http::Response::builder()
+                    .status(status)
+                    .header("content-type", "application/json")
+                    .body(body.to_string())
+                    .unwrap()
+                    .into()
+            });
+        });
+        (server, sent)
+    }
+
+    fn sent(sent: &Sent) -> Vec<Option<String>> {
+        sent.lock().unwrap().clone()
+    }
+
+    fn client_for(server: &MockServer) -> StudioClient {
+        StudioClient::new(
+            Credential {
+                api_key: "an-api-key".to_string(),
+                origin: CredentialOrigin::EnvVar,
+                expires_at: None,
+            },
+            &server.url("/graphql"),
+            "test-version",
+            false,
+            ReqwestClient::new(),
+            // Long enough that the retries these tests wait for are never cut short
+            Duration::from_secs(10),
+        )
+    }
+
+    /// A `traceparent` header value, with its parts named
+    struct Traceparent<'a> {
+        version: &'a str,
+        trace_id: &'a str,
+        parent_id: &'a str,
+        flags: &'a str,
+    }
+
+    impl<'a> Traceparent<'a> {
+        fn parse(value: &'a Option<String>) -> Traceparent<'a> {
+            let value = value.as_deref().expect("a traceparent header");
+            let parts: Vec<&str> = value.split('-').collect();
+            assert_that!(&parts).has_length(4);
+            Traceparent {
+                version: parts[0],
+                trace_id: parts[1],
+                parent_id: parts[2],
+                flags: parts[3],
+            }
+        }
+    }
+
+    fn assert_valid_traceparent(traceparent: &Traceparent, trace_id: TraceId) {
+        assert_that!(traceparent.version).is_equal_to("00");
+        assert_that!(traceparent.trace_id).is_equal_to(trace_id.to_string().as_str());
+        assert_that!(traceparent.parent_id.len()).is_equal_to(16);
+        assert_that!(traceparent.flags).is_equal_to("01");
+    }
+
+    /// Checks that `traceparents` holds one valid `traceparent` per expected attempt, all with
+    /// `trace_id`, and no two with the same parent ID.
+    fn assert_one_trace(traceparents: Vec<Option<String>>, trace_id: TraceId, attempts: usize) {
+        assert_that!(&traceparents).has_length(attempts);
+        let traceparents: Vec<_> = traceparents.iter().map(Traceparent::parse).collect();
+        for traceparent in &traceparents {
+            assert_valid_traceparent(traceparent, trace_id);
+        }
+        let mut parent_ids: Vec<&str> = traceparents.iter().map(|t| t.parent_id).collect();
+        parent_ids.sort();
+        parent_ids.dedup();
+        assert_that!(parent_ids).has_length(attempts);
+    }
+
+    #[tokio::test]
+    async fn a_request_through_the_blocking_client_carries_the_trace_id() {
+        let (server, traceparents) = recording_server(vec![200]);
+        let trace_id = new_trace_id();
+
+        client_for(&server)
+            .with_trace_id(trace_id)
+            .post::<TestQuery>(TestQueryVariables {})
+            .await
+            .unwrap();
+
+        assert_one_trace(sent(&traceparents), trace_id, 1);
+    }
+
+    #[tokio::test]
+    async fn a_request_with_no_retry_through_the_blocking_client_carries_the_trace_id() {
+        let (server, traceparents) = recording_server(vec![200]);
+        let trace_id = new_trace_id();
+
+        client_for(&server)
+            .with_trace_id(trace_id)
+            .post_no_retry::<TestQuery>(TestQueryVariables {})
+            .await
+            .unwrap();
+
+        assert_one_trace(sent(&traceparents), trace_id, 1);
+    }
+
+    #[tokio::test]
+    async fn each_retry_through_the_blocking_client_has_its_own_parent_id() {
+        let (server, traceparents) = recording_server(vec![500, 200]);
+        let trace_id = new_trace_id();
+
+        client_for(&server)
+            .with_trace_id(trace_id)
+            .post::<TestQuery>(TestQueryVariables {})
+            .await
+            .unwrap();
+
+        assert_one_trace(sent(&traceparents), trace_id, 2);
+    }
+
+    #[tokio::test]
+    async fn each_retry_through_the_service_has_its_own_parent_id() {
+        let (server, traceparents) = recording_server(vec![500, 200]);
+        let trace_id = new_trace_id();
+        let client = client_for(&server).with_trace_id(trace_id);
+
+        client
+            .studio_graphql_service()
+            .unwrap()
+            .oneshot(GraphQLRequest::<TestQuery>::new(TestQueryVariables {}))
+            .await
+            .unwrap();
+
+        assert_one_trace(sent(&traceparents), trace_id, 2);
+    }
+
+    #[tokio::test]
+    async fn each_retry_through_the_attempt_timeout_service_has_its_own_parent_id() {
+        let (server, traceparents) = recording_server(vec![500, 200]);
+        let trace_id = new_trace_id();
+        let client = client_for(&server).with_trace_id(trace_id);
+
+        client
+            .studio_graphql_service_with_attempt_timeout(Duration::from_secs(5))
+            .unwrap()
+            .oneshot(GraphQLRequest::<TestQuery>::new(TestQueryVariables {}))
+            .await
+            .unwrap();
+
+        assert_one_trace(sent(&traceparents), trace_id, 2);
+    }
+
+    #[tokio::test]
+    async fn a_request_through_the_timeout_service_carries_the_trace_id() {
+        let (server, traceparents) = recording_server(vec![200]);
+        let trace_id = new_trace_id();
+        let client = client_for(&server).with_trace_id(trace_id);
+
+        client
+            .studio_graphql_service_with_timeout(Duration::from_secs(5))
+            .unwrap()
+            .oneshot(GraphQLRequest::<TestQuery>::new(TestQueryVariables {}))
+            .await
+            .unwrap();
+
+        assert_one_trace(sent(&traceparents), trace_id, 1);
+    }
+
+    // Two clients in one process, as when a command builds a client more than once, still
+    // make one trace.
+    #[tokio::test]
+    async fn clients_share_the_process_trace_id() {
+        let (server, traceparents) = recording_server(vec![200]);
+
+        client_for(&server)
+            .post::<TestQuery>(TestQueryVariables {})
+            .await
+            .unwrap();
+        client_for(&server)
+            .post::<TestQuery>(TestQueryVariables {})
+            .await
+            .unwrap();
+
+        assert_one_trace_per_request(sent(&traceparents), process_trace_id(), 2);
+    }
+
+    /// Like [`assert_one_trace`], for requests that are separate logical requests
+    fn assert_one_trace_per_request(
+        traceparents: Vec<Option<String>>,
+        trace_id: TraceId,
+        requests: usize,
+    ) {
+        assert_that!(&traceparents).has_length(requests);
+        for traceparent in traceparents.iter().map(Traceparent::parse) {
+            assert_valid_traceparent(&traceparent, trace_id);
+        }
+    }
+
+    #[tokio::test]
+    async fn a_request_through_the_plain_http_service_carries_the_trace_id() {
+        let (server, traceparents) = recording_server(vec![200]);
+        let trace_id = new_trace_id();
+        let client = client_for(&server).with_trace_id(trace_id);
+        let request = http::Request::post(server.url("/graphql"))
+            .body(rover_http::Full::default())
+            .unwrap();
+
+        client
+            .http_service()
+            .unwrap()
+            .oneshot(request)
+            .await
+            .unwrap();
+
+        assert_one_trace(sent(&traceparents), trace_id, 1);
+    }
+
+    // The blocking client also introspects endpoints that aren't the Platform API, such as a
+    // customer's own subgraph, and those must not carry trace headers.
+    #[tokio::test]
+    async fn a_client_that_is_not_for_the_platform_api_sends_no_traceparent() {
+        let (server, traceparents) = recording_server(vec![200]);
+
+        GraphQLClient::new(
+            &server.url("/graphql"),
+            ReqwestClient::new(),
+            Duration::from_secs(1),
+        )
+        .post::<TestQuery>(
+            TestQueryVariables {},
+            &mut HeaderMap::new(),
+            EndpointKind::Customer,
+        )
+        .await
+        .unwrap();
+
+        assert_that!(sent(&traceparents)).is_equal_to(vec![None]);
     }
 }
