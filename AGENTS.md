@@ -53,6 +53,7 @@ When reviewing a `spec.md`, flag it if it reads like an implementation plan inst
 
 - Prefer targeted edits over broad refactors unless the task explicitly requires wider cleanup.
 - Prefer targeted tests before full-workspace runs so feedback stays fast.
+- Prefer trait implementations over free helper functions when implementing logic.
 - Use the local cargo aliases when they help:
   - `cargo rover ...` runs the CLI from source.
   - `cargo xtask ...` runs workspace automation helpers.
