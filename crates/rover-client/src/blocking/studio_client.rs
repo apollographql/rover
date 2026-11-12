@@ -673,7 +673,8 @@ mod tests {
         (server, sent)
     }
 
-    /// The `tracestate` each of `count` attempts sent, if the retry count is right: 0, 1, 2...
+    /// Asserts that `count` requests were sent, and that their `tracestate` headers say
+    /// `rover=retries:0`, `rover=retries:1`, and so on in order.
     fn assert_counted_from_zero(sent: &Sent, count: usize) {
         let expected: Vec<Option<String>> = (0..count)
             .map(|retries| Some(format!("rover=retries:{retries}")))
@@ -698,6 +699,11 @@ mod tests {
     }
 
     fn client_for(server: &MockServer) -> StudioClient {
+        // Long enough that the retries these tests wait for are never cut short
+        client_retrying_for(server, Duration::from_secs(10))
+    }
+
+    fn client_retrying_for(server: &MockServer, retry_period: Duration) -> StudioClient {
         StudioClient::new(
             Credential {
                 api_key: "an-api-key".to_string(),
@@ -708,8 +714,7 @@ mod tests {
             "test-version",
             false,
             ReqwestClient::new(),
-            // Long enough that the retries these tests wait for are never cut short
-            Duration::from_secs(10),
+            retry_period,
         )
     }
 
@@ -871,6 +876,39 @@ mod tests {
             .unwrap();
 
         assert_counted_from_zero(&sent, 3);
+    }
+
+    // The retries stop when the retry period is over, and what had been sent counted without gaps.
+    #[tokio::test]
+    async fn the_retry_count_keeps_counting_until_retries_run_out() {
+        let (server, sent) = recording_server(vec![500]);
+
+        let result = client_retrying_for(&server, Duration::from_secs(1))
+            .with_trace_id(new_trace_id())
+            .post::<TestQuery>(TestQueryVariables {})
+            .await;
+
+        assert_that!(result.is_err()).is_true();
+        let attempts = sent.lock().unwrap().len();
+        assert_that!(attempts >= 2).is_true();
+        assert_counted_from_zero(&sent, attempts);
+    }
+
+    #[tokio::test]
+    async fn the_retry_count_through_the_service_keeps_counting_until_retries_run_out() {
+        let (server, sent) = recording_server(vec![500]);
+
+        let result = client_retrying_for(&server, Duration::from_secs(1))
+            .with_trace_id(new_trace_id())
+            .studio_graphql_service()
+            .unwrap()
+            .oneshot(GraphQLRequest::<TestQuery>::new(TestQueryVariables {}))
+            .await;
+
+        assert_that!(result.is_err()).is_true();
+        let attempts = sent.lock().unwrap().len();
+        assert_that!(attempts >= 2).is_true();
+        assert_counted_from_zero(&sent, attempts);
     }
 
     #[tokio::test]

@@ -367,6 +367,32 @@ mod tests {
         ]);
     }
 
+    // The last attempt's failure is what comes back, and the counts it sent had no gaps.
+    #[rstest]
+    #[tokio::test]
+    async fn the_retry_count_keeps_counting_until_retries_run_out(
+        trace_id: TraceId,
+        request: HttpRequest,
+    ) {
+        let (inner, seen) = flaky(vec![StatusCode::INTERNAL_SERVER_ERROR; 50]);
+        let service = ServiceBuilder::new()
+            .layer(RetryLayer::new(RetryPolicy::new(Duration::from_millis(
+                100,
+            ))))
+            .layer(TraceparentLayer::new(trace_id))
+            .service(inner);
+
+        let response = service.oneshot(request).await.unwrap();
+
+        assert_that!(response.status()).is_equal_to(StatusCode::INTERNAL_SERVER_ERROR);
+        let sent = tracestates(&seen);
+        assert_that!(sent.len() >= 2).is_true();
+        let expected: Vec<String> = (0..sent.len())
+            .map(|retries| format!("rover=retries:{retries}"))
+            .collect();
+        assert_that!(sent).is_equal_to(expected);
+    }
+
     #[rstest]
     #[tokio::test]
     async fn the_next_request_starts_again_from_zero(trace_id: TraceId, request: HttpRequest) {

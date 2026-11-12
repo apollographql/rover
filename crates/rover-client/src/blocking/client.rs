@@ -505,6 +505,38 @@ mod tests {
         assert!(error.to_string().contains("Not Found"));
     }
 
+    // Only Platform API clients are given a trace ID. A request to anywhere else, like a customer's
+    // own endpoint being introspected, must go out without trace headers.
+    #[tokio::test]
+    async fn a_client_with_no_trace_id_sends_no_trace_headers() {
+        let server = MockServer::start();
+        let path = "/anywhere-else";
+        let mock = server.mock(|when, then| {
+            when.method(POST)
+                .path(path)
+                .header_missing("traceparent")
+                .header_missing("tracestate");
+            then.status(200).body("{}");
+        });
+        let graphql_client = GraphQLClient::new(
+            &server.url(path),
+            ReqwestClient::new(),
+            Duration::from_secs(3),
+        );
+
+        let response = graphql_client
+            .execute(
+                "{}".to_string(),
+                &HeaderMap::new(),
+                true,
+                EndpointKind::Customer,
+            )
+            .await;
+
+        assert!(response.is_ok(), "{response:?}");
+        assert_eq!(mock.calls(), 1);
+    }
+
     async fn execute_against_status(
         status: u16,
         endpoint_kind: EndpointKind,
