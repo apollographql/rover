@@ -59,6 +59,17 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
             };
         }
 
+        // A batch install's summary carries the first failure's code, so a
+        // script matching `error.code` sees a plugin failure's own code.
+        if let Some(batch) = error.downcast_ref::<crate::command::plugin::BatchInstallFailure>() {
+            return RoverErrorMetadata {
+                json_version: JsonVersion::default(),
+                suggestions: vec![],
+                code: batch.code(),
+                skip_printing_cause: true,
+            };
+        }
+
         if let Some(revoke_error) =
             error.downcast_ref::<crate::command::auth::grants::revoke::error::GrantsRevokeError>()
         {
