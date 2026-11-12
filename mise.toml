@@ -11,7 +11,7 @@ node = "24.22.3"
 "npm:npm" = "12.2.2"
 "cargo:cargo-deny" = "0.20"
 "cargo:graphql_client_cli" = "0.16.0"
-"cargo:cargo-npm" = "0.1.4"
+"cargo:cargo-npm" = "0.1.5"
 
 [tasks.check]
 description = "Run the same checks as CI"
