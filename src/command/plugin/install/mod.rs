@@ -2,6 +2,7 @@ mod in_scope;
 mod output;
 mod project_root;
 
+use anyhow::anyhow;
 use binstall::Installer;
 use camino::{Utf8Path, Utf8PathBuf};
 use clap::Parser;
@@ -14,7 +15,7 @@ use self::{
 };
 use super::{LockfileWrite, absolute_manifest, target_manifest};
 use crate::{
-    PKG_NAME, RoverOutput, RoverResult,
+    PKG_NAME, RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
     command::install::{Plugin, PluginInstaller, PluginProvenance, PluginSource, installer},
     options::LicenseAccepter,
     plugin::{
@@ -28,15 +29,15 @@ use crate::{
 
 #[derive(Debug, Parser)]
 pub struct PluginInstall {
-    /// The plugin to install, as `<NAME>@<VERSION>`, e.g. `supergraph@=2.9.3` or `router@2`.
-    /// Leave it out to install every plugin in scope
+    /// The plugins to install, each as `<NAME>@<VERSION>`, e.g. `supergraph@=2.9.3` or
+    /// `router@2`. Leave them out to install every plugin in scope
     ///
-    /// Without it, every plugin the lockfile in scope records is installed at
-    /// exactly the version it records, without asking the plugin registry,
+    /// Without them, every plugin the lockfile in scope records is installed
+    /// at exactly the version it records, without asking the plugin registry,
     /// and every plugin the manifest declares that the lockfile doesn't
     /// record yet is installed and recorded too.
     #[arg(value_name = "NAME@VERSION")]
-    pub(crate) plugin: Option<Plugin>,
+    pub(crate) plugins: Vec<Plugin>,
 
     /// Overwrite any existing binary without prompting for confirmation.
     #[arg(long = "force", short = 'f')]
@@ -83,6 +84,7 @@ impl PluginInstall {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
     ) -> RoverResult<RoverOutput> {
+        reject_repeated_plugins(&self.plugins)?;
         let project_manifest = self.project_manifest(override_install_path.as_deref())?;
         let make_installer = || -> RoverResult<Installer> {
             let mut rover_installer =
@@ -107,34 +109,38 @@ impl PluginInstall {
         // install into `node_modules/.bin` is no level's and records nothing,
         // but a bare one still installs from the global level, and fails as
         // a named install does when there is no home to find it in.
-        let read_from = match (&level, &self.plugin) {
+        let read_from = match (&level, self.plugins.is_empty()) {
             (Some(level), _) => Some(level.clone()),
-            (None, None) => Some(rover_installer.get_base_dir_path()?),
-            (None, Some(_)) => None,
+            (None, true) => Some(rover_installer.get_base_dir_path()?),
+            (None, false) => None,
         };
         let in_scope = read_from
             .map(|dir| InScope::load(dir, project_manifest.as_deref()))
             .transpose()?;
 
         // Each request, with whether to record what it installs.
-        let installs = match &self.plugin {
+        let installs = if self.plugins.is_empty() {
+            in_scope
+                .as_ref()
+                .ok_or_else(|| nothing_to_install(None))?
+                .requests()?
+        } else {
             // A plugin named on the command line is the most specific source
             // on the ladder every plugin-using command shares, so nothing
             // below it is consulted. It is never pinned by a lockfile
             // either: a plugin named on the command line is resolved afresh.
-            Some(named) => {
-                let request = precedence::resolve(
-                    named.name(),
-                    RequestInputs::new(named.request())
-                        .with_override(Some((named.request(), RequestOrigin::PluginArgument))),
-                    &LayeredDeclarations::default(),
-                );
-                vec![(request, true)]
-            }
-            None => in_scope
-                .as_ref()
-                .ok_or_else(|| nothing_to_install(None))?
-                .requests()?,
+            self.plugins
+                .iter()
+                .map(|named| {
+                    let request = precedence::resolve(
+                        named.name(),
+                        RequestInputs::new(named.request())
+                            .with_override(Some((named.request(), RequestOrigin::PluginArgument))),
+                        &LayeredDeclarations::default(),
+                    );
+                    (request, true)
+                })
+                .collect()
         };
         let plugins = installs
             .iter()
@@ -274,6 +280,26 @@ impl PluginInstall {
     }
 }
 
+/// Refuse a plugin named more than once, before anything is installed: a
+/// level's lockfile records one release per plugin, so the later request
+/// would silently replace the earlier one's record.
+fn reject_repeated_plugins(plugins: &[Plugin]) -> RoverResult<()> {
+    let mut seen = Vec::new();
+    for plugin in plugins {
+        let name = plugin.name();
+        if seen.contains(&name) {
+            let mut err = RoverError::new(anyhow!("`{name}` is named more than once."))
+                .with_skip_printing_cause();
+            err.set_suggestion(RoverErrorSuggestion::Adhoc(
+                "Name each plugin once.".to_string(),
+            ));
+            return Err(err);
+        }
+        seen.push(name);
+    }
+    Ok(())
+}
+
 /// The level whose lockfile an install through `installer` records, or `None`
 /// when plugins are going somewhere that is no level's.
 ///
@@ -315,6 +341,52 @@ mod tests {
     use crate::command::install::PluginLevel;
 
     const IN_BIN: &str = "/home/me/.rover/bin/supergraph-v2.9.3";
+
+    /// The plugins `rover plugin install <args>` names, as `<name>@<request>`.
+    fn named(args: &[&str]) -> Vec<String> {
+        PluginInstall::try_parse_from(["install"].iter().chain(args))
+            .unwrap()
+            .plugins
+            .iter()
+            .map(|plugin| format!("{}@{}", plugin.name(), plugin.request()))
+            .collect()
+    }
+
+    #[rstest]
+    #[case::none(&[], &[])]
+    #[case::one(&["supergraph@=2.9.3"], &["supergraph@=2.9.3"])]
+    #[case::several_in_the_order_given(
+        &["router@2", "supergraph@=2.9.3", "apollo-mcp-server@latest"],
+        &["router@2", "supergraph@=2.9.3", "apollo-mcp-server@latest"]
+    )]
+    fn any_number_of_plugins_can_be_named(#[case] args: &[&str], #[case] expected: &[&str]) {
+        assert_that!(named(args))
+            .is_equal_to(expected.iter().map(ToString::to_string).collect::<Vec<_>>());
+    }
+
+    #[rstest]
+    #[case::the_same_request(&["router@2", "router@2"], "router")]
+    #[case::different_requests(&["supergraph@=2.9.3", "router@2", "router@=2.1.0"], "router")]
+    fn a_plugin_named_twice_is_refused(#[case] args: &[&str], #[case] plugin: &str) {
+        let install = PluginInstall::try_parse_from(["install"].iter().chain(args)).unwrap();
+
+        // Without styling, which depends on the terminal the tests run in.
+        let refused = reject_repeated_plugins(&install.plugins)
+            .map_err(|err| console::strip_ansi_codes(&err.to_string()).into_owned());
+
+        assert_that!(refused).is_equal_to(Err(format!(
+            "error: `{plugin}` is named more than once.\n        Name each plugin once.\n"
+        )));
+    }
+
+    #[test]
+    fn distinct_plugins_are_accepted() {
+        let install =
+            PluginInstall::try_parse_from(["install", "router@2", "supergraph@2"]).unwrap();
+
+        assert_that!(reject_repeated_plugins(&install.plugins).map_err(|err| err.to_string()))
+            .is_equal_to(Ok(()));
+    }
 
     #[rstest]
     #[case::downloaded_into_the_levels_bin_directory(IN_BIN, PluginSource::Downloaded, true)]
