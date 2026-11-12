@@ -260,7 +260,7 @@ where
         let response = self.inner.call(req);
         Box::pin(async move {
             let mut abandoned = AbandonedAttempt {
-                attempt: Some((span_context, retries)),
+                attempt: span_context.map(|span_context| (span_context, retries)),
             };
             let result = response.await;
             // It has an outcome now, so it wasn't abandoned.
