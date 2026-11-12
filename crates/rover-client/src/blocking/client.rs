@@ -146,7 +146,7 @@ impl GraphQLClient {
                     response
                         .as_ref()
                         .map(|response| response.status())
-                        .map_err(|error| error as &dyn std::error::Error),
+                        .map_err(|error| error as &(dyn std::error::Error + 'static)),
                 );
             }
 

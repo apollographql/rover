@@ -132,24 +132,30 @@ pub fn log_attempt_outcome(
 ///
 /// An [`HttpServiceError`] keeps the error that caused it without exposing it as its `source`,
 /// because its message is shown to people as it is. The log wants that cause, so it is followed
-/// here.
+/// here. `Request` and `Unexpected` already put their cause in their own message, so it isn't
+/// printed a second time, but its causes are.
 fn error_chain(error: &(dyn std::error::Error + 'static)) -> String {
     let mut message = error.to_string();
     let mut link = Some(error);
     while let Some(error) = link {
-        let cause = match error.downcast_ref::<HttpServiceError>() {
+        let (cause, already_shown) = match error.downcast_ref::<HttpServiceError>() {
             Some(
                 HttpServiceError::Cancelled(cause)
                 | HttpServiceError::Closed(cause)
                 | HttpServiceError::Decode(cause)
                 | HttpServiceError::Body(cause)
-                | HttpServiceError::Connect(cause)
-                | HttpServiceError::Request(cause)
-                | HttpServiceError::Unexpected(cause),
-            ) => Some(cause.as_ref() as &dyn std::error::Error),
-            _ => error.source(),
+                | HttpServiceError::Connect(cause),
+            ) => (
+                Some(cause.as_ref() as &(dyn std::error::Error + 'static)),
+                false,
+            ),
+            Some(HttpServiceError::Request(cause) | HttpServiceError::Unexpected(cause)) => (
+                Some(cause.as_ref() as &(dyn std::error::Error + 'static)),
+                true,
+            ),
+            _ => (error.source(), false),
         };
-        if let Some(cause) = cause {
+        if let (Some(cause), false) = (cause, already_shown) {
             message.push_str(": ");
             message.push_str(&cause.to_string());
         }
@@ -232,11 +238,11 @@ where
 
     fn call(&mut self, mut req: http::Request<B>) -> Self::Future {
         let RetryCount(retries) = RetryCount::of(&req);
-        let span_context = Some(stamp(self.trace_id, retries, req.headers_mut()));
+        let span_context = stamp(self.trace_id, retries, req.headers_mut());
         let response = self.inner.call(req);
         Box::pin(async move {
             let mut abandoned = AbandonedAttempt {
-                attempt: span_context.map(|span_context| (span_context, retries)),
+                attempt: Some((span_context, retries)),
             };
             let result = response.await;
             // It has an outcome now, so it wasn't abandoned.
@@ -787,6 +793,19 @@ mod tests {
 
         assert_that!(super::error_chain(&error))
             .is_equal_to("Connect error: tcp connect error: Connection refused".to_string());
+    }
+
+    #[rstest]
+    fn a_cause_a_message_already_shows_is_not_logged_twice() {
+        #[derive(Debug, thiserror::Error)]
+        #[error("builder error")]
+        struct Builder(#[source] std::io::Error);
+
+        let error =
+            HttpServiceError::Request(Box::new(Builder(std::io::Error::other("invalid url"))));
+
+        assert_that!(super::error_chain(&error))
+            .is_equal_to("Request error: builder error.: invalid url".to_string());
     }
 
     #[traced_test]
