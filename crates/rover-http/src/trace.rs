@@ -286,6 +286,7 @@ mod tests {
 
     use super::{
         new_trace_id, process_trace_id, stamp, TraceId, TraceparentLayer, TraceparentService,
+        TRACEPARENT,
     };
     use crate::{
         retry::{RetryCount, RetryPolicy},
@@ -728,12 +729,18 @@ mod tests {
     // all the same, so they are what a person gives support to find it.
     #[traced_test]
     #[rstest]
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn an_attempt_cut_off_by_a_timeout_is_logged_with_its_ids(
         trace_id: TraceId,
         request: HttpRequest,
     ) {
-        let hung = tower::service_fn(|_: HttpRequest| {
+        let sent = Arc::new(Mutex::new(None::<String>));
+        let recorder = Arc::clone(&sent);
+        let hung = tower::service_fn(move |req: HttpRequest| {
+            *recorder.lock().unwrap() = req
+                .headers()
+                .get(TRACEPARENT)
+                .map(|value| value.to_str().unwrap().to_string());
             std::future::pending::<Result<HttpResponse, HttpServiceError>>()
         });
         let service = ServiceBuilder::new()
@@ -744,25 +751,23 @@ mod tests {
         let error = service.oneshot(request).await.unwrap_err();
 
         assert_that!(error.is_timeout()).is_true();
+        let traceparent = sent.lock().unwrap().clone().unwrap();
+        let parent_id = traceparent.split('-').nth(2).unwrap().to_string();
+        let expected = format!(
+            "Platform API request attempt failed: abandoned before a response, such as by a \
+             timeout trace_id={trace_id} parent_id={parent_id} retries=0"
+        );
         logs_assert(|lines: &[&str]| {
             let failures: Vec<_> = lines
                 .iter()
                 .filter(|line| line.contains("request attempt failed"))
                 .collect();
-            let [failure] = failures.as_slice() else {
-                return Err(format!("expected one failed attempt, found {failures:?}"));
-            };
-            for expected in [
-                format!("trace_id={trace_id}"),
-                "parent_id=".to_string(),
-                "retries=0".to_string(),
-                "abandoned before a response".to_string(),
-            ] {
-                if !failure.contains(&expected) {
-                    return Err(format!("{failure} lacks {expected}"));
-                }
+            match failures.as_slice() {
+                [failure] if failure.ends_with(&expected) => Ok(()),
+                _ => Err(format!(
+                    "expected one line ending {expected:?}, found {failures:?}"
+                )),
             }
-            Ok(())
         });
     }
 
