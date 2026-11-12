@@ -30,7 +30,7 @@ use opentelemetry_sdk::{
 };
 use tower::{Layer, Service};
 
-use crate::retry::RetryCount;
+use crate::{retry::RetryCount, HttpServiceError};
 
 const TRACEPARENT: HeaderName = HeaderName::from_static("traceparent");
 const TRACESTATE: HeaderName = HeaderName::from_static("tracestate");
@@ -117,7 +117,7 @@ pub fn log_failed_attempt(span_context: &SpanContext, retries: u32, failure: imp
 pub fn log_attempt_outcome(
     span_context: &SpanContext,
     retries: u32,
-    outcome: Result<StatusCode, &dyn std::error::Error>,
+    outcome: Result<StatusCode, &(dyn std::error::Error + 'static)>,
 ) {
     match outcome {
         Err(error) => log_failed_attempt(span_context, retries, error_chain(error)),
@@ -129,13 +129,31 @@ pub fn log_attempt_outcome(
 }
 
 /// `error` and each of its causes, from the outermost in
-fn error_chain(error: &dyn std::error::Error) -> String {
+///
+/// An [`HttpServiceError`] keeps the error that caused it without exposing it as its `source`,
+/// because its message is shown to people as it is. The log wants that cause, so it is followed
+/// here.
+fn error_chain(error: &(dyn std::error::Error + 'static)) -> String {
     let mut message = error.to_string();
-    let mut cause = error.source();
-    while let Some(source) = cause {
-        message.push_str(": ");
-        message.push_str(&source.to_string());
-        cause = source.source();
+    let mut link = Some(error);
+    while let Some(error) = link {
+        let cause = match error.downcast_ref::<HttpServiceError>() {
+            Some(
+                HttpServiceError::Cancelled(cause)
+                | HttpServiceError::Closed(cause)
+                | HttpServiceError::Decode(cause)
+                | HttpServiceError::Body(cause)
+                | HttpServiceError::Connect(cause)
+                | HttpServiceError::Request(cause)
+                | HttpServiceError::Unexpected(cause),
+            ) => Some(cause.as_ref() as &dyn std::error::Error),
+            _ => error.source(),
+        };
+        if let Some(cause) = cause {
+            message.push_str(": ");
+            message.push_str(&cause.to_string());
+        }
+        link = cause;
     }
     message
 }
@@ -229,7 +247,7 @@ where
                     result
                         .as_ref()
                         .map(|response| response.status())
-                        .map_err(|error| error as &dyn std::error::Error),
+                        .map_err(|error| error as &(dyn std::error::Error + 'static)),
                 );
             }
             result
@@ -756,6 +774,19 @@ mod tests {
 
         assert_that!(super::error_chain(&error))
             .is_equal_to("connecting failed: dns error: no such host".to_string());
+    }
+
+    #[rstest]
+    fn the_cause_hidden_inside_an_http_service_error_is_logged() {
+        #[derive(Debug, thiserror::Error)]
+        #[error("tcp connect error")]
+        struct Tcp(#[source] std::io::Error);
+
+        let error =
+            HttpServiceError::Connect(Box::new(Tcp(std::io::Error::other("Connection refused"))));
+
+        assert_that!(super::error_chain(&error))
+            .is_equal_to("Connect error: tcp connect error: Connection refused".to_string());
     }
 
     #[traced_test]
