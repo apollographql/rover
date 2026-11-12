@@ -156,30 +156,53 @@ impl PluginInstall {
                 .require_elv2_license(&client_config)?;
         }
 
-        let installed = async {
+        // Every plugin is attempted, whatever happens to the others, so a
+        // re-run has only the failures left to do.
+        let stderr = rover_print::print::stderr::default();
+        let attempted = async {
             let mut installed = Vec::new();
+            let mut failed = Vec::new();
             for ((request, record), plugin) in installs.iter().zip(&plugins) {
-                let provenance =
+                let outcome =
                     PluginInstaller::new(client_config.clone(), make_installer()?, self.force)
                         .requested_by(request.origin())
                         .without_downloads(self.download_control())
                         .install(plugin)
-                        .await?;
+                        .await;
+                let provenance = match outcome {
+                    Ok(provenance) => provenance,
+                    Err(err) => {
+                        failed.push(err);
+                        continue;
+                    }
+                };
                 if *record && let Some(level) = &level {
                     self.record(level, request, &provenance)?;
                 }
+                // A download has already reported itself; anything else would
+                // otherwise succeed in silence, which reads as though nothing
+                // happened.
+                if let Some(message) = provenance.install_confirmation() {
+                    stderr.print(&StyledText::plain(message));
+                }
                 installed.push(provenance);
             }
-            Ok(installed)
+            Ok((installed, failed))
         }
         .await;
-        // A failed install leaves no half-made project root behind.
-        let installed = match (installed, new_root) {
-            (Ok(installed), Some(new_root)) => {
+        // A project root is made only for a plugin installed into it, and an
+        // install that put nothing there leaves no half-made one behind.
+        let (installed, mut failed) = match (attempted, new_root) {
+            (Ok((installed, failed)), Some(new_root)) if !installed.is_empty() => {
                 new_root.create()?;
-                installed
+                (installed, failed)
             }
-            (Ok(installed), None) => installed,
+            (Ok(attempted), new_root) => {
+                if let Some(new_root) = new_root {
+                    new_root.abandon();
+                }
+                attempted
+            }
             (Err(err), new_root) => {
                 if let Some(new_root) = new_root {
                     new_root.abandon();
@@ -187,14 +210,8 @@ impl PluginInstall {
                 return Err(err);
             }
         };
-
-        // A download has already reported itself; anything else would otherwise succeed in
-        // silence, which reads as though nothing happened.
-        let stderr = rover_print::print::stderr::default();
-        for plugin in &installed {
-            if let Some(message) = plugin.install_confirmation() {
-                stderr.print(&StyledText::plain(message));
-            }
+        if !failed.is_empty() {
+            return Err(failed.remove(0));
         }
 
         Ok(RoverOutput::CliOutput(Box::new(PluginInstallOutput {
