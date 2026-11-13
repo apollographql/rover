@@ -7,9 +7,16 @@
 //! give every attempt of a request its own parent ID and the same trace ID. [`stamp`] does it for
 //! a client that retries outside of one.
 
-use std::{sync::OnceLock, task::Context};
+use std::{
+    collections::HashSet,
+    fmt::Display,
+    future::Future,
+    pin::Pin,
+    sync::{Mutex, OnceLock},
+    task::Context,
+};
 
-use http::{HeaderMap, HeaderName};
+use http::{HeaderMap, HeaderName, StatusCode};
 pub use opentelemetry::trace::{SpanContext, SpanId, TraceId};
 use opentelemetry::{
     propagation::TextMapPropagator,
@@ -23,7 +30,7 @@ use opentelemetry_sdk::{
 };
 use tower::{Layer, Service};
 
-use crate::retry::RetryCount;
+use crate::{retry::RetryCount, HttpServiceError};
 
 const TRACEPARENT: HeaderName = HeaderName::from_static("traceparent");
 const TRACESTATE: HeaderName = HeaderName::from_static("tracestate");
@@ -55,6 +62,16 @@ pub fn process_trace_id() -> TraceId {
 /// A `traceparent` or `tracestate` the headers already had is replaced, and is never left in place
 /// beside, or instead of, the ones this makes.
 pub fn stamp(trace_id: TraceId, retries: u32, headers: &mut HeaderMap) -> SpanContext {
+    // A run has one trace ID, so this logs it once, with the first request. Remembering which IDs
+    // were logged, rather than whether any was, keeps that true for a caller that makes its own.
+    static LOGGED: OnceLock<Mutex<HashSet<TraceId>>> = OnceLock::new();
+    let first_with_this_id = LOGGED
+        .get_or_init(Mutex::default)
+        .lock()
+        .is_ok_and(|mut logged| logged.insert(trace_id));
+    if first_with_this_id {
+        tracing::debug!(%trace_id, "Platform API requests in this run carry trace ID {trace_id}");
+    }
     let trace_state =
         TraceState::from_key_value([("rover", format!("retries:{retries}"))]).unwrap_or_default();
     let span_context = SpanContext::new(
@@ -75,6 +92,96 @@ pub fn stamp(trace_id: TraceId, retries: u32, headers: &mut HeaderMap) -> SpanCo
         headers.remove(TRACESTATE);
     }
     span_context
+}
+
+/// Logs, at debug level, that the attempt `span_context` was stamped for failed.
+///
+/// The entry carries the trace ID, the attempt's parent ID and its retry count, which is what a
+/// person needs to give support so that attempt can be found.
+pub fn log_failed_attempt(span_context: &SpanContext, retries: u32, failure: impl Display) {
+    tracing::debug!(
+        trace_id = %span_context.trace_id(),
+        parent_id = %span_context.span_id(),
+        retries,
+        "Platform API request attempt failed: {failure}"
+    );
+}
+
+/// Logs the attempt `span_context` was stamped for, if `outcome` says it failed.
+///
+/// `outcome` is the status of the response, or the error that took its place. An error is
+/// logged with its causes, because the reason a connection failed is usually in one of them. A
+/// response fails the attempt if its status is a client or server error.
+///
+/// Both request paths report through this, so what counts as a failed attempt is the same on each.
+pub fn log_attempt_outcome(
+    span_context: &SpanContext,
+    retries: u32,
+    outcome: Result<StatusCode, &(dyn std::error::Error + 'static)>,
+) {
+    match outcome {
+        Err(error) => log_failed_attempt(span_context, retries, error_chain(error)),
+        Ok(status) if status.is_client_error() || status.is_server_error() => {
+            log_failed_attempt(span_context, retries, status)
+        }
+        Ok(_) => {}
+    }
+}
+
+/// `error` and each of its causes, from the outermost in
+///
+/// An [`HttpServiceError`] keeps the error that caused it without exposing it as its `source`,
+/// because its message is shown to people as it is. The log wants that cause, so it is followed
+/// here. `Request` and `Unexpected` already put their cause in their own message, so it isn't
+/// printed a second time, but its causes are.
+fn error_chain(error: &(dyn std::error::Error + 'static)) -> String {
+    let mut message = error.to_string();
+    let mut link = Some(error);
+    while let Some(error) = link {
+        let (cause, already_shown) = match error.downcast_ref::<HttpServiceError>() {
+            Some(
+                HttpServiceError::Cancelled(cause)
+                | HttpServiceError::Closed(cause)
+                | HttpServiceError::Decode(cause)
+                | HttpServiceError::Body(cause)
+                | HttpServiceError::Connect(cause),
+            ) => (
+                Some(cause.as_ref() as &(dyn std::error::Error + 'static)),
+                false,
+            ),
+            Some(HttpServiceError::Request(cause) | HttpServiceError::Unexpected(cause)) => (
+                Some(cause.as_ref() as &(dyn std::error::Error + 'static)),
+                true,
+            ),
+            _ => (error.source(), false),
+        };
+        if let (Some(cause), false) = (cause, already_shown) {
+            message.push_str(": ");
+            message.push_str(&cause.to_string());
+        }
+        link = cause;
+    }
+    message
+}
+
+/// Logs an attempt that was dropped before it had an outcome, unless it is disarmed first.
+///
+/// An outer layer, like a timeout, can drop the future of an attempt that is still waiting. That
+/// attempt's IDs were sent all the same, so this logs them as a failed attempt when it is dropped.
+struct AbandonedAttempt {
+    attempt: Option<(SpanContext, u32)>,
+}
+
+impl Drop for AbandonedAttempt {
+    fn drop(&mut self) {
+        if let Some((span_context, retries)) = &self.attempt {
+            log_failed_attempt(
+                span_context,
+                *retries,
+                "abandoned before a response, such as by a timeout",
+            );
+        }
+    }
 }
 
 /// Layer that applies [`TraceparentService`], which adds `traceparent` and `tracestate` headers to
@@ -103,20 +210,27 @@ impl<S> Layer<S> for TraceparentLayer {
 }
 
 /// Middleware that adds trace headers to every HTTP request it sends, as [`stamp`] does, with the
-/// retry count [`RetryPolicy`](crate::retry::RetryPolicy) left on the request
+/// retry count [`RetryPolicy`](crate::retry::RetryPolicy) left on the request.
+///
+/// It also logs each failed attempt, at debug level, with the IDs it sent: see
+/// [`log_attempt_outcome`]. To do that it needs the inner service's future to be `Send + 'static`,
+/// its response to be an [`http::Response`] and its error to be a [`std::error::Error`]. An attempt
+/// that an outer layer gives up on, such as a timeout, is logged as abandoned.
 #[derive(Clone, Debug)]
 pub struct TraceparentService<S> {
     trace_id: TraceId,
     inner: S,
 }
 
-impl<S, B> Service<http::Request<B>> for TraceparentService<S>
+impl<S, B, RB> Service<http::Request<B>> for TraceparentService<S>
 where
-    S: Service<http::Request<B>>,
+    S: Service<http::Request<B>, Response = http::Response<RB>>,
+    S::Future: Send + 'static,
+    S::Error: std::error::Error + 'static,
 {
     type Response = S::Response;
     type Error = S::Error;
-    type Future = S::Future;
+    type Future = Pin<Box<dyn Future<Output = Result<S::Response, S::Error>> + Send>>;
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
         self.inner.poll_ready(cx)
@@ -124,8 +238,26 @@ where
 
     fn call(&mut self, mut req: http::Request<B>) -> Self::Future {
         let RetryCount(retries) = RetryCount::of(&req);
-        stamp(self.trace_id, retries, req.headers_mut());
-        self.inner.call(req)
+        let span_context = stamp(self.trace_id, retries, req.headers_mut());
+        let response = self.inner.call(req);
+        Box::pin(async move {
+            let mut abandoned = AbandonedAttempt {
+                attempt: Some((span_context, retries)),
+            };
+            let result = response.await;
+            // It has an outcome now, so it wasn't abandoned.
+            if let Some((span_context, _)) = abandoned.attempt.take() {
+                log_attempt_outcome(
+                    &span_context,
+                    retries,
+                    result
+                        .as_ref()
+                        .map(|response| response.status())
+                        .map_err(|error| error as &(dyn std::error::Error + 'static)),
+                );
+            }
+            result
+        })
     }
 }
 
@@ -150,13 +282,16 @@ mod tests {
         retry::{Policy, RetryLayer},
         ServiceBuilder, ServiceExt,
     };
+    use tracing_test::traced_test;
 
     use super::{
         new_trace_id, process_trace_id, stamp, TraceId, TraceparentLayer, TraceparentService,
+        TRACEPARENT,
     };
     use crate::{
         retry::{RetryCount, RetryPolicy},
         test::MockHttpService,
+        timeout::TimeoutLayer,
         Full, HttpRequest, HttpResponse, HttpServiceError,
     };
 
@@ -520,6 +655,173 @@ mod tests {
             "rover=retries:1".to_string(),
             "rover=retries:0".to_string(),
         ]);
+    }
+
+    #[traced_test]
+    #[rstest]
+    #[tokio::test]
+    async fn the_trace_id_is_logged_once_with_the_first_request(
+        trace_id: TraceId,
+        request: HttpRequest,
+    ) {
+        let (service, _) = traced(trace_id);
+        for _ in 0..3 {
+            service.clone().oneshot(request.clone()).await.unwrap();
+        }
+
+        logs_assert(|lines: &[&str]| {
+            let logged = lines
+                .iter()
+                .filter(|line| line.contains(&format!("carry trace ID {trace_id}")))
+                .count();
+            match logged {
+                1 => Ok(()),
+                other => Err(format!(
+                    "expected the trace ID once, found it {other} times"
+                )),
+            }
+        });
+    }
+
+    #[traced_test]
+    #[rstest]
+    #[tokio::test]
+    async fn a_failed_attempt_is_logged_with_its_ids_and_retry_count(
+        trace_id: TraceId,
+        request: HttpRequest,
+    ) {
+        let (inner, seen) = flaky(vec![StatusCode::INTERNAL_SERVER_ERROR, StatusCode::OK]);
+        let service = ServiceBuilder::new()
+            .layer(RetryLayer::new(RetryPolicy::new(Duration::from_secs(30))))
+            .layer(TraceparentLayer::new(trace_id))
+            .service(inner);
+
+        service.oneshot(request).await.unwrap();
+
+        let failed_parent_id = Traceparent::of(&seen.lock().unwrap()[0]).parent_id;
+        let succeeded_parent_id = Traceparent::of(&seen.lock().unwrap()[1]).parent_id;
+        logs_assert(|lines: &[&str]| {
+            let failures: Vec<_> = lines
+                .iter()
+                .filter(|line| line.contains("request attempt failed"))
+                .collect();
+            let [failure] = failures.as_slice() else {
+                return Err(format!("expected one failed attempt, found {failures:?}"));
+            };
+            for expected in [
+                format!("trace_id={trace_id}"),
+                format!("parent_id={failed_parent_id}"),
+                "retries=0".to_string(),
+                "500 Internal Server Error".to_string(),
+            ] {
+                if !failure.contains(&expected) {
+                    return Err(format!("{failure} lacks {expected}"));
+                }
+            }
+            if failure.contains(&succeeded_parent_id) {
+                return Err(format!("{failure} names the attempt that succeeded"));
+            }
+            Ok(())
+        });
+    }
+
+    // An outer timeout drops the future of an attempt it gives up on. The attempt's IDs were sent
+    // all the same, so they are what a person gives support to find it.
+    #[traced_test]
+    #[rstest]
+    #[tokio::test(start_paused = true)]
+    async fn an_attempt_cut_off_by_a_timeout_is_logged_with_its_ids(
+        trace_id: TraceId,
+        request: HttpRequest,
+    ) {
+        let sent = Arc::new(Mutex::new(None::<String>));
+        let recorder = Arc::clone(&sent);
+        let hung = tower::service_fn(move |req: HttpRequest| {
+            *recorder.lock().unwrap() = req
+                .headers()
+                .get(TRACEPARENT)
+                .map(|value| value.to_str().unwrap().to_string());
+            std::future::pending::<Result<HttpResponse, HttpServiceError>>()
+        });
+        let service = ServiceBuilder::new()
+            .layer(TimeoutLayer::new(Duration::from_millis(50)))
+            .layer(TraceparentLayer::new(trace_id))
+            .service(hung);
+
+        let error = service.oneshot(request).await.unwrap_err();
+
+        assert_that!(error.is_timeout()).is_true();
+        let traceparent = sent.lock().unwrap().clone().unwrap();
+        let parent_id = traceparent.split('-').nth(2).unwrap().to_string();
+        let expected = format!(
+            "Platform API request attempt failed: abandoned before a response, such as by a \
+             timeout trace_id={trace_id} parent_id={parent_id} retries=0"
+        );
+        logs_assert(|lines: &[&str]| {
+            let failures: Vec<_> = lines
+                .iter()
+                .filter(|line| line.contains("request attempt failed"))
+                .collect();
+            match failures.as_slice() {
+                [failure] if failure.ends_with(&expected) => Ok(()),
+                _ => Err(format!(
+                    "expected one line ending {expected:?}, found {failures:?}"
+                )),
+            }
+        });
+    }
+
+    #[rstest]
+    fn an_error_is_logged_with_its_causes() {
+        #[derive(Debug, thiserror::Error)]
+        #[error("connecting failed")]
+        struct Outer(#[source] Inner);
+
+        #[derive(Debug, thiserror::Error)]
+        #[error("dns error")]
+        struct Inner(#[source] std::io::Error);
+
+        let error = Outer(Inner(std::io::Error::other("no such host")));
+
+        assert_that!(super::error_chain(&error))
+            .is_equal_to("connecting failed: dns error: no such host".to_string());
+    }
+
+    #[rstest]
+    fn the_cause_hidden_inside_an_http_service_error_is_logged() {
+        #[derive(Debug, thiserror::Error)]
+        #[error("tcp connect error")]
+        struct Tcp(#[source] std::io::Error);
+
+        let error =
+            HttpServiceError::Connect(Box::new(Tcp(std::io::Error::other("Connection refused"))));
+
+        assert_that!(super::error_chain(&error))
+            .is_equal_to("Connect error: tcp connect error: Connection refused".to_string());
+    }
+
+    #[rstest]
+    fn a_cause_a_message_already_shows_is_not_logged_twice() {
+        #[derive(Debug, thiserror::Error)]
+        #[error("builder error")]
+        struct Builder(#[source] std::io::Error);
+
+        let error =
+            HttpServiceError::Request(Box::new(Builder(std::io::Error::other("invalid url"))));
+
+        assert_that!(super::error_chain(&error))
+            .is_equal_to("Request error: builder error.: invalid url".to_string());
+    }
+
+    #[traced_test]
+    #[rstest]
+    #[tokio::test]
+    async fn a_successful_attempt_is_not_logged_as_failed(trace_id: TraceId, request: HttpRequest) {
+        let (service, _) = traced(trace_id);
+
+        service.oneshot(request).await.unwrap();
+
+        assert!(!logs_contain("request attempt failed"));
     }
 
     #[rstest]

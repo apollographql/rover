@@ -80,6 +80,7 @@ strip-ansi-escapes = { workspace = true }
 temp-env = "0.3"
 tower-test = { workspace = true }
 tokio-test = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["fmt"] }
 tracing-test = { workspace = true }
 
 [lints]

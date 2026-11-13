@@ -40,6 +40,8 @@ anyhow = { workspace = true }
 httpmock = { workspace = true }
 rstest = { workspace = true }
 speculoos = { workspace = true }
+tokio = { workspace = true, features = ["test-util"] }
+tracing-test = { workspace = true }
 
 [lints]
 workspace = true

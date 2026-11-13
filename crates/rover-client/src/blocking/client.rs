@@ -11,7 +11,7 @@ use reqwest::{
 };
 use rover_http::{
     retry::is_retryable_status,
-    trace::{stamp, TraceId},
+    trace::{log_attempt_outcome, stamp, TraceId},
 };
 
 use crate::error::{EndpointKind, RoverClientError};
@@ -128,9 +128,9 @@ impl GraphQLClient {
             // new parent ID and says how many attempts came before it.
             let retries = attempts.fetch_add(1, Ordering::Relaxed);
             let mut headers = header_map.clone();
-            if let Some(trace_id) = self.trace_id {
-                stamp(trace_id, retries, &mut headers);
-            }
+            let span_context = self
+                .trace_id
+                .map(|trace_id| stamp(trace_id, retries, &mut headers));
             let response = self
                 .client
                 .post(&self.graphql_endpoint)
@@ -138,6 +138,17 @@ impl GraphQLClient {
                 .body(request_body.clone())
                 .send()
                 .await;
+
+            if let Some(span_context) = &span_context {
+                log_attempt_outcome(
+                    span_context,
+                    retries,
+                    response
+                        .as_ref()
+                        .map(|response| response.status())
+                        .map_err(|error| error as &(dyn std::error::Error + 'static)),
+                );
+            }
 
             match response {
                 Err(client_error) => {
