@@ -86,8 +86,11 @@ pub fn is_retryable_status(status: StatusCode) -> bool {
 /// how many came before it. The count lives on the request, not in the policy, so each new
 /// request starts again from zero without anything resetting it.
 ///
-/// It counts every attempt of the logical request, across all the [`RetryPolicy`]s that handle it.
-/// A service that retries inside another one that retries would count both, as one running total.
+/// Only one service should retry a request. Where one retries inside another, the count is not a
+/// running total: the inner service raises the count on its own copy of the request, which the
+/// outer one never sees, so each time the outer one retries, the inner one's retries start again
+/// from the outer one's count. Two nested services can send `0, 1, 1, 2, 2, 3`, for example.
+///
 /// A retry [`Policy`] of any other kind has to raise this count in its own `retry`, as
 /// [`RetryPolicy`] does, for the retry count sent with each attempt to be right.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

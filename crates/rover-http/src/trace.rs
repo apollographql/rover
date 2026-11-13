@@ -146,7 +146,10 @@ mod tests {
     };
     use rstest::{fixture, rstest};
     use speculoos::prelude::*;
-    use tower::{retry::RetryLayer, ServiceBuilder, ServiceExt};
+    use tower::{
+        retry::{Policy, RetryLayer},
+        ServiceBuilder, ServiceExt,
+    };
 
     use super::{
         new_trace_id, process_trace_id, stamp, TraceId, TraceparentLayer, TraceparentService,
@@ -391,6 +394,68 @@ mod tests {
             .map(|retries| format!("rover=retries:{retries}"))
             .collect();
         assert_that!(sent).is_equal_to(expected);
+    }
+
+    /// A policy that retries a failed attempt once, and raises the retry count as it should
+    #[derive(Clone, Default)]
+    struct RetryOnce {
+        retried: bool,
+    }
+
+    impl Policy<HttpRequest, HttpResponse, HttpServiceError> for RetryOnce {
+        type Future = future::Ready<()>;
+
+        fn retry(
+            &mut self,
+            req: &mut HttpRequest,
+            result: &mut Result<HttpResponse, HttpServiceError>,
+        ) -> Option<Self::Future> {
+            let failed = result
+                .as_ref()
+                .map_or(true, |response| response.status().is_server_error());
+            if self.retried || !failed {
+                return None;
+            }
+            self.retried = true;
+            let RetryCount(retries) = RetryCount::of(req);
+            req.extensions_mut().insert(RetryCount(retries + 1));
+            Some(future::ready(()))
+        }
+
+        fn clone_request(&mut self, req: &HttpRequest) -> Option<HttpRequest> {
+            Some(req.clone())
+        }
+    }
+
+    // One service retrying inside another doesn't give a running total, as `RetryCount` says: the
+    // outer service's retry starts the inner one's count again from the outer one's.
+    #[rstest]
+    #[tokio::test]
+    async fn services_that_retry_inside_one_another_do_not_share_a_running_total(
+        trace_id: TraceId,
+        request: HttpRequest,
+    ) {
+        let (inner, seen) = flaky(vec![
+            StatusCode::INTERNAL_SERVER_ERROR,
+            StatusCode::INTERNAL_SERVER_ERROR,
+            StatusCode::INTERNAL_SERVER_ERROR,
+            StatusCode::OK,
+        ]);
+        let service = ServiceBuilder::new()
+            .layer(RetryLayer::new(RetryPolicy::new(Duration::from_secs(30))))
+            .layer(RetryLayer::new(RetryOnce::default()))
+            .layer(TraceparentLayer::new(trace_id))
+            .service(inner);
+
+        let response = service.oneshot(request).await.unwrap();
+
+        assert_that!(response.status()).is_equal_to(StatusCode::OK);
+        assert_that!(tracestates(&seen)).is_equal_to(vec![
+            "rover=retries:0".to_string(),
+            "rover=retries:1".to_string(),
+            "rover=retries:1".to_string(),
+            "rover=retries:2".to_string(),
+        ]);
     }
 
     #[rstest]
