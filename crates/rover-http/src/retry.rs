@@ -79,33 +79,71 @@ pub fn is_retryable_status(status: StatusCode) -> bool {
         )
 }
 
+/// How many earlier attempts of the same logical request came before this one.
+///
+/// A request with no `RetryCount` extension is on its first attempt, so it has retried zero times.
+/// [`RetryPolicy`] raises the count each time it retries, so the attempt about to be sent knows
+/// how many came before it. The count lives on the request, not in the policy, so each new
+/// request starts again from zero without anything resetting it.
+///
+/// Only one service should retry a request. Where one retries inside another, the count is not a
+/// running total: the inner service raises the count on its own copy of the request, which the
+/// outer one never sees, so each time the outer one retries, the inner one's retries start again
+/// from the outer one's count. Two nested services can send `0, 1, 1, 2, 2, 3`, for example.
+///
+/// A retry [`Policy`] of any other kind has to raise this count in its own `retry`, as
+/// [`RetryPolicy`] does, for the retry count sent with each attempt to be right.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct RetryCount(pub u32);
+
+impl RetryCount {
+    /// The retry count of `request`, which is zero if nothing has retried it
+    pub fn of<B>(request: &http::Request<B>) -> RetryCount {
+        request
+            .extensions()
+            .get::<RetryCount>()
+            .copied()
+            .unwrap_or_default()
+    }
+}
+
+impl RetryPolicy {
+    /// How long to wait before retrying, or `None` if `result` shouldn't be retried
+    fn next_delay(
+        &mut self,
+        result: &Result<HttpResponse, HttpServiceError>,
+    ) -> Option<tokio::time::Sleep> {
+        if !self.can_retry() {
+            return None;
+        }
+        let retryable = match result {
+            Err(HttpServiceError::TimedOut)
+            | Err(HttpServiceError::Connect(_))
+            | Err(HttpServiceError::Body(_))
+            | Err(HttpServiceError::Decode(_))
+            | Err(HttpServiceError::Request(_))
+            | Err(HttpServiceError::Closed(_)) => true,
+            Err(_) => false,
+            Ok(resp) => is_retryable_status(resp.status()),
+        };
+        retryable.then(|| self.backoff.next_backoff())
+    }
+}
+
 impl Policy<HttpRequest, HttpResponse, HttpServiceError> for RetryPolicy {
     type Future = tokio::time::Sleep;
     fn retry(
         &mut self,
-        _: &mut HttpRequest,
+        req: &mut HttpRequest,
         result: &mut Result<HttpResponse, HttpServiceError>,
     ) -> Option<Self::Future> {
-        if self.can_retry() {
-            match result {
-                Err(HttpServiceError::TimedOut)
-                | Err(HttpServiceError::Connect(_))
-                | Err(HttpServiceError::Body(_))
-                | Err(HttpServiceError::Decode(_))
-                | Err(HttpServiceError::Request(_))
-                | Err(HttpServiceError::Closed(_)) => Some(self.backoff.next_backoff()),
-                Err(_) => None,
-                Ok(resp) => {
-                    if is_retryable_status(resp.status()) {
-                        Some(self.backoff.next_backoff())
-                    } else {
-                        None
-                    }
-                }
-            }
-        } else {
-            None
-        }
+        let delay = self.next_delay(result)?;
+        // `req` is the request that will be sent next, so it carries one more retry than the
+        // attempt that just failed.
+        let RetryCount(retries) = RetryCount::of(req);
+        req.extensions_mut()
+            .insert(RetryCount(retries.saturating_add(1)));
+        Some(delay)
     }
 
     fn clone_request(&mut self, req: &HttpRequest) -> Option<HttpRequest> {

@@ -1,4 +1,7 @@
-use std::time::{Duration, Instant};
+use std::{
+    sync::atomic::{AtomicU32, Ordering},
+    time::{Duration, Instant},
+};
 
 use backon::Retryable;
 use graphql_client::{Error as GraphQLError, GraphQLQuery, Response as GraphQLResponse};
@@ -119,12 +122,14 @@ impl GraphQLClient {
 
         tracing::trace!(request_headers = ?header_map);
         tracing::debug!("Request Body: {}", request_body);
+        let attempts = AtomicU32::new(0);
         let graphql_operation = || async {
             // Built inside the operation so that each attempt, including each retry, gets a
-            // new parent ID.
+            // new parent ID and says how many attempts came before it.
+            let retries = attempts.fetch_add(1, Ordering::Relaxed);
             let mut headers = header_map.clone();
             if let Some(trace_id) = self.trace_id {
-                stamp(trace_id, &mut headers);
+                stamp(trace_id, retries, &mut headers);
             }
             let response = self
                 .client
@@ -498,6 +503,38 @@ mod tests {
 
         let error = response.expect_err("Response didn't error");
         assert!(error.to_string().contains("Not Found"));
+    }
+
+    // Only Platform API clients are given a trace ID. A request to anywhere else, like a customer's
+    // own endpoint being introspected, must go out without trace headers.
+    #[tokio::test]
+    async fn a_client_with_no_trace_id_sends_no_trace_headers() {
+        let server = MockServer::start();
+        let path = "/anywhere-else";
+        let mock = server.mock(|when, then| {
+            when.method(POST)
+                .path(path)
+                .header_missing("traceparent")
+                .header_missing("tracestate");
+            then.status(200).body("{}");
+        });
+        let graphql_client = GraphQLClient::new(
+            &server.url(path),
+            ReqwestClient::new(),
+            Duration::from_secs(3),
+        );
+
+        let response = graphql_client
+            .execute(
+                "{}".to_string(),
+                &HeaderMap::new(),
+                true,
+                EndpointKind::Customer,
+            )
+            .await;
+
+        assert!(response.is_ok(), "{response:?}");
+        assert_eq!(mock.calls(), 1);
     }
 
     async fn execute_against_status(

@@ -629,13 +629,20 @@ mod tests {
         assert_that!(mock.calls()).is_equal_to(1);
     }
 
-    /// The `traceparent` of each request a [`recording_server`] received, in order, `None` for a
-    /// request that had none
-    type Sent = Arc<Mutex<Vec<Option<String>>>>;
+    /// The trace headers of one request a [`recording_server`] received, `None` for a header the
+    /// request didn't have
+    #[derive(Clone, Debug)]
+    struct Attempt {
+        traceparent: Option<String>,
+        tracestate: Option<String>,
+    }
 
-    /// A mock server that records the `traceparent` of each request to `/graphql`. It answers the
-    /// Nth request with the Nth status it was given, and the last status to every request after
-    /// that. A `200` carries an empty GraphQL `data` object.
+    /// The requests a [`recording_server`] received, in order
+    type Sent = Arc<Mutex<Vec<Attempt>>>;
+
+    /// A mock server that records the `traceparent` and `tracestate` of each request to
+    /// `/graphql`. It answers the Nth request with the Nth status it was given, and the last status
+    /// to every request after that. A `200` carries an empty GraphQL `data` object.
     fn recording_server(statuses: Vec<u16>) -> (MockServer, Sent) {
         let server = MockServer::start();
         let sent = Sent::default();
@@ -643,12 +650,16 @@ mod tests {
         server.mock(|when, then| {
             when.method(POST).path("/graphql");
             then.respond_with(move |req| {
-                let mut sent = recorder.lock().unwrap();
-                sent.push(
+                let header = |name: &str| {
                     req.headers()
-                        .get("traceparent")
-                        .map(|value| value.to_str().unwrap().to_string()),
-                );
+                        .get(name)
+                        .map(|value| value.to_str().unwrap().to_string())
+                };
+                let mut sent = recorder.lock().unwrap();
+                sent.push(Attempt {
+                    traceparent: header("traceparent"),
+                    tracestate: header("tracestate"),
+                });
                 let status = statuses[(sent.len() - 1).min(statuses.len() - 1)];
                 let body = if status == 200 { r#"{"data":{}}"# } else { "" };
                 http::Response::builder()
@@ -662,11 +673,37 @@ mod tests {
         (server, sent)
     }
 
+    /// Asserts that `count` requests were sent, and that their `tracestate` headers say
+    /// `rover=retries:0`, `rover=retries:1`, and so on in order.
+    fn assert_counted_from_zero(sent: &Sent, count: usize) {
+        let expected: Vec<Option<String>> = (0..count)
+            .map(|retries| Some(format!("rover=retries:{retries}")))
+            .collect();
+        assert_that!(sent_tracestates(sent)).is_equal_to(expected);
+    }
+
     fn sent(sent: &Sent) -> Vec<Option<String>> {
-        sent.lock().unwrap().clone()
+        sent.lock()
+            .unwrap()
+            .iter()
+            .map(|attempt| attempt.traceparent.clone())
+            .collect()
+    }
+
+    fn sent_tracestates(sent: &Sent) -> Vec<Option<String>> {
+        sent.lock()
+            .unwrap()
+            .iter()
+            .map(|attempt| attempt.tracestate.clone())
+            .collect()
     }
 
     fn client_for(server: &MockServer) -> StudioClient {
+        // Long enough that the retries these tests wait for are never cut short
+        client_retrying_for(server, Duration::from_secs(10))
+    }
+
+    fn client_retrying_for(server: &MockServer, retry_period: Duration) -> StudioClient {
         StudioClient::new(
             Credential {
                 api_key: "an-api-key".to_string(),
@@ -677,8 +714,7 @@ mod tests {
             "test-version",
             false,
             ReqwestClient::new(),
-            // Long enough that the retries these tests wait for are never cut short
-            Duration::from_secs(10),
+            retry_period,
         )
     }
 
@@ -797,6 +833,95 @@ mod tests {
             .unwrap();
 
         assert_one_trace(sent(&traceparents), trace_id, 2);
+    }
+
+    #[tokio::test]
+    async fn each_retry_through_the_blocking_client_says_how_many_attempts_came_before() {
+        let (server, sent) = recording_server(vec![500, 500, 200]);
+
+        client_for(&server)
+            .with_trace_id(new_trace_id())
+            .post::<TestQuery>(TestQueryVariables {})
+            .await
+            .unwrap();
+
+        assert_counted_from_zero(&sent, 3);
+    }
+
+    #[tokio::test]
+    async fn each_retry_through_the_service_says_how_many_attempts_came_before() {
+        let (server, sent) = recording_server(vec![500, 500, 200]);
+
+        client_for(&server)
+            .with_trace_id(new_trace_id())
+            .studio_graphql_service()
+            .unwrap()
+            .oneshot(GraphQLRequest::<TestQuery>::new(TestQueryVariables {}))
+            .await
+            .unwrap();
+
+        assert_counted_from_zero(&sent, 3);
+    }
+
+    #[tokio::test]
+    async fn each_retry_through_the_attempt_timeout_service_says_how_many_attempts_came_before() {
+        let (server, sent) = recording_server(vec![500, 500, 200]);
+
+        client_for(&server)
+            .with_trace_id(new_trace_id())
+            .studio_graphql_service_with_attempt_timeout(Duration::from_secs(5))
+            .unwrap()
+            .oneshot(GraphQLRequest::<TestQuery>::new(TestQueryVariables {}))
+            .await
+            .unwrap();
+
+        assert_counted_from_zero(&sent, 3);
+    }
+
+    // The retries stop when the retry period is over, and what had been sent counted without gaps.
+    #[tokio::test]
+    async fn the_retry_count_keeps_counting_until_retries_run_out() {
+        let (server, sent) = recording_server(vec![500]);
+
+        let result = client_retrying_for(&server, Duration::from_secs(1))
+            .with_trace_id(new_trace_id())
+            .post::<TestQuery>(TestQueryVariables {})
+            .await;
+
+        assert_that!(result.is_err()).is_true();
+        let attempts = sent.lock().unwrap().len();
+        assert_that!(attempts >= 2).is_true();
+        assert_counted_from_zero(&sent, attempts);
+    }
+
+    #[tokio::test]
+    async fn the_retry_count_through_the_service_keeps_counting_until_retries_run_out() {
+        let (server, sent) = recording_server(vec![500]);
+
+        let result = client_retrying_for(&server, Duration::from_secs(1))
+            .with_trace_id(new_trace_id())
+            .studio_graphql_service()
+            .unwrap()
+            .oneshot(GraphQLRequest::<TestQuery>::new(TestQueryVariables {}))
+            .await;
+
+        assert_that!(result.is_err()).is_true();
+        let attempts = sent.lock().unwrap().len();
+        assert_that!(attempts >= 2).is_true();
+        assert_counted_from_zero(&sent, attempts);
+    }
+
+    #[tokio::test]
+    async fn a_request_with_no_retry_says_it_has_not_been_retried() {
+        let (server, sent) = recording_server(vec![200]);
+
+        client_for(&server)
+            .with_trace_id(new_trace_id())
+            .post_no_retry::<TestQuery>(TestQueryVariables {})
+            .await
+            .unwrap();
+
+        assert_counted_from_zero(&sent, 1);
     }
 
     #[tokio::test]
