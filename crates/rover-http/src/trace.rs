@@ -912,6 +912,8 @@ mod tests {
         let response = service.oneshot(request).await.unwrap();
 
         assert_that!(response.status()).is_equal_to(StatusCode::INTERNAL_SERVER_ERROR);
+        // The layer did log, so the absence of a failed attempt isn't just an absence of logs.
+        assert_that!(logs_contain("Not adding trace headers")).is_true();
         assert_that!(logs_contain("request attempt failed")).is_false();
     }
 
