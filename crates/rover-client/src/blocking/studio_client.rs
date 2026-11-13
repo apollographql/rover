@@ -350,7 +350,10 @@ mod tests {
     use graphql_client::{GraphQLQuery, QueryBody};
     use httpmock::prelude::*;
     use rover_graphql::{GraphQLRequest, GraphQLServiceError};
-    use rover_http::{trace::new_trace_id, HttpServiceError};
+    use rover_http::{
+        trace::{new_trace_id, TraceId},
+        HttpServiceError,
+    };
     use rover_studio::service::{
         permission_denied::permission_denied, rejected_credential::rejected_credential,
     };
@@ -909,6 +912,28 @@ mod tests {
         let attempts = sent.lock().unwrap().len();
         assert_that!(attempts >= 2).is_true();
         assert_counted_from_zero(&sent, attempts);
+    }
+
+    // Tracing never gets in the way of the request: with headers that can't be made, the request
+    // is still sent, and answered as it would have been.
+    #[tokio::test]
+    async fn a_request_whose_trace_headers_cannot_be_made_is_still_sent_on_every_path() {
+        let (server, received) = recording_server(vec![200]);
+        let client = client_for(&server).with_trace_id(TraceId::INVALID);
+
+        client
+            .post::<TestQuery>(TestQueryVariables {})
+            .await
+            .unwrap();
+        client
+            .studio_graphql_service()
+            .unwrap()
+            .oneshot(GraphQLRequest::<TestQuery>::new(TestQueryVariables {}))
+            .await
+            .unwrap();
+
+        assert_that!(sent(&received)).is_equal_to(vec![None, None]);
+        assert_that!(sent_tracestates(&received)).is_equal_to(vec![None, None]);
     }
 
     #[tokio::test]

@@ -61,7 +61,22 @@ pub fn process_trace_id() -> TraceId {
 ///
 /// A `traceparent` or `tracestate` the headers already had is replaced, and is never left in place
 /// beside, or instead of, the ones this makes.
-pub fn stamp(trace_id: TraceId, retries: u32, headers: &mut HeaderMap) -> SpanContext {
+///
+/// Tracing is there to help, so it never gets in the way of the request. If the headers can't be
+/// made, which is the case for an all-zero trace ID, none is sent, any the headers already had
+/// are removed so a stale one isn't sent in their place, the reason is logged at debug level, and
+/// this returns `None`: no IDs were sent.
+pub fn stamp(trace_id: TraceId, retries: u32, headers: &mut HeaderMap) -> Option<SpanContext> {
+    // The propagator writes only a valid span context, and then writes a `tracestate` even if it
+    // is empty. So clear both first, so that nothing the request already had can survive, and
+    // don't send an empty one, which W3C says to avoid.
+    headers.remove(TRACEPARENT);
+    headers.remove(TRACESTATE);
+    // Checked before anything says this is the run's trace ID, which it isn't if it isn't valid.
+    if trace_id == TraceId::INVALID {
+        tracing::debug!("Not adding trace headers: the trace ID is not valid");
+        return None;
+    }
     // A run has one trace ID, so this logs it once, with the first request. Remembering which IDs
     // were logged, rather than whether any was, keeps that true for a caller that makes its own.
     static LOGGED: OnceLock<Mutex<HashSet<TraceId>>> = OnceLock::new();
@@ -72,8 +87,9 @@ pub fn stamp(trace_id: TraceId, retries: u32, headers: &mut HeaderMap) -> SpanCo
     if first_with_this_id {
         tracing::debug!(%trace_id, "Platform API requests in this run carry trace ID {trace_id}");
     }
-    let trace_state =
-        TraceState::from_key_value([("rover", format!("retries:{retries}"))]).unwrap_or_default();
+    let trace_state = TraceState::from_key_value([("rover", format!("retries:{retries}"))])
+        .inspect_err(|error| tracing::debug!("Could not make the tracestate header: {error}"))
+        .unwrap_or_default();
     let span_context = SpanContext::new(
         trace_id,
         RandomIdGenerator::default().new_span_id(),
@@ -81,17 +97,18 @@ pub fn stamp(trace_id: TraceId, retries: u32, headers: &mut HeaderMap) -> SpanCo
         true,
         trace_state,
     );
+    // The propagator writes nothing for an invalid span context. The span ID is the other part
+    // that could make it one, if the generator ever made an all-zero ID.
+    if !span_context.is_valid() {
+        tracing::debug!("Not adding trace headers: could not make a valid span context");
+        return None;
+    }
     let context = OtelContext::new().with_remote_span_context(span_context.clone());
-    // The propagator writes only a valid span context, and then writes a `tracestate` even if it
-    // is empty. So clear both first, so that nothing the request already had can survive, and
-    // don't send an empty one, which W3C says to avoid.
-    headers.remove(TRACEPARENT);
-    headers.remove(TRACESTATE);
     TraceContextPropagator::new().inject_context(&context, &mut HeaderInjector(headers));
     if span_context.trace_state().header().is_empty() {
         headers.remove(TRACESTATE);
     }
-    span_context
+    Some(span_context)
 }
 
 /// Logs, at debug level, that the attempt `span_context` was stamped for failed.
@@ -210,7 +227,8 @@ impl<S> Layer<S> for TraceparentLayer {
 }
 
 /// Middleware that adds trace headers to every HTTP request it sends, as [`stamp`] does, with the
-/// retry count [`RetryPolicy`](crate::retry::RetryPolicy) left on the request.
+/// retry count [`RetryPolicy`](crate::retry::RetryPolicy) left on the request. If the headers can't
+/// be made it sends the request without them: see [`stamp`].
 ///
 /// It also logs each failed attempt, at debug level, with the IDs it sent: see
 /// [`log_attempt_outcome`]. To do that it needs the inner service's future to be `Send + 'static`,
@@ -242,7 +260,7 @@ where
         let response = self.inner.call(req);
         Box::pin(async move {
             let mut abandoned = AbandonedAttempt {
-                attempt: Some((span_context, retries)),
+                attempt: span_context.map(|span_context| (span_context, retries)),
             };
             let result = response.await;
             // It has an outcome now, so it wasn't abandoned.
@@ -821,7 +839,7 @@ mod tests {
 
         service.oneshot(request).await.unwrap();
 
-        assert!(!logs_contain("request attempt failed"));
+        assert_that!(logs_contain("request attempt failed")).is_false();
     }
 
     #[rstest]
@@ -841,11 +859,69 @@ mod tests {
         assert_that!(tracestates(&seen)).is_equal_to(vec!["rover=retries:0".to_string()]);
     }
 
+    // Tracing never gets in the way of the request. If the headers can't be made, the request is
+    // sent without them, with the response it would have had, and nothing is said above debug.
+    #[traced_test]
+    #[rstest]
+    #[tokio::test]
+    async fn a_request_whose_headers_cannot_be_made_is_sent_without_them(mut request: HttpRequest) {
+        let (service, seen) = traced(TraceId::INVALID);
+        // A header from some other trace is not sent in their place either.
+        request.headers_mut().insert(
+            "traceparent",
+            HeaderValue::from_static("00-00000000000000000000000000000001-0000000000000002-00"),
+        );
+        request
+            .headers_mut()
+            .insert("tracestate", HeaderValue::from_static("other=vendor"));
+
+        let response = service.oneshot(request).await.unwrap();
+
+        assert_that!(response.status()).is_equal_to(StatusCode::OK);
+        assert_that!(logs_contain("Not adding trace headers")).is_true();
+        // It was never the trace ID of any request, so it is not announced as one.
+        assert_that!(logs_contain("carry trace ID")).is_false();
+        let seen = seen.lock().unwrap();
+        assert_that!(seen.len()).is_equal_to(1);
+        assert_that!(seen[0].get("traceparent")).is_none();
+        assert_that!(seen[0].get("tracestate")).is_none();
+        logs_assert(|lines: &[&str]| {
+            match lines.iter().find(|line| {
+                [" INFO ", " WARN ", " ERROR "]
+                    .iter()
+                    .any(|l| line.contains(l))
+            }) {
+                Some(line) => Err(format!("a default-level log was written: {line}")),
+                None => Ok(()),
+            }
+        });
+    }
+
+    // With no ids sent, there are none to give support, so the failure isn't logged as an attempt.
+    #[traced_test]
+    #[rstest]
+    #[tokio::test]
+    async fn a_failing_request_whose_headers_cannot_be_made_is_not_logged_as_an_attempt(
+        request: HttpRequest,
+    ) {
+        let (inner, _) = flaky(vec![StatusCode::INTERNAL_SERVER_ERROR]);
+        let service = ServiceBuilder::new()
+            .layer(TraceparentLayer::new(TraceId::INVALID))
+            .service(inner);
+
+        let response = service.oneshot(request).await.unwrap();
+
+        assert_that!(response.status()).is_equal_to(StatusCode::INTERNAL_SERVER_ERROR);
+        // The layer did log, so the absence of a failed attempt isn't just an absence of logs.
+        assert_that!(logs_contain("Not adding trace headers")).is_true();
+        assert_that!(logs_contain("request attempt failed")).is_false();
+    }
+
     #[rstest]
     fn stamping_names_the_ids_it_sent(trace_id: TraceId) {
         let mut headers = HeaderMap::new();
 
-        let span_context = stamp(trace_id, 2, &mut headers);
+        let span_context = stamp(trace_id, 2, &mut headers).unwrap();
 
         assert_that!(span_context.trace_id()).is_equal_to(trace_id);
         assert_that!(headers.get("tracestate").unwrap().to_str().unwrap())
