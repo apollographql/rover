@@ -1,9 +1,14 @@
 //! What the blocking client logs when an attempt at a Platform API request fails.
 //!
-//! This is its own test binary because it installs the process's one log subscriber. A
-//! subscriber that a test installs just for itself can lose events when other tests in the same
-//! process are logging at the same time. For the same reason, keep this to one test: installing
-//! a second global subscriber panics.
+//! This is its own test binary, with the process's one log subscriber, for two reasons:
+//!
+//! - `#[traced_test]` can't be used here. Its default filter only keeps events from the crate
+//!   the test is in, and these come from `rover_http::trace`, not `rover-client`, so they would be
+//!   dropped.
+//! - A subscriber that a test installs just for itself can lose events when other tests in the
+//!   same process are logging at the same time.
+//!
+//! Keep this to one test: installing a second global subscriber panics.
 
 use std::{
     io,
