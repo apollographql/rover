@@ -21,5 +21,6 @@ expression: json
       "has_exceeded_max_diffs": true,
       "overridden": false
     }
-  }
+  },
+  "task_statuses": []
 }

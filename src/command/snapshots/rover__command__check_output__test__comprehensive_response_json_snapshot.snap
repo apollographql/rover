@@ -79,5 +79,37 @@ expression: json
         }
       ]
     }
-  }
+  },
+  "task_statuses": [
+    {
+      "task": "build",
+      "status": "PASSED",
+      "target_url": null
+    },
+    {
+      "task": "operations",
+      "status": "FAILED",
+      "target_url": "https://studio.apollographql.com/graph/my-graph/checks/operations"
+    },
+    {
+      "task": "lint",
+      "status": "PASSED",
+      "target_url": "https://studio.apollographql.com/graph/my-graph/checks/lint"
+    },
+    {
+      "task": "proposals",
+      "status": "FAILED",
+      "target_url": "https://studio.apollographql.com/graph/my-graph/checks/proposals"
+    },
+    {
+      "task": "custom",
+      "status": "FAILED",
+      "target_url": "https://studio.apollographql.com/graph/my-graph/checks/custom"
+    },
+    {
+      "task": "downstream",
+      "status": "FAILED",
+      "target_url": "https://studio.apollographql.com/graph/my-graph/checks/downstream"
+    }
+  ]
 }
