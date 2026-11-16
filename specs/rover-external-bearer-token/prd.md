@@ -61,7 +61,9 @@ The desktop application refreshes the access token before it expires and publish
 
 An absent, unreadable, empty, invalid, or refused token file fails the affected operation before sending an unauthenticated request. Rover must not reuse a cached token, fall back to a profile, or launch a login flow.
 
-A credential rejection from the Platform API fails the affected operation without an automatic authentication retry. A new token appearing after that rejection does not authorize replaying the operation, particularly a mutation. Existing retry behavior for transient failures remains in place, with a fresh token read for each eligible attempt.
+A credential rejection from the Platform API normally fails the affected operation. There is one exception, for the case where the token went stale between Rover reading it and the server checking it (for example, a token that expired while the machine was asleep, before the application could refresh it). When the Platform API rejects the credential with an HTTP 401 status, Rover rereads the token file once. If the file now holds a different token, Rover retries that request once with it. If the token is unchanged, the file can't be read or fails its checks, or the retry is rejected too, the operation fails. Rover doesn't wait for a new token to appear, and doesn't retry after a rejection reported any other way, such as in the body of a successful response, because part of the operation may already have run.
+
+Existing retry behavior for transient failures remains in place, with a fresh token read for each eligible attempt.
 
 If an existing long-running command normally continues after an operation fails, it may continue under that same policy. A later independently scheduled operation can read a repaired or refreshed token file.
 
@@ -77,6 +79,7 @@ Existing explicit credential-unmasking behavior remains opt-in. Default identity
 
 - The supplied value must be an access token accepted by the configured Platform API, with the required audience, permissions, and lifetime. Rover does not broaden its scopes or exchange it for another credential.
 - Acceptance of tokens issued to the desktop application's OAuth client must be verified with the Platform/Identity owners before rollout. Existing bearer-header support does not establish that every client's token is accepted.
+- The single retry after a rejection relies on the Platform API rejecting an expired or invalid access token with an HTTP 401 before it runs any part of the operation. Staging returns 401 for a well-formed but unverifiable token from its gateway authentication layer. Before rollout, Platform/Identity owners must confirm the same holds for expired tokens and for every operation Rover sends.
 - Tokens are sent only to the configured Platform API endpoint. Existing endpoint overrides remain explicit trust decisions; they also control where this bearer token is sent.
 - The feature does not attach the token to introspection, plugin-download, OAuth, or telemetry requests, or forward the token value to unrelated subprocesses.
 - The application is responsible for secure file placement, permissions, atomic publication, and cleanup. Rover refuses files that fail its token file checks, but those checks don't make an insecurely managed file safe.
@@ -89,7 +92,7 @@ Existing explicit credential-unmasking behavior remains opt-in. Default identity
 - Importing external tokens into Rover profiles or sharing a refresh token.
 - Accepting Studio browser-session tokens or third-party identity-provider tokens.
 - A generic credential-helper protocol or an IPC service.
-- Automatic replay after an authentication rejection.
+- Replaying an operation after an authentication rejection, beyond the single retry with a changed token described above.
 - Changing command permissions, selected endpoints, or the Platform API's authorization model.
 
 ## 7. Success criteria
@@ -99,4 +102,5 @@ Existing explicit credential-unmasking behavior remains opt-in. Default identity
 - Both Platform API client paths satisfy the same token-selection and refresh behavior.
 - Source failures never produce an unauthenticated request or an identity fallback.
 - Existing API-key, client-credentials, and stored-login flows retain their behavior when the feature is disabled.
+- A long-running command whose token expired before the application replaced it recovers on its next request, without a restart and without running any operation twice.
 - Tests cover rotation, concurrent requests, retries, rejection, file failures, each token file check, identity output, and secret redaction.
