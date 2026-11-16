@@ -28,11 +28,24 @@ The integration must support both short-lived commands and long-running commands
 
 The application supplies `APOLLO_ACCESS_TOKEN_FILE` in Rover's child-process environment. Its value identifies an application-managed file containing the current raw Apollo OAuth access token, with an optional final newline.
 
-The application creates the file before invoking Rover, restricts access to the file and its containing directory, and replaces it atomically when a fresh token is available. Rover only reads it. Rover does not create, modify, delete, or copy it into a profile or credential store.
+The application creates the file before invoking Rover, restricts access to the file and its containing directory, and replaces it atomically when a fresh token is available. Rover only reads it. Rover does not create, modify, delete, or copy it into a profile or credential store. Rover also checks the file on every read and refuses one that is plainly unsafe to trust (see "Token file checks" below).
 
 Rover rereads the configured location before every Platform API HTTP attempt, including retries and later polling requests. It does not retain a previous token as a fallback. A complete token replacement visible before a read must be used by that attempt; a replacement concurrent with a read may yield the complete old or complete new token.
 
 This single input covers short-lived and long-running commands. A second input carrying the raw token directly in an environment variable is unnecessary for the initial scope. No token-value command-line flag, helper executable, or local IPC protocol is proposed.
+
+### Token file checks
+
+The token is a credential, so Rover checks the file the way SSH checks a private key, as a second line of defense behind the application's own handling. On every read, Rover refuses the file if:
+
+- The configured path is itself a symlink. Symlinks in the folders above the file are allowed, since some systems' standard temporary locations use them.
+- Other users can read or write the file, or the file is owned by someone other than the user running Rover.
+- Other users can write to the folder that holds the file, which would let them replace it.
+- It is larger than any real access token could be. Rover reads at most a small fixed size and does not load an oversized file into memory.
+
+On Windows, file and folder access is controlled by access-control lists rather than Unix permission bits, and checking those is out of scope for the first version. There, Rover applies only the symlink and size checks.
+
+A refused file is handled like an unreadable one. The error says which check failed and how to fix it, but does not show the token or the file's contents.
 
 ### Credential selection
 
@@ -46,7 +59,7 @@ The new input is process-environment-only. It cannot be supplied through profile
 
 The desktop application refreshes the access token before it expires and publishes the replacement. Rover never receives or stores a refresh token and never attempts an OAuth refresh for the external credential.
 
-An absent, unreadable, empty, or invalid token file fails the affected operation before sending an unauthenticated request. Rover must not reuse a cached token, fall back to a profile, or launch a login flow.
+An absent, unreadable, empty, invalid, or refused token file fails the affected operation before sending an unauthenticated request. Rover must not reuse a cached token, fall back to a profile, or launch a login flow.
 
 A credential rejection from the Platform API fails the affected operation without an automatic authentication retry. A new token appearing after that rejection does not authorize replaying the operation, particularly a mutation. Existing retry behavior for transient failures remains in place, with a fresh token read for each eligible attempt.
 
@@ -66,7 +79,7 @@ Existing explicit credential-unmasking behavior remains opt-in. Default identity
 - Acceptance of tokens issued to the desktop application's OAuth client must be verified with the Platform/Identity owners before rollout. Existing bearer-header support does not establish that every client's token is accepted.
 - Tokens are sent only to the configured Platform API endpoint. Existing endpoint overrides remain explicit trust decisions; they also control where this bearer token is sent.
 - The feature does not attach the token to introspection, plugin-download, OAuth, or telemetry requests, or forward the token value to unrelated subprocesses.
-- The application is responsible for secure file placement, permissions, atomic publication, and cleanup. Rover does not claim to make an insecurely shared file safe.
+- The application is responsible for secure file placement, permissions, atomic publication, and cleanup. Rover refuses files that fail its token file checks, but those checks don't make an insecurely managed file safe.
 - Token contents and the token-file location must not enter telemetry. Invalid file content must not be echoed in diagnostics, including debug logs.
 - Existing authentication works unchanged when `APOLLO_ACCESS_TOKEN_FILE` is absent.
 
@@ -86,4 +99,4 @@ Existing explicit credential-unmasking behavior remains opt-in. Default identity
 - Both Platform API client paths satisfy the same token-selection and refresh behavior.
 - Source failures never produce an unauthenticated request or an identity fallback.
 - Existing API-key, client-credentials, and stored-login flows retain their behavior when the feature is disabled.
-- Tests cover rotation, concurrent requests, retries, rejection, file failures, identity output, and secret redaction.
+- Tests cover rotation, concurrent requests, retries, rejection, file failures, each token file check, identity output, and secret redaction.
