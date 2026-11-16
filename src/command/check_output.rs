@@ -1,9 +1,9 @@
 use comfy_table::{Attribute::Bold, Cell, CellAlignment::Center, Table, presets::UTF8_FULL};
 use pluralizer::pluralize;
 use rover_client::shared::{
-    CheckTaskStatus, CheckWorkflowResponse, CustomCheckResponse, DownstreamCheckResponse,
-    DownstreamVariantCheckResult, LintCheckResponse, OperationCheckResponse,
-    ProposalsCheckResponse, ProposalsCheckSeverityLevel, ProposalsCoverage,
+    CheckTaskKind, CheckTaskStatus, CheckWorkflowResponse, CustomCheckResponse,
+    DownstreamCheckResponse, DownstreamVariantCheckResult, LintCheckResponse,
+    OperationCheckResponse, ProposalsCheckResponse, ProposalsCheckSeverityLevel, ProposalsCoverage,
 };
 use rover_std::{Style, hyperlink};
 use serde_json::Value;
@@ -29,11 +29,21 @@ impl CliOutput for CheckWorkflowOutput<'_> {
             response.maybe_core_schema_modified,
             response.maybe_core_schema_status.clone(),
         ) {
+            let build_failed = core_schema_status == CheckTaskStatus::FAILED;
             append_task_title(&mut msg, "Build Check", core_schema_status);
-            msg.push_str(build_check_summary(
-                core_schema_modified,
-                response.maybe_operations_response.as_ref(),
-            ));
+            if build_failed {
+                // Composition errors, when Studio returns them, are reported as their own
+                // error before this report is ever built, so a failed build here has none.
+                msg.push_str(
+                    "The build failed, but Studio didn't return the errors that caused it.\n",
+                );
+                push_details_link(&mut msg, response, CheckTaskKind::Build);
+            } else {
+                msg.push_str(build_check_summary(
+                    core_schema_modified,
+                    response.maybe_operations_response.as_ref(),
+                ));
+            }
         }
 
         if let Some(operations_response) = &response.maybe_operations_response {
@@ -77,6 +87,12 @@ impl CliOutput for CheckWorkflowOutput<'_> {
             msg.push_str(downstream_text(downstream_response).as_str());
         }
 
+        for kind in unreported_failures(response) {
+            append_task_title(&mut msg, kind.title(), CheckTaskStatus::FAILED);
+            msg.push_str("Studio didn't return any details for this task.\n");
+            push_details_link(&mut msg, response, kind);
+        }
+
         msg.trim_end().to_string()
     }
 
@@ -116,6 +132,37 @@ fn build_check_summary(
         (false, true, Some(_)) => CORE_SCHEMA_ONLY_CHANGES,
         (false, true, None) => UNKNOWN_API_SCHEMA_CHANGES,
     }
+}
+
+/// Failed tasks that have no section of their own in the report, because Studio returned no
+/// result for them or Rover doesn't query their results, so the report still shows them.
+fn unreported_failures(response: &CheckWorkflowResponse) -> Vec<CheckTaskKind> {
+    response
+        .failed_tasks()
+        .into_iter()
+        .filter(|kind| match kind {
+            CheckTaskKind::Build => {
+                response.maybe_core_schema_modified.is_none()
+                    || response.maybe_core_schema_status.is_none()
+            }
+            CheckTaskKind::ContractFilter => true,
+            CheckTaskKind::Operations => response.maybe_operations_response.is_none(),
+            CheckTaskKind::Lint => response.maybe_lint_response.is_none(),
+            CheckTaskKind::Proposals => response.maybe_proposals_response.is_none(),
+            CheckTaskKind::Custom => response.maybe_custom_response.is_none(),
+            CheckTaskKind::Downstream => response.maybe_downstream_response.is_none(),
+        })
+        .collect()
+}
+
+/// Links to the task's own Studio page, or to the check as a whole when Studio gave none.
+fn push_details_link(msg: &mut String, response: &CheckWorkflowResponse, kind: CheckTaskKind) {
+    let url = response
+        .task_summary(kind)
+        .and_then(|summary| summary.target_url.as_deref())
+        .unwrap_or(&response.default_target_url);
+    msg.push_str(&format!("View {} check details at: ", kind.noun()));
+    msg.push_str(&Style::Link.paint(url));
 }
 
 fn append_task_title(msg: &mut String, title: &str, status: CheckTaskStatus) {
@@ -542,8 +589,7 @@ fn downstream_text(response: &DownstreamCheckResponse) -> String {
 mod test {
     use console::strip_ansi_codes;
     use rover_client::shared::{
-        ChangeSeverity, CheckTaskKind, CheckTaskSummary, Diagnostic, RelatedProposal, SchemaChange,
-        Violation,
+        ChangeSeverity, CheckTaskSummary, Diagnostic, RelatedProposal, SchemaChange, Violation,
     };
     use rstest::rstest;
     use speculoos::prelude::*;
@@ -708,6 +754,88 @@ mod test {
             maybe_downstream_response: None,
             task_summaries: Vec::new(),
         }
+    }
+
+    /// A build that failed without Studio returning the composition errors behind it, which
+    /// blocks every task that depends on it.
+    fn build_failed_without_errors_response() -> CheckWorkflowResponse {
+        CheckWorkflowResponse {
+            default_target_url:
+                "https://studio.apollographql.com/graph/my-graph/variant/current/checks/variant"
+                    .to_string(),
+            maybe_core_schema_modified: Some(false),
+            maybe_core_schema_status: Some(CheckTaskStatus::FAILED),
+            maybe_operations_response: None,
+            maybe_lint_response: None,
+            maybe_proposals_response: None,
+            maybe_custom_response: None,
+            maybe_downstream_response: None,
+            task_summaries: vec![
+                CheckTaskSummary {
+                    kind: CheckTaskKind::Build,
+                    status: CheckTaskStatus::FAILED,
+                    target_url: Some(
+                        "https://studio.apollographql.com/graph/my-graph/checks/build".to_string(),
+                    ),
+                },
+                CheckTaskSummary {
+                    kind: CheckTaskKind::Operations,
+                    status: CheckTaskStatus::BLOCKED,
+                    target_url: None,
+                },
+            ],
+        }
+    }
+
+    /// Failed tasks with nothing to render: one Rover doesn't query the results of, and one
+    /// Studio returned no result or link for.
+    fn failures_without_results_response() -> CheckWorkflowResponse {
+        CheckWorkflowResponse {
+            task_summaries: vec![
+                CheckTaskSummary {
+                    kind: CheckTaskKind::Operations,
+                    status: CheckTaskStatus::FAILED,
+                    target_url: None,
+                },
+                CheckTaskSummary {
+                    kind: CheckTaskKind::ContractFilter,
+                    status: CheckTaskStatus::FAILED,
+                    target_url: Some(
+                        "https://studio.apollographql.com/graph/my-graph/checks/filter".to_string(),
+                    ),
+                },
+                CheckTaskSummary {
+                    kind: CheckTaskKind::Lint,
+                    status: CheckTaskStatus::BLOCKED,
+                    target_url: None,
+                },
+            ],
+            ..build_only_response()
+        }
+    }
+
+    #[test]
+    fn build_failed_without_errors_text_snapshot() {
+        let text =
+            strip_ansi_codes(&CheckWorkflowOutput(&build_failed_without_errors_response()).text())
+                .to_string();
+        insta::assert_snapshot!(text);
+    }
+
+    #[test]
+    fn build_failed_without_errors_json_snapshot() {
+        let json = CheckWorkflowOutput(&build_failed_without_errors_response())
+            .json()
+            .expect("check workflow JSON rendering cannot fail");
+        insta::assert_json_snapshot!(json);
+    }
+
+    #[test]
+    fn failures_without_results_text_snapshot() {
+        let text =
+            strip_ansi_codes(&CheckWorkflowOutput(&failures_without_results_response()).text())
+                .to_string();
+        insta::assert_snapshot!(text);
     }
 
     #[test]
