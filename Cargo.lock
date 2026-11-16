@@ -3045,7 +3045,7 @@ dependencies = [
  "assert_fs",
  "camino",
  "directories-next",
- "nix 0.31.3",
+ "nix 0.32.0",
  "rover-print",
  "rover-std",
  "rover-storage",
