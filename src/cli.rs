@@ -2066,7 +2066,7 @@ mod tests {
         PKG_NAME, RoverErrorCode,
         command::RoverOutput,
         options::{ProjectSettings, SettingName},
-        plugin::{discovery::ManifestDirs, manifest::MANIFEST_FILE},
+        plugin::{discovery::ManifestDirs, error::printed, manifest::MANIFEST_FILE},
         utils::{client::ClientTimeout, env::RoverEnvKey},
     };
 
@@ -2284,14 +2284,14 @@ mod tests {
             .await
             .expect_err("expected an invalid stored download host to fail the command");
 
-        assert_that!(error.to_string()).is_equal_to(
+        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
+        assert_that!(printed(error)).is_equal_to(
             "error[E054]: `APOLLO_ROVER_DOWNLOAD_HOST` in profile `staging` is set to \
             `mirror.example.com`, which isn't a valid URL. URLs must include a scheme, for \
             example `https://registry.example.com`. Run `rover config set \
             APOLLO_ROVER_DOWNLOAD_HOST <value> --profile staging` to correct it.\n"
                 .to_string(),
         );
-        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
     }
 
     // FR64: profile (explicit or default) supplies a non-default value for
@@ -2407,14 +2407,14 @@ mod tests {
             .resolve_templates_api(None)
             .expect_err("expected an invalid stored templates API URL to fail the command");
 
-        assert_that!(error.to_string()).is_equal_to(
+        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
+        assert_that!(printed(error)).is_equal_to(
             "error[E054]: `APOLLO_TEMPLATES_API` in profile `staging` is set to \
             `templates.example.com`, which isn't a valid URL. URLs must include a scheme, for \
             example `https://registry.example.com`. Run `rover config set APOLLO_TEMPLATES_API \
             <value> --profile staging` to correct it.\n"
                 .to_string(),
         );
-        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
     }
 
     // `APOLLO_TEMPLATES_API` is a network-destination setting (FR1's "Net"
@@ -2656,7 +2656,8 @@ mod tests {
             .resolve_graph_ref_setting()
             .expect_err("expected an invalid stored graph ref to fail the command");
 
-        assert_that!(error.to_string()).is_equal_to(
+        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
+        assert_that!(printed(error)).is_equal_to(
             "error[E054]: `APOLLO_GRAPH_REF` in profile `staging` is set to `not a graph ref!`, \
             which isn't a valid graph ref. Graph refs must be in the format `<NAME>` or \
             `<NAME>@<VARIANT>`, where `<NAME>` must start with a letter and can otherwise \
@@ -2665,7 +2666,6 @@ mod tests {
             set APOLLO_GRAPH_REF <value> --profile staging` to correct it.\n"
                 .to_string(),
         );
-        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
     }
 
     #[tokio::test]
@@ -2851,14 +2851,14 @@ mod tests {
             .await
             .expect_err("expected an invalid stored registry URL to fail the command");
 
-        assert_that!(error.to_string()).is_equal_to(
+        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
+        assert_that!(printed(error)).is_equal_to(
             "error[E054]: `APOLLO_REGISTRY_URL` in profile `staging` is set to \
             `registry.example.com`, which isn't a valid URL. URLs must include a scheme, for \
             example `https://registry.example.com`. Run `rover config set APOLLO_REGISTRY_URL \
             <value> --profile staging` to correct it.\n"
                 .to_string(),
         );
-        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
     }
 
     // FR59(b) is network-destination-only, and checks-timeout isn't one
@@ -3030,13 +3030,13 @@ mod tests {
             .get_checks_timeout_seconds()
             .expect_err("expected an invalid stored checks timeout to fail the command");
 
-        assert_that!(error.to_string()).is_equal_to(
+        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
+        assert_that!(printed(error)).is_equal_to(
             "error[E054]: `APOLLO_CHECKS_TIMEOUT_SECONDS` in profile `staging` is set to `soon`, \
             which isn't a whole number of seconds. Run `rover config set \
             APOLLO_CHECKS_TIMEOUT_SECONDS <seconds> --profile staging` to correct it.\n"
                 .to_string(),
         );
-        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
     }
 
     // FR59(b) is network-destination-only, and client-timeout isn't one
@@ -3212,13 +3212,13 @@ mod tests {
             .get_client_timeout()
             .expect_err("expected an invalid stored client timeout to fail the command");
 
-        assert_that!(error.to_string()).is_equal_to(
+        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
+        assert_that!(printed(error)).is_equal_to(
             "error[E054]: `APOLLO_CLIENT_TIMEOUT` in profile `staging` is set to `soon`, which \
             isn't a whole number of seconds. Run `rover config set APOLLO_CLIENT_TIMEOUT \
             <seconds> --profile staging` to correct it.\n"
                 .to_string(),
         );
-        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
     }
 
     // Extends the "an explicit value also shortens/lengthens the download

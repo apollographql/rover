@@ -821,10 +821,11 @@ impl fmt::Display for PluginNextStep {
 /// environment, not the failure, so it's cut out here. The block runs up to
 /// the first suggestion, which is the only line indented by exactly eight
 /// spaces: frame lines are indented less, and their `at` lines more.
+///
+/// Takes a `RoverError` as is, or anything that converts into one.
 #[cfg(test)]
-pub(crate) fn printed(error: impl Into<anyhow::Error>) -> String {
-    let printed =
-        console::strip_ansi_codes(&crate::RoverError::new(error).to_string()).into_owned();
+pub(crate) fn printed(error: impl Into<crate::RoverError>) -> String {
+    let printed = console::strip_ansi_codes(&error.into().to_string()).into_owned();
     let Some(start) = printed.find("\n\nStack backtrace:\n") else {
         return printed;
     };
