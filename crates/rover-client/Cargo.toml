@@ -25,8 +25,8 @@ chrono = { workspace = true, features = ["serde"] }
 comfy-table = { workspace = true, features = ["custom_styling"]}
 derive-getters = { workspace = true }
 futures = { workspace = true }
-git-url-parse = { workspace = true }
 git2 = { workspace = true }
+gix-url = { workspace = true }
 graphql_client = { workspace = true }
 houston = { workspace = true }
 http = { workspace = true }
