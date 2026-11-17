@@ -72,8 +72,13 @@ impl PluginProvenance {
         match self.source {
             PluginSource::Downloaded => None,
             PluginSource::Installed => Some(format!(
-                "the '{}' plugin v{} is already installed at {}",
-                self.name, self.version, self.path
+                "`{}` v{} is already installed {}.",
+                self.name,
+                self.version,
+                match self.level {
+                    PluginLevel::Project => "in this project",
+                    PluginLevel::Global => "globally",
+                }
             )),
             PluginSource::Fallback => Some(format!(
                 "couldn't reach the plugin registry, so the '{}' plugin v{} already installed at {} was used",
@@ -173,9 +178,7 @@ mod tests {
     #[case::downloaded(PluginSource::Downloaded, None)]
     #[case::installed(
         PluginSource::Installed,
-        Some(
-            "the 'supergraph' plugin v2.9.3 is already installed at /home/me/.rover/bin/supergraph-v2.9.3"
-        )
+        Some("`supergraph` v2.9.3 is already installed globally.")
     )]
     #[case::fallback(
         PluginSource::Fallback,
@@ -189,6 +192,19 @@ mod tests {
     ) {
         assert_that!(provenance(source).install_confirmation())
             .is_equal_to(expected.map(str::to_string));
+    }
+
+    #[test]
+    fn a_project_copy_already_installed_says_so_for_the_project() {
+        let project = PluginProvenance {
+            level: PluginLevel::Project,
+            path: Utf8PathBuf::from("/work/app/.rover/bin/supergraph-v2.9.3"),
+            ..provenance(PluginSource::Installed)
+        };
+
+        assert_that!(project.install_confirmation()).is_equal_to(Some(
+            "`supergraph` v2.9.3 is already installed in this project.".to_string(),
+        ));
     }
 
     #[test]
