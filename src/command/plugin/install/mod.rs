@@ -1,3 +1,4 @@
+mod batch;
 mod in_scope;
 mod output;
 mod project_root;
@@ -8,7 +9,9 @@ use camino::{Utf8Path, Utf8PathBuf};
 use clap::Parser;
 use rover_print::{print::Print, style::StyledText};
 
+pub(crate) use self::batch::BatchInstallFailure;
 use self::{
+    batch::Tally,
     in_scope::{InScope, nothing_to_install},
     output::PluginInstallOutput,
     project_root::NewProjectRoot,
@@ -157,7 +160,10 @@ impl PluginInstall {
         }
 
         // Every plugin is attempted, whatever happens to the others, so a
-        // re-run has only the failures left to do.
+        // re-run has only the failures left to do. A batch reports each
+        // failure as it happens, since only the first can be the command's
+        // error.
+        let batch = plugins.len() > 1;
         let stderr = rover_print::print::stderr::default();
         let attempted = async {
             let mut installed = Vec::new();
@@ -172,7 +178,10 @@ impl PluginInstall {
                 let provenance = match outcome {
                     Ok(provenance) => provenance,
                     Err(err) => {
-                        failed.push(err);
+                        if batch {
+                            stderr.print(&StyledText::plain(err.to_string().trim_end()));
+                        }
+                        failed.push((request.plugin, err));
                         continue;
                     }
                 };
@@ -192,7 +201,7 @@ impl PluginInstall {
         .await;
         // A project root is made only for a plugin installed into it, and an
         // install that put nothing there leaves no half-made one behind.
-        let (installed, mut failed) = match (attempted, new_root) {
+        let (installed, failed) = match (attempted, new_root) {
             (Ok((installed, failed)), Some(new_root)) if !installed.is_empty() => {
                 new_root.create()?;
                 (installed, failed)
@@ -210,8 +219,15 @@ impl PluginInstall {
                 return Err(err);
             }
         };
-        if !failed.is_empty() {
-            return Err(failed.remove(0));
+        if batch {
+            match BatchInstallFailure::new(installed.clone(), failed) {
+                Some(failure) => return Err(RoverError::new(failure)),
+                None => stderr.print(&StyledText::plain(
+                    Tally::of(&installed, Vec::new()).to_string(),
+                )),
+            }
+        } else if let Some((_, failure)) = failed.into_iter().next() {
+            return Err(failure);
         }
 
         Ok(RoverOutput::CliOutput(Box::new(PluginInstallOutput {

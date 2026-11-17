@@ -233,6 +233,13 @@ impl RoverError {
     }
 
     pub(crate) fn get_internal_data_json(&self) -> Value {
+        if let Some(batch) = self
+            .error
+            .downcast_ref::<crate::command::plugin::BatchInstallFailure>()
+        {
+            return batch.data_json();
+        }
+
         // A run that failed still reports the plugin it used (FR57): the first
         // question asked of a composition failure is which federation version
         // rejected the schema, and `--format json` has no other field carrying
@@ -327,6 +334,13 @@ impl RoverError {
     }
 
     pub(crate) fn get_internal_error_json(&self) -> Value {
+        if let Some(batch) = self
+            .error
+            .downcast_ref::<crate::command::plugin::BatchInstallFailure>()
+        {
+            return batch.error_json();
+        }
+
         #[cfg(feature = "composition-js")]
         {
             use crate::composition::CompositionError;

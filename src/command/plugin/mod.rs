@@ -6,7 +6,7 @@ use anyhow::anyhow;
 use camino::{Utf8Path, Utf8PathBuf};
 use clap::Parser;
 
-pub(crate) use self::install::PluginInstall;
+pub(crate) use self::install::{BatchInstallFailure, PluginInstall};
 use self::{list::PluginList, uninstall::PluginUninstall};
 use crate::{
     RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
