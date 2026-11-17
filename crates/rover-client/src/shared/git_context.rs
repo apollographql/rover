@@ -1,7 +1,6 @@
-use std::{env, panic};
+use std::env;
 
 use git2::{Reference, Repository};
-use git_url_parse::GitUrl;
 use serde::Serialize;
 use url::form_urlencoded;
 
@@ -94,36 +93,26 @@ impl GitContext {
         remote_url.and_then(|r| GitContext::sanitize_remote_url(&r))
     }
 
-    // Parses and sanitizes git remote urls according to the same rules as
-    // defined in apollo-tooling https://github.com/apollographql/apollo-tooling/blob/fd642ab59620cd836651dcab4c3ecbcbcca3f780/packages/apollo/src/git.ts#L36
-    //
-    // Strips any username and password information from a git remote
+    // Parses a git remote url and strips its credentials: the password always,
+    // and the user unless it's `git`.
     //
     // If parsing fails, or if the url doesn't match a valid host, this fn
     // will return None
     fn sanitize_remote_url(remote_url: &str) -> Option<String> {
         let remote_url = remote_url.to_lowercase();
-        // try to parse url into git info
-        let parsed_remote_url = parse_git_remote(&remote_url);
+        let mut parsed_remote_url = parse_git_remote(&remote_url)?;
 
-        if let Some(parsed_remote_url) = parsed_remote_url {
-            // return None for any remote that does not have a host
-            parsed_remote_url.host()?;
+        // return None for any remote that does not have a host
+        parsed_remote_url.host()?;
 
-            let user = parsed_remote_url.user();
-
-            // if the user is "git" we can add back in the user. Otherwise, return
-            // the clean remote url
-            // this is done previously here:
-            // https://github.com/apollographql/apollo-tooling/blob/fd642ab59620cd836651dcab4c3ecbcbcca3f780/packages/apollo/src/git.ts#L49
-            if let Some("git") = user {
-                Some(format!("git@{}", parsed_remote_url.trim_auth()))
-            } else {
-                Some(parsed_remote_url.trim_auth().to_string())
-            }
-        } else {
-            None
+        // `git` is the shared account Git hosts use for SSH access, so it identifies
+        // no one and is kept. Any other user is personal and is stripped.
+        if parsed_remote_url.user() != Some("git") {
+            parsed_remote_url.set_user(None);
         }
+        parsed_remote_url.set_password(None);
+
+        Some(parsed_remote_url.to_bstring().to_string())
     }
 }
 
@@ -138,34 +127,17 @@ impl Default for GitContext {
     }
 }
 
-// GitUrl::parse can panic, so we attempt to catch it and
-// just return None if the parsing fails.
-fn parse_git_remote(remote_url: &str) -> Option<GitUrl> {
-    // Removes `@` because it GitUrl parse doesnt understand usernames and passwords with `@`
+fn parse_git_remote(remote_url: &str) -> Option<gix_url::Url> {
+    // Removes encoded `@`s from usernames and passwords
     let remote_url = remote_url.replace("%40", "");
-    // Decodes url components as they break GitUrl
+    // Decodes url components
     let mut decoded = form_urlencoded::parse(remote_url.as_bytes());
     let decoded = decoded.next()?;
     // Should not have anything for url component, only valid in query pairs
     if !decoded.1.is_empty() {
         return None;
     }
-    let remote_url = decoded.0;
-    // we make sure to store the original panic handler
-    let original_panic_handler = panic::take_hook();
-
-    // set a new hook to suppress the panic message
-    panic::set_hook(Box::new(|_| {}));
-
-    // parse the git remote
-    let parsed_remote_url = panic::catch_unwind(|| GitUrl::parse(&remote_url).ok())
-        .ok()
-        .flatten();
-
-    // and restore the original panic handler
-    panic::set_hook(original_panic_handler);
-
-    parsed_remote_url
+    gix_url::parse(&*decoded.0).ok()
 }
 
 #[cfg(test)]
@@ -196,8 +168,29 @@ mod tests {
         let clean = GitContext::sanitize_remote_url("ssh://un%401@github.com/apollographql/test");
         assert_eq!(
             clean.unwrap(),
-            "ssh://github.com:apollographql/test".to_string()
+            "ssh://github.com/apollographql/test".to_string()
         );
+    }
+
+    #[test]
+    fn keeps_git_user_in_ssh_urls() {
+        let clean = GitContext::sanitize_remote_url("ssh://git:secret@github.com/org/repo.git");
+        assert_eq!(clean, Some("ssh://git@github.com/org/repo.git".to_string()));
+    }
+
+    #[test]
+    fn keeps_git_user_in_https_urls() {
+        assert_eq!(
+            GitContext::sanitize_remote_url("https://git:secret@github.com/org/repo.git"),
+            Some("https://git@github.com/org/repo.git".to_string())
+        );
+    }
+
+    #[test]
+    fn rejects_remotes_without_a_host() {
+        assert_eq!(GitContext::sanitize_remote_url("file:///tmp/repo"), None);
+        assert_eq!(GitContext::sanitize_remote_url("/tmp/repo"), None);
+        assert_eq!(GitContext::sanitize_remote_url("../repo"), None);
     }
 
     #[test]
@@ -324,6 +317,6 @@ mod tests {
     // regression test for https://github.com/apollographql/rover/issues/670
     fn it_does_not_panic_on_remote_urls_with_no_apparent_owner() {
         let clean = GitContext::sanitize_remote_url("ssh://user@github.com/repo-name");
-        assert_eq!(clean, Some("ssh://github.com:repo-name".to_string()));
+        assert_eq!(clean, Some("ssh://github.com/repo-name".to_string()));
     }
 }
