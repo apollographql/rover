@@ -1,0 +1,40 @@
+---
+source: tests/integration/plugin/batch.rs
+expression: run.json
+---
+{
+  "json_version": "1",
+  "data": {
+    "plugins": [],
+    "failed": [
+      {
+        "message": "Couldn't download the `router` plugin v2.1.0.",
+        "causes": [
+          "Bad Status code: 403 Forbidden"
+        ],
+        "code": "E049",
+        "plugin": "router",
+        "requested_version": "=2.1.0"
+      },
+      {
+        "message": "Couldn't download the `apollo-mcp-server` plugin v1.0.0.",
+        "causes": [
+          "Bad Status code: 403 Forbidden"
+        ],
+        "code": "E049",
+        "plugin": "apollo-mcp-server",
+        "requested_version": "=1.0.0"
+      }
+    ],
+    "success": false
+  },
+  "error": {
+    "message": "Couldn't download the `router` plugin v2.1.0.",
+    "causes": [
+      "Bad Status code: 403 Forbidden"
+    ],
+    "code": "E049",
+    "plugin": "router",
+    "requested_version": "=2.1.0"
+  }
+}
