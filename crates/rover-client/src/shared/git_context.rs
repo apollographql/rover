@@ -93,10 +93,8 @@ impl GitContext {
         remote_url.and_then(|r| GitContext::sanitize_remote_url(&r))
     }
 
-    // Parses and sanitizes git remote urls according to the same rules as
-    // defined in apollo-tooling https://github.com/apollographql/apollo-tooling/blob/fd642ab59620cd836651dcab4c3ecbcbcca3f780/packages/apollo/src/git.ts#L36
-    //
-    // Strips any username and password information from a git remote
+    // Parses a git remote url and strips its credentials: the password always,
+    // and the user unless it's `git`.
     //
     // If parsing fails, or if the url doesn't match a valid host, this fn
     // will return None
@@ -107,9 +105,8 @@ impl GitContext {
         // return None for any remote that does not have a host
         parsed_remote_url.host()?;
 
-        // if the user is "git" we keep it. Otherwise, strip the user from the remote url
-        // this is done previously here:
-        // https://github.com/apollographql/apollo-tooling/blob/fd642ab59620cd836651dcab4c3ecbcbcca3f780/packages/apollo/src/git.ts#L49
+        // `git` is the shared account Git hosts use for SSH access, so it identifies
+        // no one and is kept. Any other user is personal and is stripped.
         if parsed_remote_url.user() != Some("git") {
             parsed_remote_url.set_user(None);
         }
@@ -179,6 +176,14 @@ mod tests {
     fn keeps_git_user_in_ssh_urls() {
         let clean = GitContext::sanitize_remote_url("ssh://git:secret@github.com/org/repo.git");
         assert_eq!(clean, Some("ssh://git@github.com/org/repo.git".to_string()));
+    }
+
+    #[test]
+    fn keeps_git_user_in_https_urls() {
+        assert_eq!(
+            GitContext::sanitize_remote_url("https://git:secret@github.com/org/repo.git"),
+            Some("https://git@github.com/org/repo.git".to_string())
+        );
     }
 
     #[test]
