@@ -84,6 +84,8 @@ Stacked-PR tooling (e.g. the `gh-stack` skill / `gh stack` CLI) only supports **
 
 When reviewing a PR, flag it if it bundles multiple unrelated vertical slices, mixes layers with no dependency reason to be mixed, or could otherwise be cleanly split along the axes above — and suggest the split in the review. Also flag a PR that mixes `docs/source/*` changes with code changes; see "Docs, Changelog, and Release Guardrails" for why they need separate PRs.
 
+When creating a PR, the description should be not written by agents. It should be filled in with a single "TODO: description to be filled by submitter" message. The human submitter is required to fill out the description themselves as an exercise in reviewing and understanding the code.
+
 ## Verification Expectations
 
 Choose the smallest verification that proves the change, then scale up when the impact is broad.
