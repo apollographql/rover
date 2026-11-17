@@ -353,7 +353,7 @@ git2 = { workspace = true }
 graphql-schema-diff = "0.6"
 httpmock = { workspace = true }
 insta = { workspace = true }
-json-matcher = "0.1"
+json-matcher = { version = "0.1", default-features = false }
 jsonschema = "0.61"
 mime = "0.3"
 mockall = "0.15"
