@@ -111,7 +111,7 @@ impl Install {
     /// `rover install --plugin` as the `rover plugin install` it stands in for.
     fn as_plugin_install(&self) -> Option<PluginInstall> {
         self.plugin.as_ref().map(|plugin| PluginInstall {
-            plugin: Some(plugin.clone()),
+            plugins: vec![plugin.clone()],
             force: self.force,
             // The alias is deprecated, so it gains no new flags; the
             // environment variable still applies to it, through the verb.
@@ -359,7 +359,7 @@ mod tests {
     #[case::legacy_spelling("supergraph@latest-2", "supergraph@2")]
     fn the_alias_names_its_replacement(#[case] request: &str, #[case] replacement: &str) {
         let install = Install::try_parse_from(["install", "--plugin", request]).unwrap();
-        let plugin = install.as_plugin_install().unwrap().plugin.unwrap();
+        let plugin = install.as_plugin_install().unwrap().plugins.remove(0);
 
         assert_that!(DeprecatedAlias(&plugin).to_string()).is_equal_to(format!(
             "`rover install --plugin` is deprecated. Use `rover plugin install {replacement}` instead."
