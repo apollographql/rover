@@ -391,7 +391,7 @@ mod tests {
     use speculoos::prelude::*;
 
     use super::*;
-    use crate::PKG_NAME;
+    use crate::{PKG_NAME, plugin::error::printed};
 
     /// Every test here builds a `Rover` via `Rover::parse_from`, which reads
     /// `APOLLO_REGISTRY_URL`/`APOLLO_TELEMETRY_URL` from the real process
@@ -987,14 +987,14 @@ mod tests {
             .run(&rover, &profile)
             .expect_err("expected an invalid stored registry URL to fail the command");
 
-        assert_that!(error.to_string()).is_equal_to(
+        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
+        assert_that!(printed(error)).is_equal_to(
             "error[E054]: `APOLLO_REGISTRY_URL` in profile `staging` is set to \
             `registry.example.com`, which isn't a valid URL. URLs must include a scheme, for \
             example `https://registry.example.com`. Run `rover config set APOLLO_REGISTRY_URL \
             <value> --profile staging` to correct it.\n"
                 .to_string(),
         );
-        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
     }
 
     // Regression test for FR57/FR18: `config show` must create nothing when
