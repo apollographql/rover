@@ -1,7 +1,7 @@
 ---
 title: The Rover plugin Command
 subtitle: Install the plugins Rover uses for composition and local development
-description: Use the rover plugin install command to install the supergraph, router, and Apollo MCP Server plugins into a project or globally, record them in a lockfile, and control when Rover downloads plugins.
+description: Use the rover plugin commands to install, list, and uninstall the supergraph, router, and Apollo MCP Server plugins in a project or globally, record them in a lockfile, and control when Rover downloads plugins.
 ---
 
 Some Rover commands delegate their work to a plugin binary:
@@ -12,12 +12,12 @@ Some Rover commands delegate their work to a plugin binary:
 | `router` | GraphOS Router | [`rover dev`](/rover/commands/dev) |
 | `apollo-mcp-server` | Apollo MCP Server | [`rover dev --mcp`](/rover/commands/dev#run-your-mcp-server) |
 
-These commands download a required plugin if it's missing, and warn that a future version of Rover won't. To install plugins ahead of time, use `rover plugin install`. To control downloads, see [Automatic downloads](#automatic-downloads).
+These commands download a required plugin if it's missing, and warn that a future version of Rover won't. To install plugins ahead of time, use `rover plugin install`. To see what's installed, use [`rover plugin list`](#plugin-list), and to remove a plugin, use [`rover plugin uninstall`](#plugin-uninstall). To control downloads, see [Automatic downloads](#automatic-downloads).
 
 ## `plugin install`
 
 ```bash
-rover plugin install [NAME@VERSION]
+rover plugin install [NAME@VERSION]...
 ```
 
 Name the plugin and the version you want as `<NAME>@<VERSION>`:
@@ -27,6 +27,8 @@ rover plugin install supergraph@=2.9.3
 rover plugin install router@2
 rover plugin install apollo-mcp-server@latest
 ```
+
+To install several plugins in one run, name each of them. See [Installing several plugins](#installing-several-plugins).
 
 ### Plugin versions
 
@@ -53,6 +55,25 @@ Pin an exact version for anything you want to be reproducible. A floating versio
 Run without a plugin name to install everything in scope. See [Installing everything a project declares](#installing-everything-a-project-declares).
 
 `rover plugin install` always downloads a plugin that isn't installed yet. The [automatic-download setting](#automatic-downloads) doesn't affect it. To forbid downloading, pass `--no-download`.
+
+### Installing several plugins
+
+Name each plugin you want, in any order:
+
+```bash
+rover plugin install supergraph@=2.9.3 router@2 apollo-mcp-server@latest
+```
+
+Name each plugin only once. A level's lockfile records one release of each plugin, so Rover refuses a command that names a plugin twice, before installing anything:
+
+```
+error: `router` is named more than once.
+        Name each plugin once.
+```
+
+Rover installs the plugins one at a time and reports each one as it finishes. If one plugin fails, Rover still tries every other plugin, then ends with a summary. See [Output](#output).
+
+Installing a plugin is safe to repeat. A plugin that's already installed at the target level isn't downloaded again, so after a partial failure, re-running the same command installs only the plugins that failed.
 
 ### Options
 
@@ -175,6 +196,8 @@ Rover installs every plugin the lockfile records, at exactly the version it reco
 
 This makes a committed lockfile reproducible: every machine that runs `rover plugin install` in the project gets the same versions.
 
+When there's more than one plugin to install, Rover reports them the same way as [several plugins named on the command line](#installing-several-plugins): it tries every plugin, records each one in the lockfile as soon as it's installed, and ends with a summary.
+
 If `rover.yaml` and the lockfile disagree, the command fails instead of silently choosing one. For example, after changing a declared version in `rover.yaml`:
 
 ```
@@ -186,7 +209,7 @@ Plugin-using commands such as `rover supergraph compose` fail the same way. A `r
 
 ## The plugin lockfile
 
-Each successful `rover plugin install` records what it installed in `plugin-versions.lock`, next to that level's `rover.yaml`. Installing one plugin leaves every other entry as it was, so a floating version recorded earlier keeps the release it was locked at. Other commands never write the lockfile.
+Each successful `rover plugin install` records what it installed in `plugin-versions.lock`, next to that level's `rover.yaml`. Installing one plugin leaves every other entry as it was, so a floating version recorded earlier keeps the release it was locked at. [`rover plugin uninstall`](#plugin-uninstall) removes a plugin's entry when it removes the plugin. Other commands never write the lockfile.
 
 The lockfile is TOML:
 
@@ -264,6 +287,186 @@ warning: `supergraph.yaml` sets `federation_version: =2.9.3`, overriding the `su
 [`rover dev`](/rover/commands/dev#versioning) also reads the `router` and `apollo-mcp-server` versions from `rover.yaml`, after its own options and environment variables.
 
 When `rover.yaml` declares a floating version and the lockfile at the same level records it, commands use the locked release.
+
+## `plugin list`
+
+```bash
+rover plugin list
+```
+
+Lists every installed copy of every plugin, with its exact version, grouped by level. Inside a project, it lists the project's plugins first, then the global ones:
+
+```
+Installed in this project (/work/app/.rover/bin):
+* router v2.1.0
+
+Installed globally (/home/me/.rover/bin):
+* supergraph v2.9.3
+  supergraph v2.9.2
+
+`*` marks the copy Rover uses for each plugin, going by `rover.yaml` and `plugin-versions.lock`. A version flag, an environment variable, or `supergraph.yaml` can select another.
+```
+
+For each plugin, `*` marks the copy that plugin-using commands such as `rover supergraph compose` would use without downloading anything. Rover chooses it the way those commands do: it takes the version from the [declarations](#declaring-plugins-in-roveryaml) in scope, pinned by the [lockfile](#the-plugin-lockfile), or the plugin's default when nothing declares it, then uses the newest matching copy, checking the project before the global level. A plugin with no matching copy has none marked.
+
+The marker doesn't take account of version options, environment variables, or `supergraph.yaml`, which [take precedence](#which-version-a-command-uses) over `rover.yaml` when a command runs.
+
+If Rover can't read the declarations, for example because `rover.yaml` is malformed or disagrees with the lockfile, it still lists every copy but marks none, and prints the problem as a warning. The command still succeeds.
+
+When nothing is installed, Rover says so:
+
+```
+No plugins are installed in this project or globally.
+```
+
+`rover plugin list` never contacts the plugin registry.
+
+### Options
+
+| Option | Description |
+| ------ | ----------- |
+| `-g`, `--global` | List only the [global install root](#installing-globally), even inside a project. Only the global `rover.yaml` and lockfile decide which copy is marked. You can also set the `APOLLO_ROVER_GLOBAL` environment variable to `1` or `true`. |
+| `-m`, `--manifest-path <FILE>` | List the project whose `rover.yaml` this is, rather than the one found by searching up from the working directory. |
+
+### JSON output
+
+With `--format json`, `data.levels` lists each level Rover looked at, and `data.plugins` lists every copy, with `selected` set to `true` on the marked ones:
+
+```json
+{
+  "json_version": "1",
+  "data": {
+    "levels": [
+      { "level": "project", "bin_dir": "/work/app/.rover/bin" },
+      { "level": "global", "bin_dir": "/home/me/.rover/bin" }
+    ],
+    "plugins": [
+      {
+        "name": "router",
+        "version": "2.1.0",
+        "level": "project",
+        "path": "/work/app/.rover/bin/router-v2.1.0",
+        "selected": true
+      },
+      {
+        "name": "supergraph",
+        "version": "2.9.3",
+        "level": "global",
+        "path": "/home/me/.rover/bin/supergraph-v2.9.3",
+        "selected": true
+      },
+      {
+        "name": "supergraph",
+        "version": "2.9.2",
+        "level": "global",
+        "path": "/home/me/.rover/bin/supergraph-v2.9.2",
+        "selected": false
+      }
+    ],
+    "success": true
+  },
+  "error": null
+}
+```
+
+## `plugin uninstall`
+
+```bash
+rover plugin uninstall <NAME[@=VERSION]>...
+```
+
+Removes plugins from one level. Rover chooses the level the same way as [`rover plugin install`](#where-plugins-are-installed): the project when there is one, otherwise the global level. `--global` and `--manifest-path` change it.
+
+Name a plugin alone to remove every version of it installed at that level, or name an exact version to remove only that release:
+
+```bash
+rover plugin uninstall supergraph
+rover plugin uninstall router@=2.1.0
+```
+
+Rover reports each binary it removes:
+
+```
+Removed `supergraph` v2.9.3 from this project.
+Removed `supergraph` v2.9.2 from this project.
+```
+
+A floating version could mean more than one release, so Rover refuses it, before removing anything:
+
+```
+error: `router@2` is ambiguous for uninstall. Name the plugin alone to remove every installed version, or an exact `router@=2.1.0`.
+```
+
+`rover plugin uninstall` never contacts the plugin registry.
+
+### Updating `rover.yaml` and the lockfile
+
+When an uninstall leaves no copy of a plugin at the level, Rover also removes that plugin from the level's `rover.yaml` and lockfile, so the project no longer declares a plugin it doesn't have. Rover changes only that plugin's line in `rover.yaml`, and keeps your comments, ordering, quoting, and line endings.
+
+Rover can't edit a `plugins:` section written as a flow mapping (`plugins: { router: "2" }`). If it finds one, it refuses the uninstall before removing anything:
+
+```
+error[E052]: Rover can't update the plugins declared in `/work/app/.rover/rover.yaml`.
+
+Caused by:
+    `plugins` is written as a flow mapping (`{ ... }`)
+        Write `plugins:` in `/work/app/.rover/rover.yaml` as a block mapping of plugin names to versions, or make the change by hand, then re-run the command.
+```
+
+When you remove one exact version and other versions of the plugin are still installed, the plugin is still both installed and declared, so Rover leaves `rover.yaml` and the lockfile as they are. If the version you removed is the one the lockfile records, Rover warns you:
+
+```
+warning: `plugin-versions.lock` records `supergraph` v2.9.3, which is no longer installed in this project. The next plugin-using command will download it again, or fail if downloads are disabled.
+```
+
+### Other levels are left alone
+
+An uninstall only ever removes plugins from its own level. If a project has no copy of a plugin and is using the global one, uninstalling it in the project removes nothing and says how to remove the global copy:
+
+```
+`supergraph` isn't installed in this project. It resolves from the global install; re-run with `--global` to remove it there.
+```
+
+With `--global`, a plugin that's installed only in the project is likewise left in place:
+
+```
+`router` isn't installed globally. It's installed in this project; re-run without `--global` to remove it there.
+```
+
+Uninstalling a plugin that isn't installed anywhere does nothing and says so. These cases all exit successfully, and don't change `rover.yaml` or the lockfile:
+
+```
+`supergraph` isn't installed in this project or globally. Nothing was removed.
+```
+
+### Options
+
+| Option | Description |
+| ------ | ----------- |
+| `-g`, `--global` | Remove from the [global install root](#installing-globally), even inside a project. You can also set the `APOLLO_ROVER_GLOBAL` environment variable to `1` or `true`. |
+| `-m`, `--manifest-path <FILE>` | Remove from the project whose `rover.yaml` this is, rather than the one found by searching up from the working directory. |
+
+### JSON output
+
+With `--format json`, `data.removed` lists each binary Rover removed:
+
+```json
+{
+  "json_version": "1",
+  "data": {
+    "removed": [
+      {
+        "name": "supergraph",
+        "version": "2.9.3",
+        "level": "project",
+        "path": "/work/app/.rover/bin/supergraph-v2.9.3"
+      }
+    ],
+    "success": true
+  },
+  "error": null
+}
+```
 
 ## Automatic downloads
 
@@ -361,13 +564,41 @@ downloading the 'supergraph' plugin from https://rover.apollo.dev/tar/supergraph
 the 'supergraph' plugin was successfully installed to /home/me/.rover/bin/supergraph-v2.9.3
 ```
 
-Installing a plugin that's already installed at the target level downloads nothing, says where it found the plugin, and exits successfully:
+Installing a plugin that's already installed at the target level downloads nothing, says so, and exits successfully:
 
 ```
-the 'supergraph' plugin v2.9.3 is already installed at /home/me/.rover/bin/supergraph-v2.9.3
+`supergraph` v2.9.3 is already installed in this project.
 ```
 
 To reinstall a plugin, pass `--force`.
+
+When it installs more than one plugin, Rover reports each plugin as it finishes, then ends with a summary that counts the plugins installed, already installed, and failed. Rover leaves out any count that's zero:
+
+```
+`supergraph` v2.9.3 is already installed in this project.
+downloading the 'router' plugin from https://rover.apollo.dev/tar/router/aarch64-apple-darwin/v2.1.0
+the 'router' plugin was successfully installed to /work/app/.rover/bin/router-v2.1.0
+downloading the 'apollo-mcp-server' plugin from https://rover.apollo.dev/tar/apollo-mcp-server/aarch64-apple-darwin/v1.0.0
+the 'apollo-mcp-server' plugin was successfully installed to /work/app/.rover/bin/apollo-mcp-server-v1.0.0
+3 plugins: 2 installed, 1 already installed.
+```
+
+If a plugin fails, Rover prints its full error and moves on to the next plugin. The summary then names every plugin that failed and becomes the command's error, with the first failure's error code, and the command exits with a non-zero status:
+
+```
+`supergraph` v2.9.3 is already installed in this project.
+downloading the 'router' plugin from https://rover.apollo.dev/tar/router/aarch64-apple-darwin/v2.1.0
+error[E049]: Couldn't download the `router` plugin v2.1.0.
+
+Caused by:
+    Bad Status code: 403 Forbidden
+        Re-run the command to retry downloading `router` v2.1.0. If the download keeps failing or timing out, check your connection to the plugin registry, or allow it longer by passing `--client-timeout` a value above the 300-second default for plugin downloads.
+downloading the 'apollo-mcp-server' plugin from https://rover.apollo.dev/tar/apollo-mcp-server/aarch64-apple-darwin/v1.0.0
+the 'apollo-mcp-server' plugin was successfully installed to /work/app/.rover/bin/apollo-mcp-server-v1.0.0
+error[E049]: 3 plugins: 1 installed, 1 already installed, 1 failed (`router`).
+```
+
+A plugin that Rover used from an existing install, because it couldn't reach the plugin registry, counts as already installed. Installing a single plugin prints no summary.
 
 With `--format json`, `data.plugins` lists each plugin the command installed or found:
 
@@ -423,7 +654,7 @@ With `--format json`, `data.plugins` lists each plugin the command installed or 
 
 ### Errors
 
-With `--format json`, a failure about a particular plugin (`E048` to `E052`, and `E058`) also names the plugin and the version requested in `error.plugin` and `error.requested_version`, and `data.plugins` is an empty list:
+With `--format json`, a failure about a particular plugin (`E048` to `E052`, and `E058`) also names the plugin and the version requested in `error.plugin` and `error.requested_version`. When you install a single plugin, `data.plugins` is an empty list:
 
 ```json
 {
@@ -443,12 +674,50 @@ With `--format json`, a failure about a particular plugin (`E048` to `E052`, and
 
 A failure about a manifest or lockfile rather than a plugin doesn't carry `plugin` or `requested_version`.
 
+When you install several plugins and any fail, the command fails. `data.plugins` lists each plugin that installed or was already installed. `data.failed` lists the error for each plugin that failed, in the order Rover tried them, in the same form as a single plugin's error. The top-level `error` is the first of them, so a script that checks `error.code` sees the failing plugin's own code:
+
+```json
+{
+  "json_version": "1",
+  "data": {
+    "plugins": [
+      {
+        "name": "apollo-mcp-server",
+        "version": "1.0.0",
+        "source": "downloaded",
+        "level": "project",
+        "path": "/work/app/.rover/bin/apollo-mcp-server-v1.0.0"
+      }
+    ],
+    "failed": [
+      {
+        "message": "Couldn't download the `router` plugin v2.1.0.",
+        "causes": ["Bad Status code: 403 Forbidden"],
+        "code": "E049",
+        "plugin": "router",
+        "requested_version": "=2.1.0"
+      }
+    ],
+    "success": false
+  },
+  "error": {
+    "message": "Couldn't download the `router` plugin v2.1.0.",
+    "causes": ["Bad Status code: 403 Forbidden"],
+    "code": "E049",
+    "plugin": "router",
+    "requested_version": "=2.1.0"
+  }
+}
+```
+
+When every plugin succeeds, the output is the same as for a single plugin, with every plugin listed in `data.plugins` and no `data.failed`.
+
 | Code | When it occurs |
 | ---- | -------------- |
 | [`E048`](/rover/errors#e048) | Rover couldn't resolve which release a version request means. |
 | [`E049`](/rover/errors#e049) | Rover couldn't download the plugin. |
 | [`E050`](/rover/errors#e050) | Rover downloaded the plugin but couldn't install it. |
 | [`E051`](/rover/errors#e051) | The requested exact release is no longer served by the plugin registry. |
-| [`E052`](/rover/errors#e052) | A `rover.yaml` or lockfile can't be used, or the two disagree. |
+| [`E052`](/rover/errors#e052) | A `rover.yaml` or lockfile can't be used or updated, or the two disagree. |
 | [`E058`](/rover/errors#e058) | A plugin isn't installed and downloads are disabled. |
 | [`E064`](/rover/errors#e064) | A Federation 1 version of the `supergraph` plugin was requested. Rover no longer supports Federation 1. |
