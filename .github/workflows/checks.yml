@@ -22,6 +22,13 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
+    # Each job installs only the mise tools it uses, listed in `install_args`
+    # (which is also part of mise-action's cache key, so jobs with different
+    # tool sets don't share a cache). `mise run` would otherwise install every
+    # tool in mise.toml before running a task, so turn that off.
+    env:
+      MISE_TASK_RUN_AUTO_INSTALL: "false"
+      MISE_TOOLS: rust aqua:cargo-bins/cargo-binstall cargo:cargo-deny
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -30,7 +37,9 @@ jobs:
         with:
           # Save caches from main only: other PRs can't reuse a PR's cache, and it evicts main's (10 GB repo limit).
           cache_save: ${{ github.ref == 'refs/heads/main' }}
+          # Installed in the retried step below; still passed here for the cache key.
           install: false
+          install_args: ${{ env.MISE_TOOLS }}
         env:
           CARGO_NET_RETRY: "5"
       - name: Install mise tools
@@ -38,7 +47,7 @@ jobs:
         with:
           max_attempts: 3
           timeout_minutes: 10
-          command: mise install
+          command: mise install ${{ env.MISE_TOOLS }}
       - run: mise run cargo-deny
 
   fmt:
@@ -120,6 +129,12 @@ jobs:
             pkg: rover-win32-x64
             target: x86_64-pc-windows-msvc
     runs-on: ${{ matrix.runner }}
+    # Each job installs only the mise tools it uses, listed in `install_args`
+    # (which is also part of mise-action's cache key, so jobs with different
+    # tool sets don't share a cache). `mise run` would otherwise install every
+    # tool in mise.toml before running a task, so turn that off.
+    env:
+      MISE_TASK_RUN_AUTO_INSTALL: "false"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -128,6 +143,7 @@ jobs:
         with:
           # Save caches from main only: other PRs can't reuse a PR's cache, and it evicts main's (10 GB repo limit).
           cache_save: ${{ github.ref == 'refs/heads/main' }}
+          install_args: rust node npm:npm aqua:cargo-bins/cargo-binstall cargo:cargo-npm
         env:
           CARGO_NET_RETRY: "5"
       - uses: ./.github/actions/download-artifact-with-retry
@@ -160,16 +176,21 @@ jobs:
             pkg: rover-win32-x64
             binary_path: target/debug/rover.exe
     runs-on: ${{ matrix.runner }}
+    # Each job installs only the mise tools it uses, listed in `install_args`
+    # (which is also part of mise-action's cache key, so jobs with different
+    # tool sets don't share a cache). `mise run` would otherwise install every
+    # tool in mise.toml before running a task, so turn that off.
+    env:
+      MISE_TASK_RUN_AUTO_INSTALL: "false"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # v5.2.9
         with:
-          # Save caches from main only: other PRs can't reuse a PR's cache, and it evicts main's (10 GB repo limit).
-          cache_save: ${{ github.ref == 'refs/heads/main' }}
-        env:
-          CARGO_NET_RETRY: "5"
+          # rustup, not mise's data directory, holds the toolchain, so there's nothing to cache.
+          cache: false
+          install_args: rust
       - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2.0.1
         with:
           # Save caches from main only: other PRs can't reuse a PR's cache, and it evicts main's (10 GB repo limit).
@@ -233,6 +254,13 @@ jobs:
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     container: ghcr.io/apollographql/ci-utility-docker-images/apollo-rust-builder:0.30.16
+    # Each job installs only the mise tools it uses, listed in `install_args`
+    # (which is also part of mise-action's cache key, so jobs with different
+    # tool sets don't share a cache). `mise run` would otherwise install every
+    # tool in mise.toml before running a task, so turn that off. Node in
+    # particular doesn't load on this image's glibc.
+    env:
+      MISE_TASK_RUN_AUTO_INSTALL: "false"
 
     steps:
     # No `ref:` override. It used to be `github.head_ref || github.ref_name`,
@@ -263,17 +291,9 @@ jobs:
       run: rustup default "$(rustup show active-toolchain | awk '{print $1}')"
     - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # v5.2.9
       with:
-        # Save caches from main only: other PRs can't reuse a PR's cache, and it evicts main's (10 GB repo limit).
-        cache_save: ${{ github.ref == 'refs/heads/main' }}
-        install: false
-      env:
-        CARGO_NET_RETRY: "5"
-    - name: Install mise tools
-      uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
-      with:
-        max_attempts: 3
-        timeout_minutes: 30
-        command: mise install
+        # rustup, not mise's data directory, holds the toolchain, so there's nothing to cache.
+        cache: false
+        install_args: rust
     - run: mise run test
     - run: mise run check-glibc
 
