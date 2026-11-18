@@ -2,7 +2,6 @@ use std::str::FromStr;
 
 use camino::Utf8PathBuf;
 use clap::Parser;
-use serde::Serialize;
 
 use crate::{command::install::McpServerVersion, plugin::error::RequestOrigin};
 
@@ -20,7 +19,7 @@ fn parse_mcp_version(s: &str) -> Result<McpServerVersion, String> {
     McpServerVersion::from_str(&prefixed).map_err(|e| e.to_string())
 }
 
-#[derive(Debug, Clone, Serialize, Parser)]
+#[derive(Debug, Clone, Parser)]
 pub struct Opts {
     /// Enable the MCP server and (optionally) specify the path to the config file
     ///

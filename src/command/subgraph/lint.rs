@@ -1,6 +1,5 @@
 use clap::Parser;
 use rover_client::operations::subgraph::lint::{self, LintSubgraphInput};
-use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult,
@@ -8,7 +7,7 @@ use crate::{
     utils::client::StudioClientConfig,
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Lint {
     #[clap(flatten)]
     graph: GraphRefOpt,
@@ -17,7 +16,6 @@ pub struct Lint {
     subgraph: SubgraphOpt,
 
     #[clap(flatten)]
-    #[serde(skip_serializing)]
     schema: SchemaOpt,
 
     #[clap(flatten)]

@@ -1,0 +1,44 @@
+---
+source: tests/integration/plugin/list.rs
+expression: json(&listed)
+---
+{
+  "json_version": "1",
+  "data": {
+    "levels": [
+      {
+        "level": "project",
+        "bin_dir": "[project]/.rover/bin"
+      },
+      {
+        "level": "global",
+        "bin_dir": "[home]/.rover/bin"
+      }
+    ],
+    "plugins": [
+      {
+        "name": "router",
+        "version": "2.1.0",
+        "level": "project",
+        "path": "[project]/.rover/bin/router-v2.1.0",
+        "selected": true
+      },
+      {
+        "name": "supergraph",
+        "version": "2.9.3",
+        "level": "global",
+        "path": "[home]/.rover/bin/supergraph-v2.9.3",
+        "selected": true
+      },
+      {
+        "name": "supergraph",
+        "version": "2.9.2",
+        "level": "global",
+        "path": "[home]/.rover/bin/supergraph-v2.9.2",
+        "selected": false
+      }
+    ],
+    "success": true
+  },
+  "error": null
+}

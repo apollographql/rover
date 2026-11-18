@@ -233,6 +233,13 @@ impl RoverError {
     }
 
     pub(crate) fn get_internal_data_json(&self) -> Value {
+        if let Some(batch) = self
+            .error
+            .downcast_ref::<crate::command::plugin::BatchInstallFailure>()
+        {
+            return batch.data_json();
+        }
+
         // A run that failed still reports the plugin it used (FR57): the first
         // question asked of a composition failure is which federation version
         // rejected the schema, and `--format json` has no other field carrying
@@ -327,6 +334,13 @@ impl RoverError {
     }
 
     pub(crate) fn get_internal_error_json(&self) -> Value {
+        if let Some(batch) = self
+            .error
+            .downcast_ref::<crate::command::plugin::BatchInstallFailure>()
+        {
+            return batch.error_json();
+        }
+
         #[cfg(feature = "composition-js")]
         {
             use crate::composition::CompositionError;
@@ -664,12 +678,45 @@ mod tests {
                 source: build_errors(),
                 federation_version: FederationVersion::ExactFedTwo(Version::new(2, 9, 3)),
                 provenance: Box::new(provenance()),
+                maybe_federation_one: false,
             });
 
             assert_that!(data).is_equal_to(json!({
                 "plugins": [expected_entry()],
                 "success": false,
             }));
+        }
+
+        /// The Federation 1 hint rides beside the usual composition advice, never instead of it.
+        #[rstest]
+        #[case::a_project_that_may_be_federation_one(true, vec![
+            "The subgraph schema you provided is invalid. See https://www.apollographql.com/docs/federation/errors/ for more information on resolving build errors.",
+            "None of your subgraphs use the `@link` directive, so they may have been written for Federation 1, which Rover no longer supports. If so, they need migrating to Federation 2, and that may be what's causing these errors. See https://www.apollographql.com/docs/graphos/schema-design/federated-schemas/reference/moving-to-federation-2#opt-in-to-federation-2 for how to migrate.",
+        ])]
+        #[case::any_other_project(false, vec![
+            "The subgraph schema you provided is invalid. See https://www.apollographql.com/docs/federation/errors/ for more information on resolving build errors.",
+        ])]
+        fn a_failed_composition_hints_at_federation_one_only_when_it_may_apply(
+            #[case] maybe_federation_one: bool,
+            #[case] expected: Vec<&str>,
+        ) {
+            let error = RoverError::new(CompositionError::Build {
+                source: build_errors(),
+                federation_version: FederationVersion::LatestFedTwo,
+                provenance: Box::new(provenance()),
+                maybe_federation_one,
+            });
+
+            let rendered = temp_env::with_var("NO_COLOR", Some("1"), || {
+                error
+                    .suggestions()
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+            });
+
+            assert_that!(rendered)
+                .is_equal_to(expected.into_iter().map(String::from).collect::<Vec<_>>());
         }
 
         #[test]
@@ -788,6 +835,7 @@ mod tests {
                     source: build_errors(),
                     federation_version: FederationVersion::ExactFedTwo(Version::new(2, 9, 3)),
                     provenance: Box::new(provenance()),
+                    maybe_federation_one: false,
                 },
             ];
 

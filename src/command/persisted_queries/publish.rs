@@ -9,7 +9,6 @@ use rover_client::operations::persisted_queries::{
     resolve::{self, ResolvePersistedQueryListInput},
 };
 use rover_std::Style;
-use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult,
@@ -17,23 +16,20 @@ use crate::{
     utils::{client::StudioClientConfig, parsers::FileDescriptorType},
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Publish {
     #[clap(flatten)]
     graph: OptionalGraphRefOpt,
 
     /// The Graph ID to publish operations to.
-    #[serde(skip_serializing)]
     #[arg(long, conflicts_with = "graph_ref")]
     graph_id: Option<String>,
 
     /// The list ID to publish operations to.
-    #[serde(skip_serializing)]
     #[arg(long, conflicts_with = "graph_ref")]
     list_id: Option<String>,
 
     /// The path to the manifest containing operations to publish.
-    #[serde(skip_serializing)]
     #[arg(long)]
     manifest: FileDescriptorType,
 

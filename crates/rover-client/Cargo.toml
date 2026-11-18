@@ -25,8 +25,8 @@ chrono = { workspace = true, features = ["serde"] }
 comfy-table = { workspace = true, features = ["custom_styling"]}
 derive-getters = { workspace = true }
 futures = { workspace = true }
-git-url-parse = { workspace = true }
 git2 = { workspace = true }
+gix-url = { workspace = true }
 graphql_client = { workspace = true }
 houston = { workspace = true }
 http = { workspace = true }
@@ -80,6 +80,7 @@ strip-ansi-escapes = { workspace = true }
 temp-env = "0.3"
 tower-test = { workspace = true }
 tokio-test = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["fmt"] }
 tracing-test = { workspace = true }
 
 [lints]

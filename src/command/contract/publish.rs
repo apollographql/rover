@@ -1,7 +1,6 @@
 use clap::{ArgGroup, Parser};
 use rover_client::operations::contract::publish::{self, ContractPublishInput};
 use rover_std::Style;
-use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult,
@@ -9,7 +8,7 @@ use crate::{
     utils::client::StudioClientConfig,
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 #[clap(
     group = ArgGroup::new("include_tags_group")
         .args(&["include_tag", "no_include_tags"]).required(true),
@@ -24,41 +23,34 @@ pub struct Publish {
 
     /// The source variant name for this contract variant. Once set, this cannot be changed.
     #[arg(long)]
-    #[serde(skip_serializing)]
     source_variant: Option<String>,
 
     /// List of tag names to include in the contract schema (e.g. '--include-tag foo --include-tag bar').
     /// To specify an empty list, use --no-include-tags instead.
     #[arg(long)]
-    #[serde(skip_serializing)]
     include_tag: Vec<String>,
 
     /// Use an empty include list of tag names for the contract schema.
     /// To specify a non-empty list, use --include-tag instead.
     #[arg(long)]
-    #[serde(skip_serializing)]
     no_include_tags: bool,
 
     /// List of tag names to exclude from the contract schema (e.g. '--exclude-tag foo --exclude-tag bar').
     /// To specify an empty list, use --no-exclude-tags instead.
     #[arg(long)]
-    #[serde(skip_serializing)]
     exclude_tag: Vec<String>,
 
     /// Use an empty exclude list of tag names for the contract schema.
     /// To specify a non-empty list, use --exclude-tag instead.
     #[arg(long)]
-    #[serde(skip_serializing)]
     no_exclude_tags: bool,
 
     /// Automatically hide types that can never be reached in operations on the contract schema.
     #[arg(long)]
-    #[serde(skip_serializing)]
     hide_unreachable_types: bool,
 
     /// Do not automatically hide types that can never be reached in operations on the contract schema.
     #[arg(long)]
-    #[serde(skip_serializing)]
     no_hide_unreachable_types: bool,
 
     /// Do not trigger a launch in Studio after updating the contract configuration.

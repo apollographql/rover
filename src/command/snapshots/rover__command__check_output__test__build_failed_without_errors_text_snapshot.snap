@@ -1,0 +1,7 @@
+---
+source: src/command/check_output.rs
+expression: text
+---
+Build Check [FAILED]:
+The build failed, but Studio didn't return the errors that caused it.
+View build check details at: https://studio.apollographql.com/graph/my-graph/checks/build

@@ -8,12 +8,11 @@ use std::{
 use clap::Parser;
 use rover_schema::ParsedSchema;
 use rover_std::Fs;
-use serde::Serialize;
 
 use self::output::SearchOutput;
 use crate::{RoverOutput, RoverResult};
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 /// Search a GraphQL schema for types and fields by keyword
 ///
 /// Queries are comma-separated clauses; a result matches if any clause matches.

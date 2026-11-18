@@ -29,14 +29,13 @@ use crate::{
 
 type GraphQlService = rover_graphql::GraphQLService<HttpService>;
 
-#[derive(Debug, Serialize, ClapParser)]
+#[derive(Debug, ClapParser)]
 pub struct Check {
     /// Graph reference to validate against (optional; defaults to env/config)
     #[clap(flatten)]
     graph: OptionalGraphRefOpt,
 
     #[clap(flatten)]
-    #[serde(flatten)]
     file_discovery: FileDiscoveryOpt,
 }
 

@@ -53,6 +53,7 @@ When reviewing a `spec.md`, flag it if it reads like an implementation plan inst
 
 - Prefer targeted edits over broad refactors unless the task explicitly requires wider cleanup.
 - Prefer targeted tests before full-workspace runs so feedback stays fast.
+- Prefer trait implementations over free helper functions when implementing logic.
 - Use the local cargo aliases when they help:
   - `cargo rover ...` runs the CLI from source.
   - `cargo xtask ...` runs workspace automation helpers.
@@ -82,6 +83,8 @@ Large or multi-concern changes should ship as a stack of small, independently re
 Stacked-PR tooling (e.g. the `gh-stack` skill / `gh stack` CLI) only supports **linear** stacks — one parent and one child per branch. Two horizontal slices that share a foundation must be modeled as **separate stacks**, both rooted at the foundation branch (`gh stack init --base <foundation-branch>` for the second slice), not as one branching stack.
 
 When reviewing a PR, flag it if it bundles multiple unrelated vertical slices, mixes layers with no dependency reason to be mixed, or could otherwise be cleanly split along the axes above — and suggest the split in the review. Also flag a PR that mixes `docs/source/*` changes with code changes; see "Docs, Changelog, and Release Guardrails" for why they need separate PRs.
+
+When creating a PR, the description should be not written by agents. It should be filled in with a single "TODO: description to be filled by submitter" message. The human submitter is required to fill out the description themselves as an exercise in reviewing and understanding the code.
 
 ## Verification Expectations
 

@@ -10,7 +10,6 @@ use rover_client::{
         pair_list::OAuthClientPair,
     },
 };
-use serde::Serialize;
 use tower::{Service, ServiceExt};
 
 use crate::{
@@ -20,7 +19,7 @@ use crate::{
     utils::client::StudioClientConfig,
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub(crate) struct Delete {
     #[clap(flatten)]
     organisation_opt: OrganizationOpt,

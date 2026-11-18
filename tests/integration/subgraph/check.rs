@@ -192,6 +192,42 @@ fn subgraph_check_succeeds_despite_non_blocking_task_status_failure() {
     assert_json_snapshot!(json);
 }
 
+/// A build that fails without Studio returning its composition errors blocks every task after
+/// it. The failure is attributed to the build, not to an unknown task.
+#[test]
+#[serial]
+fn subgraph_check_attributes_a_build_failure_without_errors_to_the_build() {
+    let (success, json) = run_subgraph_check(
+        r#"{"data":{"graph":{"checkWorkflow":{
+            "status":"FAILED",
+            "tasks":[{
+                "__typename":"CompositionCheckTask",
+                "status":"FAILED",
+                "targetURL":"https://studio.apollographql.com/graph/my-graph/checks/build",
+                "coreSchemaModified":false,
+                "result":null
+            },{
+                "__typename":"OperationsCheckTask",
+                "status":"BLOCKED",
+                "targetURL":null,
+                "result":null
+            },{
+                "__typename":"ProposalsCheckTask",
+                "status":"BLOCKED",
+                "targetURL":"https://studio.apollographql.com/graph/my-graph/checks/proposals",
+                "didOverrideProposalsCheckTask":false,
+                "proposalCoverage":"PENDING",
+                "relatedProposalResults":[],
+                "severityLevel":"ERROR"
+            }]
+        }}}}"#,
+        &[],
+    );
+
+    assert!(!success, "expected a nonzero exit code; json: {json}");
+    assert_json_snapshot!(json);
+}
+
 /// `--background` starts the check and returns without waiting for it: the check is submitted
 /// once, and the workflow is neither polled nor fetched. Without it the same run polls until
 /// the workflow finishes, as every other test here shows.

@@ -3,12 +3,11 @@ use std::process::Command;
 use anyhow::anyhow;
 use clap::Parser;
 use rover_std::Style;
-use serde::Serialize;
 
 use super::shortlinks;
 use crate::{RoverOutput, RoverResult};
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Open {
     #[arg(value_name = "SLUG", default_value = "docs", value_parser = shortlinks::possible_shortlinks())]
     slug: String,

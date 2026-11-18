@@ -13,7 +13,7 @@ use crate::{
     utils::{effect::exec::TokioCommand, table},
 };
 
-#[derive(Debug, Parser, Clone, Serialize)]
+#[derive(Debug, Parser, Clone)]
 pub struct RunConnector {
     /// The path to the schema file containing the connector.
     ///

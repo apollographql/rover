@@ -1,0 +1,34 @@
+---
+source: tests/integration/plugin/batch.rs
+expression: run.json
+---
+{
+  "json_version": "1",
+  "data": {
+    "plugins": [
+      {
+        "name": "supergraph",
+        "version": "2.9.3",
+        "source": "installed",
+        "level": "project",
+        "path": "[project]/.rover/bin/supergraph-v2.9.3"
+      },
+      {
+        "name": "router",
+        "version": "2.1.0",
+        "source": "downloaded",
+        "level": "project",
+        "path": "[project]/.rover/bin/router-v2.1.0"
+      },
+      {
+        "name": "apollo-mcp-server",
+        "version": "1.0.0",
+        "source": "downloaded",
+        "level": "project",
+        "path": "[project]/.rover/bin/apollo-mcp-server-v1.0.0"
+      }
+    ],
+    "success": true
+  },
+  "error": null
+}

@@ -8,7 +8,6 @@ use camino::Utf8PathBuf;
 use clap::Parser;
 use futures::{StreamExt, channel::oneshot};
 use rover_print::{print::Print, style::StyledText};
-use serde::Serialize;
 use tower::ServiceExt;
 use tower_lsp::{
     Server,
@@ -53,26 +52,24 @@ use crate::{
     },
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Lsp {
     #[clap(flatten)]
     pub(crate) opts: LspOpts,
 }
 
-#[derive(Clone, Debug, Serialize, Parser)]
+#[derive(Clone, Debug, Parser)]
 pub struct LspOpts {
     #[clap(flatten)]
     pub plugin_opts: PluginOpts,
 
     /// The absolute path to the supergraph configuration file.
-    #[serde(skip_serializing)]
     #[arg(long = "supergraph-config")]
     supergraph_yaml: Option<Utf8PathBuf>,
 
     /// The number of seconds to wait between polling requests to any subgraphs that
     /// are being introspected for their schema
     #[arg(long = "polling-interval", short = 'i', default_value = "5")]
-    #[serde(skip_serializing)]
     introspection_polling_interval: u64,
 }
 

@@ -1,10 +1,9 @@
 use clap::Parser;
 use schemars::schema_for;
-use serde::Serialize;
 
 use crate::{RoverOutput, RoverResult, config::SupergraphConfigYaml};
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Schema {}
 
 impl Schema {

@@ -3,9 +3,9 @@ use std::io;
 use anyhow::anyhow;
 use clap::Parser;
 use rover_client::shared::ValidationPeriod;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
-#[derive(Debug, Serialize, Deserialize, Parser)]
+#[derive(Debug, Deserialize, Parser)]
 pub struct CheckConfigOpts {
     /// The minimum number of times a query or mutation must have been executed
     /// in order to be considered in the check operation

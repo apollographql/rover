@@ -59,6 +59,17 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
             };
         }
 
+        // A batch install's summary carries the first failure's code, so a
+        // script matching `error.code` sees a plugin failure's own code.
+        if let Some(batch) = error.downcast_ref::<crate::command::plugin::BatchInstallFailure>() {
+            return RoverErrorMetadata {
+                json_version: JsonVersion::default(),
+                suggestions: vec![],
+                code: batch.code(),
+                skip_printing_cause: true,
+            };
+        }
+
         if let Some(revoke_error) =
             error.downcast_ref::<crate::command::auth::grants::revoke::error::GrantsRevokeError>()
         {
@@ -561,18 +572,25 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
         {
             use crate::composition::CompositionError;
             if let Some(composition_error) = error.downcast_ref::<CompositionError>() {
-                let (suggestion, code) = match composition_error {
-                    CompositionError::Build { source, .. } => (
-                        Some(RoverErrorSuggestion::FixCompositionErrors {
+                let (suggestions, code) = match composition_error {
+                    CompositionError::Build {
+                        source,
+                        maybe_federation_one,
+                        ..
+                    } => {
+                        let mut suggestions = vec![RoverErrorSuggestion::FixCompositionErrors {
                             num_subgraphs: source.len(),
-                        }),
-                        Some(RoverErrorCode::E029),
-                    ),
-                    _ => (None, None),
+                        }];
+                        if *maybe_federation_one {
+                            suggestions.push(RoverErrorSuggestion::MigrateToFederationTwo);
+                        }
+                        (suggestions, Some(RoverErrorCode::E029))
+                    }
+                    _ => (Vec::new(), None),
                 };
                 return RoverErrorMetadata {
                     json_version: JsonVersion::default(),
-                    suggestions: suggestion.into_iter().collect(),
+                    suggestions,
                     code,
                     skip_printing_cause,
                 };

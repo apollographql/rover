@@ -5,7 +5,7 @@ use std::{
     str::FromStr,
 };
 
-use anyhow::anyhow;
+use anyhow::{Context, anyhow};
 use camino::Utf8PathBuf;
 use rover_client::operations::init::github::{GetTarRequest, GitHubService};
 use rover_std::Fs;
@@ -13,7 +13,11 @@ use serde::{Deserialize, Serialize};
 use tower::Service;
 
 use crate::{
-    RoverError, RoverResult, command::init::states::SelectedTemplateState,
+    RoverError, RoverResult,
+    command::init::{
+        helpers::{is_env_file, write_owner_only_file},
+        states::SelectedTemplateState,
+    },
     utils::client::StudioClientConfig,
 };
 
@@ -375,7 +379,13 @@ impl SelectedTemplateState {
             if let Some(parent) = full_path.parent() {
                 Fs::create_dir_all(parent)?;
             }
-            Fs::write_file(&full_path, contents)?;
+            if is_env_file(&full_path) {
+                // Create `.env` private to its owner, because it holds the API key
+                write_owner_only_file(&full_path, contents)
+                    .with_context(|| format!("could not write {full_path}"))?;
+            } else {
+                Fs::write_file(&full_path, contents)?;
+            }
         }
         Ok(())
     }

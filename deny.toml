@@ -43,6 +43,16 @@ ignore = [
     # known vulnerability. Remove once Rover and `apollo-configuration` move to a maintained YAML
     # library.
     "RUSTSEC-2024-0449",
+    # `chrono` is unmaintained (RUSTSEC-2026-0543). Rover uses it directly, and `oauth2` (via
+    # `rover-auth`) depends on it unconditionally with `chrono` types in its public API, so we can't
+    # drop it until `oauth2` migrates (https://github.com/ramosbugs/oauth2-rs/issues/351).
+    # Remove once `chrono` is out of the dependency tree.
+    "RUSTSEC-2026-0543",
+    # `humantime` is unmaintained (RUSTSEC-2026-0542) as a consequence of the `chrono` deprecation
+    # above. It comes in via `humantime-serde` from `apollo-configuration`, `subgraph-mock`, and
+    # `trycmd`.
+    # Remove once those dependencies drop `humantime-serde`.
+    "RUSTSEC-2026-0542",
 ]
 
 # This section is considered when running `cargo deny check licenses`

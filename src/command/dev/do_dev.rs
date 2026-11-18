@@ -156,7 +156,7 @@ impl Dev {
         let (router_version, router_version_origin) = match dev_plugin_request(
             PluginName::Router,
             self.router_version_override()?,
-            VersionRequest::Major(2),
+            PluginName::Router.default_request(),
             &plugin_levels,
         )? {
             (Plugin::Router(version), origin) => (version, origin),
@@ -320,7 +320,7 @@ impl Dev {
             let (mcp_version, mcp_version_origin) = match dev_plugin_request(
                 PluginName::ApolloMcpServer,
                 self.mcp_version_override(),
-                VersionRequest::Latest,
+                PluginName::ApolloMcpServer.default_request(),
                 &plugin_levels,
             )? {
                 (Plugin::McpServer(version), origin) => (version, origin),
@@ -357,8 +357,9 @@ impl Dev {
                     _ = tokio::signal::ctrl_c() => {
                         eprintln!("\nreceived shutdown signal, stopping `rover dev` processes...");
 
-                        // Note that these calls aren't strictly necessary. The OS will send the
-                        // SIGINT signal to forked child processes, so they would exit anyway.
+                        // These calls aren't strictly necessary on a signal: a terminal sends
+                        // SIGINT to the children too, and the signal harness stops them before
+                        // Rover exits even when only Rover is signalled.
                         run_router.shutdown();
                         run_mcp_server.shutdown();
                         break

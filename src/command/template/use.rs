@@ -7,7 +7,6 @@ use anyhow::{Context, anyhow};
 use camino::Utf8PathBuf;
 use clap::{CommandFactory, Parser, error::ErrorKind as ClapErrorKind};
 use dialoguer::Input;
-use serde::Serialize;
 
 use super::templates::{get_template, get_templates_for_language, selection_prompt};
 use crate::{
@@ -15,7 +14,7 @@ use crate::{
     utils::template::download_template,
 };
 
-#[derive(Clone, Debug, Parser, Serialize)]
+#[derive(Clone, Debug, Parser)]
 pub struct Use {
     #[clap(flatten)]
     options: TemplateOpt,

@@ -1279,6 +1279,8 @@ mod tests {
                     status: "OPEN".to_string(),
                     display_name: "Mock Proposal".to_string(),
                 }],
+                has_exceeded_max_diffs: Some(false),
+                overridden: false,
             }),
             maybe_custom_response: Some(CustomCheckResponse {
                 task_status: CheckTaskStatus::PASSED,
@@ -1293,6 +1295,7 @@ mod tests {
                 ],
             }),
             maybe_downstream_response: None,
+            task_summaries: Vec::new(),
         };
 
         let actual_json =
@@ -1303,6 +1306,7 @@ mod tests {
             "data": {
                 "success": true,
                 "core_schema_modified": true,
+                "task_statuses": [],
                 "tasks": {
                     "custom": {
                         "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/custom/1",
@@ -1352,6 +1356,8 @@ mod tests {
                         "warnings_count": 1
                     },
                     "proposals": {
+                        "has_exceeded_max_diffs": false,
+                        "overridden": false,
                         "proposal_coverage": "NONE",
                         "related_proposals": [
                             {
@@ -1407,6 +1413,7 @@ mod tests {
                 violations: vec![],
             }),
             maybe_downstream_response: None,
+            task_summaries: Vec::new(),
         };
 
         let actual_text = RoverOutput::CheckWorkflowResponse(mock_check_response)
@@ -1451,6 +1458,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             maybe_proposals_response: None,
             maybe_custom_response: None,
             maybe_downstream_response: None,
+            task_summaries: Vec::new(),
         };
 
         let actual_text = RoverOutput::CheckWorkflowResponse(check_response)
@@ -1488,6 +1496,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             maybe_proposals_response: None,
             maybe_custom_response: None,
             maybe_downstream_response: None,
+            task_summaries: Vec::new(),
         };
 
         let actual_text = RoverOutput::CheckWorkflowResponse(check_response)
@@ -1513,6 +1522,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             maybe_proposals_response: None,
             maybe_custom_response: None,
             maybe_downstream_response: None,
+            task_summaries: Vec::new(),
         };
 
         let actual_text = RoverOutput::CheckWorkflowResponse(check_response)
@@ -1590,6 +1600,8 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
                     status: "OPEN".to_string(),
                     display_name: "Mock Proposal".to_string(),
                 }],
+                has_exceeded_max_diffs: Some(false),
+                overridden: false,
             }),
             maybe_custom_response: Some(CustomCheckResponse {
                 task_status: CheckTaskStatus::FAILED,
@@ -1604,6 +1616,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
                 ],
             }),
             maybe_downstream_response: None,
+            task_summaries: Vec::new(),
         };
 
         let actual_json =
@@ -1617,6 +1630,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             "data": {
                 "success": false,
                 "core_schema_modified": false,
+                "task_statuses": [],
                 "tasks": {
                     "custom": {
                         "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/custom/1",
@@ -1675,6 +1689,8 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
                         "warnings_count": 1
                     },
                     "proposals": {
+                        "has_exceeded_max_diffs": false,
+                        "overridden": false,
                         "proposal_coverage": "PARTIAL",
                         "related_proposals": [
                             {

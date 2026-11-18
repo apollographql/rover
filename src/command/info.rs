@@ -2,11 +2,10 @@ use std::env;
 
 use calm_io::stderrln;
 use clap::Parser;
-use serde::Serialize;
 
 use crate::{PKG_VERSION, RoverOutput, RoverResult};
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Info {}
 
 impl Info {

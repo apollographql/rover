@@ -1,9 +1,9 @@
 use clap::Parser;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use crate::command::init::template_fetcher::TemplateId;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
+#[derive(Debug, Clone, Deserialize, Parser, Default)]
 pub struct ProjectTemplateOpt {
     #[arg(long = "template")]
     pub template: Option<TemplateId>,

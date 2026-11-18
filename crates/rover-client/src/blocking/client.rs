@@ -1,4 +1,7 @@
-use std::time::{Duration, Instant};
+use std::{
+    sync::atomic::{AtomicU32, Ordering},
+    time::{Duration, Instant},
+};
 
 use backon::Retryable;
 use graphql_client::{Error as GraphQLError, GraphQLQuery, Response as GraphQLResponse};
@@ -6,7 +9,10 @@ use reqwest::{
     header::{HeaderMap, HeaderValue},
     Client as ReqwestClient, Response, StatusCode,
 };
-use rover_http::retry::is_retryable_status;
+use rover_http::{
+    retry::is_retryable_status,
+    trace::{log_attempt_outcome, stamp, TraceId},
+};
 
 use crate::error::{EndpointKind, RoverClientError};
 
@@ -24,6 +30,7 @@ pub struct GraphQLClient {
     graphql_endpoint: String,
     client: ReqwestClient,
     retry_period: Duration,
+    trace_id: Option<TraceId>,
 }
 
 impl GraphQLClient {
@@ -38,7 +45,17 @@ impl GraphQLClient {
             graphql_endpoint: graphql_endpoint.to_string(),
             client,
             retry_period,
+            trace_id: None,
         }
+    }
+
+    /// Sends a `traceparent` header with `trace_id` on every attempt of every request.
+    ///
+    /// Only Platform API clients should do this: a client for any other endpoint, like a
+    /// customer's own subgraph being introspected, must not carry trace headers.
+    pub(crate) const fn with_trace_id(mut self, trace_id: TraceId) -> GraphQLClient {
+        self.trace_id = Some(trace_id);
+        self
     }
 
     /// Client method for making a GraphQL request.
@@ -105,14 +122,33 @@ impl GraphQLClient {
 
         tracing::trace!(request_headers = ?header_map);
         tracing::debug!("Request Body: {}", request_body);
+        let attempts = AtomicU32::new(0);
         let graphql_operation = || async {
+            // Built inside the operation so that each attempt, including each retry, gets a
+            // new parent ID and says how many attempts came before it.
+            let retries = attempts.fetch_add(1, Ordering::Relaxed);
+            let mut headers = header_map.clone();
+            let span_context = self
+                .trace_id
+                .and_then(|trace_id| stamp(trace_id, retries, &mut headers));
             let response = self
                 .client
                 .post(&self.graphql_endpoint)
-                .headers(header_map.clone())
+                .headers(headers)
                 .body(request_body.clone())
                 .send()
                 .await;
+
+            if let Some(span_context) = &span_context {
+                log_attempt_outcome(
+                    span_context,
+                    retries,
+                    response
+                        .as_ref()
+                        .map(|response| response.status())
+                        .map_err(|error| error as &(dyn std::error::Error + 'static)),
+                );
+            }
 
             match response {
                 Err(client_error) => {
@@ -478,6 +514,38 @@ mod tests {
 
         let error = response.expect_err("Response didn't error");
         assert!(error.to_string().contains("Not Found"));
+    }
+
+    // Only Platform API clients are given a trace ID. A request to anywhere else, like a customer's
+    // own endpoint being introspected, must go out without trace headers.
+    #[tokio::test]
+    async fn a_client_with_no_trace_id_sends_no_trace_headers() {
+        let server = MockServer::start();
+        let path = "/anywhere-else";
+        let mock = server.mock(|when, then| {
+            when.method(POST)
+                .path(path)
+                .header_missing("traceparent")
+                .header_missing("tracestate");
+            then.status(200).body("{}");
+        });
+        let graphql_client = GraphQLClient::new(
+            &server.url(path),
+            ReqwestClient::new(),
+            Duration::from_secs(3),
+        );
+
+        let response = graphql_client
+            .execute(
+                "{}".to_string(),
+                &HeaderMap::new(),
+                true,
+                EndpointKind::Customer,
+            )
+            .await;
+
+        assert!(response.is_ok(), "{response:?}");
+        assert_eq!(mock.calls(), 1);
     }
 
     async fn execute_against_status(

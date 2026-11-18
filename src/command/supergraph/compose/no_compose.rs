@@ -9,11 +9,10 @@ use crate::{
     utils::client::StudioClientConfig,
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Compose {
     /// The relative path to the supergraph configuration file.
     #[clap(long = "config")]
-    #[serde(skip_serializing)]
     #[allow(unused)]
     config_path: Option<Utf8PathBuf>,
 }

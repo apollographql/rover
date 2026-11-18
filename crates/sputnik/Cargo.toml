@@ -10,13 +10,17 @@ publish = false
 anyhow = { workspace = true }
 camino = { workspace = true }
 ci_info = { workspace = true, features = ["serde-1"] }
+hmac = { workspace = true }
+rand = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "socks"] }
 rover-client = { workspace = true }
 rover-std = { workspace = true }
+rover-studio = { workspace = true }
 semver = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true}
 sha2 = { workspace = true }
+tempfile = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }

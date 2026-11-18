@@ -19,7 +19,6 @@ use rover_print::{
     style::{Style, StyledText},
 };
 use rover_std::Style as StdStyle;
-use serde::Serialize;
 
 use crate::{
     RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
@@ -28,7 +27,7 @@ use crate::{
     utils::client::StudioClientConfig,
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Publish {
     #[clap(flatten)]
     graph: GraphRefOpt,
@@ -37,7 +36,6 @@ pub struct Publish {
     subgraph: SubgraphOpt,
 
     #[clap(flatten)]
-    #[serde(skip_serializing)]
     schema: OptionalSchemaOpt,
 
     /// Indicate whether to convert a non-federated graph into a subgraph
@@ -49,7 +47,6 @@ pub struct Publish {
     /// if not running a gateway or router in managed federation mode.
     /// Not required if `--use-example-schema` is provided.
     #[arg(long)]
-    #[serde(skip_serializing)]
     routing_url: Option<String>,
 
     /// Bypasses warnings and the prompt to confirm publish when the routing url

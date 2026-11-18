@@ -7,14 +7,12 @@ use manifest::PersistedQueryManifest;
 use output::GenerateOutput;
 use rover_print::print::PrintExt;
 use rover_std::Fs;
-use serde::Serialize;
 
 use crate::{RoverOutput, RoverResult, options::FileDiscoveryOpt};
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Generate {
     #[clap(flatten)]
-    #[serde(flatten)]
     file_discovery: FileDiscoveryOpt,
 
     /// Path to write the generated manifest to. If omitted, the manifest is printed to stdout.

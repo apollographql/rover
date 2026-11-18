@@ -1,5 +1,4 @@
 use clap::Parser;
-use serde::Serialize;
 
 use crate::{RoverOutput, RoverResult, options::ProfileOpt, utils::client::StudioClientConfig};
 
@@ -9,13 +8,13 @@ mod list_tags_output;
 mod tag;
 mod untag;
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct GraphArtifact {
     #[clap(subcommand)]
     command: Command,
 }
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub enum Command {
     /// Fetch a graph artifact
     Fetch(fetch::Fetch),

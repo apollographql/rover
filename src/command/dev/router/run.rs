@@ -41,6 +41,7 @@ use crate::{
             read_file::ReadFile,
             write_file::{WriteFile, WriteFileRequest},
         },
+        lifecycle,
     },
 };
 
@@ -246,6 +247,7 @@ impl RunRouter<state::Run> {
             .listen_address(listen_address)
             .and_license(license)
             .spawn(spawn)
+            .children(lifecycle::Children::global())
             .build();
 
         let (router_logs, run_router_binary_subtask): (

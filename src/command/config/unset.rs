@@ -1,6 +1,5 @@
 use clap::Parser;
 use houston::{self as config, Profile};
-use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult,
@@ -8,7 +7,7 @@ use crate::{
     options::{ProfileOpt, SettingName},
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 /// Remove a stored setting from a profile
 pub struct Unset {
     /// The setting's canonical name, spelled as its environment variable is

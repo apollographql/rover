@@ -2,11 +2,10 @@ use clap::Parser;
 use rover_client::operations::graph_artifact::fetch::{
     self, FetchGraphArtifactInput, GraphArtifactIdentifier,
 };
-use serde::Serialize;
 
 use crate::{RoverOutput, RoverResult, options::ProfileOpt, utils::client::StudioClientConfig};
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Fetch {
     #[arg(long)]
     graph_id: String,
@@ -17,7 +16,7 @@ pub struct Fetch {
     history_limit: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Parser)]
+#[derive(Debug, Clone, Parser)]
 #[group(required = true, multiple = false)]
 struct Identifier {
     #[arg(short, long)]

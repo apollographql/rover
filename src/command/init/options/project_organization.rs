@@ -38,7 +38,7 @@ impl fmt::Display for OrganizationId {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
+#[derive(Debug, Clone, Deserialize, Parser, Default)]
 pub struct ProjectOrganizationOpt {
     #[arg(long = "org-id")]
     pub organization: Option<OrganizationId>,

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::RoverResult;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Parser, Default)]
+#[derive(Debug, Clone, Deserialize, Parser, Default)]
 pub struct ProjectNameOpt {
     #[arg(long = "project-name", short = 'n')]
     pub(crate) project_name: Option<ProjectName>,

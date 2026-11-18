@@ -20,6 +20,7 @@ pub mod retry;
 #[cfg(any(test, feature = "test"))]
 pub mod test;
 pub mod timeout;
+pub mod trace;
 
 pub use error::HttpServiceError;
 pub use reqwest::{ReqwestService, ReqwestServiceFactory};

@@ -50,7 +50,7 @@ Request tracing against the Platform API is out of scope; it has its own PRD.
 - **FR11** (Goal 3): Rover must send exactly one event per invocation, after the command completes or is stopped by a signal. After a command completes or is stopped, Rover must delay process exit because of telemetry by no more than 250 milliseconds in total, however slow or unreachable the telemetry endpoint is. The budget covers success, error, panic, and termination-signal paths and is not additive across them. A process that is killed without a chance to run cleanup sends no event.
 - **FR12** (Goal 3): When the telemetry endpoint is reachable and accepts the request within that budget, the event must be delivered even if the command finished in a few milliseconds. A short-running command must not lose its event because the process exited first.
 - **FR13** (Goal 3): A telemetry failure or timeout must not change the command's output or exit code, and must print nothing at the default log level. It may be logged at debug level.
-- **FR13a** (Goal 3): Rover must run every command, together with its telemetry, under a harness that handles `SIGTERM` and `SIGINT` in the same way. When the process receives either signal while a command is running, the harness must stop the command, send the event, wait for telemetry no longer than the FR11 budget, and then exit. This applies to every command, including any that handle an interrupt themselves.
+- **FR13a** (Goal 3): Rover must run every command, together with its telemetry, under a harness that handles `SIGTERM` and `SIGINT` in the same way. When the process receives either signal while a command is running, the harness must stop the command, stop any child process the command has started and that is meant to run only as long as the command does, send the event, wait for telemetry no longer than the FR11 budget, and then exit. Stopping child processes happens alongside sending the event, so it must not extend the FR11 budget. A child that is slow to stop must not delay the exit beyond that budget. This applies to every command, including any that handle an interrupt themselves.
 - **FR13b** (Goal 3): After handling a signal, Rover's exit status must be the one the process would have had if that signal had terminated it by default.
 - **FR13c** (Goals 4, 6): An event for a cancelled invocation must omit `duration_ms`, because it would record only how long the command ran before it was stopped. It must report the outcome `terminated`, and must still include every other field, so general analytical data is kept.
 
@@ -78,7 +78,7 @@ Request tracing against the Platform API is out of scope; it has its own PRD.
 ### 3.7 Wire contract
 
 - **FR27** (Goal 8): New fields must be additive and optional. Existing fields must keep their names and meaning, except that FR5 through FR9 narrow what the argument fields contain. The telemetry endpoint must accept events carrying the new fields before any Rover version that sends them is released, and must keep accepting events from older versions.
-- **FR28** (Goals 4–7): The new fields are named `duration_ms`, `outcome`, `environment`, and `graph_id`. An absent value is encoded by omitting the field.
+- **FR28** (Goals 4–7): The new fields are named `duration_ms`, `outcome`, `invocation_mode`, and `graph_id_hash`. An absent value is encoded by omitting the field.
 
 ## 4. Acceptance criteria
 
@@ -115,6 +115,12 @@ Given a running command, including one that handles an interrupt itself, and a r
 **Termination signal, unreachable endpoint**
 Given a running command and an endpoint that never responds, when the process receives `SIGTERM` or `SIGINT`, then the process exits no more than 250 milliseconds after the command stopped.
 
+**Termination signal, child processes**
+Given a running `rover dev` with its router and MCP server child processes, when only the Rover process receives `SIGTERM` or `SIGINT`, so that the children don't receive it from a terminal, then each child process has stopped by the time the Rover process exits, and the ports they held are free.
+
+**Termination signal, child that does not stop**
+Given a running command whose child process doesn't stop when asked, when the process receives `SIGTERM` or `SIGINT`, then the process still exits no more than 250 milliseconds after the command stopped.
+
 **Failed check**
 Given a command that completes by design with a non-zero exit code, when the event is built, then the outcome is `user_error`.
 
@@ -146,10 +152,10 @@ Given a run in which a CI vendor is detected, when the event is built, then the 
 Given a run with standard input attached to a terminal and no CI detected, when the event is built, then the invocation environment is `interactive`, including when output is piped.
 
 **Graph identifier present**
-Given a command whose graph ref resolves, when the event is built, then it includes `graph_id`.
+Given a command whose graph ref resolves, when the event is built, then it includes `graph_id_hash`.
 
 **Graph identifier stability and separation**
-Given one install, when two invocations resolve the same graph ref, then their `graph_id` values are equal. Given two installs with different install salts, when each resolves the same graph ref, then their `graph_id` values differ.
+Given one install, when two invocations resolve the same graph ref, then their `graph_id_hash` values are equal. Given two installs with different install salts, when each resolves the same graph ref, then their `graph_id_hash` values differ.
 
 **Help, version, and usage errors**
 Given `--help`, `--version`, or an invalid argument, when the command exits, then no event is sent.
@@ -161,10 +167,10 @@ Given a command whose output reader closes the pipe, when the command exits, the
 Given a run where CI is detected but no vendor is identified, or where standard input isn't a terminal, when the event is built, then the invocation environment is `automated`.
 
 **Graph identifier absent**
-Given a command with no resolvable graph ref, a malformed one, or no graph ref at all, when the event is built, then `graph_id` is absent.
+Given a command with no resolvable graph ref, a malformed one, or no graph ref at all, when the event is built, then `graph_id_hash` is absent.
 
 **Graph identifier is not reproducible**
-Given a list of known graph refs, when each is hashed with SHA-256, SHA-1, MD5, and BLAKE3, then no result equals an emitted `graph_id`.
+Given a list of known graph refs, when each is hashed with SHA-256, SHA-1, MD5, and BLAKE3, then no result equals an emitted `graph_id_hash`.
 
 **Opt-out**
 Given `APOLLO_TELEMETRY_DISABLED` set to any value, `--telemetry-disabled`, or a profile or project setting that disables telemetry, when any command runs, then no event is sent and no telemetry network request is made.

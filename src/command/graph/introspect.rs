@@ -5,7 +5,6 @@ use reqwest::Client;
 use rover_client::operations::graph::introspect::{
     self, GraphIntrospectInput, sdl_to_introspection_json,
 };
-use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult,
@@ -13,7 +12,7 @@ use crate::{
     options::{IntrospectOpts, OutputOpts},
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Introspect {
     #[clap(flatten)]
     pub opts: IntrospectOpts,
@@ -27,7 +26,6 @@ pub struct Introspect {
     /// know the target server is pre-spec and want to avoid the extra
     /// round-trip.
     #[arg(long)]
-    #[serde(skip_serializing)]
     pub legacy_introspection_query: bool,
 }
 

@@ -1,10 +1,9 @@
 use clap::{CommandFactory, Parser};
 use clap_complete::{generate, shells::Zsh as ZshShell};
-use serde::Serialize;
 
 use crate::{RoverOutput, RoverResult, cli::Rover};
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Zsh {}
 
 impl Zsh {

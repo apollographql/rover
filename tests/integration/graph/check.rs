@@ -175,6 +175,32 @@ fn graph_check_succeeds_despite_non_blocking_task_status_failure() {
     assert_json_snapshot!(json);
 }
 
+/// `graph check` queries no results for the build task, so a build that failed is reported by
+/// its status alone, and the failure is attributed to it rather than to an unknown task.
+#[test]
+#[serial]
+fn graph_check_attributes_a_build_failure_without_errors_to_the_build() {
+    let (success, json) = run_graph_check(
+        r#"{"data":{"graph":{"checkWorkflow":{
+            "status":"FAILED",
+            "tasks":[{
+                "__typename":"CompositionCheckTask",
+                "status":"FAILED",
+                "targetURL":"https://studio.apollographql.com/graph/my-graph/checks/build"
+            },{
+                "__typename":"OperationsCheckTask",
+                "status":"BLOCKED",
+                "targetURL":null,
+                "result":null
+            }]
+        }}}}"#,
+        &[],
+    );
+
+    assert!(!success, "expected a nonzero exit code; json: {json}");
+    assert_json_snapshot!(json);
+}
+
 /// `--background` starts the check and returns without waiting for it: the check is submitted
 /// once, and the workflow is neither polled nor fetched. Without it the same run polls until
 /// the workflow finishes, as every other test here shows.

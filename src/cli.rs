@@ -14,7 +14,7 @@ use lazycell::{AtomicLazyCell, LazyCell};
 use reqwest::Client;
 use rover_client::shared::GitContext;
 use rover_std::Style;
-use serde::Serialize;
+use rover_studio::types::GraphRef;
 use sputnik::{Outcome, Session};
 use timber::Level;
 
@@ -29,7 +29,6 @@ use crate::{
         client::{ClientBuilder, ClientTimeout, StudioClientConfig},
         env::{RoverEnv, RoverEnvKey},
         lifecycle::{self, Finish},
-        stringify::option_from_display,
         version,
     },
 };
@@ -78,7 +77,7 @@ impl StoredLayer {
     }
 }
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 #[command(
     name = "Rover",
     author,
@@ -112,14 +111,12 @@ pub struct Rover {
 
     /// Specify Rover's log level
     #[arg(long = "log", short = 'l', global = true, env = "APOLLO_LOG_LEVEL")]
-    #[serde(serialize_with = "option_from_display")]
     log_level: Option<Level>,
 
     /// Name of configuration profile to use
     // `Option` rather than defaulted here, so `--profile default` typed
     // literally can be told apart from omitting the flag.
     #[arg(long = "profile", global = true)]
-    #[serde(skip_serializing)]
     profile_name: Option<String>,
 
     #[clap(flatten)]
@@ -245,32 +242,26 @@ pub struct Rover {
     /// flags were supplied. Empty when `Rover` wasn't built from the real
     /// command line, in which case telemetry reports no flags.
     #[arg(skip)]
-    #[serde(skip_serializing)]
     arg_matches: Option<clap::ArgMatches>,
 
     #[arg(skip)]
-    #[serde(skip_serializing)]
     env_store: LazyCell<RoverEnv>,
 
     #[arg(skip)]
-    #[serde(skip_serializing)]
     client_builder: AtomicLazyCell<ClientBuilder>,
 
     #[arg(skip)]
-    #[serde(skip_serializing)]
     client: AtomicLazyCell<Client>,
 
     /// Settings this invocation has already printed a §3.9 override notice
     /// for - at most one notice per setting per process (FR61), keyed by
     /// canonical setting name.
     #[arg(skip)]
-    #[serde(skip_serializing)]
     noticed_settings: std::sync::Mutex<std::collections::HashSet<&'static str>>,
 
     /// The project file's `settings:` section, discovered and read on first
     /// use (see `project_settings`).
     #[arg(skip)]
-    #[serde(skip_serializing)]
     project_settings: std::sync::OnceLock<ProjectSettings>,
 
     /// Where a test's manifests live, in place of discovery from the
@@ -279,7 +270,6 @@ pub struct Rover {
     /// real working directory's `.rover/`.
     #[cfg(test)]
     #[arg(skip)]
-    #[serde(skip_serializing)]
     test_manifest_dirs: Option<crate::plugin::discovery::ManifestDirs>,
 }
 
@@ -321,6 +311,12 @@ async fn report_telemetry(session: Option<Session>) {
 
 impl Rover {
     pub async fn run_from_args() -> RoverResult<()> {
+        // Before clap reads any flag from its environment variable, so that a `.env` can
+        // supply them too.
+        if Rover::runs_dev(std::env::args_os()) {
+            dotenvy::dotenv().ok();
+        }
+
         // The same as `Rover::parse()`, keeping the matches for telemetry.
         let matches = Rover::command().get_matches();
         Rover::from_arg_matches(&matches)
@@ -330,20 +326,87 @@ impl Rover {
             .await
     }
 
+    /// Whether `args` run `rover dev`, found without failing or printing anything, so it can be
+    /// asked before the arguments are parsed for real. An argument that clap would reject is
+    /// ignored here, because the real parse is the one that reports it.
+    ///
+    /// `rover dev` is the one command that reads a `.env` file, and that file has to be loaded
+    /// before the real parse: clap reads a flag's environment variable while it parses, and
+    /// `Rover` caches the environment the first time it reads a variable, so a `.env` loaded
+    /// after either is invisible to it.
+    fn runs_dev<I, T>(args: I) -> bool
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<std::ffi::OsString> + Clone,
+    {
+        Rover::command()
+            .ignore_errors(true)
+            .disable_help_flag(true)
+            .disable_version_flag(true)
+            .try_get_matches_from(args)
+            .is_ok_and(|matches| matches.subcommand_name() == Some("dev"))
+    }
+
+    /// The graph ref this invocation ran against, if it has a resolvable one, for its telemetry
+    /// event.
+    ///
+    /// A command takes it from its arguments. `rover dev` also falls back to
+    /// `APOLLO_GRAPH_REF`, and then the stored profile and project settings, as it does to run.
+    /// It is the only command that reads the setting, so it is the only one matched below:
+    /// a command that starts calling `resolve_graph_ref_setting` has to be added here too.
+    ///
+    /// This never fails, prints, or creates the config home: a ref that can't be found or read
+    /// is no graph ref.
+    pub(crate) fn resolvable_graph_ref(&self) -> Option<GraphRef> {
+        self.arg_matches()
+            .and_then(crate::utils::telemetry::graph_ref_in)
+            .or_else(|| {
+                if !matches!(self.command, Command::Dev(_)) {
+                    return None;
+                }
+                let raw = self
+                    .get_env_var(RoverEnvKey::GraphRef)
+                    .ok()
+                    .flatten()
+                    .or_else(|| {
+                        let config = self.get_rover_config_read_only().ok()?;
+                        self.resolve_stored_setting_with(&config, SettingName::GraphRef)
+                            .ok()
+                            .flatten()
+                            .map(|(_, value)| value)
+                    })?;
+                raw.parse().ok()
+            })
+    }
+
     pub async fn run(&self) -> RoverResult<()> {
+        // A `rover dev` `.env` has already been loaded, by `run_from_args`, ahead of
+        // anything that reads an environment variable: the arguments, and the telemetry
+        // session below.
         timber::init(self.log_level);
         tracing::trace!(command_structure = ?self);
         self.output_opts.set_no_color();
 
         // attempt to create a new `Session` to capture anonymous usage data
-        let telemetry = lifecycle::Telemetry::new(Session::new(self).ok());
+        let session = Session::new(self)
+            .ok()
+            .map(|session| match self.graph_id_hash() {
+                Some(graph_id_hash) => session.with_graph_id_hash(graph_id_hash),
+                None => session,
+            });
+        let telemetry = lifecycle::Telemetry::new(session);
 
         let started = std::time::Instant::now();
-        let finish = lifecycle::run(&telemetry, |signal| signal.exit_by_default(), async {
-            // The command isn't finished until its output is written, so
-            // printing is part of its duration.
-            conclude(self.execute_command().await, &self.output_opts)
-        })
+        let finish = lifecycle::run(
+            &telemetry,
+            &lifecycle::Children::global(),
+            |signal| signal.exit_by_default(),
+            async {
+                // The command isn't finished until its output is written, so
+                // printing is part of its duration.
+                conclude(self.execute_command().await, &self.output_opts)
+            },
+        )
         .await;
         let duration = started.elapsed();
 
@@ -446,15 +509,7 @@ impl Rover {
             }
             Command::Schema(command) => command.run(self.get_client_config().await?).await,
             Command::Dev(command) => {
-                // Must run before `resolve_graph_ref_setting` below, not
-                // inside `Dev::run` - `Rover`'s env-var cache (`env_store`,
-                // a `LazyCell<RoverEnv>`) is filled on first `get_env_var`
-                // call and never refreshed, so a `.env`-supplied
-                // `APOLLO_GRAPH_REF` loaded any later would be invisible to
-                // it, letting a stored profile value wrongly win instead
-                // (inverting FR25's tier order) and spuriously triggering
-                // the "running without GraphOS credentials" notice.
-                dotenvy::dotenv().ok();
+                // `resolvable_graph_ref` mirrors this arm's use of the graph ref setting.
                 command
                     .run(
                         self.get_install_override_path()?,
@@ -1760,7 +1815,7 @@ impl Rover {
     }
 }
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub enum Command {
     /// Initialize a federated graph in your current directory
     Init(command::Init),
@@ -1849,7 +1904,7 @@ pub enum Command {
     GraphArtifact(command::GraphArtifact),
 }
 
-#[derive(Default, ValueEnum, Debug, Serialize, Clone, Copy, Eq, PartialEq)]
+#[derive(Default, ValueEnum, Debug, Clone, Copy, Eq, PartialEq)]
 pub enum RoverOutputFormatKind {
     #[default]
     Plain,
@@ -1865,7 +1920,7 @@ impl Display for RoverOutputFormatKind {
     }
 }
 
-#[derive(ValueEnum, Debug, Serialize, Clone, Copy, Eq, PartialEq)]
+#[derive(ValueEnum, Debug, Clone, Copy, Eq, PartialEq)]
 pub enum RoverOutputKind {
     RoverOutput,
     RoverError,
@@ -2002,7 +2057,7 @@ mod tests {
     use std::fs;
 
     use camino::Utf8PathBuf;
-    use clap::Parser;
+    use clap::{CommandFactory, FromArgMatches, Parser};
     use speculoos::prelude::*;
     use sputnik::Outcome;
 
@@ -2011,7 +2066,7 @@ mod tests {
         PKG_NAME, RoverErrorCode,
         command::RoverOutput,
         options::{ProjectSettings, SettingName},
-        plugin::{discovery::ManifestDirs, manifest::MANIFEST_FILE},
+        plugin::{discovery::ManifestDirs, error::printed, manifest::MANIFEST_FILE},
         utils::{client::ClientTimeout, env::RoverEnvKey},
     };
 
@@ -2035,6 +2090,26 @@ mod tests {
         assert_that!(outcome).is_equal_to(Outcome::Success);
         assert_that!(printed.is_err()).is_true();
         assert_that!(exit_code).is_equal_to(0);
+    }
+
+    #[rstest::rstest]
+    #[case::plain(&["rover", "dev"], true)]
+    #[case::with_flags(&["rover", "dev", "--supergraph-config", "s.yaml"], true)]
+    #[case::behind_a_global_flag_with_a_value(&["rover", "--log", "debug", "dev"], true)]
+    #[case::behind_a_global_flag_with_an_equals(&["rover", "--format=json", "dev"], true)]
+    #[case::asking_for_help(&["rover", "dev", "--help"], true)]
+    #[case::with_a_value_clap_rejects(&["rover", "dev", "--elv2-license", "bogus"], true)]
+    #[case::with_an_unknown_flag(&["rover", "dev", "--no-such-flag"], true)]
+    #[case::another_command(&["rover", "config", "list"], false)]
+    #[case::another_command_naming_dev(&["rover", "config", "list", "dev"], false)]
+    #[case::no_command(&["rover"], false)]
+    #[case::version(&["rover", "--version"], false)]
+    #[case::help(&["rover", "--help"], false)]
+    fn dev_is_recognised_before_the_arguments_are_parsed(
+        #[case] args: &[&str],
+        #[case] expected: bool,
+    ) {
+        assert_that!(Rover::runs_dev(args.iter().copied())).is_equal_to(expected);
     }
 
     #[test]
@@ -2209,14 +2284,14 @@ mod tests {
             .await
             .expect_err("expected an invalid stored download host to fail the command");
 
-        assert_that!(error.to_string()).is_equal_to(
+        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
+        assert_that!(printed(error)).is_equal_to(
             "error[E054]: `APOLLO_ROVER_DOWNLOAD_HOST` in profile `staging` is set to \
             `mirror.example.com`, which isn't a valid URL. URLs must include a scheme, for \
             example `https://registry.example.com`. Run `rover config set \
             APOLLO_ROVER_DOWNLOAD_HOST <value> --profile staging` to correct it.\n"
                 .to_string(),
         );
-        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
     }
 
     // FR64: profile (explicit or default) supplies a non-default value for
@@ -2332,14 +2407,14 @@ mod tests {
             .resolve_templates_api(None)
             .expect_err("expected an invalid stored templates API URL to fail the command");
 
-        assert_that!(error.to_string()).is_equal_to(
+        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
+        assert_that!(printed(error)).is_equal_to(
             "error[E054]: `APOLLO_TEMPLATES_API` in profile `staging` is set to \
             `templates.example.com`, which isn't a valid URL. URLs must include a scheme, for \
             example `https://registry.example.com`. Run `rover config set APOLLO_TEMPLATES_API \
             <value> --profile staging` to correct it.\n"
                 .to_string(),
         );
-        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
     }
 
     // `APOLLO_TEMPLATES_API` is a network-destination setting (FR1's "Net"
@@ -2455,6 +2530,93 @@ mod tests {
             .is_ok_containing(Some("my-graph@staging".to_string()));
     }
 
+    /// `rover dev`, run against a config home and a project, and the graph ref its
+    /// telemetry would find. `RoverEnv` starts empty under `cfg(test)`, so the process's own
+    /// `APOLLO_GRAPH_REF` can't reach it.
+    fn graph_ref_dev_finds(
+        home: &tempfile::TempDir,
+        project: Option<&str>,
+        profile_args: &[&str],
+    ) -> Option<String> {
+        let home_path = camino::Utf8Path::from_path(home.path()).unwrap();
+        let tree = tempfile::tempdir().unwrap();
+        let project = project.map(|contents| {
+            let dir = Utf8PathBuf::try_from(tree.path().to_path_buf())
+                .unwrap()
+                .join(".rover");
+            fs::create_dir_all(&dir).unwrap();
+            fs::write(dir.join(MANIFEST_FILE), contents).unwrap();
+            dir
+        });
+        let mut args = vec![PKG_NAME, "--config-home", home_path.as_str()];
+        args.extend_from_slice(profile_args);
+        args.push("dev");
+        let matches = Rover::command().get_matches_from(&args);
+        let mut rover = Rover::from_arg_matches(&matches)
+            .unwrap()
+            .with_arg_matches(matches);
+        rover.set_manifest_dirs(ManifestDirs {
+            project,
+            global: None,
+        });
+        rover
+            .resolvable_graph_ref()
+            .map(|graph_ref| graph_ref.to_string())
+    }
+
+    #[test]
+    fn dev_telemetry_does_not_create_a_missing_config_home() {
+        let parent = tempfile::tempdir().unwrap();
+        let home = parent.path().join("not-yet");
+        let args = vec![PKG_NAME, "--config-home", home.to_str().unwrap(), "dev"];
+        let matches = Rover::command().get_matches_from(&args);
+        let rover = Rover::from_arg_matches(&matches)
+            .unwrap()
+            .with_arg_matches(matches);
+
+        assert_that!(rover.resolvable_graph_ref()).is_none();
+        assert_that!(home.exists()).is_false();
+    }
+
+    #[test]
+    fn dev_telemetry_finds_a_graph_ref_stored_on_the_profile() {
+        let home = config_home_with_setting("staging", "APOLLO_GRAPH_REF", "my-graph@staging");
+
+        assert_that!(graph_ref_dev_finds(&home, None, &["--profile", "staging"]))
+            .is_equal_to(Some("my-graph@staging".to_string()));
+    }
+
+    #[test]
+    fn dev_telemetry_finds_a_graph_ref_set_in_the_project_file() {
+        let home = tempfile::tempdir().unwrap();
+
+        assert_that!(graph_ref_dev_finds(
+            &home,
+            Some("settings:\n  APOLLO_GRAPH_REF: my-graph@staging\n"),
+            &[],
+        ))
+        .is_equal_to(Some("my-graph@staging".to_string()));
+    }
+
+    #[test]
+    fn dev_telemetry_prefers_the_project_file_to_the_default_profile() {
+        let home = config_home_with_setting("default", "APOLLO_GRAPH_REF", "default-graph@prod");
+
+        assert_that!(graph_ref_dev_finds(
+            &home,
+            Some("settings:\n  APOLLO_GRAPH_REF: my-graph@staging\n"),
+            &[],
+        ))
+        .is_equal_to(Some("my-graph@staging".to_string()));
+    }
+
+    #[test]
+    fn dev_telemetry_finds_no_graph_ref_when_the_stored_one_is_malformed() {
+        let home = config_home_with_setting("staging", "APOLLO_GRAPH_REF", "not a graph ref!");
+
+        assert_that!(graph_ref_dev_finds(&home, None, &["--profile", "staging"])).is_none();
+    }
+
     #[test]
     fn graph_ref_env_var_wins_over_profile_setting() {
         let home = config_home_with_setting("staging", "APOLLO_GRAPH_REF", "profile-graph");
@@ -2494,7 +2656,8 @@ mod tests {
             .resolve_graph_ref_setting()
             .expect_err("expected an invalid stored graph ref to fail the command");
 
-        assert_that!(error.to_string()).is_equal_to(
+        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
+        assert_that!(printed(error)).is_equal_to(
             "error[E054]: `APOLLO_GRAPH_REF` in profile `staging` is set to `not a graph ref!`, \
             which isn't a valid graph ref. Graph refs must be in the format `<NAME>` or \
             `<NAME>@<VARIANT>`, where `<NAME>` must start with a letter and can otherwise \
@@ -2503,7 +2666,6 @@ mod tests {
             set APOLLO_GRAPH_REF <value> --profile staging` to correct it.\n"
                 .to_string(),
         );
-        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
     }
 
     #[tokio::test]
@@ -2689,14 +2851,14 @@ mod tests {
             .await
             .expect_err("expected an invalid stored registry URL to fail the command");
 
-        assert_that!(error.to_string()).is_equal_to(
+        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
+        assert_that!(printed(error)).is_equal_to(
             "error[E054]: `APOLLO_REGISTRY_URL` in profile `staging` is set to \
             `registry.example.com`, which isn't a valid URL. URLs must include a scheme, for \
             example `https://registry.example.com`. Run `rover config set APOLLO_REGISTRY_URL \
             <value> --profile staging` to correct it.\n"
                 .to_string(),
         );
-        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
     }
 
     // FR59(b) is network-destination-only, and checks-timeout isn't one
@@ -2868,13 +3030,13 @@ mod tests {
             .get_checks_timeout_seconds()
             .expect_err("expected an invalid stored checks timeout to fail the command");
 
-        assert_that!(error.to_string()).is_equal_to(
+        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
+        assert_that!(printed(error)).is_equal_to(
             "error[E054]: `APOLLO_CHECKS_TIMEOUT_SECONDS` in profile `staging` is set to `soon`, \
             which isn't a whole number of seconds. Run `rover config set \
             APOLLO_CHECKS_TIMEOUT_SECONDS <seconds> --profile staging` to correct it.\n"
                 .to_string(),
         );
-        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
     }
 
     // FR59(b) is network-destination-only, and client-timeout isn't one
@@ -3050,13 +3212,13 @@ mod tests {
             .get_client_timeout()
             .expect_err("expected an invalid stored client timeout to fail the command");
 
-        assert_that!(error.to_string()).is_equal_to(
+        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
+        assert_that!(printed(error)).is_equal_to(
             "error[E054]: `APOLLO_CLIENT_TIMEOUT` in profile `staging` is set to `soon`, which \
             isn't a whole number of seconds. Run `rover config set APOLLO_CLIENT_TIMEOUT \
             <seconds> --profile staging` to correct it.\n"
                 .to_string(),
         );
-        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
     }
 
     // Extends the "an explicit value also shortens/lengthens the download

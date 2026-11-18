@@ -1,9 +1,9 @@
 use comfy_table::{Attribute::Bold, Cell, CellAlignment::Center, Table, presets::UTF8_FULL};
 use pluralizer::pluralize;
 use rover_client::shared::{
-    CheckTaskStatus, CheckWorkflowResponse, CustomCheckResponse, DownstreamCheckResponse,
-    DownstreamVariantCheckResult, LintCheckResponse, OperationCheckResponse,
-    ProposalsCheckResponse, ProposalsCheckSeverityLevel, ProposalsCoverage,
+    CheckTaskKind, CheckTaskStatus, CheckWorkflowResponse, CustomCheckResponse,
+    DownstreamCheckResponse, DownstreamVariantCheckResult, LintCheckResponse,
+    OperationCheckResponse, ProposalsCheckResponse, ProposalsCheckSeverityLevel, ProposalsCoverage,
 };
 use rover_std::{Style, hyperlink};
 use serde_json::Value;
@@ -29,11 +29,20 @@ impl CliOutput for CheckWorkflowOutput<'_> {
             response.maybe_core_schema_modified,
             response.maybe_core_schema_status.clone(),
         ) {
+            let build_failed = core_schema_status == CheckTaskStatus::FAILED;
             append_task_title(&mut msg, "Build Check", core_schema_status);
-            if core_schema_modified {
-                msg.push_str("There were no changes detected in the composed API schema, but the core schema was modified.")
+            if build_failed {
+                // Composition errors, when Studio returns them, are reported as their own
+                // error before this report is ever built, so a failed build here has none.
+                msg.push_str(
+                    "The build failed, but Studio didn't return the errors that caused it.\n",
+                );
+                push_details_link(&mut msg, response, CheckTaskKind::Build);
             } else {
-                msg.push_str("There were no changes detected in the composed schema.")
+                msg.push_str(build_check_summary(
+                    core_schema_modified,
+                    response.maybe_operations_response.as_ref(),
+                ));
             }
         }
 
@@ -57,7 +66,7 @@ impl CliOutput for CheckWorkflowOutput<'_> {
                 "Proposals Check",
                 proposals_response.task_status.clone(),
             );
-            msg.push_str(proposals_text(proposals_response).as_str());
+            msg.push_str(proposals_text(proposals_response, &check_details_url(response)).as_str());
         }
 
         if let Some(custom_response) = &response.maybe_custom_response {
@@ -78,12 +87,82 @@ impl CliOutput for CheckWorkflowOutput<'_> {
             msg.push_str(downstream_text(downstream_response).as_str());
         }
 
+        for kind in unreported_failures(response) {
+            append_task_title(&mut msg, kind.title(), CheckTaskStatus::FAILED);
+            msg.push_str("Studio didn't return any details for this task.\n");
+            push_details_link(&mut msg, response, kind);
+        }
+
         msg.trim_end().to_string()
     }
 
     fn json(&self) -> Result<Value, serde_json::Error> {
         Ok(self.0.get_json())
     }
+}
+
+const NO_SCHEMA_CHANGES: &str = "There were no changes detected in the composed schema.";
+const CORE_SCHEMA_ONLY_CHANGES: &str =
+    "There were no changes detected in the composed API schema, but the core schema was modified.";
+const API_SCHEMA_CHANGES: &str = "The composed API schema was modified.";
+const UNKNOWN_API_SCHEMA_CHANGES: &str = "The composed schema was modified.";
+
+/// Summarizes what the build changed, for the `Build Check` section.
+///
+/// The composition task only reports whether the core (supergraph) schema changed. Whether the
+/// API schema changed is known only from the operations check, whose changes are the API schema
+/// diff, so a "no API schema changes" claim is made only when that check ran and found none.
+fn build_check_summary(
+    core_schema_modified: bool,
+    maybe_operations_response: Option<&OperationCheckResponse>,
+) -> &'static str {
+    // Takes precedence over `core_schema_modified`: GraphOS compares the core schema with the
+    // active publish when the field is read, not when the check started, so a matching publish
+    // during the check reports it as unchanged even though the API schema diff is not empty.
+    let api_schema_modified = maybe_operations_response
+        .is_some_and(|operations_response| !operations_response.changes.is_empty());
+
+    match (
+        api_schema_modified,
+        core_schema_modified,
+        maybe_operations_response,
+    ) {
+        (true, _, _) => API_SCHEMA_CHANGES,
+        (false, false, _) => NO_SCHEMA_CHANGES,
+        (false, true, Some(_)) => CORE_SCHEMA_ONLY_CHANGES,
+        (false, true, None) => UNKNOWN_API_SCHEMA_CHANGES,
+    }
+}
+
+/// Failed tasks that have no section of their own in the report, because Studio returned no
+/// result for them or Rover doesn't query their results, so the report still shows them.
+fn unreported_failures(response: &CheckWorkflowResponse) -> Vec<CheckTaskKind> {
+    response
+        .failed_tasks()
+        .into_iter()
+        .filter(|kind| match kind {
+            CheckTaskKind::Build => {
+                response.maybe_core_schema_modified.is_none()
+                    || response.maybe_core_schema_status.is_none()
+            }
+            CheckTaskKind::ContractFilter => true,
+            CheckTaskKind::Operations => response.maybe_operations_response.is_none(),
+            CheckTaskKind::Lint => response.maybe_lint_response.is_none(),
+            CheckTaskKind::Proposals => response.maybe_proposals_response.is_none(),
+            CheckTaskKind::Custom => response.maybe_custom_response.is_none(),
+            CheckTaskKind::Downstream => response.maybe_downstream_response.is_none(),
+        })
+        .collect()
+}
+
+/// Links to the task's own Studio page, or to the check as a whole when Studio gave none.
+fn push_details_link(msg: &mut String, response: &CheckWorkflowResponse, kind: CheckTaskKind) {
+    let url = response
+        .task_summary(kind)
+        .and_then(|summary| summary.target_url.as_deref())
+        .unwrap_or(&response.default_target_url);
+    msg.push_str(&format!("View {} check details at: ", kind.noun()));
+    msg.push_str(&Style::Link.paint(url));
 }
 
 fn append_task_title(msg: &mut String, title: &str, status: CheckTaskStatus) {
@@ -238,7 +317,18 @@ fn proposals_table(response: &ProposalsCheckResponse) -> String {
     table.to_string()
 }
 
+/// Whether someone overrode the proposals task's result in Studio. Studio reports this through
+/// the task's override flag; the overridden coverage value is kept for completeness.
+fn proposals_overridden(response: &ProposalsCheckResponse) -> bool {
+    response.overridden || response.proposal_coverage == ProposalsCoverage::OVERRIDDEN
+}
+
+const PROPOSALS_OVERRIDDEN_MSG: &str = "Proposal check results have been overridden in Studio.";
+
 fn proposals_msg(response: &ProposalsCheckResponse) -> String {
+    if proposals_overridden(response) {
+        return PROPOSALS_OVERRIDDEN_MSG.to_string();
+    }
     match response.proposal_coverage {
         ProposalsCoverage::FULL => "All of the diffs in this change are associated with an approved Proposal.".to_string(),
         ProposalsCoverage::PARTIAL | ProposalsCoverage::NONE => match response.severity_level {
@@ -246,31 +336,139 @@ fn proposals_msg(response: &ProposalsCheckResponse) -> String {
             ProposalsCheckSeverityLevel::WARN => "Your check passed with warnings because some or all of the diffs in this change are not in an approved Proposal, and your schema check severity level is set to WARN.".to_string(),
             ProposalsCheckSeverityLevel::OFF => "Proposal checks are disabled".to_string(),
         },
-        ProposalsCoverage::OVERRIDDEN => "Proposal check results have been overridden in Studio".to_string(),
+        ProposalsCoverage::OVERRIDDEN => PROPOSALS_OVERRIDDEN_MSG.to_string(),
         ProposalsCoverage::PENDING => "Proposal check has not completed".to_string(),
     }
 }
 
-fn proposals_text(response: &ProposalsCheckResponse) -> String {
+/// The message shown when the proposals task found no proposals related to
+/// the changes, which says why (it didn't run, it's pending, it was
+/// overridden) or what the configured severity level means for the check.
+fn no_related_proposals_msg(response: &ProposalsCheckResponse) -> String {
+    if response.task_status == CheckTaskStatus::BLOCKED {
+        return "The proposals check did not run because an earlier task in this check failed."
+            .to_string();
+    }
+    if proposals_overridden(response) {
+        return PROPOSALS_OVERRIDDEN_MSG.to_string();
+    }
+    match response.proposal_coverage {
+        ProposalsCoverage::OVERRIDDEN => PROPOSALS_OVERRIDDEN_MSG.to_string(),
+        ProposalsCoverage::PENDING => "Proposal check has not completed.".to_string(),
+        // Studio reports full coverage with no related proposals when nothing needed one: no
+        // subgraph changed, or the only changes were ones it doesn't require a proposal for
+        // (such as description changes). The severity level doesn't come into it.
+        ProposalsCoverage::FULL => {
+            "None of the changes in this check need an approved proposal.".to_string()
+        }
+        ProposalsCoverage::PARTIAL | ProposalsCoverage::NONE => {
+            let consequence = match response.severity_level {
+                ProposalsCheckSeverityLevel::ERROR => {
+                    "Your proposals check severity level is set to ERROR, so changes that aren't in an approved proposal fail the check."
+                }
+                ProposalsCheckSeverityLevel::WARN => {
+                    "Your proposals check severity level is set to WARN, so changes that aren't in an approved proposal are reported as warnings and don't fail the check."
+                }
+                ProposalsCheckSeverityLevel::OFF => {
+                    "Proposal checks are disabled, so this doesn't affect the check result."
+                }
+            };
+            format!("No proposals are associated with these changes. {consequence}")
+        }
+    }
+}
+
+/// The link to show in place of the proposals task's own link when no
+/// proposals are related to the changes: Studio points that task's link at a
+/// proposal page, which is meaningless without a proposal. Prefer another
+/// task's link, since each of those opens this specific check, and fall back
+/// to the variant's list of checks.
+fn check_details_url(response: &CheckWorkflowResponse) -> CheckDetailsUrl<'_> {
+    [
+        response
+            .maybe_operations_response
+            .as_ref()
+            .and_then(|task| task.target_url.as_deref()),
+        response
+            .maybe_lint_response
+            .as_ref()
+            .and_then(|task| task.target_url.as_deref()),
+        response
+            .maybe_custom_response
+            .as_ref()
+            .and_then(|task| task.target_url.as_deref()),
+        response
+            .maybe_downstream_response
+            .as_ref()
+            .and_then(|task| task.target_url.as_deref()),
+    ]
+    .into_iter()
+    .flatten()
+    .next()
+    .map(CheckDetailsUrl::Check)
+    .unwrap_or(CheckDetailsUrl::VariantChecks(&response.default_target_url))
+}
+
+/// Where the proposals section links when no proposals are related to the
+/// changes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CheckDetailsUrl<'a> {
+    /// A page of this specific check.
+    Check(&'a str),
+    /// The list of checks run against the variant.
+    VariantChecks(&'a str),
+}
+
+/// Whether Studio reported that the change had more diffs than a proposals
+/// check allows. Checks run before Studio reported this count as not exceeded.
+fn exceeded_max_diffs(response: &ProposalsCheckResponse) -> bool {
+    // The message says Studio failed the task, so only show it for a task that did fail: a task
+    // that didn't run, or hasn't finished, has nothing to say about the limit.
+    response.has_exceeded_max_diffs == Some(true) && response.task_status == CheckTaskStatus::FAILED
+}
+
+/// Studio fails the proposals task outright when a change exceeds the limit,
+/// whatever the severity level, without comparing the diffs to proposals, so
+/// neither the severity nor the coverage wording applies. The limit itself
+/// is set by Apollo and may change, so it isn't stated here.
+const EXCEEDED_MAX_DIFFS_MSG: &str = "This change has more schema diffs than Studio allows for a proposals check, so Studio didn't compare the changes against proposals. Studio fails the proposals check whenever a change exceeds this limit, whatever the proposals check severity level.";
+
+fn proposals_text(response: &ProposalsCheckResponse, fallback_url: &CheckDetailsUrl) -> String {
     let mut msg = String::new();
 
-    if !response.related_proposals.is_empty() {
+    if exceeded_max_diffs(response) {
+        msg.push_str(EXCEEDED_MAX_DIFFS_MSG);
+        msg.push('\n');
+        push_check_details_link(&mut msg, fallback_url);
+    } else if !response.related_proposals.is_empty() {
         msg.push_str(&proposals_msg(response));
         msg.push('\n');
         msg.push_str(&proposals_table(response));
+        if let Some(url) = &response.target_url {
+            msg.push_str("View proposal check details at: ");
+            msg.push_str(&Style::Link.paint(url));
+        }
     } else {
-        msg.push_str(
-            "Your proposals task did not return any approved proposals associated with these changes.",
-        );
+        msg.push_str(&no_related_proposals_msg(response));
         msg.push('\n');
-    }
-
-    if let Some(url) = &response.target_url {
-        msg.push_str("View proposal check details at: ");
-        msg.push_str(&Style::Link.paint(url));
+        push_check_details_link(&mut msg, fallback_url);
     }
 
     msg
+}
+
+fn push_check_details_link(msg: &mut String, url: &CheckDetailsUrl) {
+    match url {
+        CheckDetailsUrl::Check(url) => {
+            msg.push_str("View check details at: ");
+            msg.push_str(&Style::Link.paint(url));
+        }
+        CheckDetailsUrl::VariantChecks(url) if !url.is_empty() => {
+            msg.push_str("View checks for this variant at: ");
+            msg.push_str(&Style::Link.paint(url));
+        }
+        CheckDetailsUrl::VariantChecks(_) => {}
+    }
 }
 
 fn custom_table(response: &CustomCheckResponse) -> String {
@@ -391,7 +589,7 @@ fn downstream_text(response: &DownstreamCheckResponse) -> String {
 mod test {
     use console::strip_ansi_codes;
     use rover_client::shared::{
-        ChangeSeverity, Diagnostic, RelatedProposal, SchemaChange, Violation,
+        ChangeSeverity, CheckTaskSummary, Diagnostic, RelatedProposal, SchemaChange, Violation,
     };
     use rstest::rstest;
     use speculoos::prelude::*;
@@ -482,6 +680,8 @@ mod test {
                     status: "OPEN".to_string(),
                     display_name: "Add phone number".to_string(),
                 }],
+                has_exceeded_max_diffs: Some(false),
+                overridden: false,
             }),
             maybe_custom_response: Some(CustomCheckResponse {
                 task_status: CheckTaskStatus::FAILED,
@@ -502,6 +702,39 @@ mod test {
                 ),
                 variants: vec![variant("mobile", true, CheckTaskStatus::FAILED)],
             }),
+            task_summaries: [
+                (CheckTaskKind::Build, CheckTaskStatus::PASSED, None),
+                (
+                    CheckTaskKind::Operations,
+                    CheckTaskStatus::FAILED,
+                    Some("operations"),
+                ),
+                (CheckTaskKind::Lint, CheckTaskStatus::PASSED, Some("lint")),
+                (
+                    CheckTaskKind::Proposals,
+                    CheckTaskStatus::FAILED,
+                    Some("proposals"),
+                ),
+                (
+                    CheckTaskKind::Custom,
+                    CheckTaskStatus::FAILED,
+                    Some("custom"),
+                ),
+                (
+                    CheckTaskKind::Downstream,
+                    CheckTaskStatus::FAILED,
+                    Some("downstream"),
+                ),
+            ]
+            .into_iter()
+            .map(|(kind, status, path)| CheckTaskSummary {
+                kind,
+                status,
+                target_url: path.map(|path| {
+                    format!("https://studio.apollographql.com/graph/my-graph/checks/{path}")
+                }),
+            })
+            .collect(),
         }
     }
 
@@ -519,7 +752,90 @@ mod test {
             maybe_proposals_response: None,
             maybe_custom_response: None,
             maybe_downstream_response: None,
+            task_summaries: Vec::new(),
         }
+    }
+
+    /// A build that failed without Studio returning the composition errors behind it, which
+    /// blocks every task that depends on it.
+    fn build_failed_without_errors_response() -> CheckWorkflowResponse {
+        CheckWorkflowResponse {
+            default_target_url:
+                "https://studio.apollographql.com/graph/my-graph/variant/current/checks/variant"
+                    .to_string(),
+            maybe_core_schema_modified: Some(false),
+            maybe_core_schema_status: Some(CheckTaskStatus::FAILED),
+            maybe_operations_response: None,
+            maybe_lint_response: None,
+            maybe_proposals_response: None,
+            maybe_custom_response: None,
+            maybe_downstream_response: None,
+            task_summaries: vec![
+                CheckTaskSummary {
+                    kind: CheckTaskKind::Build,
+                    status: CheckTaskStatus::FAILED,
+                    target_url: Some(
+                        "https://studio.apollographql.com/graph/my-graph/checks/build".to_string(),
+                    ),
+                },
+                CheckTaskSummary {
+                    kind: CheckTaskKind::Operations,
+                    status: CheckTaskStatus::BLOCKED,
+                    target_url: None,
+                },
+            ],
+        }
+    }
+
+    /// Failed tasks with nothing to render: one Rover doesn't query the results of, and one
+    /// Studio returned no result or link for.
+    fn failures_without_results_response() -> CheckWorkflowResponse {
+        CheckWorkflowResponse {
+            task_summaries: vec![
+                CheckTaskSummary {
+                    kind: CheckTaskKind::Operations,
+                    status: CheckTaskStatus::FAILED,
+                    target_url: None,
+                },
+                CheckTaskSummary {
+                    kind: CheckTaskKind::ContractFilter,
+                    status: CheckTaskStatus::FAILED,
+                    target_url: Some(
+                        "https://studio.apollographql.com/graph/my-graph/checks/filter".to_string(),
+                    ),
+                },
+                CheckTaskSummary {
+                    kind: CheckTaskKind::Lint,
+                    status: CheckTaskStatus::BLOCKED,
+                    target_url: None,
+                },
+            ],
+            ..build_only_response()
+        }
+    }
+
+    #[test]
+    fn build_failed_without_errors_text_snapshot() {
+        let text =
+            strip_ansi_codes(&CheckWorkflowOutput(&build_failed_without_errors_response()).text())
+                .to_string();
+        insta::assert_snapshot!(text);
+    }
+
+    #[test]
+    fn build_failed_without_errors_json_snapshot() {
+        let json = CheckWorkflowOutput(&build_failed_without_errors_response())
+            .json()
+            .expect("check workflow JSON rendering cannot fail");
+        insta::assert_json_snapshot!(json);
+    }
+
+    #[test]
+    fn failures_without_results_text_snapshot() {
+        let text =
+            strip_ansi_codes(&CheckWorkflowOutput(&failures_without_results_response()).text())
+                .to_string();
+        insta::assert_snapshot!(text);
     }
 
     #[test]
@@ -550,6 +866,379 @@ mod test {
             .json()
             .expect("check workflow JSON rendering cannot fail");
         insta::assert_json_snapshot!(json);
+    }
+
+    fn proposals_response(
+        task_status: CheckTaskStatus,
+        severity_level: ProposalsCheckSeverityLevel,
+        proposal_coverage: ProposalsCoverage,
+        related_proposals: Vec<RelatedProposal>,
+    ) -> ProposalsCheckResponse {
+        ProposalsCheckResponse {
+            task_status,
+            severity_level,
+            proposal_coverage,
+            target_url: Some(
+                "https://studio.apollographql.com/graph/my-graph/variant/current/proposal/abc"
+                    .to_string(),
+            ),
+            related_proposals,
+            has_exceeded_max_diffs: None,
+            overridden: false,
+        }
+    }
+
+    /// The response for a check whose proposals task found no proposals, on a
+    /// graph that has never had one created.
+    fn no_proposals_response() -> CheckWorkflowResponse {
+        CheckWorkflowResponse {
+            maybe_operations_response: Some(OperationCheckResponse::try_new(
+                CheckTaskStatus::PASSED,
+                Some(
+                    "https://studio.apollographql.com/graph/my-graph/variant/current/checks/123/operations"
+                        .to_string(),
+                ),
+                3,
+                vec![],
+            )),
+            maybe_proposals_response: Some(proposals_response(
+                CheckTaskStatus::PASSED,
+                ProposalsCheckSeverityLevel::WARN,
+                ProposalsCoverage::NONE,
+                vec![],
+            )),
+            ..build_only_response()
+        }
+    }
+
+    /// A check whose proposals task failed with no related proposals, where
+    /// Studio reported `has_exceeded_max_diffs` as given.
+    fn max_diffs_response(
+        has_exceeded_max_diffs: Option<bool>,
+        severity_level: ProposalsCheckSeverityLevel,
+    ) -> CheckWorkflowResponse {
+        let mut response = no_proposals_response();
+        response.maybe_proposals_response = Some(ProposalsCheckResponse {
+            has_exceeded_max_diffs,
+            ..proposals_response(
+                CheckTaskStatus::FAILED,
+                severity_level,
+                ProposalsCoverage::NONE,
+                vec![],
+            )
+        });
+        response
+    }
+
+    #[rstest]
+    #[case::exceeded("exceeded", Some(true))]
+    #[case::not_exceeded("not_exceeded", Some(false))]
+    #[case::not_reported("not_reported", None)]
+    fn max_diffs_response_json_snapshot(
+        #[case] name: &str,
+        #[case] has_exceeded_max_diffs: Option<bool>,
+    ) {
+        let json = CheckWorkflowOutput(&max_diffs_response(
+            has_exceeded_max_diffs,
+            ProposalsCheckSeverityLevel::ERROR,
+        ))
+        .json()
+        .expect("check workflow JSON rendering cannot fail");
+        insta::assert_json_snapshot!(format!("max_diffs_response_json_{name}"), json);
+    }
+
+    #[rstest]
+    #[case::exceeded_error("exceeded_error", Some(true), ProposalsCheckSeverityLevel::ERROR)]
+    #[case::exceeded_warn("exceeded_warn", Some(true), ProposalsCheckSeverityLevel::WARN)]
+    #[case::not_exceeded("not_exceeded", Some(false), ProposalsCheckSeverityLevel::ERROR)]
+    #[case::not_reported("not_reported", None, ProposalsCheckSeverityLevel::ERROR)]
+    fn max_diffs_response_text_snapshot(
+        #[case] name: &str,
+        #[case] has_exceeded_max_diffs: Option<bool>,
+        #[case] severity_level: ProposalsCheckSeverityLevel,
+    ) {
+        let text = strip_ansi_codes(
+            &CheckWorkflowOutput(&max_diffs_response(has_exceeded_max_diffs, severity_level))
+                .text(),
+        )
+        .to_string();
+        insta::assert_snapshot!(format!("max_diffs_response_text_{name}"), text);
+    }
+
+    #[rstest]
+    #[case::exceeded_error(Some(true), ProposalsCheckSeverityLevel::ERROR, format!(
+        "{EXCEEDED_MAX_DIFFS_MSG}\nView check details at: https://example.com/check"
+    ))]
+    #[case::exceeded_warn(Some(true), ProposalsCheckSeverityLevel::WARN, format!(
+        "{EXCEEDED_MAX_DIFFS_MSG}\nView check details at: https://example.com/check"
+    ))]
+    #[case::exceeded_off(Some(true), ProposalsCheckSeverityLevel::OFF, format!(
+        "{EXCEEDED_MAX_DIFFS_MSG}\nView check details at: https://example.com/check"
+    ))]
+    #[case::not_exceeded(
+        Some(false),
+        ProposalsCheckSeverityLevel::WARN,
+        "No proposals are associated with these changes. Your proposals check severity level is set to WARN, so changes that aren't in an approved proposal are reported as warnings and don't fail the check.\n\
+         View check details at: https://example.com/check".to_string()
+    )]
+    #[case::not_reported(
+        None,
+        ProposalsCheckSeverityLevel::WARN,
+        "No proposals are associated with these changes. Your proposals check severity level is set to WARN, so changes that aren't in an approved proposal are reported as warnings and don't fail the check.\n\
+         View check details at: https://example.com/check".to_string()
+    )]
+    fn proposals_text_reports_exceeded_max_diffs(
+        #[case] has_exceeded_max_diffs: Option<bool>,
+        #[case] severity_level: ProposalsCheckSeverityLevel,
+        #[case] expected: String,
+    ) {
+        let response = ProposalsCheckResponse {
+            has_exceeded_max_diffs,
+            ..proposals_response(
+                CheckTaskStatus::FAILED,
+                severity_level,
+                ProposalsCoverage::NONE,
+                vec![],
+            )
+        };
+        let fallback_url = CheckDetailsUrl::Check("https://example.com/check");
+        assert_that!(&strip_ansi_codes(&proposals_text(&response, &fallback_url)).to_string())
+            .is_equal_to(expected);
+    }
+
+    #[rstest]
+    #[case::blocked(
+        CheckTaskStatus::BLOCKED,
+        ProposalsCoverage::PENDING,
+        "The proposals check did not run because an earlier task in this check failed.\n\
+         View check details at: https://example.com/check"
+    )]
+    #[case::pending(
+        CheckTaskStatus::PENDING,
+        ProposalsCoverage::PENDING,
+        "Proposal check has not completed.\n\
+         View check details at: https://example.com/check"
+    )]
+    fn proposals_text_reports_exceeded_max_diffs_only_for_a_failed_task(
+        #[case] task_status: CheckTaskStatus,
+        #[case] proposal_coverage: ProposalsCoverage,
+        #[case] expected: &str,
+    ) {
+        let response = ProposalsCheckResponse {
+            has_exceeded_max_diffs: Some(true),
+            ..proposals_response(
+                task_status,
+                ProposalsCheckSeverityLevel::ERROR,
+                proposal_coverage,
+                vec![],
+            )
+        };
+        let fallback_url = CheckDetailsUrl::Check("https://example.com/check");
+        assert_that!(&strip_ansi_codes(&proposals_text(&response, &fallback_url)).to_string())
+            .is_equal_to(expected.to_string());
+    }
+
+    #[test]
+    fn no_proposals_response_text_snapshot() {
+        let text =
+            strip_ansi_codes(&CheckWorkflowOutput(&no_proposals_response()).text()).to_string();
+        insta::assert_snapshot!(text);
+    }
+
+    #[rstest]
+    #[case::severity_error(
+        CheckTaskStatus::FAILED,
+        ProposalsCheckSeverityLevel::ERROR,
+        ProposalsCoverage::NONE,
+        "No proposals are associated with these changes. Your proposals check severity level is set to ERROR, so changes that aren't in an approved proposal fail the check."
+    )]
+    #[case::severity_warn(
+        CheckTaskStatus::PASSED,
+        ProposalsCheckSeverityLevel::WARN,
+        ProposalsCoverage::NONE,
+        "No proposals are associated with these changes. Your proposals check severity level is set to WARN, so changes that aren't in an approved proposal are reported as warnings and don't fail the check."
+    )]
+    #[case::severity_off(
+        CheckTaskStatus::PASSED,
+        ProposalsCheckSeverityLevel::OFF,
+        ProposalsCoverage::NONE,
+        "No proposals are associated with these changes. Proposal checks are disabled, so this doesn't affect the check result."
+    )]
+    #[case::blocked_by_earlier_task(
+        CheckTaskStatus::BLOCKED,
+        ProposalsCheckSeverityLevel::WARN,
+        ProposalsCoverage::PENDING,
+        "The proposals check did not run because an earlier task in this check failed."
+    )]
+    #[case::pending(
+        CheckTaskStatus::PENDING,
+        ProposalsCheckSeverityLevel::ERROR,
+        ProposalsCoverage::PENDING,
+        "Proposal check has not completed."
+    )]
+    #[case::overridden(
+        CheckTaskStatus::PASSED,
+        ProposalsCheckSeverityLevel::ERROR,
+        ProposalsCoverage::OVERRIDDEN,
+        "Proposal check results have been overridden in Studio."
+    )]
+    #[case::fully_covered_severity_error(
+        CheckTaskStatus::PASSED,
+        ProposalsCheckSeverityLevel::ERROR,
+        ProposalsCoverage::FULL,
+        "None of the changes in this check need an approved proposal."
+    )]
+    #[case::fully_covered_severity_warn(
+        CheckTaskStatus::PASSED,
+        ProposalsCheckSeverityLevel::WARN,
+        ProposalsCoverage::FULL,
+        "None of the changes in this check need an approved proposal."
+    )]
+    fn no_related_proposals_msg_explains_result(
+        #[case] task_status: CheckTaskStatus,
+        #[case] severity_level: ProposalsCheckSeverityLevel,
+        #[case] proposal_coverage: ProposalsCoverage,
+        #[case] expected: &str,
+    ) {
+        let response = proposals_response(task_status, severity_level, proposal_coverage, vec![]);
+        assert_that!(&no_related_proposals_msg(&response)).is_equal_to(expected.to_string());
+    }
+
+    #[rstest]
+    #[case::links_to_check_not_proposal_page(
+        CheckDetailsUrl::Check(
+            "https://studio.apollographql.com/graph/my-graph/variant/current/checks/123/operations"
+        ),
+        "No proposals are associated with these changes. Your proposals check severity level is set to WARN, so changes that aren't in an approved proposal are reported as warnings and don't fail the check.\n\
+         View check details at: https://studio.apollographql.com/graph/my-graph/variant/current/checks/123/operations"
+    )]
+    #[case::links_to_variant_checks_when_no_check_link(
+        CheckDetailsUrl::VariantChecks(
+            "https://studio.apollographql.com/graph/my-graph/checks?variant=current"
+        ),
+        "No proposals are associated with these changes. Your proposals check severity level is set to WARN, so changes that aren't in an approved proposal are reported as warnings and don't fail the check.\n\
+         View checks for this variant at: https://studio.apollographql.com/graph/my-graph/checks?variant=current"
+    )]
+    #[case::no_link_when_none_available(
+        CheckDetailsUrl::VariantChecks(""),
+        "No proposals are associated with these changes. Your proposals check severity level is set to WARN, so changes that aren't in an approved proposal are reported as warnings and don't fail the check.\n"
+    )]
+    fn proposals_text_without_related_proposals_does_not_link_to_proposal_page(
+        #[case] fallback_url: CheckDetailsUrl,
+        #[case] expected: &str,
+    ) {
+        let response = proposals_response(
+            CheckTaskStatus::PASSED,
+            ProposalsCheckSeverityLevel::WARN,
+            ProposalsCoverage::NONE,
+            vec![],
+        );
+        assert_that!(&strip_ansi_codes(&proposals_text(&response, &fallback_url)).to_string())
+            .is_equal_to(expected.to_string());
+    }
+
+    #[rstest]
+    #[case::passed_on_rerun(CheckTaskStatus::PASSED, ProposalsCheckSeverityLevel::ERROR)]
+    #[case::failed_before_rerun(CheckTaskStatus::FAILED, ProposalsCheckSeverityLevel::ERROR)]
+    #[case::warn(CheckTaskStatus::PASSED, ProposalsCheckSeverityLevel::WARN)]
+    fn proposals_text_without_related_proposals_reports_override(
+        #[case] task_status: CheckTaskStatus,
+        #[case] severity_level: ProposalsCheckSeverityLevel,
+    ) {
+        let response = ProposalsCheckResponse {
+            overridden: true,
+            ..proposals_response(task_status, severity_level, ProposalsCoverage::NONE, vec![])
+        };
+        let fallback_url = CheckDetailsUrl::Check("https://example.com/check");
+        assert_that!(&strip_ansi_codes(&proposals_text(&response, &fallback_url)).to_string())
+            .is_equal_to(
+                "Proposal check results have been overridden in Studio.\n\
+                 View check details at: https://example.com/check"
+                    .to_string(),
+            );
+    }
+
+    #[test]
+    fn proposals_text_with_related_proposals_reports_override() {
+        let response = ProposalsCheckResponse {
+            overridden: true,
+            ..proposals_response(
+                CheckTaskStatus::PASSED,
+                ProposalsCheckSeverityLevel::ERROR,
+                ProposalsCoverage::PARTIAL,
+                vec![RelatedProposal {
+                    status: "OPEN".to_string(),
+                    display_name: "Add phone number".to_string(),
+                }],
+            )
+        };
+        let fallback_url = CheckDetailsUrl::Check("https://example.com/unused");
+        let expected = format!(
+            "Proposal check results have been overridden in Studio.\n{}View proposal check details at: https://studio.apollographql.com/graph/my-graph/variant/current/proposal/abc",
+            proposals_table(&response)
+        );
+        assert_that!(&strip_ansi_codes(&proposals_text(&response, &fallback_url)).to_string())
+            .is_equal_to(strip_ansi_codes(&expected).to_string());
+    }
+
+    #[test]
+    fn proposals_text_reports_exceeded_max_diffs_over_an_override() {
+        let response = ProposalsCheckResponse {
+            has_exceeded_max_diffs: Some(true),
+            overridden: true,
+            ..proposals_response(
+                CheckTaskStatus::FAILED,
+                ProposalsCheckSeverityLevel::ERROR,
+                ProposalsCoverage::NONE,
+                vec![],
+            )
+        };
+        let fallback_url = CheckDetailsUrl::Check("https://example.com/check");
+        assert_that!(&strip_ansi_codes(&proposals_text(&response, &fallback_url)).to_string())
+            .is_equal_to(format!(
+                "{EXCEEDED_MAX_DIFFS_MSG}\nView check details at: https://example.com/check"
+            ));
+    }
+
+    #[test]
+    fn proposals_text_with_related_proposals_links_to_proposals_task() {
+        let response = proposals_response(
+            CheckTaskStatus::FAILED,
+            ProposalsCheckSeverityLevel::ERROR,
+            ProposalsCoverage::PARTIAL,
+            vec![RelatedProposal {
+                status: "OPEN".to_string(),
+                display_name: "Add phone number".to_string(),
+            }],
+        );
+        let fallback_url = CheckDetailsUrl::Check("https://example.com/unused");
+        let expected = format!(
+            "Your check failed because some or all of the diffs in this change are not in an approved Proposal, and your schema check severity level is set to ERROR.\n{}View proposal check details at: https://studio.apollographql.com/graph/my-graph/variant/current/proposal/abc",
+            proposals_table(&response)
+        );
+        assert_that!(&strip_ansi_codes(&proposals_text(&response, &fallback_url)).to_string())
+            .is_equal_to(strip_ansi_codes(&expected).to_string());
+    }
+
+    #[rstest]
+    #[case::prefers_a_task_link(
+        no_proposals_response(),
+        CheckDetailsUrl::Check(
+            "https://studio.apollographql.com/graph/my-graph/variant/current/checks/123/operations"
+        )
+    )]
+    #[case::falls_back_to_variant_checks(
+        CheckWorkflowResponse {
+            maybe_proposals_response: no_proposals_response().maybe_proposals_response,
+            ..build_only_response()
+        },
+        CheckDetailsUrl::VariantChecks("https://studio.apollographql.com/graph/my-graph/checks?variant=current")
+    )]
+    fn check_details_url_never_uses_proposals_link(
+        #[case] response: CheckWorkflowResponse,
+        #[case] expected: CheckDetailsUrl<'static>,
+    ) {
+        assert_that!(&check_details_url(&response)).is_equal_to(expected);
     }
 
     #[rstest]
@@ -618,5 +1307,171 @@ mod test {
         // fails for anyone running `cargo test` from a terminal.
         assert_that!(&strip_ansi_codes(&downstream_msg(&response)).to_string())
             .is_equal_to(expected.to_string());
+    }
+
+    fn schema_change(severity: ChangeSeverity) -> SchemaChange {
+        SchemaChange {
+            code: "FIELD_REMOVED".to_string(),
+            description: "type `Query`: field `user` removed".to_string(),
+            severity,
+        }
+    }
+
+    fn operations_result(changes: Vec<SchemaChange>) -> Option<OperationCheckResponse> {
+        let task_status = if changes
+            .iter()
+            .any(|change| matches!(change.severity, ChangeSeverity::FAIL))
+        {
+            CheckTaskStatus::FAILED
+        } else {
+            CheckTaskStatus::PASSED
+        };
+        Some(OperationCheckResponse::try_new(
+            task_status,
+            None,
+            12,
+            changes,
+        ))
+    }
+
+    fn subgraph_check_response(
+        core_schema_modified: bool,
+        maybe_operations_response: Option<OperationCheckResponse>,
+    ) -> CheckWorkflowResponse {
+        CheckWorkflowResponse {
+            maybe_core_schema_modified: Some(core_schema_modified),
+            maybe_operations_response,
+            ..build_only_response()
+        }
+    }
+
+    /// The text under the `Build Check` heading, up to the next section.
+    fn build_check_body(response: &CheckWorkflowResponse) -> String {
+        let text = strip_ansi_codes(&CheckWorkflowOutput(response).text()).to_string();
+        let body = text
+            .strip_prefix("Build Check [PASSED]:\n")
+            .unwrap_or_else(|| {
+                panic!("expected the output to start with the Build Check section:\n{text}")
+            });
+        body.split("\n\n")
+            .next()
+            .expect("split always yields at least one item")
+            .to_string()
+    }
+
+    #[rstest]
+    #[case::core_schema_unchanged_without_an_operations_result(false, None, NO_SCHEMA_CHANGES)]
+    #[case::core_schema_unchanged_and_no_api_schema_changes(
+        false,
+        operations_result(vec![]),
+        NO_SCHEMA_CHANGES
+    )]
+    #[case::only_the_core_schema_changed(true, operations_result(vec![]), CORE_SCHEMA_ONLY_CHANGES)]
+    #[case::api_schema_change_that_fails_operation_checks(
+        true,
+        operations_result(vec![schema_change(ChangeSeverity::FAIL)]),
+        API_SCHEMA_CHANGES
+    )]
+    #[case::api_schema_change_that_passes_operation_checks(
+        true,
+        operations_result(vec![schema_change(ChangeSeverity::PASS)]),
+        API_SCHEMA_CHANGES
+    )]
+    #[case::passing_and_failing_api_schema_changes(
+        true,
+        operations_result(vec![
+            schema_change(ChangeSeverity::PASS),
+            schema_change(ChangeSeverity::FAIL),
+        ]),
+        API_SCHEMA_CHANGES
+    )]
+    // GraphOS computes `coreSchemaModified` against the active publish when the field is read,
+    // not when the check started, so an identical schema published mid-check reports the core
+    // schema as unchanged while the operations check still lists the API changes it found.
+    #[case::api_schema_changes_with_core_schema_reported_unchanged(
+        false,
+        operations_result(vec![schema_change(ChangeSeverity::FAIL)]),
+        API_SCHEMA_CHANGES
+    )]
+    // Without an operations result (the task is pending, was not run, or has no result yet),
+    // Rover cannot tell whether the API schema changed, so it must not claim either way.
+    #[case::core_schema_changed_without_an_operations_result(
+        true,
+        None,
+        UNKNOWN_API_SCHEMA_CHANGES
+    )]
+    fn build_check_summarizes_schema_changes(
+        #[case] core_schema_modified: bool,
+        #[case] maybe_operations_response: Option<OperationCheckResponse>,
+        #[case] expected: &str,
+    ) {
+        let response = subgraph_check_response(core_schema_modified, maybe_operations_response);
+        assert_that!(build_check_body(&response)).is_equal_to(expected.to_string());
+    }
+
+    /// Pins the exact wording of each Build Check message with a checked-in snapshot, so the
+    /// production message constants can be shared with the code under test without letting a
+    /// reworded or mistyped message pass unnoticed.
+    #[rstest]
+    #[case::core_schema_unchanged("build_check_core_schema_unchanged", false, operations_result(vec![]))]
+    #[case::only_the_core_schema_changed("build_check_only_core_schema_changed", true, operations_result(vec![]))]
+    #[case::api_schema_changed(
+        "build_check_api_schema_changed",
+        true,
+        operations_result(vec![schema_change(ChangeSeverity::FAIL)])
+    )]
+    #[case::unknown_api_schema_changes("build_check_unknown_api_schema_changes", true, None)]
+    fn build_check_wording_snapshot(
+        #[case] snapshot_name: &str,
+        #[case] core_schema_modified: bool,
+        #[case] maybe_operations_response: Option<OperationCheckResponse>,
+    ) {
+        let response = subgraph_check_response(core_schema_modified, maybe_operations_response);
+        insta::assert_snapshot!(snapshot_name, build_check_body(&response));
+    }
+
+    /// Regression guard: no combination that reports schema changes may also say that no
+    /// changes were detected.
+    #[rstest]
+    fn output_with_schema_changes_never_claims_no_changes(
+        #[values(true, false)] core_schema_modified: bool,
+        #[values(
+            vec![schema_change(ChangeSeverity::PASS)],
+            vec![schema_change(ChangeSeverity::FAIL)],
+            vec![schema_change(ChangeSeverity::PASS), schema_change(ChangeSeverity::FAIL)]
+        )]
+        changes: Vec<SchemaChange>,
+    ) {
+        let response = subgraph_check_response(core_schema_modified, operations_result(changes));
+        let text = strip_ansi_codes(&CheckWorkflowOutput(&response).text()).to_string();
+        assert_that!(text).does_not_contain("no changes detected");
+    }
+
+    /// A subgraph removal check (every field removed, operations still using them) as Rover
+    /// printed it in the reported bug, end to end.
+    #[test]
+    fn subgraph_removal_check_text() {
+        let response = subgraph_check_response(
+            true,
+            operations_result(vec![
+                SchemaChange {
+                    code: "FIELD_REMOVED".to_string(),
+                    description: "type `Mutation`: field `claimSlug` removed".to_string(),
+                    severity: ChangeSeverity::FAIL,
+                },
+                SchemaChange {
+                    code: "FIELD_REMOVED".to_string(),
+                    description: "type `Mutation`: field `revokeSlug` removed".to_string(),
+                    severity: ChangeSeverity::PASS,
+                },
+            ]),
+        );
+        let text = strip_ansi_codes(&CheckWorkflowOutput(&response).text()).to_string();
+        assert_that!(text.lines().take(4).collect::<Vec<_>>()).is_equal_to(vec![
+            "Build Check [PASSED]:",
+            API_SCHEMA_CHANGES,
+            "",
+            "Operation Check [FAILED]:",
+        ]);
     }
 }

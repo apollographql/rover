@@ -1,14 +1,13 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult, command::connector::output::ConnectorGenerateOutput,
     composition::supergraph::binary::SupergraphBinary, utils::effect::exec::TokioCommand,
 };
 
-#[derive(Debug, Parser, Clone, Serialize)]
+#[derive(Debug, Parser, Clone)]
 pub struct GenerateConnector {
     /// Sets the name of the generate file (`<name>.graphql` will be generated file`).
     ///

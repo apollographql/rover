@@ -8,17 +8,16 @@ mod unset;
 pub(crate) mod whoami;
 
 use clap::Parser;
-use serde::Serialize;
 
 use crate::{RoverOutput, RoverResult, cli::Rover, options::ProfileOpt};
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Config {
     #[clap(subcommand)]
     command: Command,
 }
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub enum Command {
     /// Authenticate a configuration profile with an API token
     Auth(auth::Auth),

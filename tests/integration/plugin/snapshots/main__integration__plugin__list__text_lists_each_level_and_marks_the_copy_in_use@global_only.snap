@@ -1,0 +1,9 @@
+---
+source: tests/integration/plugin/list.rs
+expression: listed.stdout
+---
+Installed globally ([home]/.rover/bin):
+* supergraph v2.9.3
+  supergraph v2.9.2
+
+`*` marks the copy Rover uses for each plugin, going by `rover.yaml` and `plugin-versions.lock`. A version flag, an environment variable, or `supergraph.yaml` can select another.

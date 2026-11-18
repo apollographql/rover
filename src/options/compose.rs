@@ -1,10 +1,9 @@
 use clap::Parser;
-use serde::Serialize;
 
 use crate::options::LicenseAccepter;
 
 #[cfg_attr(test, derive(Default))]
-#[derive(Debug, Clone, Serialize, Parser)]
+#[derive(Debug, Clone, Parser)]
 pub struct PluginOpts {
     #[clap(flatten)]
     pub elv2_license_accepter: LicenseAccepter,

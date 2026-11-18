@@ -1,9 +1,8 @@
 use clap::Parser;
-use serde::Serialize;
 
 use crate::{RoverErrorCode, RoverOutput, RoverResult};
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Explain {
     /// The full error code. For example, E020
     #[arg(value_name = "CODE")]

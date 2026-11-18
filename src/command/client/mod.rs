@@ -4,17 +4,16 @@ mod extract;
 
 use clap::Parser;
 use rover_client::shared::GitContext;
-use serde::Serialize;
 
 use crate::{RoverOutput, RoverResult, options::ProfileOpt, utils::client::StudioClientConfig};
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Client {
     #[clap(subcommand)]
     command: Command,
 }
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub enum Command {
     /// Validate operations in .graphql files against a graph
     Check(check::Check),

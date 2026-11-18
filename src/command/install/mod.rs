@@ -6,7 +6,6 @@ use camino::Utf8PathBuf;
 use clap::Parser;
 use rover_print::print::{Print, PrintExt};
 use rover_std::Style;
-use serde::Serialize;
 
 #[cfg(feature = "composition-js")]
 use crate::plugin::{
@@ -21,16 +20,12 @@ use crate::{
 };
 
 mod plugin;
-// Other modules only ever construct this in their own #[cfg(test)] fixtures, never
-// from production code, so this re-export is test-only rather than merely unused.
-#[cfg(test)]
-pub(crate) use plugin::PluginLevel;
 pub(crate) use plugin::{
-    McpServerVersion, Plugin, PluginInstaller, PluginProvenance, PluginProvenanceTracker,
-    PluginSource, federation_version,
+    McpServerVersion, Plugin, PluginInstaller, PluginLevel, PluginProvenance,
+    PluginProvenanceTracker, PluginSource, federation_version,
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Install {
     /// Overwrite any existing binary without prompting for confirmation.
     #[arg(long = "force", short = 'f')]
@@ -116,7 +111,7 @@ impl Install {
     /// `rover install --plugin` as the `rover plugin install` it stands in for.
     fn as_plugin_install(&self) -> Option<PluginInstall> {
         self.plugin.as_ref().map(|plugin| PluginInstall {
-            plugin: Some(plugin.clone()),
+            plugins: vec![plugin.clone()],
             force: self.force,
             // The alias is deprecated, so it gains no new flags; the
             // environment variable still applies to it, through the verb.
@@ -354,8 +349,8 @@ mod tests {
         let noun =
             Plugins::try_parse_from(["plugin", "install", request].iter().chain(flags)).unwrap();
 
-        assert_that!(serde_json::to_value(alias.as_plugin_install()).unwrap())
-            .is_equal_to(serde_json::to_value(noun.install()).unwrap());
+        assert_that!(format!("{:?}", alias.as_plugin_install()))
+            .is_equal_to(format!("{:?}", noun.install()));
     }
 
     #[rstest]
@@ -364,7 +359,7 @@ mod tests {
     #[case::legacy_spelling("supergraph@latest-2", "supergraph@2")]
     fn the_alias_names_its_replacement(#[case] request: &str, #[case] replacement: &str) {
         let install = Install::try_parse_from(["install", "--plugin", request]).unwrap();
-        let plugin = install.as_plugin_install().unwrap().plugin.unwrap();
+        let plugin = install.as_plugin_install().unwrap().plugins.remove(0);
 
         assert_that!(DeprecatedAlias(&plugin).to_string()).is_equal_to(format!(
             "`rover install --plugin` is deprecated. Use `rover plugin install {replacement}` instead."

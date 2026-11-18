@@ -1,7 +1,6 @@
 pub(crate) mod revoke;
 
 use clap::{Parser, Subcommand};
-use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult,
@@ -10,13 +9,13 @@ use crate::{
     utils::client::StudioClientConfig,
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Grants {
     #[clap(subcommand)]
     command: GrantsCommand,
 }
 
-#[derive(Debug, Serialize, Subcommand)]
+#[derive(Debug, Subcommand)]
 pub enum GrantsCommand {
     /// Revoke every grant one user holds under an organization's OAuth clients
     Revoke(revoke::Revoke),

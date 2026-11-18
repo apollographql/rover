@@ -41,10 +41,9 @@ pub struct ExtractionSummary {
     pub documents_skipped: usize,
 }
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Extract {
     #[clap(flatten)]
-    #[serde(flatten)]
     file_discovery: FileDiscoveryOpt,
 
     /// Restrict extraction to these languages.
@@ -65,7 +64,7 @@ pub struct Extract {
     overwrite: bool,
 }
 
-#[derive(Clone, Debug, Serialize, ValueEnum)]
+#[derive(Clone, Debug, ValueEnum)]
 pub enum LanguageOpt {
     Ts,
     Swift,

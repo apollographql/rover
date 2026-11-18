@@ -15,7 +15,6 @@ use rover_client::{
         },
     },
 };
-use serde::Serialize;
 use tower::{Service, ServiceExt};
 
 use crate::{
@@ -31,7 +30,7 @@ use crate::{
 /// across the CLI's total-cap flags.
 const DEFAULT_PAIRS_LIMIT: usize = 100;
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub(crate) struct List {
     #[clap(flatten)]
     organization_opt: OrganizationOpt,

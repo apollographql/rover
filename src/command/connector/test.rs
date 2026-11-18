@@ -1,14 +1,13 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult, command::connector::output::ConnectorTestOutput,
     composition::supergraph::binary::SupergraphBinary, utils::effect::exec::TokioCommand,
 };
 
-#[derive(Debug, Parser, Clone, Serialize)]
+#[derive(Debug, Parser, Clone)]
 pub struct TestConnector {
     /// Defines a single test suite file source
     /// If no directory and no file is passed, it will default to `--directory tests/`

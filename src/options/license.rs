@@ -3,12 +3,11 @@ use std::io::IsTerminal;
 use anyhow::anyhow;
 use clap::Parser;
 use rover_std::prompt;
-use serde::Serialize;
 
 use crate::{RoverError, RoverErrorSuggestion, RoverResult, utils::client::StudioClientConfig};
 
 #[cfg_attr(test, derive(Default))]
-#[derive(Debug, Serialize, Parser, Clone, Copy)]
+#[derive(Debug, Parser, Clone, Copy)]
 pub struct LicenseAccepter {
     /// Accept the terms and conditions of the ELv2 License without prompting for confirmation.
     /// Expected value: `accept`

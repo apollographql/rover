@@ -1,0 +1,25 @@
+---
+source: tests/integration/plugin/uninstall.rs
+expression: result.json
+---
+{
+  "json_version": "1",
+  "data": {
+    "removed": [
+      {
+        "name": "supergraph",
+        "version": "2.9.3",
+        "level": "project",
+        "path": "[project]/.rover/bin/supergraph-v2.9.3"
+      },
+      {
+        "name": "supergraph",
+        "version": "2.9.2",
+        "level": "project",
+        "path": "[project]/.rover/bin/supergraph-v2.9.2"
+      }
+    ],
+    "success": true
+  },
+  "error": null
+}

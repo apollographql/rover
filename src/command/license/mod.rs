@@ -2,17 +2,16 @@ mod fetch;
 
 use clap::Parser;
 pub use fetch::Fetch;
-use serde::Serialize;
 
 use crate::{RoverOutput, RoverResult, options::ProfileOpt, utils::client::StudioClientConfig};
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct License {
     #[clap(subcommand)]
     command: Command,
 }
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub enum Command {
     /// Fetch an offline license (if enabled)
     Fetch(Fetch),

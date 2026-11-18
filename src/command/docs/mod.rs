@@ -3,17 +3,16 @@ mod open;
 pub mod shortlinks;
 
 use clap::Parser;
-use serde::Serialize;
 
 use crate::{RoverOutput, RoverResult};
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Docs {
     #[clap(subcommand)]
     command: Command,
 }
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub enum Command {
     /// List all available docs links
     List(list::List),

@@ -1,7 +1,6 @@
 use clap::Parser;
 use rover_client::operations::contract::describe::{self, ContractDescribeInput};
 use rover_std::Style;
-use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult,
@@ -9,7 +8,7 @@ use crate::{
     utils::client::StudioClientConfig,
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 pub struct Describe {
     #[clap(flatten)]
     graph: GraphRefOpt,

@@ -1,9 +1,13 @@
 #[cfg(not(target_env = "musl"))]
+mod batch;
+#[cfg(not(target_env = "musl"))]
 mod from_lockfile;
 #[cfg(not(target_env = "musl"))]
 mod install;
 #[cfg(not(target_env = "musl"))]
 mod levels;
+#[cfg(not(target_env = "musl"))]
+mod list;
 #[cfg(not(target_env = "musl"))]
 mod lockfile;
 mod manifest;
@@ -17,3 +21,5 @@ mod precedence;
 mod reproducible;
 #[cfg(not(target_env = "musl"))]
 mod spellings;
+#[cfg(not(target_env = "musl"))]
+mod uninstall;

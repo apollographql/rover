@@ -4,6 +4,7 @@ use std::{
     fmt::Formatter,
     io,
     process::{ExitStatus, Stdio},
+    sync::Arc,
 };
 
 use buildstructor::Builder;
@@ -22,7 +23,10 @@ use tower::{Service, ServiceExt};
 use crate::{
     command::{dev::router::config::RouterAddress, install::PluginProvenance},
     subtask::SubtaskHandleUnit,
-    utils::effect::exec::{ExecCommandConfig, ExecCommandOutput},
+    utils::{
+        effect::exec::{ExecCommandConfig, ExecCommandOutput},
+        lifecycle,
+    },
 };
 
 pub enum McpServerLog {
@@ -92,6 +96,7 @@ pub struct RunMcpServerBinary<Spawn: Send> {
     router_url_path: Option<String>,
     mcp_config_path: Option<Utf8PathBuf>,
     env: HashMap<String, String>,
+    children: Arc<lifecycle::Children>,
 }
 
 impl<Spawn: Send> RunMcpServerBinary<Spawn> {
@@ -141,7 +146,12 @@ where
     ) {
         let mut spawn = self.spawn.clone();
         let cancellation_token = cancellation_token.unwrap_or_default();
-        tokio::task::spawn(async move {
+        // The task is tracked by the harness from here, not only once it has a child, so that a
+        // signal arriving while the child is still being spawned waits for it instead of
+        // leaving it orphaned.
+        let children = Arc::clone(&self.children);
+        let stopping = children.stopping();
+        children.spawn(async move {
             let child = spawn
                 .ready()
                 .and_then(|spawn| {
@@ -237,28 +247,28 @@ where
                         });
                     }
 
-                    // Spawn a task that just sits listening to the MCP Server binary, and if it
-                    // exits, fire an error to say so, such that we can stop Rover Dev
-                    // running if this happens.
-                    tokio::spawn({
-                        async move {
-                            tokio::select! {
-                                _ = cancellation_token.cancelled() => {
-                                    let _ = child.kill().await;
-                                },
-                                res = child.wait() => {
-                                    let _ = sender
-                                        .send(Err(RunMcpServerBinaryError::BinaryExited(res)))
-                                        .tap_err(|err| {
-                                            tracing::error!(
-                                                "Failed to send MCP server stderr message. {:?}",
-                                                err
-                                            )
-                                        });
-                                }
-                            }
+                    // Sit listening to the MCP server binary, and if it exits, fire an error to say so,
+                    // such that we can stop Rover Dev running if this happens. The harness stops
+                    // it too when a signal is about to end Rover without the command's own
+                    // cleanup.
+                    tokio::select! {
+                        _ = cancellation_token.cancelled() => {
+                            let _ = child.kill().await;
+                        },
+                        _ = stopping.cancelled() => {
+                            let _ = child.kill().await;
+                        },
+                        res = child.wait() => {
+                            let _ = sender
+                                .send(Err(RunMcpServerBinaryError::BinaryExited(res)))
+                                .tap_err(|err| {
+                                    tracing::error!(
+                                        "Failed to send MCP server stderr message. {:?}",
+                                        err
+                                    )
+                                });
                         }
-                    });
+                    }
                 }
             }
         });
@@ -312,6 +322,7 @@ mod tests {
             .and_router_url_path(router_url_path)
             .and_mcp_config_path(mcp_config_path)
             .env(HashMap::new())
+            .children(lifecycle::Children::new())
             .build();
 
         let env = runner.opts_into_env();
@@ -341,6 +352,7 @@ mod tests {
             .and_router_url_path(Some("/graphql".to_string()))
             .and_mcp_config_path(mcp_config_path)
             .env(HashMap::new())
+            .children(lifecycle::Children::new())
             .build();
 
         let env = runner.opts_into_env();
@@ -370,6 +382,7 @@ mod tests {
             .and_router_url_path(Some("/custom-path".to_string()))
             .and_mcp_config_path(mcp_config_path)
             .env(HashMap::new())
+            .children(lifecycle::Children::new())
             .build();
 
         let env = runner.opts_into_env();
@@ -406,6 +419,7 @@ mod tests {
             .and_router_url_path(router_url_path)
             .and_mcp_config_path(mcp_config_path)
             .env(env)
+            .children(lifecycle::Children::new())
             .build();
 
         let env = runner.opts_into_env();

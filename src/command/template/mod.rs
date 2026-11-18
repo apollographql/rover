@@ -6,12 +6,11 @@ mod r#use;
 
 use clap::Parser;
 pub use list::List;
-use serde::Serialize;
 pub use r#use::Use;
 
 use crate::{RoverOutput, RoverResult, cli::Rover, options::TemplatesApiOpt};
 
-#[derive(Debug, Clone, Parser, Serialize)]
+#[derive(Debug, Clone, Parser)]
 pub struct Template {
     #[clap(subcommand)]
     command: Command,
@@ -20,7 +19,7 @@ pub struct Template {
     templates_api: TemplatesApiOpt,
 }
 
-#[derive(Clone, Debug, Parser, Serialize)]
+#[derive(Clone, Debug, Parser)]
 enum Command {
     /// Use a template to generate code
     Use(Use),

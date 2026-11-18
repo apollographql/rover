@@ -1,0 +1,20 @@
+---
+source: src/command/check_output.rs
+expression: json
+---
+{
+  "core_schema_modified": false,
+  "tasks": {},
+  "task_statuses": [
+    {
+      "task": "build",
+      "status": "FAILED",
+      "target_url": "https://studio.apollographql.com/graph/my-graph/checks/build"
+    },
+    {
+      "task": "operations",
+      "status": "BLOCKED",
+      "target_url": null
+    }
+  ]
+}

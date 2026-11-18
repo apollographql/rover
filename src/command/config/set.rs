@@ -1,6 +1,5 @@
 use clap::Parser;
 use houston::{self as config, Profile};
-use serde::Serialize;
 
 use crate::{
     RoverOutput, RoverResult,
@@ -8,7 +7,7 @@ use crate::{
     options::{ProfileOpt, SettingName},
 };
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Parser)]
 /// Store a value for a setting on a profile
 pub struct Set {
     /// The setting's canonical name, spelled as its environment variable is
@@ -68,6 +67,7 @@ mod tests {
     use speculoos::prelude::*;
 
     use super::*;
+    use crate::plugin::error::printed;
 
     fn test_config() -> (config::Config, assert_fs::TempDir) {
         let tmp_home = assert_fs::TempDir::new().unwrap();
@@ -176,12 +176,12 @@ mod tests {
             .run(config.clone(), &profile_opt("staging"))
             .expect_err("expected an invalid URL to be rejected");
 
-        assert_that!(error.to_string()).is_equal_to(
+        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
+        assert_that!(printed(error)).is_equal_to(
             "error[E054]: `registry.example.com` isn't a valid URL. URLs must include a scheme, \
             for example `https://example.com`.\n"
                 .to_string(),
         );
-        assert_that!(error.code()).is_equal_to(Some(crate::RoverErrorCode::E054));
         assert_that!(
             Profile::new("staging", &config)
                 .get_setting("APOLLO_REGISTRY_URL")
