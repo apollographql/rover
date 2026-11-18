@@ -127,9 +127,7 @@ where
                 ))));
             }
 
-            let body = body_to_bytes(resp.body_mut())
-                .await
-                .map_err(|err| RegisterError::Http(Box::new(err)))?;
+            let Ok(body) = body_to_bytes(resp.body_mut()).await;
             let resp = serde_json::from_slice(&body).map_err(RegisterError::Deserialize)?;
             Ok(resp)
         };

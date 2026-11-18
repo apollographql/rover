@@ -134,7 +134,6 @@ impl TryFrom<RelayPersistedQueryManifest> for ApolloPersistedQueryManifest {
             let ast = Parser::new(&body).parse();
 
             let operation_definitions: Vec<OperationDefinition> = ast
-                .clone()
                 .document()
                 .definitions()
                 .filter_map(|definition| {
@@ -184,8 +183,8 @@ impl TryFrom<RelayPersistedQueryManifest> for ApolloPersistedQueryManifest {
                     operations.push(PersistedQueryOperation {
                         name: operation_name.text().to_string(),
                         r#type: operation_type,
-                        body: body.to_string(),
-                        id: id.to_string(),
+                        body,
+                        id,
                         // Relay format has no way to include client names in
                         // the manifest file; you can still use the
                         // `--for-client-name` flag.
@@ -199,14 +198,14 @@ impl TryFrom<RelayPersistedQueryManifest> for ApolloPersistedQueryManifest {
                     let mut parse_errors = ast.errors().peekable();
                     if parse_errors.peek().is_some() {
                         syntax_errors.push((
-                            id.clone(),
+                            id,
                             parse_errors
                                 .map(|err| err.to_string())
                                 .collect::<Vec<_>>()
                                 .join("\n"),
                         ));
                     } else {
-                        anonymous_operations.push(id.clone());
+                        anonymous_operations.push(id);
                     }
                 }
             }
