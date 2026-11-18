@@ -27,8 +27,9 @@ jobs:
     # needs to read the diff, so keep that grant off this job.
     permissions:
       contents: read
-    # Install only lychee (and cargo-binstall, so it's fetched prebuilt rather
-    # than compiled), and stop `mise run` from installing the rest of mise.toml.
+    # Install only lychee, plus what mise needs to install a `cargo:` tool: the
+    # pinned rust, and cargo-binstall so lychee is fetched prebuilt rather than
+    # compiled. Then stop `mise run` from installing the rest of mise.toml.
     env:
       MISE_TASK_RUN_AUTO_INSTALL: "false"
     steps:
@@ -39,7 +40,7 @@ jobs:
         with:
           # Save caches from main only: other PRs can't reuse a PR's cache, and it evicts main's (10 GB repo limit).
           cache_save: ${{ github.ref == 'refs/heads/main' }}
-          install_args: aqua:cargo-bins/cargo-binstall cargo:lychee
+          install_args: rust aqua:cargo-bins/cargo-binstall cargo:lychee
       - name: Check links
         uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
         # lychee reads GITHUB_TOKEN to check github.com links authenticated. Unauthenticated,
