@@ -26,7 +26,7 @@ The integration must support both short-lived commands and long-running commands
 
 ### One input for both command lifetimes
 
-The application supplies `APOLLO_ACCESS_TOKEN_FILE` in Rover's child-process environment. Its value identifies an application-managed file containing the current raw Apollo OAuth access token, with an optional final newline.
+The application supplies `APOLLO_ACCESS_TOKEN_FILE` in Rover's child-process environment, or passes the same location with Rover's global `--access-token-file` option. Its value identifies an application-managed file containing the current raw Apollo OAuth access token, with an optional final newline.
 
 The application creates the file before invoking Rover, restricts access to the file and its containing directory, and replaces it atomically when a fresh token is available. Rover only reads it. Rover does not create, modify, delete, or copy it into a profile or credential store. Rover also checks the file on every read and refuses one that is plainly unsafe to trust (see "Token file checks" below).
 
@@ -53,7 +53,7 @@ An external token replaces the credential normally obtained from the selected pr
 
 An external token combined with `APOLLO_KEY`, `APOLLO_CLIENT_ID`, or `APOLLO_CLIENT_SECRET` is a configuration error when authentication is needed. Rover must not guess which runtime identity the caller intended or exchange client credentials unnecessarily.
 
-The new input is process-environment-only. It cannot be supplied through profile settings or project configuration. Commands that do not need authentication must not read the token file just because the variable is present.
+The location comes only from the `--access-token-file` option or the `APOLLO_ACCESS_TOKEN_FILE` environment variable, and the option takes precedence when both are present, as it does for Rover's other global options. It cannot be supplied through profile settings or project configuration. Commands that do not need authentication must not read the token file just because the option or variable is present.
 
 ### Lifecycle and errors
 
@@ -83,8 +83,8 @@ Existing explicit credential-unmasking behavior remains opt-in. Default identity
 - Tokens are sent only to the configured Platform API endpoint. Existing endpoint overrides remain explicit trust decisions; they also control where this bearer token is sent.
 - The feature does not attach the token to introspection, plugin-download, OAuth, or telemetry requests, or forward the token value to unrelated subprocesses.
 - The application is responsible for secure file placement, permissions, atomic publication, and cleanup. Rover refuses files that fail its token file checks, but those checks don't make an insecurely managed file safe.
-- Token contents and the token-file location must not enter telemetry. Invalid file content must not be echoed in diagnostics, including debug logs.
-- Existing authentication works unchanged when `APOLLO_ACCESS_TOKEN_FILE` is absent.
+- Token contents and the token-file location, including the value of `--access-token-file` among a command's recorded arguments, must not enter telemetry. Invalid file content must not be echoed in diagnostics, including debug logs.
+- Existing authentication works unchanged when neither `--access-token-file` nor `APOLLO_ACCESS_TOKEN_FILE` is present.
 
 ## 6. Non-goals
 
