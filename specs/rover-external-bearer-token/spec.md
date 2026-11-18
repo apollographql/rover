@@ -12,7 +12,7 @@ This specification defines how Rover consumes an Apollo OAuth access token owned
 - **Attempt:** One outgoing HTTP send for a Platform API operation. A retry is another attempt. Each poll is a new operation.
 - **Credential rejection:** A response Rover recognizes as refusing authentication. An authorization failure for an authenticated identity is not a credential rejection. A *status rejection* is a credential rejection signalled by an HTTP 401 or 406 response status, the statuses Rover already treats as credential rejections; an HTTP 403 is a permission denial, not a credential rejection. Any other credential rejection, such as an authentication error reported in the body of a successful response, is a *body rejection*.
 - **Source failure:** An invalid source setting, an unsuccessful read, a source refused by the token file checks, or file contents that do not satisfy the token format.
-- **Token file checks:** The safety checks in FR32 to FR36 that Rover applies to the source on every read.
+- **Token file checks:** The safety checks in FR32 to FR35 that Rover applies to the source on every read.
 
 ## 2. Functional requirements
 
@@ -26,13 +26,13 @@ This specification defines how Rover consumes an Apollo OAuth access token owned
 - **FR6:** When external authentication is selected, Rover must not require a stored profile credential. Non-credential settings from the selected profile must retain their existing behavior.
 - **FR7:** When authentication is needed, a present token-source location, from either `--access-token-file` or `APOLLO_ACCESS_TOKEN_FILE`, combined with a non-empty `APOLLO_KEY` or any present `APOLLO_CLIENT_ID` or `APOLLO_CLIENT_SECRET` must fail as conflicting authentication inputs before a Platform API request or client-credentials exchange is made. An empty `APOLLO_KEY` is treated as absent. The error must identify the conflicting option and variable names, not their values. This applies at the first authenticated operation, however late in the command that occurs.
 - **FR8:** When a command that can authenticate starts with a present token-source location and a conflicting credential input as defined in FR7, Rover must warn, naming the option and variable names but not their values, without failing the command. A command that needs no authentication must not warn.
-- **FR9:** In `rover dev`, a non-empty `APOLLO_KEY` is not a conflicting authentication input. Rover must authenticate its own Platform API requests with the external token, and must make `APOLLO_KEY` available to the router it starts as an environment variable exactly as it does without an external token source. Rover must not use `APOLLO_KEY` to authenticate its own requests while an external token source is present.
+- **FR9:** In `rover dev`, a non-empty `APOLLO_KEY` is not a conflicting authentication input. Rover must authenticate its own Platform API requests with the external token, and must make `APOLLO_KEY` available to the router it starts as an environment variable exactly as it does without an external token source. Rover must not use `APOLLO_KEY` to authenticate its own requests while an external token source is present, and must not warn about it as a conflict. When `APOLLO_KEY` is not set, Rover must not give the router a credential from the selected profile or from the external token: the router runs without GraphOS credentials, and Rover reports that as it does today when none are available.
 - **FR10:** When neither `--access-token-file` nor `APOLLO_ACCESS_TOKEN_FILE` is present, existing credential selection and authentication behavior must remain unchanged.
 - **FR11:** Commands that need no authentication must not read the external token source or fail because it is unavailable or conflicts with another credential input.
 
 ### 2.2 Token format and use
 
-- **FR12:** The source must contain one raw, non-empty UTF-8 bearer token made only of the characters of an RFC 6750 `b64token` (letters, digits, and `-`, `.`, `_`, `~`, `+`, `/`, followed by any number of `=`). Rover must accept either no final line ending, one final LF, or one final CRLF. It must reject other whitespace, additional lines, an `Authorization` header or `Bearer` prefix, a byte order mark, and any other character.
+- **FR12:** The source must contain one raw, non-empty UTF-8 bearer token made only of the characters of an RFC 6750 `b64token`: one or more letters, digits, or `-`, `.`, `_`, `~`, `+`, `/`, followed by any number of `=`. Rover must accept either no final line ending, one final LF, or one final CRLF. It must reject other whitespace, additional lines, an `Authorization` header or `Bearer` prefix, a byte order mark, and any other character.
 - **FR13:** Rover must not parse, validate, or require claims in a JWT-shaped token. It must send a token that satisfies FR12 unchanged, including a JWT that has expired.
 - **FR14:** Every attempt authenticated with an external token must send that token as `Authorization: Bearer`. It must not also send an API-key credential or substitute a profile credential.
 - **FR15:** Rover must read the configured source anew before every Platform API attempt, including the first attempt, eligible retries, subsequent operations, and polling requests. This must hold for every Platform API request path.
@@ -42,14 +42,14 @@ This specification defines how Rover consumes an Apollo OAuth access token owned
 
 ### 2.3 Ownership and failures
 
-- **FR19:** Rover must not create, modify, delete, or persist a copy of the external token source or its token. It must not acquire or use a refresh token for this credential, refresh it, or revoke it. The integrating application owns source security, atomic replacement, refresh, and cleanup.
+- **FR19:** Rover must not create, modify, delete, or persist a copy of the external token source or its token. It must not acquire or use a refresh token for this credential, refresh it, or revoke it. The integrating application owns source security, atomic replacement, refresh, and cleanup, and is responsible for the token representing one account for the whole life of a Rover process.
 - **FR20:** A body rejection must fail the affected operation without automatic replay.
 - **FR21:** After a status rejection, Rover must read the source once more. If that read succeeds and yields a token different from the rejected one, Rover must resend the rejected request once with the new token. Rover must fail the operation if the token is unchanged, the read is a source failure, or the resent request is also rejected. Rover must not wait for the source to change, and must make at most one such resend per operation. The resend is safe only because the Platform API rejects an unauthenticated request before doing any work; this requirement depends on that behavior.
 - **FR22:** When an operation fails because of a credential rejection, Rover must explain that the application-supplied credential was rejected and direct the caller to renew it in the supplying application, not to log Rover in.
 - **FR23:** Apart from the single resend in FR21, external authentication must not add retries or change which transient failures are eligible for the command's existing retries. Each eligible retry must reread the source. A source failure must not itself trigger an automatic retry. The resend counts as an attempt of the same operation wherever Rover counts attempts, such as the retry count in its request trace headers.
 - **FR24:** An authenticated permission denial must retain permission-denied behavior. It must not trigger token refresh, credential fallback, or an authentication retry.
 - **FR25:** This feature must not introduce a new command recovery policy. Where a long-running command already permits later independent operations after an error, each later operation must read the source anew and may use a replacement supplied after the error.
-- **FR26:** In JSON output, each of the following must have its own stable `error.code`, so that a calling application can tell them apart without parsing messages: a source failure, a credential rejection, conflicting authentication inputs, and a permission denial. The kinds of source failure (the source is missing, unreadable, has contents that do not satisfy FR12, or is refused by a token file check) must also have distinct codes.
+- **FR26:** In JSON output, each of the following must have its own stable `error.code`, so that a calling application can tell them apart without parsing messages: a source failure, a credential rejection, conflicting authentication inputs, and a permission denial. The kinds of source failure (the location is empty, the source is missing, unreadable, or larger than FR34 allows, has contents that do not satisfy FR12, or is refused by another token file check) must also have distinct codes.
 
 ### 2.4 Identity, privacy, and profile management
 
@@ -63,7 +63,7 @@ This specification defines how Rover consumes an Apollo OAuth access token owned
 
 - **FR32:** On every read, Rover must refuse the source if its configured location is itself a symbolic link. Symbolic links among the directories above it must be accepted.
 - **FR33:** Where the filesystem enforces Unix file permissions, Rover must refuse the source if it is not owned by the user running Rover, or if users other than its owner can read or write it. Rover must also refuse it if the directory that holds it is owned by neither the user running Rover nor the system administrator, or can be written to by its group or other users. A directory's sticky bit does not make a group- or world-writable directory acceptable, which is how OpenSSH's `StrictModes` checks a user's key files.
-- **FR34:** Rover must refuse a source larger than 16 KiB, and must not read more than that from it. A source of exactly 16 KiB (16,384 bytes) is not refused for its size.
+- **FR34:** Rover must refuse a source larger than 16 KiB, and must not read more than 16 KiB plus one byte from it, the extra byte being what shows that the source is too large, including one that grew after it was checked. A source of exactly 16 KiB (16,384 bytes) is not refused for its size.
 - **FR35:** The file that Rover checks must be the file it reads. Rover must not check one file and then read a different file because the source changed in between, and must not use contents that were not subject to the checks.
 - **FR36:** Where the filesystem does not enforce Unix file permissions, including on Windows, Rover must apply FR32, FR34, and FR35 but not FR33.
 - **FR37:** A refused source is a source failure under FR17. Its diagnostic must name the check that failed and how to fix it, without revealing the file's contents.
@@ -90,7 +90,9 @@ This specification defines how Rover consumes an Apollo OAuth access token owned
 
 ### `rover dev` and the router's `APOLLO_KEY`
 
-**Given** an external source and a non-empty `APOLLO_KEY`, **when** `rover dev` runs, **then** it makes no conflict error, authenticates its own Platform API requests with the external token, and passes `APOLLO_KEY` to the router it starts as an environment variable.
+**Given** an external source and a non-empty `APOLLO_KEY`, **when** `rover dev` runs, **then** it makes no conflict error and no conflict warning, authenticates its own Platform API requests with the external token, and passes `APOLLO_KEY` to the router it starts as an environment variable.
+
+**Given** an external source, no `APOLLO_KEY`, and a selected profile with a stored API key, **when** `rover dev` starts the router, **then** the router receives no `APOLLO_KEY` from the profile or the token, and Rover reports that it is running without GraphOS credentials.
 
 ### Profile settings remain effective
 
@@ -170,7 +172,7 @@ This specification defines how Rover consumes an Apollo OAuth access token owned
 
 **Given** a token file directly inside a world-writable directory with the sticky bit set, such as `/tmp`, **when** Rover needs the token, **then** the attempt is not sent and the diagnostic names the directory check, as OpenSSH's `StrictModes` would for a key file there.
 
-**Given** a token file larger than 16 KiB, **when** Rover needs the token, **then** the attempt is not sent and Rover reads no more than 16 KiB of it.
+**Given** a token file larger than 16 KiB, **when** Rover needs the token, **then** the attempt is not sent and Rover reads no more than 16 KiB plus one byte of it.
 
 **Given** a token file of exactly 16,384 bytes whose contents otherwise satisfy the token format, **when** Rover needs the token, **then** it is not refused for its size.
 
