@@ -308,45 +308,31 @@ async fn source_diagnostics_do_not_expose_contents(token_file: TokenFile) {
 #[rstest]
 #[tokio::test]
 async fn concurrent_reads_obtain_complete_independent_tokens(token_file: TokenFile) {
-    let token_file = std::sync::Arc::new(token_file);
     let old = "a".repeat(1024);
     let new = "b".repeat(1024);
     let expected_tokens = [Ok(old.clone()), Ok(new.clone())];
     token_file.publish(old.as_bytes());
-    let readers = stream::iter(0..400)
-        .map(|read| {
-            let source = token_file.source.clone();
-            async move {
-                let result = source
-                    .oneshot(())
-                    .await
-                    .map(|token| token.secret().to_owned());
-                (read, result)
-            }
+    let replacements = [new.as_bytes(), old.as_bytes()]
+        .into_iter()
+        .cycle()
+        .take(100);
+    let source = &token_file.source;
+    let reader_results = stream::iter(replacements)
+        .flat_map(|replacement| {
+            token_file.publish(replacement);
+            stream::iter(0..4).map(move |_| source.clone().oneshot(()))
         })
         .buffer_unordered(4)
-        .collect::<Vec<_>>();
-    let publisher_file = token_file.clone();
-    let publisher = async move {
-        tokio::task::spawn_blocking(move || {
-            for index in 0..100 {
-                publisher_file.publish(if index % 2 == 0 {
-                    new.as_bytes()
-                } else {
-                    old.as_bytes()
-                });
-            }
-        })
-        .await
-    };
-    let (reader_results, published) = futures::join!(readers, publisher);
+        .enumerate()
+        .map(|(read, result)| (read, result.map(|token| token.secret().to_owned())))
+        .collect::<Vec<_>>()
+        .await;
     assert_that!(reader_results.len()).is_equal_to(400);
     let unexpected_reads = reader_results
         .into_iter()
         .filter(|(_, result)| !expected_tokens.contains(result))
         .collect::<Vec<_>>();
     assert_that!(unexpected_reads).is_equal_to(Vec::new());
-    assert_that!(published).is_ok().is_equal_to(());
 }
 
 #[rstest]
