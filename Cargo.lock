@@ -5992,6 +5992,7 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
+ "serial_test",
  "speculoos",
  "tempfile",
  "thiserror 2.0.21",

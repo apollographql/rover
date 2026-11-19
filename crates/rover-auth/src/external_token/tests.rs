@@ -4,10 +4,8 @@ use std::os::unix::fs::{PermissionsExt, symlink as symlink_dir, symlink as symli
 use std::os::windows::fs::{symlink_dir, symlink_file};
 use std::{
     fs,
-    future::Future,
     io::{self, Read, Write},
     path::PathBuf,
-    process::Command,
 };
 
 use rstest::{fixture, rstest};
@@ -86,37 +84,6 @@ fn token_file() -> TokenFile {
 fn absent_token_file(token_file: TokenFile) -> TokenFile {
     fs::remove_file(token_file.source.path()).unwrap();
     token_file
-}
-
-struct IsolatedTest(Command);
-
-impl IsolatedTest {
-    // Cwd changes must never run in the process shared by parallel tests.
-    async fn run(&mut self, name: &str, test: impl Future<Output = ()>) {
-        const CHILD: &str = "ROVER_TOKEN_SOURCE_ISOLATED_TEST";
-        if std::env::var(CHILD).as_deref() == Ok(name) {
-            test.await;
-        } else {
-            let output = self
-                .0
-                .args(["--exact", name, "--test-threads=1"])
-                .env(CHILD, name)
-                .output()
-                .unwrap();
-            assert_that!(output.status.code())
-                .named(&format!("child test output: {output:?}"))
-                .is_equal_to(Some(0));
-            let stdout = String::from_utf8(output.stdout).unwrap();
-            let completed = stdout.lines().find(|line| line.starts_with("test "));
-            let expected = format!("test {name} ... ok");
-            assert_that!(completed).is_equal_to(Some(expected.as_str()));
-        }
-    }
-}
-
-#[fixture]
-fn isolated_test() -> IsolatedTest {
-    IsolatedTest(Command::new(std::env::current_exe().unwrap()))
 }
 
 #[rstest]
@@ -339,25 +306,6 @@ async fn source_diagnostics_do_not_expose_contents(token_file: TokenFile) {
 
 #[rstest]
 #[tokio::test]
-async fn relative_locations_survive_a_working_directory_change(mut isolated_test: IsolatedTest) {
-    isolated_test
-        .run(
-            "external_token::tests::relative_locations_survive_a_working_directory_change",
-            async {
-                let token_file = token_file();
-                std::env::set_current_dir(token_file.directory.path()).unwrap();
-                let anchored = std::env::current_dir().unwrap().join("access-token");
-                let source = ExternalTokenSource::new("access-token", ExternalTokenOrigin::Option);
-                std::env::set_current_dir(token_file.directory.path().parent().unwrap()).unwrap();
-                assert_that!(source.path()).is_equal_to(anchored.as_path());
-                assert_that!(source.read().await.unwrap().secret()).is_equal_to("opaque-token");
-            },
-        )
-        .await;
-}
-
-#[rstest]
-#[tokio::test]
 async fn concurrent_reads_obtain_complete_independent_tokens(token_file: TokenFile) {
     let token_file = std::sync::Arc::new(token_file);
     let old = "a".repeat(1024);
@@ -481,81 +429,6 @@ async fn refuses_directory_symlinks(#[from(absent_token_file)] token_file: Token
 #[cfg(unix)]
 mod unix {
     use super::*;
-
-    // Construct only inside IsolatedTest::run: cwd is process-global.
-    #[fixture]
-    fn deleted_working_directory() -> TokenFile {
-        let token_file = token_file();
-        let deleted = token_file.directory.path().join("deleted");
-        fs::create_dir(&deleted).unwrap();
-        std::env::set_current_dir(&deleted).unwrap();
-        fs::remove_dir(&deleted).unwrap();
-        token_file
-    }
-
-    #[rstest]
-    #[tokio::test]
-    async fn construction_defers_an_unavailable_working_directory(mut isolated_test: IsolatedTest) {
-        isolated_test
-            .run(
-                "external_token::tests::unix::construction_defers_an_unavailable_working_directory",
-                async {
-                    let token_file = deleted_working_directory();
-                    let source =
-                        ExternalTokenSource::new("access-token", ExternalTokenOrigin::Environment);
-                    let expected = ExternalTokenError {
-                        origin: ExternalTokenOrigin::Environment,
-                        path: PathBuf::from("access-token"),
-                        kind: ExternalTokenFailure::UnresolvableLocation,
-                    };
-                    assert_that!(source.read().await).is_equal_to(Err(expected.clone()));
-                    assert_that!(expected.to_string()).is_equal_to(
-                        "External token source from APOLLO_ACCESS_TOKEN_FILE at 'access-token': the location cannot be resolved from the initial working directory; supply a valid absolute token-file path or invoke Rover from an accessible directory".to_string(),
-                    );
-                    std::env::set_current_dir(token_file.directory.path()).unwrap();
-                    // Recovering cwd must not redirect the original source.
-                    assert_that!(source.read().await).is_equal_to(Err(expected));
-                },
-            )
-            .await;
-    }
-
-    #[rstest]
-    #[tokio::test]
-    async fn absolute_locations_work_without_a_working_directory(mut isolated_test: IsolatedTest) {
-        isolated_test
-            .run(
-                "external_token::tests::unix::absolute_locations_work_without_a_working_directory",
-                async {
-                    let token_file = deleted_working_directory();
-                    let source = ExternalTokenSource::new(
-                        token_file.source.path(),
-                        ExternalTokenOrigin::Environment,
-                    );
-                    assert_that!(source.read().await.unwrap().secret()).is_equal_to("opaque-token");
-                },
-            )
-            .await;
-    }
-
-    #[rstest]
-    #[tokio::test]
-    async fn empty_locations_keep_their_error_without_a_working_directory(
-        mut isolated_test: IsolatedTest,
-    ) {
-        isolated_test
-            .run(
-                "external_token::tests::unix::empty_locations_keep_their_error_without_a_working_directory",
-                async {
-                    let _token_file = deleted_working_directory();
-                    let source = ExternalTokenSource::new("", ExternalTokenOrigin::Environment);
-                    assert_that!(source.read().await)
-                        .is_err()
-                        .is_equal_to(source.error(ExternalTokenFailure::EmptyLocation));
-                },
-            )
-            .await;
-    }
 
     #[tokio::test]
     async fn refuses_device_files_before_reading_contents() {

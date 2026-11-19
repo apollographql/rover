@@ -44,6 +44,7 @@ rover-open = { workspace = true, features = ["testing"] }
 rover-print = { workspace = true, features = ["testing"] }
 rover-tower = { workspace = true, features = ["test"] }
 rstest = { workspace = true }
+serial_test = { workspace = true }
 speculoos = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["time", "test-util"] }
