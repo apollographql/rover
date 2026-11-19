@@ -1289,9 +1289,24 @@ mod tests {
             }
         }));
 
-        assert_that!(parsed.map_err(|error| error.to_string())).is_err_containing(
-            "unknown variant `SomeFutureCheckTask`, expected one of `CompositionCheckTask`, `CustomCheckTask`, `DownstreamCheckTask`, `FilterCheckTask`, `LintCheckTask`, `OperationsCheckTask`, `ProposalsCheckTask`".to_string(),
-        );
+        // serde lists the known variants in the order the schema declares them, and that order
+        // shifts whenever the schema is refreshed from Studio, so compare them as a sorted set.
+        let message = parsed.map(|_| ()).unwrap_err().to_string();
+        let (unknown, expected) = message
+            .split_once(", expected one of ")
+            .expect("the error lists the known variants");
+        let mut expected: Vec<&str> = expected.split(", ").collect();
+        expected.sort_unstable();
+        assert_that!(unknown).is_equal_to("unknown variant `SomeFutureCheckTask`");
+        assert_that!(expected).is_equal_to(vec![
+            "`CompositionCheckTask`",
+            "`CustomCheckTask`",
+            "`DownstreamCheckTask`",
+            "`FilterCheckTask`",
+            "`LintCheckTask`",
+            "`OperationsCheckTask`",
+            "`ProposalsCheckTask`",
+        ]);
     }
 
     /// A downstream task escalated to a failure by a blocking contract variant reports that
