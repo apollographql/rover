@@ -310,20 +310,26 @@ async fn concurrent_reads_obtain_complete_independent_tokens(token_file: TokenFi
     let token_file = std::sync::Arc::new(token_file);
     let old = "a".repeat(1024);
     let new = "b".repeat(1024);
+    let expected_tokens = [Ok(old.clone()), Ok(new.clone())];
     token_file.publish(old.as_bytes());
     let barrier = std::sync::Arc::new(tokio::sync::Barrier::new(5));
     let mut readers = Vec::new();
     for _ in 0..4 {
         let source = token_file.source.clone();
         let barrier = barrier.clone();
-        let old = old.clone();
-        let new = new.clone();
         readers.push(tokio::spawn(async move {
             barrier.wait().await;
+            let mut reads = Vec::new();
             for _ in 0..100 {
-                let token = source.clone().oneshot(()).await.unwrap();
-                assert!(token.secret() == old || token.secret() == new);
+                reads.push(
+                    source
+                        .clone()
+                        .oneshot(())
+                        .await
+                        .map(|token| token.secret().to_owned()),
+                );
             }
+            reads
         }));
     }
     barrier.wait().await;
@@ -339,9 +345,22 @@ async fn concurrent_reads_obtain_complete_independent_tokens(token_file: TokenFi
     });
     let readers = futures::future::join_all(readers).await;
     let published = publisher.await;
-    assert_that!(readers.into_iter().collect::<Result<Vec<_>, _>>())
-        .is_ok()
-        .is_equal_to(vec![(); 4]);
+    let reader_results = readers.into_iter().collect::<Result<Vec<_>, _>>();
+    let reader_results = assert_that!(reader_results).is_ok().subject;
+    let read_counts = reader_results.iter().map(Vec::len).collect::<Vec<_>>();
+    assert_that!(read_counts).is_equal_to(vec![100; 4]);
+    let unexpected_reads = reader_results
+        .iter()
+        .enumerate()
+        .flat_map(|(reader, reads)| {
+            reads
+                .iter()
+                .enumerate()
+                .map(move |(read, result)| (reader, read, result))
+        })
+        .filter(|(_, _, result)| !expected_tokens.contains(result))
+        .collect::<Vec<_>>();
+    assert_that!(unexpected_reads).is_equal_to(Vec::new());
     assert_that!(published).is_ok().is_equal_to(());
 }
 
