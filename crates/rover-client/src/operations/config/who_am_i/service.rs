@@ -1,12 +1,11 @@
 use std::{fmt, future::Future, pin::Pin};
 
 use graphql_client::GraphQLQuery;
-use houston::CredentialOrigin;
 use rover_graphql::{GraphQLRequest, GraphQLServiceError};
 use tower::Service;
 
 use super::{types::QueryVariables, Actor, ConfigWhoAmIInput, RegistryIdentity};
-use crate::RoverClientError;
+use crate::{blocking::StudioCredentialOrigin, RoverClientError};
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -53,11 +52,11 @@ impl From<WhoAmIError> for RoverClientError {
 
 pub struct WhoAmIRequest {
     input: ConfigWhoAmIInput,
-    credential_origin: CredentialOrigin,
+    credential_origin: StudioCredentialOrigin,
 }
 
 impl WhoAmIRequest {
-    pub const fn new(credential_origin: CredentialOrigin) -> WhoAmIRequest {
+    pub const fn new(credential_origin: StudioCredentialOrigin) -> WhoAmIRequest {
         WhoAmIRequest {
             input: ConfigWhoAmIInput {},
             credential_origin,
@@ -188,14 +187,14 @@ mod tests {
             .return_once(move |_| future::ready(Ok(response_data)));
 
         let output = WhoAmI::new(MockCloneService::new(mock))
-            .oneshot(WhoAmIRequest::new(CredentialOrigin::EnvVar))
+            .oneshot(WhoAmIRequest::new(houston::CredentialOrigin::EnvVar.into()))
             .await;
 
         let expected_identity = RegistryIdentity {
             id: "gh.nobodydefinitelyhasthisusernamelol".to_string(),
             graph_title: None,
             key_actor_type: Actor::USER,
-            credential_origin: CredentialOrigin::EnvVar,
+            credential_origin: houston::CredentialOrigin::EnvVar.into(),
         };
         assert_that!(output).is_ok().is_equal_to(expected_identity);
     }
@@ -220,14 +219,14 @@ mod tests {
             .return_once(move |_| future::ready(Ok(response_data)));
 
         let output = WhoAmI::new(MockCloneService::new(mock))
-            .oneshot(WhoAmIRequest::new(CredentialOrigin::EnvVar))
+            .oneshot(WhoAmIRequest::new(houston::CredentialOrigin::EnvVar.into()))
             .await;
 
         let expected_identity = RegistryIdentity {
             id: "big-ol-graph-key-lolol".to_string(),
             graph_title: Some("GraphKeyService".to_string()),
             key_actor_type: Actor::GRAPH,
-            credential_origin: CredentialOrigin::EnvVar,
+            credential_origin: houston::CredentialOrigin::EnvVar.into(),
         };
         assert_that!(output).is_ok().is_equal_to(expected_identity);
     }
@@ -251,14 +250,16 @@ mod tests {
             .return_once(move |_| future::ready(Ok(response_data)));
 
         let output = WhoAmI::new(MockCloneService::new(mock))
-            .oneshot(WhoAmIRequest::new(CredentialOrigin::OauthClientCredentials))
+            .oneshot(WhoAmIRequest::new(
+                houston::CredentialOrigin::OauthClientCredentials.into(),
+            ))
             .await;
 
         let expected_identity = RegistryIdentity {
             id: "service_account:babeb892-45d4-4466-91f6-01292db178cc".to_string(),
             graph_title: None,
             key_actor_type: Actor::SERVICE_ACCOUNT,
-            credential_origin: CredentialOrigin::OauthClientCredentials,
+            credential_origin: houston::CredentialOrigin::OauthClientCredentials.into(),
         };
         assert_that!(output).is_ok().is_equal_to(expected_identity);
     }

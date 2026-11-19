@@ -2,9 +2,10 @@ use anyhow::anyhow;
 use clap::Parser;
 use houston as config;
 use houston::{CredentialOrigin, mask_key};
+use rover_auth::external_token::ExternalTokenOrigin;
 use rover_client::{
     RoverClientError,
-    blocking::StudioClient,
+    blocking::{StudioClient, StudioCredentialOrigin},
     operations::config::who_am_i::{self, Actor, RegistryIdentity},
 };
 use rover_print::{print::Print, style::StyledText};
@@ -139,10 +140,24 @@ impl LegacyWhoami {
 
     fn get_origin(&self, client: &StudioClient) -> String {
         match client.get_credential_origin() {
-            CredentialOrigin::ConfigFile(path) => format!("--profile {}", path),
-            CredentialOrigin::OauthAuthorizationPkce(path) => format!("--profile {} (OAuth)", path),
-            CredentialOrigin::EnvVar => format!("${}", RoverEnvKey::Key),
-            CredentialOrigin::OauthClientCredentials => format!("${}", RoverEnvKey::ClientId),
+            StudioCredentialOrigin::Stored(CredentialOrigin::ConfigFile(path)) => {
+                format!("--profile {}", path)
+            }
+            StudioCredentialOrigin::Stored(CredentialOrigin::OauthAuthorizationPkce(path)) => {
+                format!("--profile {} (OAuth)", path)
+            }
+            StudioCredentialOrigin::Stored(CredentialOrigin::EnvVar) => {
+                format!("${}", RoverEnvKey::Key)
+            }
+            StudioCredentialOrigin::Stored(CredentialOrigin::OauthClientCredentials) => {
+                format!("${}", RoverEnvKey::ClientId)
+            }
+            StudioCredentialOrigin::External(ExternalTokenOrigin::Option) => {
+                "--access-token-file".to_owned()
+            }
+            StudioCredentialOrigin::External(ExternalTokenOrigin::Environment) => {
+                "$APOLLO_ACCESS_TOKEN_FILE".to_owned()
+            }
         }
     }
 
@@ -196,7 +211,7 @@ mod tests {
             id: "123".to_string(),
             key_actor_type: actor_type,
             graph_title: Some("graph_title".to_string()),
-            credential_origin: CredentialOrigin::EnvVar,
+            credential_origin: CredentialOrigin::EnvVar.into(),
         }
     }
 

@@ -1,7 +1,7 @@
-use houston::CredentialOrigin;
 use serde::Serialize;
 
 use super::service::init_memberships_query;
+use crate::blocking::StudioCredentialOrigin;
 
 pub(crate) type QueryVariables = init_memberships_query::Variables;
 
@@ -16,7 +16,7 @@ pub struct InitMembershipsResponse {
     pub id: String,
     pub memberships: Vec<Organization>,
     #[serde(skip_serializing)]
-    pub credential_origin: CredentialOrigin,
+    pub credential_origin: StudioCredentialOrigin,
 }
 
 #[derive(Debug, Eq, PartialEq)]
