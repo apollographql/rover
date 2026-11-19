@@ -57,6 +57,10 @@ pub enum Command {
 }
 
 impl Subgraph {
+    pub(crate) const fn can_authenticate(&self) -> bool {
+        !matches!(self.command, Command::Introspect(_))
+    }
+
     pub async fn run(
         &self,
         client_config: StudioClientConfig,

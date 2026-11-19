@@ -79,12 +79,16 @@ This table maps each of Rover's error codes to the telemetry outcome `user_error
 | E063 | Grants revoke partly failed | `internal_error` | Ambiguous: the Platform API's error per client |
 | E064 | Federation 1 requested | `user_error` | Clear |
 | E065 | Launch hadn't finished when Rover stopped waiting | `internal_error` | Ambiguous: a slow launch, or a platform delay; the wait is configurable |
+| E066, E067, E068, E069, E070, E071, E072, E073, E074, E075, E076, E077 | External token source is empty, missing, unreadable, unresolvable, oversized, invalid, or fails a file safety check | `user_error` | Clear: the supplying application must repair its source |
+| E078 | Application-supplied credential was rejected | `user_error` | Clear: renew it in the supplying application |
+| E079 | Conflicting runtime authentication inputs | `user_error` | Clear |
+| E080 | Application-supplied credential lacks permission | `user_error` | Clear |
 
 ## Counts
 
 Each code is counted once. E012 is counted under `user_error` but also yields `internal_error` for 5xx responses.
 
-- `user_error`: 48 codes
+- `user_error`: 63 codes
 - `connection_error`: 4 codes (E004, E028, E031, E049)
 - `internal_error`: 13 codes, of which 8 are ambiguous (E001, E011, E026, E048, E050, E056, E063, E065) and 5 are clear (E005, E006, E015, E025, E045)
 

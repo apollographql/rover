@@ -23,6 +23,10 @@ pub enum Command {
 }
 
 impl Client {
+    pub(crate) const fn can_authenticate(&self) -> bool {
+        matches!(self.command, Command::Check(_))
+    }
+
     pub async fn run(
         &self,
         client_config: StudioClientConfig,

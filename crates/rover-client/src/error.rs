@@ -748,6 +748,23 @@ mod tests {
 
     use super::*;
 
+    #[rstest::rstest]
+    #[case::rejection(rover_auth::external_auth::ExternalAuthError::Rejected)]
+    #[case::permission(rover_auth::external_auth::ExternalAuthError::PermissionDenied)]
+    fn external_auth_diagnostics_are_not_stringified(
+        #[case] diagnostic: rover_auth::external_auth::ExternalAuthError,
+    ) {
+        let error = RoverClientError::from(GraphQLServiceError::<()>::UpstreamService(Box::new(
+            HttpServiceError::from(diagnostic.clone()),
+        )));
+
+        let recovered = match error {
+            RoverClientError::ExternalAuth(error) => Some(error),
+            _ => None,
+        };
+        assert_that!(recovered).is_equal_to(Some(diagnostic));
+    }
+
     /// How a rejection reaches this conversion: wrapped in `HttpServiceError` to cross the boxed
     /// `HttpService`, then in `UpstreamService` by the GraphQL middleware above it.
     fn as_upstream_error(rejection: RejectedCredential) -> GraphQLServiceError<()> {
