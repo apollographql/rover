@@ -189,23 +189,26 @@ async fn construction_does_not_open_or_require_the_file(token_file: TokenFile) {
 }
 
 #[rstest]
-#[case::file_backed(true)]
-#[case::in_memory(false)]
 #[tokio::test]
-async fn consumers_can_use_file_and_in_memory_sources_as_services(
-    token_file: TokenFile,
-    #[case] file_backed: bool,
-) {
+async fn consumers_can_use_file_sources_as_services(token_file: TokenFile) {
+    let result = token_file
+        .source
+        .clone()
+        .boxed()
+        .map_response(|token| token.secret().to_owned())
+        .oneshot(())
+        .await;
+    assert_that!(result).is_equal_to(Ok("opaque-token".to_string()));
+}
+
+#[tokio::test]
+async fn consumers_can_use_in_memory_sources_as_services() {
     let token = ExternalAccessToken::try_from(b"opaque-token".to_vec()).unwrap();
-    let memory = tower::service_fn(move |()| {
+    let source = tower::service_fn(move |()| {
         let token = token.clone();
         async move { Ok::<_, ExternalTokenError>(token) }
-    });
-    let source = if file_backed {
-        token_file.source.clone().boxed()
-    } else {
-        memory.boxed()
-    };
+    })
+    .boxed();
     let result = source
         .map_response(|token| token.secret().to_owned())
         .oneshot(())
