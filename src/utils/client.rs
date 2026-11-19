@@ -21,6 +21,7 @@ use serde::Serialize;
 use tower::{ServiceBuilder, ServiceExt};
 use url::Url;
 
+use super::external_auth::ExternalAuthentication;
 use crate::{PKG_NAME, PKG_VERSION, options::ProfileOpt};
 
 /// the Apollo graph registry's production API endpoint
@@ -236,6 +237,8 @@ pub struct StudioClientConfig {
     automatic_download_notice: Option<Arc<DeferredNotice>>,
     #[getter(skip)]
     warn_on_automatic_download: bool,
+    #[getter(skip)]
+    external_authentication: Option<ExternalAuthentication>,
 }
 
 impl StudioClientConfig {
@@ -266,7 +269,20 @@ impl StudioClientConfig {
             allow_automatic_download: false,
             automatic_download_notice: None,
             warn_on_automatic_download: false,
+            external_authentication: None,
         }
+    }
+
+    pub(crate) fn with_external_authentication(
+        mut self,
+        selection: Option<ExternalAuthentication>,
+    ) -> Self {
+        self.external_authentication = selection;
+        self
+    }
+
+    pub(crate) const fn has_external_authentication(&self) -> bool {
+        self.external_authentication.is_some()
     }
 
     pub const fn with_download_timeout(mut self, download_timeout: Duration) -> Self {
@@ -412,6 +428,18 @@ impl StudioClientConfig {
     }
 
     pub fn get_authenticated_client(&self, profile_opt: &ProfileOpt) -> Result<StudioClient> {
+        if let Some(selection) = &self.external_authentication {
+            selection.validate()?;
+            return Ok(StudioClient::new_external(
+                selection.source.clone(),
+                &self.uri,
+                &self.version,
+                self.is_sudo,
+                self.client_builder.without_redirects().build()?,
+                self.client_timeout.get_duration(),
+            )
+            .with_external_attempt_timeout(self.client_timeout.get_duration()));
+        }
         let credential =
             config::Profile::new(&profile_opt.profile_name, &self.config).get_credential()?;
         Ok(StudioClient::new(
@@ -425,6 +453,11 @@ impl StudioClientConfig {
     }
 
     pub fn authenticated_service(&self, profile_opt: &ProfileOpt) -> Result<HttpService> {
+        if self.has_external_authentication() {
+            return Ok(self
+                .get_authenticated_client(profile_opt)?
+                .authenticated_http_service(self.client_timeout.get_duration())?);
+        }
         let client = self.get_reqwest_client()?;
         let credential =
             config::Profile::new(&profile_opt.profile_name, &self.config).get_credential()?;

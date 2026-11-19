@@ -3,6 +3,8 @@ use std::{
     fmt::{self, Display},
 };
 
+use rover_auth::external_token::ExternalTokenFailure;
+use rover_studio::service::external_auth::ExternalAuthError;
 use serde::Serialize;
 use sputnik::Outcome;
 use strum_macros::{EnumIter, EnumString};
@@ -75,6 +77,44 @@ pub enum RoverErrorCode {
     E063,
     E064,
     E065,
+    E066,
+    E067,
+    E068,
+    E069,
+    E070,
+    E071,
+    E072,
+    E073,
+    E074,
+    E075,
+    E076,
+    E077,
+    E078,
+    E079,
+    E080,
+}
+
+impl From<&ExternalAuthError> for RoverErrorCode {
+    fn from(error: &ExternalAuthError) -> Self {
+        match error {
+            ExternalAuthError::Source(error) => match error.kind {
+                ExternalTokenFailure::EmptyLocation => Self::E066,
+                ExternalTokenFailure::Missing => Self::E067,
+                ExternalTokenFailure::Unreadable => Self::E068,
+                ExternalTokenFailure::UnresolvableLocation => Self::E069,
+                ExternalTokenFailure::TooLarge => Self::E070,
+                ExternalTokenFailure::InvalidContents => Self::E071,
+                ExternalTokenFailure::SymbolicLink => Self::E072,
+                ExternalTokenFailure::NotRegularFile => Self::E073,
+                ExternalTokenFailure::FileOwner => Self::E074,
+                ExternalTokenFailure::FilePermissions => Self::E075,
+                ExternalTokenFailure::DirectoryOwner => Self::E076,
+                ExternalTokenFailure::DirectoryPermissions => Self::E077,
+            },
+            ExternalAuthError::Rejected => Self::E078,
+            ExternalAuthError::PermissionDenied => Self::E080,
+        }
+    }
 }
 
 impl Display for RoverErrorCode {
@@ -135,7 +175,22 @@ impl RoverErrorCode {
             | RoverErrorCode::E060
             | RoverErrorCode::E061
             | RoverErrorCode::E062
-            | RoverErrorCode::E064 => Outcome::UserError,
+            | RoverErrorCode::E064
+            | RoverErrorCode::E066
+            | RoverErrorCode::E067
+            | RoverErrorCode::E068
+            | RoverErrorCode::E069
+            | RoverErrorCode::E070
+            | RoverErrorCode::E071
+            | RoverErrorCode::E072
+            | RoverErrorCode::E073
+            | RoverErrorCode::E074
+            | RoverErrorCode::E075
+            | RoverErrorCode::E076
+            | RoverErrorCode::E077
+            | RoverErrorCode::E078
+            | RoverErrorCode::E079
+            | RoverErrorCode::E080 => Outcome::UserError,
             RoverErrorCode::E004
             | RoverErrorCode::E028
             | RoverErrorCode::E031
@@ -423,6 +478,66 @@ impl RoverErrorCode {
             (
                 RoverErrorCode::E065,
                 include_str!("./codes/E065.md").to_string(),
+            ),
+            (
+                RoverErrorCode::E066,
+                include_str!("./codes/E066.md").to_string(),
+            ),
+            (
+                RoverErrorCode::E067,
+                include_str!("./codes/E067.md").to_string(),
+            ),
+            (
+                RoverErrorCode::E068,
+                include_str!("./codes/E068.md").to_string(),
+            ),
+            (
+                RoverErrorCode::E069,
+                include_str!("./codes/E069.md").to_string(),
+            ),
+            (
+                RoverErrorCode::E070,
+                include_str!("./codes/E070.md").to_string(),
+            ),
+            (
+                RoverErrorCode::E071,
+                include_str!("./codes/E071.md").to_string(),
+            ),
+            (
+                RoverErrorCode::E072,
+                include_str!("./codes/E072.md").to_string(),
+            ),
+            (
+                RoverErrorCode::E073,
+                include_str!("./codes/E073.md").to_string(),
+            ),
+            (
+                RoverErrorCode::E074,
+                include_str!("./codes/E074.md").to_string(),
+            ),
+            (
+                RoverErrorCode::E075,
+                include_str!("./codes/E075.md").to_string(),
+            ),
+            (
+                RoverErrorCode::E076,
+                include_str!("./codes/E076.md").to_string(),
+            ),
+            (
+                RoverErrorCode::E077,
+                include_str!("./codes/E077.md").to_string(),
+            ),
+            (
+                RoverErrorCode::E078,
+                include_str!("./codes/E078.md").to_string(),
+            ),
+            (
+                RoverErrorCode::E079,
+                include_str!("./codes/E079.md").to_string(),
+            ),
+            (
+                RoverErrorCode::E080,
+                include_str!("./codes/E080.md").to_string(),
             ),
         ];
         contents.into_iter().collect()

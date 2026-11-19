@@ -39,6 +39,20 @@ pub struct RoverErrorMetadata {
 /// and creating `Suggestion`s and `Code`s where applicable
 impl From<&mut anyhow::Error> for RoverErrorMetadata {
     fn from(error: &mut anyhow::Error) -> Self {
+        let external_code =
+            rover_studio::service::external_auth::ExternalAuthError::find_in_chain(error.as_ref())
+                .map(RoverErrorCode::from)
+                .or_else(|| {
+                    error
+                        .downcast_ref::<crate::utils::external_auth::ExternalAuthConflict>()
+                        .map(|_| RoverErrorCode::E079)
+                });
+        if let Some(code) = external_code {
+            return RoverErrorMetadata {
+                code: Some(code),
+                ..Default::default()
+            };
+        }
         // A plugin failure is the most specific explanation an error can have,
         // so it decides the code even when a caller has wrapped it.
         if let Some(plugin_failure) = plugin::error::find_in_chain(error) {

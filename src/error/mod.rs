@@ -99,6 +99,13 @@ impl RoverError {
         E: Into<anyhow::Error>,
     {
         let mut error = error.into();
+        // Transport wrappers must not turn an external failure into API-key/login guidance.
+        if let Some(diagnostic) =
+            rover_studio::service::external_auth::ExternalAuthError::find_in_chain(error.as_ref())
+                .cloned()
+        {
+            error = anyhow::Error::new(diagnostic);
+        }
         let metadata = RoverErrorMetadata::from(error.borrow_mut());
 
         Self { error, metadata }

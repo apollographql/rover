@@ -8,6 +8,7 @@ use futures::{
 };
 use houston::{Config, Profile};
 use rover_client::RoverClientError;
+use rover_print::{print::Print, style::StyledText};
 use rover_std::{RoverStdError, debugln, errln, infoln, warnln};
 use rover_studio::types::GraphRef;
 use timber::Level;
@@ -225,16 +226,22 @@ impl RunRouter<state::Run> {
         let AuthEnv {
             env,
             credential_warning_emitted,
-        } = self.auth_env(
-            profile,
-            home_override,
-            api_key_override,
-            graph_ref_setting.clone(),
-        );
+        } = if studio_client_config.has_external_authentication() {
+            self.external_auth_env(api_key_override, graph_ref_setting.clone())
+        } else {
+            self.auth_env(
+                profile,
+                home_override,
+                api_key_override,
+                graph_ref_setting.clone(),
+            )
+        };
         self.notify_if_credential_free(
             graph_ref_setting.is_some(),
             &license,
             credential_warning_emitted,
+            studio_client_config.has_external_authentication() && !env.contains_key("APOLLO_KEY"),
+            &rover_print::print::stderr::default(),
         );
 
         let listen_address = *self.state.config.address();
@@ -272,22 +279,23 @@ impl RunRouter<state::Run> {
         })
     }
 
-    /// Per Rover-428 spec FR8/FR9: prints only when there are truly no usable credentials (an API key and a
-    /// graph ref) from any source, no offline license, and no other credential-related warning has
-    /// already covered the same gap.
+    /// Reports a credential-free router unless an offline license or an earlier warning
+    /// already accounts for it. External authentication cannot supply the router's key.
     fn notify_if_credential_free(
         &self,
         graph_ref_from_setting: bool,
         license: &Option<Utf8PathBuf>,
         already_warned: bool,
+        external_without_key: bool,
+        stderr: &impl Print,
     ) {
         if license.is_none()
-            && !self.has_usable_graph_ref(graph_ref_from_setting)
+            && (external_without_key || !self.has_usable_graph_ref(graph_ref_from_setting))
             && !already_warned
         {
-            infoln!(
+            stderr.print(&StyledText::plain(
                 "Running without GraphOS credentials. GraphOS Router Enterprise features and @connect are disabled. Pass --graph-ref, set APOLLO_KEY/APOLLO_GRAPH_REF, or pass --license to enable them."
-            );
+            ));
         }
     }
 
@@ -299,6 +307,30 @@ impl RunRouter<state::Run> {
     /// value needs `auth_env` to insert it explicitly (see below).
     const fn has_usable_graph_ref(&self, graph_ref_from_setting: bool) -> bool {
         self.state.remote_config.is_some() || graph_ref_from_setting
+    }
+
+    fn external_auth_env(
+        &self,
+        api_key_override: Option<String>,
+        graph_ref_setting: Option<String>,
+    ) -> AuthEnv {
+        let mut env = HashMap::from_iter([("APOLLO_ROVER".to_string(), "true".to_string())]);
+        if let Some(key) = api_key_override.filter(|key| !key.is_empty()) {
+            env.insert("APOLLO_KEY".to_string(), key);
+        }
+        if let Some(graph_ref) = self
+            .state
+            .remote_config
+            .as_ref()
+            .map(|config| config.graph_ref().to_string())
+            .or(graph_ref_setting)
+        {
+            env.insert("APOLLO_GRAPH_REF".to_string(), graph_ref);
+        }
+        AuthEnv {
+            env,
+            credential_warning_emitted: false,
+        }
     }
 
     fn auth_env(
@@ -695,5 +727,72 @@ mod tests {
         let auth_env = run_router.auth_env(crate::options::ProfileOpt::default(), None, None, None);
 
         assert_eq!(auth_env.env.get("APOLLO_GRAPH_REF"), None);
+    }
+
+    #[rstest::rstest]
+    #[case::no_key(None)]
+    #[case::empty_key(Some(""))]
+    #[case::router_key(Some("router-only-key"))]
+    #[tokio::test]
+    async fn external_auth_router_environment_uses_only_the_explicit_environment_key(
+        #[case] key: Option<&str>,
+    ) {
+        use std::collections::HashMap;
+
+        use speculoos::prelude::*;
+
+        let run_router = test_run_router().await;
+        let auth_env = run_router
+            .external_auth_env(key.map(str::to_string), Some("example@current".to_string()));
+        let mut expected = HashMap::from([
+            ("APOLLO_ROVER".to_string(), "true".to_string()),
+            (
+                "APOLLO_GRAPH_REF".to_string(),
+                "example@current".to_string(),
+            ),
+        ]);
+        if let Some(key) = key.filter(|key| !key.is_empty()) {
+            expected.insert("APOLLO_KEY".to_string(), key.to_string());
+        }
+
+        assert_that!(auth_env.env).is_equal_to(expected);
+        assert_that!(auth_env.credential_warning_emitted).is_equal_to(false);
+    }
+
+    #[rstest::rstest]
+    #[case::graph_ref_without_key(true, None, false, true, true)]
+    #[case::no_graph_ref_or_key(false, None, false, true, true)]
+    #[case::offline_license(true, Some("router-license"), false, true, false)]
+    #[case::earlier_warning(true, None, true, true, false)]
+    #[case::router_key_and_graph_ref(true, None, false, false, false)]
+    #[tokio::test]
+    async fn external_auth_reports_credential_free_without_a_router_key(
+        #[case] graph_ref: bool,
+        #[case] license: Option<&str>,
+        #[case] already_warned: bool,
+        #[case] without_key: bool,
+        #[case] expected_notice: bool,
+    ) {
+        use speculoos::prelude::*;
+
+        let run_router = test_run_router().await;
+        let capture = rover_print::print::testing::TerminalCapture::new(false);
+
+        run_router.notify_if_credential_free(
+            graph_ref,
+            &license.map(Utf8PathBuf::from),
+            already_warned,
+            without_key,
+            &capture,
+        );
+
+        let expected = if expected_notice {
+            vec![
+            "Running without GraphOS credentials. GraphOS Router Enterprise features and @connect are disabled. Pass --graph-ref, set APOLLO_KEY/APOLLO_GRAPH_REF, or pass --license to enable them.".to_string(),
+        ]
+        } else {
+            vec![]
+        };
+        assert_that!(capture.lines()).is_equal_to(expected);
     }
 }

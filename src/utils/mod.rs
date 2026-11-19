@@ -1,6 +1,7 @@
 pub mod client;
 pub mod effect;
 pub mod env;
+pub(crate) mod external_auth;
 pub mod lifecycle;
 pub mod parsers;
 pub mod pkg;

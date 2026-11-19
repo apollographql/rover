@@ -45,6 +45,10 @@ pub enum Command {
 }
 
 impl Config {
+    pub(crate) const fn can_authenticate(&self) -> bool {
+        matches!(self.command, Command::Whoami(_))
+    }
+
     /// `client_config` (and the network calls resolving it - the OAuth
     /// client-credentials exchange in particular - make no sense for a
     /// read-only, diagnostic verb) is resolved here, per subcommand, rather

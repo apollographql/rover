@@ -706,6 +706,18 @@ where
 
 impl<T: Debug + Send + Sync> From<GraphQLServiceError<T>> for RoverClientError {
     fn from(value: GraphQLServiceError<T>) -> Self {
+        if let GraphQLServiceError::UpstreamService(source) = &value {
+            if let Some(diagnostic) =
+                rover_studio::service::external_auth::ExternalAuthError::find_in_chain(
+                    source.as_ref(),
+                )
+            {
+                return RoverClientError::Service {
+                    source: Box::new(diagnostic.clone()),
+                    endpoint_kind: EndpointKind::ApolloStudio,
+                };
+            }
+        }
         if let Some(rejection) = rejected_credential_in(&value) {
             return rejection;
         }
@@ -738,6 +750,22 @@ mod tests {
     use speculoos::prelude::*;
 
     use super::*;
+
+    #[rstest::rstest]
+    #[case::rejection(rover_studio::service::external_auth::ExternalAuthError::Rejected)]
+    #[case::permission(rover_studio::service::external_auth::ExternalAuthError::PermissionDenied)]
+    fn external_auth_diagnostics_are_not_stringified(
+        #[case] diagnostic: rover_studio::service::external_auth::ExternalAuthError,
+    ) {
+        use rover_studio::service::external_auth::ExternalAuthError;
+
+        let error = RoverClientError::from(GraphQLServiceError::<()>::UpstreamService(Box::new(
+            diagnostic.clone().into_http_error(),
+        )));
+
+        assert_that!(ExternalAuthError::find_in_chain(&error).cloned())
+            .is_equal_to(Some(diagnostic));
+    }
 
     /// How a rejection reaches this conversion: wrapped in `HttpServiceError` to cross the boxed
     /// `HttpService`, then in `UpstreamService` by the GraphQL middleware above it.
