@@ -177,7 +177,12 @@ fn construction_does_not_open_or_require_the_file(token_file: TokenFile) {
 }
 
 #[rstest]
-fn consumers_can_use_file_and_in_memory_sources_through_the_same_trait(token_file: TokenFile) {
+#[case::file_backed(true)]
+#[case::in_memory(false)]
+fn consumers_can_use_file_and_in_memory_sources_through_the_same_trait(
+    token_file: TokenFile,
+    #[case] file_backed: bool,
+) {
     struct MemorySource(ExternalAccessToken);
 
     impl BearerTokenSource for MemorySource {
@@ -187,10 +192,12 @@ fn consumers_can_use_file_and_in_memory_sources_through_the_same_trait(token_fil
     }
 
     let memory = MemorySource(ExternalAccessToken::try_from(b"opaque-token".to_vec()).unwrap());
-    let sources: [&dyn BearerTokenSource; 2] = [&token_file.source, &memory];
-    for source in sources {
-        assert_that!(source.read().unwrap().secret()).is_equal_to("opaque-token");
-    }
+    let source: &dyn BearerTokenSource = if file_backed {
+        &token_file.source
+    } else {
+        &memory
+    };
+    assert_that!(source.read().unwrap().secret()).is_equal_to("opaque-token");
 }
 
 #[rstest]
