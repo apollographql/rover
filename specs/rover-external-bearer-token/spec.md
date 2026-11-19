@@ -62,10 +62,10 @@ This specification defines how Rover consumes an Apollo OAuth access token owned
 ### 2.5 Token file checks
 
 - **FR32:** On every read, Rover must refuse the source if its configured location is itself a symbolic link. Symbolic links among the directories above it must be accepted.
-- **FR33:** Where the filesystem enforces Unix file permissions, Rover must refuse the source if it is not owned by the user running Rover, or if users other than its owner can read or write it. Rover must also refuse it if the directory that holds it is owned by neither the user running Rover nor the system administrator, or can be written to by its group or other users. A directory's sticky bit does not make a group- or world-writable directory acceptable, which is how OpenSSH's `StrictModes` checks a user's key files.
+- **FR33:** On Unix platforms, Rover must refuse the source if it is not owned by the user running Rover, or if users other than its owner can read or write it. Rover must also refuse it if the directory that holds it is owned by neither the user running Rover nor the system administrator, or can be written to by its group or other users. A directory's sticky bit does not make a group- or world-writable directory acceptable, which is how OpenSSH's `StrictModes` checks a user's key files. These checks must apply to the ownership and permission bits reported by every filesystem, including filesystems that emulate them or report fixed values; Rover must not exempt a source based on filesystem type or mount options.
 - **FR34:** Rover must refuse a source larger than 16 KiB, and must not read more than 16 KiB plus one byte from it, the extra byte being what shows that the source is too large, including one that grew after it was checked. A source of exactly 16 KiB (16,384 bytes) is not refused for its size.
 - **FR35:** The file that Rover checks must be the file it reads. Rover must not check one file and then read a different file because the source changed in between, and must not use contents that were not subject to the checks.
-- **FR36:** Where the filesystem does not enforce Unix file permissions, including on Windows, Rover must apply FR32, FR34, and FR35 but not FR33.
+- **FR36:** On Windows, Rover must apply FR32, FR34, and FR35 but not FR33.
 - **FR37:** A refused source is a source failure under FR17. Its diagnostic must name the check that failed and how to fix it, without revealing the file's contents.
 
 ## 3. Acceptance criteria
@@ -176,9 +176,9 @@ This specification defines how Rover consumes an Apollo OAuth access token owned
 
 **Given** a valid token file in a directory reached through a symbolic link, **when** Rover needs the token, **then** it uses the token.
 
-**Given** a filesystem that enforces Unix file permissions and a token file that other users can read, that another user owns, or whose directory is owned by another user (other than the system administrator) or is writable by its group or other users, **when** Rover needs the token, **then** the attempt is not sent and the diagnostic names the failed check and how to fix it.
+**Given** Rover is running on Unix and a token file that other users can read, that another user owns, or whose directory is owned by another user (other than the system administrator) or is writable by its group or other users, **when** Rover needs the token, **then** the attempt is not sent and the diagnostic names the failed check and how to fix it.
 
-**Given** a token file directly inside a world-writable directory with the sticky bit set, such as `/tmp`, **when** Rover needs the token, **then** the attempt is not sent and the diagnostic names the directory check, as OpenSSH's `StrictModes` would for a key file there.
+**Given** Rover is running on Unix and a token file directly inside a world-writable directory with the sticky bit set, such as `/tmp`, **when** Rover needs the token, **then** the attempt is not sent and the diagnostic names the directory check, as OpenSSH's `StrictModes` would for a key file there.
 
 **Given** a token file larger than 16 KiB, **when** Rover needs the token, **then** the attempt is not sent and Rover reads no more than 16 KiB plus one byte of it.
 
@@ -186,7 +186,9 @@ This specification defines how Rover consumes an Apollo OAuth access token owned
 
 **Given** the file at the source location changes between the checks and the read, **when** Rover needs the token, **then** the contents it uses are those of the file that passed the checks.
 
-**Given** a filesystem that does not enforce Unix file permissions, including Windows, and a token file that would fail only the Unix permission checks, **when** Rover needs the token, **then** it uses the token.
+**Given** Rover is running on Unix and a filesystem reports ownership or permission bits that fail the token file checks, **when** Rover needs the token, **then** it refuses the source even if the filesystem emulates those bits or reports fixed values.
+
+**Given** Rover is running on Windows and a token file that would fail only the Unix permission checks, **when** Rover needs the token, **then** it uses the token.
 
 ### Identity reporting
 

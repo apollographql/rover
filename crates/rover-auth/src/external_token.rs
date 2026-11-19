@@ -39,6 +39,16 @@ impl fmt::Display for ExternalTokenOrigin {
 #[derive(Clone, PartialEq, Eq)]
 pub struct ExternalAccessToken(String);
 
+/// Supplies the current bearer token independently of how it is stored.
+///
+/// Each call must obtain the current token, without falling back to an earlier
+/// value after a failure. File-backed reads are blocking; async consumers must
+/// offload them to a blocking worker instead of blocking a runtime worker.
+pub trait BearerTokenSource {
+    /// Obtains the current token or a source diagnostic that contains no secret.
+    fn read(&self) -> Result<ExternalAccessToken, ExternalTokenError>;
+}
+
 impl ExternalAccessToken {
     /// Exposes the credential for authentication or deliberate identity unmasking.
     pub fn secret(&self) -> &str {
@@ -103,6 +113,11 @@ pub enum ExternalTokenFailure {
     /// Opening, checking, or reading the source failed.
     #[error("the source is unreadable; check that Rover can access the file and its directory")]
     Unreadable,
+    /// The location could not be anchored to the invocation's working directory.
+    #[error(
+        "the location cannot be resolved from the initial working directory; supply a valid absolute token-file path or invoke Rover from an accessible directory"
+    )]
+    UnresolvableLocation,
     /// The file exceeds the size limit.
     #[error("the source exceeds 16 KiB; supply a token file no larger than 16,384 bytes")]
     TooLarge,
@@ -146,14 +161,23 @@ impl From<io::Error> for ExternalTokenFailure {
 
 /// A source diagnostic that never includes file contents.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
-#[error("External token source from {origin} at '{}': {kind}", path.display())]
 pub struct ExternalTokenError {
     /// Which option or environment variable supplied the location.
     pub origin: ExternalTokenOrigin,
-    /// Resolved location (empty for an empty input).
+    /// Resolved location, or the original input if empty or unresolvable.
     pub path: PathBuf,
     /// What failed, independently of the human-readable message.
     pub kind: ExternalTokenFailure,
+}
+
+impl fmt::Display for ExternalTokenError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "External token source from {}", self.origin)?;
+        if !self.path.as_os_str().is_empty() {
+            write!(f, " at '{}'", self.path.display())?;
+        }
+        write!(f, ": {}", self.kind)
+    }
 }
 
 /// A read-only, non-caching source whose relative location is anchored at construction.
@@ -161,28 +185,34 @@ pub struct ExternalTokenError {
 pub struct ExternalTokenSource {
     path: PathBuf,
     origin: ExternalTokenOrigin,
+    initial_failure: Option<ExternalTokenFailure>,
 }
 
 impl ExternalTokenSource {
     /// Anchors a relative location to the current working directory without opening it.
     ///
     /// Construct this at invocation startup so later working-directory changes do
-    /// not change its meaning. Empty locations are retained and fail only on read.
-    pub fn new(
-        location: impl AsRef<Path>,
-        origin: ExternalTokenOrigin,
-    ) -> Result<Self, ExternalTokenError> {
+    /// not change its meaning. Empty locations and resolution failures are
+    /// retained and fail only on read, so commands that do not authenticate
+    /// cannot fail merely because a token source was configured.
+    pub fn new(location: impl AsRef<Path>, origin: ExternalTokenOrigin) -> Self {
         let location = location.as_ref();
-        let path = if location.as_os_str().is_empty() {
-            PathBuf::new()
+        let (path, initial_failure) = if location.as_os_str().is_empty() {
+            (PathBuf::new(), Some(ExternalTokenFailure::EmptyLocation))
         } else {
-            std::path::absolute(location).map_err(|error| ExternalTokenError {
-                origin,
-                path: location.to_path_buf(),
-                kind: error.into(),
-            })?
+            match std::path::absolute(location) {
+                Ok(path) => (path, None),
+                Err(_) => (
+                    location.to_path_buf(),
+                    Some(ExternalTokenFailure::UnresolvableLocation),
+                ),
+            }
         };
-        Ok(Self { path, origin })
+        Self {
+            path,
+            origin,
+            initial_failure,
+        }
     }
 
     /// The input that supplied this location.
@@ -190,15 +220,17 @@ impl ExternalTokenSource {
         self.origin
     }
 
-    /// The anchored location, or an empty path if the input was empty.
+    /// The anchored location, or the original input if empty or unresolvable.
     pub fn path(&self) -> &Path {
         &self.path
     }
 
     /// Opens, checks, and reads the source anew, without changing it or caching a token.
+    ///
+    /// This performs blocking filesystem I/O. Async consumers must offload it
+    /// to a blocking worker, for example with [`tokio::task::spawn_blocking`].
     pub fn read(&self) -> Result<ExternalAccessToken, ExternalTokenError> {
-        let file = self.open_checked().map_err(|kind| self.error(kind))?;
-        ExternalAccessToken::read_from(file).map_err(|kind| self.error(kind))
+        BearerTokenSource::read(self)
     }
 
     fn error(&self, kind: ExternalTokenFailure) -> ExternalTokenError {
@@ -209,17 +241,21 @@ impl ExternalTokenSource {
         }
     }
 
-    #[cfg(unix)]
     fn open_checked(&self) -> Result<File, ExternalTokenFailure> {
+        if let Some(failure) = self.initial_failure {
+            return Err(failure);
+        }
+        self.check_file(self.open_file()?)
+    }
+
+    #[cfg(unix)]
+    fn open_file(&self) -> Result<File, ExternalTokenFailure> {
         use nix::{
             errno::Errno,
             fcntl::{OFlag, open, openat},
             sys::stat::Mode,
         };
 
-        if self.path.as_os_str().is_empty() {
-            return Err(ExternalTokenFailure::EmptyLocation);
-        }
         let parent = self
             .path
             .parent()
@@ -235,6 +271,8 @@ impl ExternalTokenSource {
         let access = OFlag::O_PATH;
         #[cfg(target_vendor = "apple")]
         let access = OFlag::O_SEARCH;
+        // Linux and macOS are Rover's supported Unix targets. The fallback
+        // for other Unix platforms additionally needs directory read access.
         #[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
         let access = OFlag::O_RDONLY;
         let directory = File::from(
@@ -249,42 +287,47 @@ impl ExternalTokenSource {
 
         // O_NOFOLLOW checks the leaf as part of the open. O_NONBLOCK prevents
         // an application-supplied FIFO from hanging before its type is checked.
+        // O_NOCTTY prevents a device from becoming the controlling terminal.
         let file = File::from(
             openat(
                 &directory,
                 Path::new(name),
-                OFlag::O_RDONLY | OFlag::O_CLOEXEC | OFlag::O_NOFOLLOW | OFlag::O_NONBLOCK,
+                OFlag::O_RDONLY
+                    | OFlag::O_CLOEXEC
+                    | OFlag::O_NOFOLLOW
+                    | OFlag::O_NONBLOCK
+                    | OFlag::O_NOCTTY,
                 Mode::empty(),
             )
             .map_err(|error| match error {
+                // Linux and macOS report a refused leaf symlink as ELOOP.
                 Errno::ELOOP => ExternalTokenFailure::SymbolicLink,
                 _ => io::Error::from(error).into(),
             })?,
         );
-        self.check_file(file)
+        Ok(file)
     }
 
     #[cfg(windows)]
-    fn open_checked(&self) -> Result<File, ExternalTokenFailure> {
+    fn open_file(&self) -> Result<File, ExternalTokenFailure> {
         use std::{fs::OpenOptions, os::windows::fs::OpenOptionsExt};
 
-        if self.path.as_os_str().is_empty() {
-            return Err(ExternalTokenFailure::EmptyLocation);
-        }
         // Open the reparse point itself rather than following a leaf symlink.
         const FILE_FLAG_OPEN_REPARSE_POINT: u32 = 0x0020_0000;
         // Also open directories so their type (or a directory symlink) can be
         // diagnosed from the same handle, rather than failing with access denied.
         const FILE_FLAG_BACKUP_SEMANTICS: u32 = 0x0200_0000;
-        let file = OpenOptions::new()
+        OpenOptions::new()
             .read(true)
             .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS)
-            .open(&self.path)?;
-        self.check_file(file)
+            .open(&self.path)
+            .map_err(Into::into)
     }
 
     fn check_file(&self, file: File) -> Result<File, ExternalTokenFailure> {
         let metadata = file.metadata()?;
+        // Unix has already refused leaf symlinks atomically with O_NOFOLLOW.
+        #[cfg(windows)]
         if metadata.file_type().is_symlink() {
             return Err(ExternalTokenFailure::SymbolicLink);
         }
@@ -298,6 +341,13 @@ impl ExternalTokenSource {
         }
         // All checks and the subsequent read use this same open handle.
         Ok(file)
+    }
+}
+
+impl BearerTokenSource for ExternalTokenSource {
+    fn read(&self) -> Result<ExternalAccessToken, ExternalTokenError> {
+        let file = self.open_checked().map_err(|kind| self.error(kind))?;
+        ExternalAccessToken::read_from(file).map_err(|kind| self.error(kind))
     }
 }
 
