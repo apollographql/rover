@@ -17,6 +17,14 @@ use tower::ServiceExt;
 
 use super::*;
 
+type TokenSourceRequest = ();
+rover_tower::mock_service!(
+    TokenSource,
+    TokenSourceRequest,
+    ExternalAccessToken,
+    ExternalTokenError
+);
+
 struct TokenFile {
     directory: TempDir,
     source: ExternalTokenSource,
@@ -260,12 +268,14 @@ async fn consumers_can_use_file_sources_as_services(token_file: TokenFile) {
 #[tokio::test]
 async fn consumers_can_use_in_memory_sources_as_services() {
     let token = ExternalAccessToken::try_from(b"opaque-token".to_vec()).unwrap();
-    let source = tower::service_fn(move |()| {
-        let token = token.clone();
-        async move { Ok::<_, ExternalTokenError>(token) }
-    })
-    .boxed();
+    let mut source = MockTokenSourceService::new();
+    rover_tower::expect_poll_ready!(source);
+    source
+        .expect_call()
+        .times(1)
+        .return_once(move |()| futures::future::ready(Ok(token)));
     let result = source
+        .boxed()
         .map_response(|token| token.secret().to_owned())
         .oneshot(())
         .await;
