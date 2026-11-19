@@ -1,38 +1,15 @@
-use std::{fmt, future::Future, pin::Pin};
+use std::{future::Future, pin::Pin};
 
 use graphql_client::GraphQLQuery;
 use houston::CredentialOrigin;
 use rover_graphql::{GraphQLRequest, GraphQLServiceError};
 use tower::Service;
 
-use super::{types::QueryVariables, Actor, ConfigWhoAmIInput, RegistryIdentity};
+use super::{
+    config_who_am_i_query, types::QueryVariables, Actor, ConfigWhoAmIInput, ConfigWhoAmIQuery,
+    RegistryIdentity,
+};
 use crate::RoverClientError;
-
-#[derive(GraphQLQuery)]
-// The paths are relative to the directory where your `Cargo.toml` is located.
-// Both json and the GraphQL schema language are supported as sources for the schema
-#[graphql(
-    query_path = "src/operations/config/who_am_i/who_am_i_query.graphql",
-    schema_path = ".schema/schema.graphql",
-    response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
-    deprecated = "warn"
-)]
-/// This struct is used to generate the module containing `Variables` and
-/// `ResponseData` structs.
-/// Snake case of this name is the mod name. i.e. config_who_am_i_query
-pub struct ConfigWhoAmIQuery;
-
-impl fmt::Debug for config_who_am_i_query::Variables {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        f.debug_struct("Variables").finish()
-    }
-}
-
-impl PartialEq for config_who_am_i_query::Variables {
-    fn eq(&self, _other: &Self) -> bool {
-        true
-    }
-}
 
 #[derive(thiserror::Error, Debug)]
 pub enum WhoAmIError {
