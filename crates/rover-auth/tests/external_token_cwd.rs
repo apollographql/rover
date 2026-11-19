@@ -81,13 +81,17 @@ mod unix {
             path: PathBuf::from("access-token"),
             kind: ExternalTokenFailure::UnresolvableLocation,
         };
-        assert_that!(source.read().await).is_equal_to(Err(expected.clone()));
+        assert_that!(source.read().await)
+            .is_err()
+            .is_equal_to(&expected);
         assert_that!(expected.to_string()).is_equal_to(
             "External token source from APOLLO_ACCESS_TOKEN_FILE at 'access-token': the location cannot be resolved from the initial working directory; supply a valid absolute token-file path or invoke Rover from an accessible directory".to_string(),
         );
         env::set_current_dir(working_directory.directory.path()).unwrap();
         // Recovering cwd must not redirect the original source.
-        assert_that!(source.read().await).is_equal_to(Err(expected));
+        assert_that!(source.read().await)
+            .is_err()
+            .is_equal_to(expected);
     }
 
     #[rstest]
@@ -110,10 +114,12 @@ mod unix {
         #[from(deleted_working_directory)] _working_directory: WorkingDirectory,
     ) {
         let source = ExternalTokenSource::new("", ExternalTokenOrigin::Environment);
-        assert_that!(source.read().await).is_equal_to(Err(ExternalTokenError {
-            origin: ExternalTokenOrigin::Environment,
-            path: PathBuf::new(),
-            kind: ExternalTokenFailure::EmptyLocation,
-        }));
+        assert_that!(source.read().await)
+            .is_err()
+            .is_equal_to(ExternalTokenError {
+                origin: ExternalTokenOrigin::Environment,
+                path: PathBuf::new(),
+                kind: ExternalTokenFailure::EmptyLocation,
+            });
     }
 }
