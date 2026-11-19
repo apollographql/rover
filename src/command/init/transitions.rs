@@ -680,11 +680,7 @@ impl ProjectCreated {
             )
         );
         println!();
-        println!(
-            "   → API: {} | MCP: {}",
-            Style::Link.paint("http://localhost:4000"),
-            Style::Link.paint(mcp_local_endpoint())
-        );
+        println!("   {}", mcp_local_urls_line());
         println!();
 
         println!("3. Try it out in Claude:");
@@ -1033,18 +1029,9 @@ impl MCPGraphIdConfirmed {
         println!();
         println!("{}", Style::File.paint("What this template gives you"));
 
-        // Customize message based on data source type
-        match self.data_source_type {
-            MCPDataSourceType::ExternalAPIs => {
-                println!("- Example GraphQL schema and REST connectors");
-                println!("- Pre-configured MCP server with Docker setup");
-                println!("- Sample tools showing how to make APIs AI-callable");
-            }
-            MCPDataSourceType::GraphQLAPI => {
-                println!("- Example GraphQL schema and GraphQL connectors");
-                println!("- Pre-configured MCP server with Docker setup");
-                println!("- Sample tools showing how to make GraphQL APIs AI-callable");
-            }
+        // Describe the template that was actually composed (connectors or TypeScript)
+        for line in mcp_template_highlights(&self.composed_template.base_template) {
+            println!("- {line}");
         }
         println!();
 
