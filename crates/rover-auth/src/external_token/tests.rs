@@ -154,8 +154,9 @@ fn empty_sources_fail_on_read_with_their_provenance(
     let source = ExternalTokenSource::new("", origin);
     assert_that!(source.origin()).is_equal_to(origin);
     assert_that!(source.path()).is_equal_to(Path::new(""));
-    let error = source.read().unwrap_err();
-    assert_that!(&error).is_equal_to(&ExternalTokenError {
+    let result = source.read();
+    let error = assert_that!(result).is_err().subject;
+    assert_that!(error).is_equal_to(&ExternalTokenError {
         origin,
         path: PathBuf::new(),
         kind: ExternalTokenFailure::EmptyLocation,
