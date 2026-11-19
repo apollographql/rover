@@ -30,3 +30,16 @@ Unless you opt out, Rover reports the following data each time you run a command
 - The CI system `rover` was executed on, if any
 
 For more information on the data Apollo collects, see [our privacy policy](https://www.apollographql.com/Apollo-Privacy-Policy.pdf).
+
+## Request trace headers
+
+Every request Rover sends to the GraphOS Platform API carries two [W3C Trace Context](https://www.w3.org/TR/trace-context/) headers, so Apollo can follow a failed command through its services:
+
+- `traceparent` holds a trace ID and a parent ID. The trace ID is randomly generated each time you run `rover` and is shared by every Platform API request in that run. The parent ID is randomly generated for each attempt of a request, including retries.
+- `tracestate` holds a single entry, `rover=retries:<n>`, where `<n>` is the number of earlier attempts of the same request: `0` for the first attempt, `1` for the first retry, and so on.
+
+Neither header contains personally identifiable information. The IDs are random, and aren't derived from your machine, your account, or the identifiers Rover reports in [collected data](#collected-data). Platform API requests are authenticated, though, so Apollo can associate each request, and its trace, with the credential it was sent with.
+
+Opting out of data collection doesn't stop Rover sending these headers, because they're part of each request rather than data reported separately. Requests to other destinations, such as introspection endpoints, the plugin registry, OAuth login, and the telemetry endpoint, don't carry them.
+
+To see a run's trace ID, for example to share with Apollo support, run the command with `--log debug`.
