@@ -44,6 +44,31 @@ impl fmt::Display for ExternalTokenOrigin {
 pub struct ExternalAccessToken(String);
 
 impl ExternalAccessToken {
+    /// Parses raw token-file bytes with an optional final LF or CRLF.
+    ///
+    /// The size limit includes the line ending; other whitespace is rejected.
+    pub fn parse(bytes: &[u8]) -> Result<Self, ExternalTokenFailure> {
+        if bytes.len() > MAX_TOKEN_FILE_BYTES {
+            return Err(ExternalTokenFailure::TooLarge);
+        }
+        let bytes = bytes
+            .strip_suffix(b"\r\n")
+            .or_else(|| bytes.strip_suffix(b"\n"))
+            .unwrap_or(bytes);
+        let token =
+            std::str::from_utf8(bytes).map_err(|_| ExternalTokenFailure::InvalidContents)?;
+        let unpadded = token.trim_end_matches('=');
+        if unpadded.is_empty()
+            || !unpadded.bytes().all(|byte| {
+                byte.is_ascii_alphanumeric()
+                    || matches!(byte, b'-' | b'.' | b'_' | b'~' | b'+' | b'/')
+            })
+        {
+            return Err(ExternalTokenFailure::InvalidContents);
+        }
+        Ok(Self(token.to_owned()))
+    }
+
     /// Exposes the credential for authentication or deliberate identity unmasking.
     pub fn secret(&self) -> &str {
         &self.0
@@ -55,40 +80,13 @@ impl ExternalAccessToken {
             .take(MAX_TOKEN_FILE_BYTES as u64 + 1)
             .read_to_end(&mut bytes)
             .map_err(ExternalTokenFailure::from)?;
-        Self::try_from(bytes)
+        Self::parse(&bytes)
     }
 }
 
 impl fmt::Debug for ExternalAccessToken {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("ExternalAccessToken([REDACTED])")
-    }
-}
-
-impl TryFrom<Vec<u8>> for ExternalAccessToken {
-    type Error = ExternalTokenFailure;
-
-    fn try_from(mut bytes: Vec<u8>) -> Result<Self, Self::Error> {
-        if bytes.len() > MAX_TOKEN_FILE_BYTES {
-            return Err(ExternalTokenFailure::TooLarge);
-        }
-        if bytes.ends_with(b"\r\n") {
-            bytes.truncate(bytes.len() - 2);
-        } else if bytes.ends_with(b"\n") {
-            bytes.truncate(bytes.len() - 1);
-        }
-        let token =
-            std::str::from_utf8(&bytes).map_err(|_| ExternalTokenFailure::InvalidContents)?;
-        let unpadded = token.trim_end_matches('=');
-        if unpadded.is_empty()
-            || !unpadded.bytes().all(|byte| {
-                byte.is_ascii_alphanumeric()
-                    || matches!(byte, b'-' | b'.' | b'_' | b'~' | b'+' | b'/')
-            })
-        {
-            return Err(ExternalTokenFailure::InvalidContents);
-        }
-        Ok(Self(token.to_owned()))
     }
 }
 
