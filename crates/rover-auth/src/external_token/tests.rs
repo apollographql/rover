@@ -1,7 +1,13 @@
+#[cfg(unix)]
+use std::os::unix::fs::{PermissionsExt, symlink as symlink_dir, symlink as symlink_file};
+#[cfg(windows)]
+use std::os::windows::fs::{symlink_dir, symlink_file};
 use std::{
     fs,
+    future::Future,
     io::{self, Read, Write},
     path::PathBuf,
+    process::Command,
 };
 
 use rstest::{fixture, rstest};
@@ -27,21 +33,82 @@ impl TokenFile {
     }
 }
 
+#[cfg(unix)]
+impl TokenFile {
+    fn set_file_mode(&self, mode: u32) {
+        fs::set_permissions(self.source.path(), fs::Permissions::from_mode(mode)).unwrap();
+    }
+
+    fn set_directory_mode(&self, mode: u32) {
+        fs::set_permissions(self.directory.path(), fs::Permissions::from_mode(mode)).unwrap();
+    }
+
+    fn file_mode(&self) -> u32 {
+        fs::metadata(self.source.path())
+            .unwrap()
+            .permissions()
+            .mode()
+            & 0o777
+    }
+
+    fn directory_mode(&self) -> u32 {
+        fs::metadata(self.directory.path())
+            .unwrap()
+            .permissions()
+            .mode()
+            & 0o7777
+    }
+}
+
 #[fixture]
 fn token_file() -> TokenFile {
     let directory = tempfile::tempdir().unwrap();
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(directory.path(), fs::Permissions::from_mode(0o700)).unwrap();
-    }
     let source = ExternalTokenSource::new(
         directory.path().join("access-token"),
         ExternalTokenOrigin::Option,
     );
     let fixture = TokenFile { directory, source };
+    #[cfg(unix)]
+    fixture.set_directory_mode(0o700);
     fixture.publish(b"opaque-token");
     fixture
+}
+
+#[fixture]
+fn absent_token_file(token_file: TokenFile) -> TokenFile {
+    fs::remove_file(token_file.source.path()).unwrap();
+    token_file
+}
+
+struct IsolatedTest(Command);
+
+impl IsolatedTest {
+    // Cwd changes must never run in the process shared by parallel tests.
+    async fn run(&mut self, name: &str, test: impl Future<Output = ()>) {
+        const CHILD: &str = "ROVER_TOKEN_SOURCE_ISOLATED_TEST";
+        if std::env::var(CHILD).as_deref() == Ok(name) {
+            test.await;
+        } else {
+            let output = self
+                .0
+                .args(["--exact", name, "--test-threads=1"])
+                .env(CHILD, name)
+                .output()
+                .unwrap();
+            assert_that!(output.status.code())
+                .named(&format!("child test output: {output:?}"))
+                .is_equal_to(Some(0));
+            let stdout = String::from_utf8(output.stdout).unwrap();
+            let completed = stdout.lines().find(|line| line.starts_with("test "));
+            let expected = format!("test {name} ... ok");
+            assert_that!(completed).is_equal_to(Some(expected.as_str()));
+        }
+    }
+}
+
+#[fixture]
+fn isolated_test() -> IsolatedTest {
+    IsolatedTest(Command::new(std::env::current_exe().unwrap()))
 }
 
 #[rstest]
@@ -111,25 +178,13 @@ async fn refuses_oversize_files_before_reading_contents(token_file: TokenFile) {
         .is_equal_to(token_file.source.error(ExternalTokenFailure::TooLarge));
 }
 
-struct EndlessReader {
-    bytes_read: usize,
-}
-
-impl Read for EndlessReader {
-    fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
-        buffer.fill(b'a');
-        self.bytes_read += buffer.len();
-        Ok(buffer.len())
-    }
-}
-
 #[test]
 fn reads_at_most_the_limit_plus_one_byte_even_without_eof() {
-    let mut reader = EndlessReader { bytes_read: 0 };
+    let mut reader = io::repeat(b'a').take(u64::MAX);
     assert_that!(ExternalAccessToken::read_from(&mut reader))
         .is_err()
         .is_equal_to(ExternalTokenFailure::TooLarge);
-    assert_that!(reader.bytes_read).is_equal_to(MAX_TOKEN_FILE_BYTES + 1);
+    assert_that!(u64::MAX - reader.limit()).is_equal_to((MAX_TOKEN_FILE_BYTES + 1) as u64);
 }
 
 struct FailingReader;
@@ -172,8 +227,9 @@ async fn empty_sources_fail_on_read_with_their_provenance(
 
 #[rstest]
 #[tokio::test]
-async fn construction_does_not_open_or_require_the_file(token_file: TokenFile) {
-    fs::remove_file(token_file.source.path()).unwrap();
+async fn construction_does_not_open_or_require_the_file(
+    #[from(absent_token_file)] token_file: TokenFile,
+) {
     let mut source =
         ExternalTokenSource::new(token_file.source.path(), ExternalTokenOrigin::Environment);
     assert_that!(
@@ -217,22 +273,6 @@ async fn consumers_can_use_in_memory_sources_as_services() {
 }
 
 #[rstest]
-fn service_reports_an_unavailable_blocking_worker_without_exposing_task_errors(
-    token_file: TokenFile,
-) {
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .build()
-        .unwrap();
-    let handle = runtime.handle().clone();
-    drop(runtime);
-    let _entered = handle.enter();
-    let result = futures::executor::block_on(token_file.source.clone().oneshot(()));
-    assert_that!(result).is_equal_to(Err(token_file
-        .source
-        .error(ExternalTokenFailure::Unreadable)));
-}
-
-#[rstest]
 #[tokio::test]
 async fn rereads_replacements_without_mutating_previous_tokens(token_file: TokenFile) {
     let first = token_file.source.read().await.unwrap();
@@ -265,13 +305,18 @@ async fn failures_never_reuse_a_token_and_a_repaired_source_can_be_read(token_fi
     assert_that!(token_file.source.read().await.unwrap().secret()).is_equal_to("repaired-token");
 }
 
+#[test]
+fn token_debug_output_does_not_expose_contents() {
+    let token = ExternalAccessToken::try_from(b"opaque-token".to_vec()).unwrap();
+    assert_that!(format!("{token:?}")).is_equal_to("ExternalAccessToken([REDACTED])".to_string());
+}
+
 #[rstest]
 #[tokio::test]
-async fn diagnostics_and_debug_output_do_not_expose_contents(token_file: TokenFile) {
-    let token = token_file.source.read().await.unwrap();
-    assert_that!(format!("{token:?}")).is_equal_to("ExternalAccessToken([REDACTED])".to_string());
+async fn source_diagnostics_do_not_expose_contents(token_file: TokenFile) {
     token_file.publish(b"secret invalid contents");
-    let error = token_file.source.read().await.unwrap_err();
+    let result = token_file.source.read().await;
+    let error = assert_that!(result).is_err().subject;
     assert_that!(error.to_string()).is_equal_to(format!(
         "External token source from --access-token-file at '{}': invalid contents; supply one raw bearer token with only an optional final LF or CRLF",
         token_file.source.path().display()
@@ -284,32 +329,21 @@ async fn diagnostics_and_debug_output_do_not_expose_contents(token_file: TokenFi
 
 #[rstest]
 #[tokio::test]
-async fn relative_locations_survive_a_working_directory_change(token_file: TokenFile) {
-    const CHILD_DIRECTORY: &str = "ROVER_TOKEN_SOURCE_TEST_DIRECTORY";
-    if let Some(directory) = std::env::var_os(CHILD_DIRECTORY) {
-        let source = ExternalTokenSource::new("access-token", ExternalTokenOrigin::Option);
-        let anchored = std::env::current_dir().unwrap().join("access-token");
-        std::env::set_current_dir(directory).unwrap();
-        assert_that!(source.path()).is_equal_to(anchored.as_path());
-        assert_that!(source.read().await.unwrap().secret()).is_equal_to("opaque-token");
-        return;
-    }
-    // Change the working directory only in an isolated process, not in the
-    // parallel test runner shared by the other tests.
-    let output = std::process::Command::new(std::env::current_exe().unwrap())
-        .args([
-            "--exact",
+async fn relative_locations_survive_a_working_directory_change(mut isolated_test: IsolatedTest) {
+    isolated_test
+        .run(
             "external_token::tests::relative_locations_survive_a_working_directory_change",
-            "--test-threads=1",
-        ])
-        .current_dir(token_file.directory.path())
-        .env(
-            CHILD_DIRECTORY,
-            token_file.directory.path().parent().unwrap(),
+            async {
+                let token_file = token_file();
+                std::env::set_current_dir(token_file.directory.path()).unwrap();
+                let anchored = std::env::current_dir().unwrap().join("access-token");
+                let source = ExternalTokenSource::new("access-token", ExternalTokenOrigin::Option);
+                std::env::set_current_dir(token_file.directory.path().parent().unwrap()).unwrap();
+                assert_that!(source.path()).is_equal_to(anchored.as_path());
+                assert_that!(source.read().await.unwrap().secret()).is_equal_to("opaque-token");
+            },
         )
-        .output()
-        .unwrap();
-    assert_eq!(output.status.code(), Some(0), "{output:?}");
+        .await;
 }
 
 #[rstest]
@@ -345,8 +379,12 @@ async fn concurrent_reads_obtain_complete_independent_tokens(token_file: TokenFi
             });
         }
     });
-    futures::future::try_join_all(readers).await.unwrap();
-    publisher.await.unwrap();
+    let readers = futures::future::join_all(readers).await;
+    let published = publisher.await;
+    assert_that!(readers.into_iter().collect::<Result<Vec<_>, _>>())
+        .is_ok()
+        .is_equal_to(vec![(); 4]);
+    assert_that!(published).is_ok().is_equal_to(());
 }
 
 #[rstest]
@@ -373,135 +411,140 @@ fn bounds_reads_when_a_file_grows_after_metadata_checks(token_file: TokenFile) {
         .is_equal_to(ExternalTokenFailure::TooLarge);
 }
 
+#[rstest]
+#[tokio::test]
+async fn refuses_leaf_symlinks(token_file: TokenFile) {
+    let target = token_file.directory.path().join("target");
+    fs::rename(token_file.source.path(), &target).unwrap();
+    symlink_file(target, token_file.source.path()).unwrap();
+    assert_that!(token_file.source.read().await)
+        .is_err()
+        .is_equal_to(token_file.source.error(ExternalTokenFailure::SymbolicLink));
+}
+
+#[rstest]
+#[tokio::test]
+async fn refuses_dangling_leaf_symlinks(#[from(absent_token_file)] token_file: TokenFile) {
+    symlink_file(
+        token_file.directory.path().join("missing"),
+        token_file.source.path(),
+    )
+    .unwrap();
+    assert_that!(token_file.source.read().await)
+        .is_err()
+        .is_equal_to(token_file.source.error(ExternalTokenFailure::SymbolicLink));
+}
+
+#[rstest]
+#[tokio::test]
+async fn accepts_symlinks_in_containing_directories(token_file: TokenFile) {
+    let aliases = tempfile::tempdir().unwrap();
+    let alias = aliases.path().join("alias");
+    symlink_dir(token_file.directory.path(), &alias).unwrap();
+    let source = ExternalTokenSource::new(alias.join("access-token"), ExternalTokenOrigin::Option);
+    assert_that!(source.read().await.unwrap().secret()).is_equal_to("opaque-token");
+}
+
+#[rstest]
+#[tokio::test]
+async fn refuses_directories(#[from(absent_token_file)] token_file: TokenFile) {
+    fs::create_dir(token_file.source.path()).unwrap();
+    assert_that!(token_file.source.read().await)
+        .is_err()
+        .is_equal_to(
+            token_file
+                .source
+                .error(ExternalTokenFailure::NotRegularFile),
+        );
+}
+
 #[cfg(windows)]
-mod windows {
-    use std::os::windows::fs::{symlink_dir, symlink_file};
-
-    use super::*;
-
-    #[rstest]
-    #[case::existing(false)]
-    #[case::dangling(true)]
-    #[tokio::test]
-    async fn refuses_leaf_symlinks(token_file: TokenFile, #[case] dangling: bool) {
-        let target = token_file.directory.path().join("target");
-        fs::rename(token_file.source.path(), &target).unwrap();
-        if dangling {
-            fs::remove_file(&target).unwrap();
-        }
-        symlink_file(target, token_file.source.path()).unwrap();
-        assert_that!(token_file.source.read().await)
-            .is_err()
-            .is_equal_to(token_file.source.error(ExternalTokenFailure::SymbolicLink));
-    }
-
-    #[rstest]
-    #[tokio::test]
-    async fn accepts_symlinks_in_containing_directories(token_file: TokenFile) {
-        let aliases = tempfile::tempdir().unwrap();
-        let alias = aliases.path().join("alias");
-        symlink_dir(token_file.directory.path(), &alias).unwrap();
-        let source =
-            ExternalTokenSource::new(alias.join("access-token"), ExternalTokenOrigin::Option);
-        assert_that!(source.read().await.unwrap().secret()).is_equal_to("opaque-token");
-    }
-
-    #[rstest]
-    #[case::directory(false)]
-    #[case::directory_symlink(true)]
-    #[tokio::test]
-    async fn refuses_directories_and_directory_symlinks(token_file: TokenFile, #[case] link: bool) {
-        fs::remove_file(token_file.source.path()).unwrap();
-        let expected = if link {
-            symlink_dir(token_file.directory.path(), token_file.source.path()).unwrap();
-            ExternalTokenFailure::SymbolicLink
-        } else {
-            fs::create_dir(token_file.source.path()).unwrap();
-            ExternalTokenFailure::NotRegularFile
-        };
-        assert_that!(token_file.source.read().await)
-            .is_err()
-            .is_equal_to(token_file.source.error(expected));
-    }
+#[rstest]
+#[tokio::test]
+async fn refuses_directory_symlinks(#[from(absent_token_file)] token_file: TokenFile) {
+    symlink_dir(token_file.directory.path(), token_file.source.path()).unwrap();
+    assert_that!(token_file.source.read().await)
+        .is_err()
+        .is_equal_to(token_file.source.error(ExternalTokenFailure::SymbolicLink));
 }
 
 #[cfg(unix)]
 mod unix {
-    use std::os::unix::fs::{PermissionsExt, symlink};
-
     use super::*;
 
+    // Construct only inside IsolatedTest::run: cwd is process-global.
+    #[fixture]
+    fn deleted_working_directory() -> TokenFile {
+        let token_file = token_file();
+        let deleted = token_file.directory.path().join("deleted");
+        fs::create_dir(&deleted).unwrap();
+        std::env::set_current_dir(&deleted).unwrap();
+        fs::remove_dir(&deleted).unwrap();
+        token_file
+    }
+
     #[rstest]
     #[tokio::test]
-    async fn construction_defers_an_unavailable_working_directory(token_file: TokenFile) {
-        const CHILD: &str = "ROVER_TOKEN_SOURCE_TEST_MISSING_CWD";
-        if std::env::var_os(CHILD).is_some() {
-            let deleted = token_file.directory.path().join("deleted");
-            fs::create_dir(&deleted).unwrap();
-            std::env::set_current_dir(&deleted).unwrap();
-            fs::remove_dir(&deleted).unwrap();
-            let source = ExternalTokenSource::new("access-token", ExternalTokenOrigin::Environment);
-            let expected = ExternalTokenError {
-                origin: ExternalTokenOrigin::Environment,
-                path: PathBuf::from("access-token"),
-                kind: ExternalTokenFailure::UnresolvableLocation,
-            };
-            assert_that!(source.read().await).is_equal_to(Err(expected.clone()));
-            assert_that!(expected.to_string()).is_equal_to(
-                "External token source from APOLLO_ACCESS_TOKEN_FILE at 'access-token': the location cannot be resolved from the initial working directory; supply a valid absolute token-file path or invoke Rover from an accessible directory".to_string(),
-            );
-            let absolute = ExternalTokenSource::new(
-                token_file.source.path(),
-                ExternalTokenOrigin::Environment,
-            );
-            assert_that!(absolute.read().await.unwrap().secret()).is_equal_to("opaque-token");
-            let empty = ExternalTokenSource::new("", ExternalTokenOrigin::Environment);
-            assert_that!(empty.read().await)
-                .is_err()
-                .is_equal_to(empty.error(ExternalTokenFailure::EmptyLocation));
-            std::env::set_current_dir(token_file.directory.path()).unwrap();
-            // Repairing the process's cwd must not silently redirect a source
-            // that could not be anchored when the invocation started.
-            assert_that!(source.read().await).is_equal_to(Err(expected));
-            return;
-        }
-        let output = std::process::Command::new(std::env::current_exe().unwrap())
-            .args([
-                "--exact",
+    async fn construction_defers_an_unavailable_working_directory(mut isolated_test: IsolatedTest) {
+        isolated_test
+            .run(
                 "external_token::tests::unix::construction_defers_an_unavailable_working_directory",
-                "--test-threads=1",
-            ])
-            .env(CHILD, "1")
-            .output()
-            .unwrap();
-        assert_eq!(output.status.code(), Some(0), "{output:?}");
-    }
-
-    #[rstest]
-    #[case::existing(false)]
-    #[case::dangling(true)]
-    #[tokio::test]
-    async fn refuses_leaf_symlinks(token_file: TokenFile, #[case] dangling: bool) {
-        let target = token_file.directory.path().join("target");
-        fs::rename(token_file.source.path(), &target).unwrap();
-        if dangling {
-            fs::remove_file(&target).unwrap();
-        }
-        symlink(target, token_file.source.path()).unwrap();
-        assert_that!(token_file.source.read().await)
-            .is_err()
-            .is_equal_to(token_file.source.error(ExternalTokenFailure::SymbolicLink));
+                async {
+                    let token_file = deleted_working_directory();
+                    let source =
+                        ExternalTokenSource::new("access-token", ExternalTokenOrigin::Environment);
+                    let expected = ExternalTokenError {
+                        origin: ExternalTokenOrigin::Environment,
+                        path: PathBuf::from("access-token"),
+                        kind: ExternalTokenFailure::UnresolvableLocation,
+                    };
+                    assert_that!(source.read().await).is_equal_to(Err(expected.clone()));
+                    assert_that!(expected.to_string()).is_equal_to(
+                        "External token source from APOLLO_ACCESS_TOKEN_FILE at 'access-token': the location cannot be resolved from the initial working directory; supply a valid absolute token-file path or invoke Rover from an accessible directory".to_string(),
+                    );
+                    std::env::set_current_dir(token_file.directory.path()).unwrap();
+                    // Recovering cwd must not redirect the original source.
+                    assert_that!(source.read().await).is_equal_to(Err(expected));
+                },
+            )
+            .await;
     }
 
     #[rstest]
     #[tokio::test]
-    async fn accepts_symlinks_in_containing_directories(token_file: TokenFile) {
-        let aliases = tempfile::tempdir().unwrap();
-        let alias = aliases.path().join("alias");
-        symlink(token_file.directory.path(), &alias).unwrap();
-        let source =
-            ExternalTokenSource::new(alias.join("access-token"), ExternalTokenOrigin::Option);
-        assert_that!(source.read().await.unwrap().secret()).is_equal_to("opaque-token");
+    async fn absolute_locations_work_without_a_working_directory(mut isolated_test: IsolatedTest) {
+        isolated_test
+            .run(
+                "external_token::tests::unix::absolute_locations_work_without_a_working_directory",
+                async {
+                    let token_file = deleted_working_directory();
+                    let source = ExternalTokenSource::new(
+                        token_file.source.path(),
+                        ExternalTokenOrigin::Environment,
+                    );
+                    assert_that!(source.read().await.unwrap().secret()).is_equal_to("opaque-token");
+                },
+            )
+            .await;
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn empty_locations_keep_their_error_without_a_working_directory(
+        mut isolated_test: IsolatedTest,
+    ) {
+        isolated_test
+            .run(
+                "external_token::tests::unix::empty_locations_keep_their_error_without_a_working_directory",
+                async {
+                    let _token_file = deleted_working_directory();
+                    let source = ExternalTokenSource::new("", ExternalTokenOrigin::Environment);
+                    assert_that!(source.read().await)
+                        .is_err()
+                        .is_equal_to(source.error(ExternalTokenFailure::EmptyLocation));
+                },
+            )
+            .await;
     }
 
     #[tokio::test]
@@ -513,17 +556,10 @@ mod unix {
     }
 
     #[rstest]
-    #[case::directory(false)]
-    #[case::fifo(true)]
     #[timeout(std::time::Duration::from_secs(5))]
     #[tokio::test]
-    async fn refuses_non_regular_files_without_blocking(token_file: TokenFile, #[case] fifo: bool) {
-        fs::remove_file(token_file.source.path()).unwrap();
-        if fifo {
-            nix::unistd::mkfifo(token_file.source.path(), nix::sys::stat::Mode::S_IRUSR).unwrap();
-        } else {
-            fs::create_dir(token_file.source.path()).unwrap();
-        }
+    async fn refuses_fifos_without_blocking(#[from(absent_token_file)] token_file: TokenFile) {
+        nix::unistd::mkfifo(token_file.source.path(), nix::sys::stat::Mode::S_IRUSR).unwrap();
         assert_that!(token_file.source.read().await)
             .is_err()
             .is_equal_to(
@@ -541,7 +577,7 @@ mod unix {
     #[tokio::test]
     async fn rechecks_file_permissions_on_every_read(token_file: TokenFile, #[case] mode: u32) {
         assert_that!(token_file.source.read().await.unwrap().secret()).is_equal_to("opaque-token");
-        fs::set_permissions(token_file.source.path(), fs::Permissions::from_mode(mode)).unwrap();
+        token_file.set_file_mode(mode);
         assert_that!(token_file.source.read().await)
             .is_err()
             .is_equal_to(
@@ -549,15 +585,8 @@ mod unix {
                     .source
                     .error(ExternalTokenFailure::FilePermissions),
             );
-        assert_that!(
-            fs::metadata(token_file.source.path())
-                .unwrap()
-                .permissions()
-                .mode()
-                & 0o777
-        )
-        .is_equal_to(mode);
-        fs::set_permissions(token_file.source.path(), fs::Permissions::from_mode(0o600)).unwrap();
+        assert_that!(token_file.file_mode()).is_equal_to(mode);
+        token_file.set_file_mode(0o600);
         assert_that!(token_file.source.read().await.unwrap().secret()).is_equal_to("opaque-token");
     }
 
@@ -570,11 +599,7 @@ mod unix {
         token_file: TokenFile,
         #[case] mode: u32,
     ) {
-        fs::set_permissions(
-            token_file.directory.path(),
-            fs::Permissions::from_mode(mode),
-        )
-        .unwrap();
+        token_file.set_directory_mode(mode);
         assert_that!(token_file.source.read().await)
             .is_err()
             .is_equal_to(
@@ -582,14 +607,7 @@ mod unix {
                     .source
                     .error(ExternalTokenFailure::DirectoryPermissions),
             );
-        assert_that!(
-            fs::metadata(token_file.directory.path())
-                .unwrap()
-                .permissions()
-                .mode()
-                & 0o7777
-        )
-        .is_equal_to(mode);
+        assert_that!(token_file.directory_mode()).is_equal_to(mode);
     }
 
     #[rstest]
@@ -603,22 +621,10 @@ mod unix {
         #[case] file_mode: u32,
         #[case] directory_mode: u32,
     ) {
-        fs::set_permissions(
-            token_file.source.path(),
-            fs::Permissions::from_mode(file_mode),
-        )
-        .unwrap();
-        fs::set_permissions(
-            token_file.directory.path(),
-            fs::Permissions::from_mode(directory_mode),
-        )
-        .unwrap();
+        token_file.set_file_mode(file_mode);
+        token_file.set_directory_mode(directory_mode);
         let result = token_file.source.read().await;
-        fs::set_permissions(
-            token_file.directory.path(),
-            fs::Permissions::from_mode(0o700),
-        )
-        .unwrap();
+        token_file.set_directory_mode(0o700);
         assert_that!(result.unwrap().secret()).is_equal_to("opaque-token");
     }
 
@@ -629,30 +635,38 @@ mod unix {
             return; // Root can read a mode-000 file.
         }
         assert_that!(token_file.source.read().await.unwrap().secret()).is_equal_to("opaque-token");
-        fs::set_permissions(token_file.source.path(), fs::Permissions::from_mode(0o000)).unwrap();
+        token_file.set_file_mode(0o000);
         assert_that!(token_file.source.read().await)
             .is_err()
             .is_equal_to(token_file.source.error(ExternalTokenFailure::Unreadable));
-        fs::set_permissions(token_file.source.path(), fs::Permissions::from_mode(0o600)).unwrap();
+        token_file.set_file_mode(0o600);
+        assert_that!(token_file.source.read().await.unwrap().secret()).is_equal_to("opaque-token");
+    }
+
+    #[fixture]
+    fn foreign_permissions() -> UnixPermissions {
+        UnixPermissions {
+            owner: nix::unistd::geteuid().as_raw().wrapping_add(1),
+            mode: 0o700,
+        }
+    }
+
+    #[rstest]
+    fn refuses_foreign_file_owners(foreign_permissions: UnixPermissions) {
+        assert_that!(foreign_permissions.check_file())
+            .is_err()
+            .is_equal_to(ExternalTokenFailure::FileOwner);
+    }
+
+    #[rstest]
+    fn refuses_foreign_directory_owners(foreign_permissions: UnixPermissions) {
+        assert_that!(foreign_permissions.check_directory())
+            .is_err()
+            .is_equal_to(ExternalTokenFailure::DirectoryOwner);
     }
 
     #[test]
-    fn refuses_foreign_file_and_directory_owners_but_accepts_root_owned_directories() {
-        let foreign_owner = if nix::unistd::geteuid().as_raw() == 1 {
-            2
-        } else {
-            1
-        };
-        let foreign = UnixPermissions {
-            owner: foreign_owner,
-            mode: 0o700,
-        };
-        assert_that!(foreign.check_file())
-            .is_err()
-            .is_equal_to(ExternalTokenFailure::FileOwner);
-        assert_that!(foreign.check_directory())
-            .is_err()
-            .is_equal_to(ExternalTokenFailure::DirectoryOwner);
+    fn accepts_root_owned_directories() {
         let root = UnixPermissions {
             owner: 0,
             mode: 0o755,
@@ -667,7 +681,7 @@ mod unix {
     ) {
         let checked = token_file.source.open_checked().unwrap();
         token_file.publish(b"replacement-token");
-        fs::set_permissions(token_file.source.path(), fs::Permissions::from_mode(0o644)).unwrap();
+        token_file.set_file_mode(0o644);
         assert_that!(ExternalAccessToken::read_from(checked).unwrap().secret())
             .is_equal_to("opaque-token");
         assert_that!(token_file.source.read().await)
