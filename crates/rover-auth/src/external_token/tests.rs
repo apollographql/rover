@@ -98,7 +98,7 @@ fn accepts_raw_bearer_tokens_without_inspecting_claims(
     #[values("", "\n", "\r\n")] ending: &str,
 ) {
     let bytes = format!("{token}{ending}").into_bytes();
-    assert_that!(ExternalAccessToken::try_from(bytes).unwrap().secret()).is_equal_to(token);
+    assert_that!(ExternalAccessToken::parse(&bytes).unwrap().secret()).is_equal_to(token);
 }
 
 #[rstest]
@@ -125,9 +125,34 @@ fn accepts_raw_bearer_tokens_without_inspecting_claims(
 #[case::padding_before_suffix(b"token=+")]
 #[case::quoted(b"\"token\"")]
 fn rejects_invalid_token_contents_without_returning_them(#[case] bytes: &[u8]) {
-    assert_that!(ExternalAccessToken::try_from(bytes.to_vec()))
+    assert_that!(ExternalAccessToken::parse(bytes))
         .is_err()
         .is_equal_to(ExternalTokenFailure::InvalidContents);
+}
+
+#[rstest]
+#[case::without_ending("", MAX_TOKEN_FILE_BYTES)]
+#[case::with_lf("\n", MAX_TOKEN_FILE_BYTES - 1)]
+#[case::with_crlf("\r\n", MAX_TOKEN_FILE_BYTES - 2)]
+fn parses_exactly_sixteen_kib_including_the_line_ending(
+    #[case] ending: &str,
+    #[case] token_length: usize,
+) {
+    let token = "a".repeat(token_length);
+    let bytes = format!("{token}{ending}").into_bytes();
+    assert_that!(ExternalAccessToken::parse(&bytes).unwrap().secret()).is_equal_to(token.as_str());
+}
+
+#[rstest]
+#[case::without_ending("")]
+#[case::with_lf("\n")]
+#[case::with_crlf("\r\n")]
+fn parsing_refuses_oversize_input_including_the_line_ending(#[case] ending: &str) {
+    let token = "a".repeat(MAX_TOKEN_FILE_BYTES + 1 - ending.len());
+    let bytes = format!("{token}{ending}").into_bytes();
+    assert_that!(ExternalAccessToken::parse(&bytes))
+        .is_err()
+        .is_equal_to(ExternalTokenFailure::TooLarge);
 }
 
 #[rstest]
@@ -235,7 +260,7 @@ async fn consumers_can_use_file_sources_as_services(token_file: TokenFile) {
 
 #[tokio::test]
 async fn consumers_can_use_in_memory_sources_as_services() {
-    let token = ExternalAccessToken::try_from(b"opaque-token".to_vec()).unwrap();
+    let token = ExternalAccessToken::parse(b"opaque-token").unwrap();
     let mut source = MockTokenSourceService::new();
     rover_tower::expect_poll_ready!(source);
     source
@@ -285,7 +310,7 @@ async fn failures_never_reuse_a_token_and_a_repaired_source_can_be_read(token_fi
 
 #[test]
 fn token_debug_output_does_not_expose_contents() {
-    let token = ExternalAccessToken::try_from(b"opaque-token".to_vec()).unwrap();
+    let token = ExternalAccessToken::parse(b"opaque-token").unwrap();
     assert_that!(format!("{token:?}")).is_equal_to("ExternalAccessToken([REDACTED])".to_string());
 }
 
