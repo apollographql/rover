@@ -1,8 +1,9 @@
 //! Application-owned bearer tokens. This module never persists or refreshes a credential.
 //!
-//! Construct the source once, then call [`ExternalTokenSource::read`] before each
-//! Platform API attempt. Selecting credentials and attaching them to requests belong
-//! to callers; merely constructing a source does not open its file.
+//! Construct the source once, then call
+//! [`ExternalTokenSource::read`](crate::external_token::ExternalTokenSource::read)
+//! before each Platform API attempt. Selecting credentials and attaching them to
+//! requests belong to callers; merely constructing a source does not open its file.
 
 use std::{
     fmt,
@@ -10,6 +11,9 @@ use std::{
     io::{self, Read},
     path::{Path, PathBuf},
 };
+
+use rover_tower::ResponseFuture;
+use tower::Service;
 
 /// Maximum token-file size, including its optional line ending.
 pub const MAX_TOKEN_FILE_BYTES: usize = 16 * 1024;
@@ -38,16 +42,6 @@ impl fmt::Display for ExternalTokenOrigin {
 /// credential requires an explicit call to [`Self::secret`].
 #[derive(Clone, PartialEq, Eq)]
 pub struct ExternalAccessToken(String);
-
-/// Supplies the current bearer token independently of how it is stored.
-///
-/// Each call must obtain the current token, without falling back to an earlier
-/// value after a failure. File-backed reads are blocking; async consumers must
-/// offload them to a blocking worker instead of blocking a runtime worker.
-pub trait BearerTokenSource {
-    /// Obtains the current token or a source diagnostic that contains no secret.
-    fn read(&self) -> Result<ExternalAccessToken, ExternalTokenError>;
-}
 
 impl ExternalAccessToken {
     /// Exposes the credential for authentication or deliberate identity unmasking.
@@ -181,6 +175,10 @@ impl fmt::Display for ExternalTokenError {
 }
 
 /// A read-only, non-caching source whose relative location is anchored at construction.
+///
+/// Implements [`Service<()>`] so consumers can inject any service returning an
+/// [`ExternalAccessToken`]. Each call reads anew; becoming ready does not access
+/// the file. Callers may clone the source for independent concurrent reads.
 #[derive(Clone, Debug)]
 pub struct ExternalTokenSource {
     path: PathBuf,
@@ -227,10 +225,17 @@ impl ExternalTokenSource {
 
     /// Opens, checks, and reads the source anew, without changing it or caching a token.
     ///
-    /// This performs blocking filesystem I/O. Async consumers must offload it
-    /// to a blocking worker, for example with [`tokio::task::spawn_blocking`].
-    pub fn read(&self) -> Result<ExternalAccessToken, ExternalTokenError> {
-        BearerTokenSource::read(self)
+    /// Requires a Tokio runtime. The complete open/check/read sequence runs on
+    /// one blocking worker, never on an async runtime worker. Dropping the
+    /// future does not stop a blocking operation that has already started.
+    pub async fn read(&self) -> Result<ExternalAccessToken, ExternalTokenError> {
+        let source = self.clone();
+        tokio::task::spawn_blocking(move || {
+            let file = source.open_checked().map_err(|kind| source.error(kind))?;
+            ExternalAccessToken::read_from(file).map_err(|kind| source.error(kind))
+        })
+        .await
+        .map_err(|_| self.error(ExternalTokenFailure::Unreadable))?
     }
 
     fn error(&self, kind: ExternalTokenFailure) -> ExternalTokenError {
@@ -344,10 +349,16 @@ impl ExternalTokenSource {
     }
 }
 
-impl BearerTokenSource for ExternalTokenSource {
-    fn read(&self) -> Result<ExternalAccessToken, ExternalTokenError> {
-        let file = self.open_checked().map_err(|kind| self.error(kind))?;
-        ExternalAccessToken::read_from(file).map_err(|kind| self.error(kind))
+impl Service<()> for ExternalTokenSource {
+    type Response = ExternalAccessToken;
+    type Error = ExternalTokenError;
+    type Future = ResponseFuture<Result<Self::Response, Self::Error>>;
+
+    rover_tower::default_poll_ready!();
+
+    fn call(&mut self, (): ()) -> Self::Future {
+        let source = self.clone();
+        Box::pin(async move { source.read().await })
     }
 }
 
