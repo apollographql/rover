@@ -39,11 +39,13 @@ This single input covers short-lived and long-running commands. A second input c
 The token is a credential, so Rover checks the file the way SSH checks a private key, as a second line of defense behind the application's own handling. On every read, Rover refuses the file if:
 
 - The configured path is itself a symlink. Symlinks in the folders above the file are allowed, since some systems' standard temporary locations use them.
-- Other users can read or write the file, or the file is owned by someone other than the user running Rover.
-- The folder that holds the file is owned by someone other than the user running Rover or the system administrator, or can be written to by its group or other users, which would let them replace the file. As with SSH's `StrictModes`, the folder's sticky bit does not excuse a world-writable folder, so a file placed directly in `/tmp` is refused.
+- On Unix, other users can read or write the file, or the file is owned by someone other than the user running Rover.
+- On Unix, the folder that holds the file is owned by someone other than the user running Rover or the system administrator, or can be written to by its group or other users, which would let them replace the file. As with SSH's `StrictModes`, the folder's sticky bit does not excuse a world-writable folder, so a file placed directly in `/tmp` is refused.
 - It is larger than any real access token could be. Rover reads at most a small fixed size and does not load an oversized file into memory.
 
-On Windows, file and folder access is controlled by access-control lists rather than Unix permission bits, and checking those is out of scope for the first version. There, Rover applies only the symlink and size checks.
+The ownership and permission checks apply to the values reported by every filesystem on Unix, including filesystems that emulate Unix permissions or report fixed values. There is no filesystem-type or mount-option exemption. An application must choose a location whose reported ownership and permissions pass the checks.
+
+On Windows, file and folder access is controlled by access-control lists rather than Unix permission bits, and checking those is out of scope for the first version. There, Rover applies only the symlink, size, and same-file checks.
 
 A refused file is handled like an unreadable one. The error says which check failed and how to fix it, but does not show the token or the file's contents.
 
