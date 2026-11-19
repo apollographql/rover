@@ -13,7 +13,7 @@ use rover_auth::{
     },
 };
 use rover_client::{
-    blocking::{StudioClient, StudioCredentialOrigin},
+    blocking::{ExternalTokenCapture, StudioClient, StudioCredentialOrigin},
     RoverClientError,
 };
 use rover_graphql::{GraphQLRequest, GraphQLService, GraphQLServiceError};
@@ -137,6 +137,64 @@ fn token_file() -> TokenFile {
     };
     file.publish(b"A");
     file
+}
+
+#[rstest]
+#[case::success(200, "A")]
+#[case::transient_retry(500, "B")]
+#[case::unauthorized(401, "B")]
+#[case::not_acceptable(406, "B")]
+#[tokio::test]
+async fn identity_capture_keeps_the_final_attempt_token_not_a_later_file_replacement(
+    token_file: TokenFile,
+    #[case] status: u16,
+    #[case] expected: &str,
+) {
+    let server = MockServer::start_async().await;
+    let path = token_file.path.clone();
+    let first = server.mock(|when, then| {
+        when.method(POST).header("authorization", "Bearer A");
+        then.respond_with(move |_| {
+            TokenFile::publish_to(&path, b"B");
+            http::Response::builder()
+                .status(status)
+                .body(json!({"data": {"value": "accepted"}}).to_string())
+                .unwrap()
+                .into()
+        });
+    });
+    let path = token_file.path.clone();
+    let second = server.mock(|when, then| {
+        when.method(POST).header("authorization", "Bearer B");
+        then.respond_with(move |_| {
+            TokenFile::publish_to(&path, b"C");
+            http::Response::builder()
+                .status(200)
+                .body(json!({"data": {"value": "accepted"}}).to_string())
+                .unwrap()
+                .into()
+        });
+    });
+    let capture = ExternalTokenCapture::default();
+    let client = token_file.client(&server);
+    let service = client
+        .studio_graphql_service_with_external_token_capture(capture.clone(), Duration::from_secs(2))
+        .unwrap();
+
+    let result = service
+        .oneshot(GraphQLRequest::<ExternalQuery>::new(json!({})))
+        .await;
+
+    assert_that!(result.map_err(|error| error.to_string()))
+        .is_ok()
+        .is_equal_to(json!({"value": "accepted"}));
+    assert_that!(format!("{capture:?}"))
+        .is_equal_to("ExternalTokenCapture([REDACTED])".to_string());
+    assert_that!(capture.take().map(|token| token.secret().to_string()))
+        .is_equal_to(Some(expected.to_string()));
+    assert_that!(capture.take()).is_equal_to(None);
+    first.assert_calls(1);
+    second.assert_calls(usize::from(status != 200));
 }
 
 #[rstest]
