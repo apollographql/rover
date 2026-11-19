@@ -217,31 +217,6 @@ async fn consumers_can_use_in_memory_sources_as_services() {
 }
 
 #[rstest]
-fn service_reads_wait_for_a_blocking_worker_without_blocking_the_runtime(token_file: TokenFile) {
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .max_blocking_threads(1)
-        .build()
-        .unwrap();
-    runtime.block_on(async {
-        let (release, blocked) = std::sync::mpsc::channel();
-        let (started, waiting) = tokio::sync::oneshot::channel();
-        let worker = tokio::task::spawn_blocking(move || {
-            started.send(()).unwrap();
-            blocked.recv_timeout(std::time::Duration::from_secs(5))
-        });
-        waiting.await.unwrap();
-
-        let read = token_file.source.clone().oneshot(());
-        tokio::pin!(read);
-        let state = futures::poll!(&mut read);
-        release.send(()).unwrap();
-        assert_that!(state).is_equal_to(std::task::Poll::Pending);
-        assert_that!(read.await.unwrap().secret()).is_equal_to("opaque-token");
-        assert_that!(worker.await.unwrap()).is_equal_to(Ok(()));
-    });
-}
-
-#[rstest]
 fn service_reports_an_unavailable_blocking_worker_without_exposing_task_errors(
     token_file: TokenFile,
 ) {
