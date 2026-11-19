@@ -49,11 +49,12 @@ fn token_file() -> TokenFile {
 #[case::one_padding("token=")]
 #[case::many_padding("token====")]
 #[case::jwt("eyJhbGciOiJub25lIn0.eyJleHAiOjF9.signature")]
-fn accepts_raw_bearer_tokens_without_inspecting_claims(#[case] token: &str) {
-    for ending in ["", "\n", "\r\n"] {
-        let bytes = format!("{token}{ending}").into_bytes();
-        assert_that!(ExternalAccessToken::try_from(bytes).unwrap().secret()).is_equal_to(token);
-    }
+fn accepts_raw_bearer_tokens_without_inspecting_claims(
+    #[case] token: &str,
+    #[values("", "\n", "\r\n")] ending: &str,
+) {
+    let bytes = format!("{token}{ending}").into_bytes();
+    assert_that!(ExternalAccessToken::try_from(bytes).unwrap().secret()).is_equal_to(token);
 }
 
 #[rstest]
