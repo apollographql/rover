@@ -8,6 +8,7 @@ use std::{
     path::PathBuf,
 };
 
+use futures::{StreamExt, stream};
 use rstest::{fixture, rstest};
 use speculoos::prelude::*;
 use tempfile::{NamedTempFile, TempDir};
@@ -312,53 +313,37 @@ async fn concurrent_reads_obtain_complete_independent_tokens(token_file: TokenFi
     let new = "b".repeat(1024);
     let expected_tokens = [Ok(old.clone()), Ok(new.clone())];
     token_file.publish(old.as_bytes());
-    let barrier = std::sync::Arc::new(tokio::sync::Barrier::new(5));
-    let mut readers = Vec::new();
-    for _ in 0..4 {
-        let source = token_file.source.clone();
-        let barrier = barrier.clone();
-        readers.push(tokio::spawn(async move {
-            barrier.wait().await;
-            let mut reads = Vec::new();
-            for _ in 0..100 {
-                reads.push(
-                    source
-                        .clone()
-                        .oneshot(())
-                        .await
-                        .map(|token| token.secret().to_owned()),
-                );
+    let readers = stream::iter(0..400)
+        .map(|read| {
+            let source = token_file.source.clone();
+            async move {
+                let result = source
+                    .oneshot(())
+                    .await
+                    .map(|token| token.secret().to_owned());
+                (read, result)
             }
-            reads
-        }));
-    }
-    barrier.wait().await;
-    let publisher_file = token_file.clone();
-    let publisher = tokio::task::spawn_blocking(move || {
-        for index in 0..100 {
-            publisher_file.publish(if index % 2 == 0 {
-                new.as_bytes()
-            } else {
-                old.as_bytes()
-            });
-        }
-    });
-    let readers = futures::future::join_all(readers).await;
-    let published = publisher.await;
-    let reader_results = readers.into_iter().collect::<Result<Vec<_>, _>>();
-    let reader_results = assert_that!(reader_results).is_ok().subject;
-    let read_counts = reader_results.iter().map(Vec::len).collect::<Vec<_>>();
-    assert_that!(read_counts).is_equal_to(vec![100; 4]);
-    let unexpected_reads = reader_results
-        .iter()
-        .enumerate()
-        .flat_map(|(reader, reads)| {
-            reads
-                .iter()
-                .enumerate()
-                .map(move |(read, result)| (reader, read, result))
         })
-        .filter(|(_, _, result)| !expected_tokens.contains(result))
+        .buffer_unordered(4)
+        .collect::<Vec<_>>();
+    let publisher_file = token_file.clone();
+    let publisher = async move {
+        tokio::task::spawn_blocking(move || {
+            for index in 0..100 {
+                publisher_file.publish(if index % 2 == 0 {
+                    new.as_bytes()
+                } else {
+                    old.as_bytes()
+                });
+            }
+        })
+        .await
+    };
+    let (reader_results, published) = futures::join!(readers, publisher);
+    assert_that!(reader_results.len()).is_equal_to(400);
+    let unexpected_reads = reader_results
+        .into_iter()
+        .filter(|(_, result)| !expected_tokens.contains(result))
         .collect::<Vec<_>>();
     assert_that!(unexpected_reads).is_equal_to(Vec::new());
     assert_that!(published).is_ok().is_equal_to(());
