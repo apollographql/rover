@@ -52,6 +52,19 @@ impl ExternalAuthError {
             _ => None,
         }
     }
+
+    /// Finds an external-authentication diagnostic through operation and HTTP wrappers.
+    pub fn find_in_chain<'a>(error: &'a (dyn std::error::Error + 'static)) -> Option<&'a Self> {
+        std::iter::successors(Some(error), |error| error.source())
+            .take(64)
+            .find_map(|error| {
+                error.downcast_ref::<Self>().or_else(|| {
+                    error
+                        .downcast_ref::<HttpServiceError>()
+                        .and_then(Self::from_http_error)
+                })
+            })
+    }
 }
 
 #[derive(Default)]
@@ -213,6 +226,7 @@ where
             if state.resend_used.swap(true, Ordering::Relaxed) {
                 return Err(ExternalAuthError::Rejected.into_http_error());
             }
+            drop(response);
             let replacement = source
                 .oneshot(())
                 .await

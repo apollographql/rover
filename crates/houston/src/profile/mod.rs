@@ -52,7 +52,9 @@ impl Credential {
     pub fn api_key(&self) -> Option<Result<ApiKey<'_>, MalformedApiKey>> {
         match self.origin {
             CredentialOrigin::OauthAuthorizationPkce(_)
-            | CredentialOrigin::OauthClientCredentials => None,
+            | CredentialOrigin::OauthClientCredentials
+            | CredentialOrigin::ExternalTokenFileOption
+            | CredentialOrigin::ExternalTokenFileEnvironment => None,
             CredentialOrigin::EnvVar | CredentialOrigin::ConfigFile(_) => {
                 Some(ApiKey::try_from(self.api_key.as_str()))
             }
@@ -93,6 +95,12 @@ pub enum CredentialOrigin {
     /// use. Unlike `OauthAuthorizationPkce`, this is never persisted to a profile,
     /// so it carries no name.
     OauthClientCredentials,
+
+    /// An application-owned token source selected by the global option, never stored.
+    ExternalTokenFileOption,
+
+    /// An application-owned token source selected by the environment, never stored.
+    ExternalTokenFileEnvironment,
 }
 
 impl Profile {

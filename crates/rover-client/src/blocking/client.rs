@@ -209,12 +209,7 @@ impl GraphQLClient {
         };
 
         if should_retry {
-            let backoff_strategy = backon::ExponentialBuilder::default()
-                .with_min_delay(Duration::from_millis(500))
-                .with_max_delay(Duration::from_secs(60))
-                .with_factor(1.5)
-                .without_max_times()
-                .with_jitter();
+            let backoff_strategy = Self::retry_backoff();
 
             let start = Instant::now();
             graphql_operation
@@ -244,6 +239,15 @@ impl GraphQLClient {
                 }
             }
         })
+    }
+
+    pub(crate) const fn retry_backoff() -> backon::ExponentialBuilder {
+        backon::ExponentialBuilder::new()
+            .with_min_delay(Duration::from_millis(500))
+            .with_max_delay(Duration::from_secs(60))
+            .with_factor(1.5)
+            .without_max_times()
+            .with_jitter()
     }
 
     /// To be used internally or by other implementations of a GraphQL client.
@@ -296,7 +300,7 @@ impl GraphQLClient {
 
 /// Studio's response to any rejected credential. The status is in the message because it never
 /// was a status on the response: Studio answers `200` and puts the status line in the body.
-const REJECTED_CREDENTIAL_MESSAGE: &str = "406: Not Acceptable";
+pub(super) const REJECTED_CREDENTIAL_MESSAGE: &str = "406: Not Acceptable";
 
 fn handle_graphql_body_errors(
     errors: Vec<GraphQLError>,
@@ -329,7 +333,7 @@ fn handle_graphql_body_errors(
 }
 
 /// Downcasts the given err source into T.
-fn get_source_error_type<T: std::error::Error + 'static>(
+pub(crate) fn get_source_error_type<T: std::error::Error + 'static>(
     err: &dyn std::error::Error,
 ) -> Option<&T> {
     let mut source = err.source();

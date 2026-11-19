@@ -66,7 +66,9 @@ impl WhoAmI {
             }
             CredentialOrigin::EnvVar
             | CredentialOrigin::ConfigFile(_)
-            | CredentialOrigin::OauthClientCredentials => {
+            | CredentialOrigin::OauthClientCredentials
+            | CredentialOrigin::ExternalTokenFileOption
+            | CredentialOrigin::ExternalTokenFileEnvironment => {
                 let identity = LegacyWhoami {
                     profile: profile.clone(),
                     insecure_unmask_key: self.insecure_unmask_key,
