@@ -228,6 +228,17 @@ where
     }
 }
 
+/// Mock token sources for external authentication consumers and tests.
+#[cfg(any(test, feature = "testing"))]
+pub mod mock {
+    use rover_auth::external_token::{ExternalAccessToken, ExternalTokenError};
+
+    /// Request accepted by the authentication middleware's token source.
+    pub type TokenRequest = ();
+
+    rover_tower::mock_service!(Token, TokenRequest, ExternalAccessToken, ExternalTokenError);
+}
+
 #[cfg(test)]
 mod tests {
     use std::{
@@ -247,15 +258,12 @@ mod tests {
         timeout::TimeoutLayer,
         trace::{new_trace_id, TraceparentLayer},
     };
-    use rover_tower::test::MockCloneService;
+    use rover_tower::mock::MockCloneService;
     use rstest::{fixture, rstest};
     use speculoos::prelude::*;
     use tower::{retry::RetryLayer, ServiceBuilder};
 
-    use super::*;
-
-    type TokenRequest = ();
-    rover_tower::mock_service!(Token, TokenRequest, ExternalAccessToken, ExternalTokenError);
+    use super::{mock::MockTokenService, *};
 
     #[derive(Debug, PartialEq, Eq)]
     struct Attempt {
