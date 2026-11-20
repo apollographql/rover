@@ -179,6 +179,11 @@ pub enum RoverClientError {
         endpoint_kind: EndpointKind,
     },
 
+    /// A Platform API response could not be decoded. Retain only reqwest's safe Display
+    /// message, not its source Debug, which can quote credential-bearing response data.
+    #[error("{msg}")]
+    ResponseDecode { msg: String },
+
     /// The request body was larger than GraphOS accepts (HTTP 413).
     #[error("The request was too large for GraphOS to process (HTTP 413 Payload Too Large).")]
     RequestTooLarge { endpoint_kind: EndpointKind },
@@ -501,7 +506,9 @@ impl RoverClientError {
     pub(crate) const fn is_transient(&self) -> bool {
         matches!(
             self,
-            RoverClientError::SendRequest { .. } | RoverClientError::RateLimitExceeded
+            RoverClientError::SendRequest { .. }
+                | RoverClientError::ResponseDecode { .. }
+                | RoverClientError::RateLimitExceeded
         )
     }
 }
@@ -747,6 +754,15 @@ mod tests {
     use speculoos::prelude::*;
 
     use super::*;
+
+    #[rstest::rstest]
+    fn sanitized_decode_failures_retain_check_poll_recovery() {
+        let error = RoverClientError::ResponseDecode {
+            msg: "error decoding response body".to_string(),
+        };
+
+        assert_that!(error.is_transient()).is_equal_to(true);
+    }
 
     #[rstest::rstest]
     #[case::rejection(rover_auth::external_auth::ExternalAuthError::Rejected)]

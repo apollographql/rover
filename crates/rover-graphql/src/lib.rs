@@ -143,15 +143,16 @@ impl<T: Send + Sync + fmt::Debug> fmt::Debug for GraphQLServiceError<T> {
         match self {
             Self::NoData(errors) => f.debug_tuple("NoData").field(errors).finish(),
             Self::PartialError {
-                data,
                 errors,
                 friendly_errors_detail,
+                ..
             } => f
                 .debug_struct("PartialError")
-                .field("data", data)
                 .field("errors", errors)
                 .field("friendly_errors_detail", friendly_errors_detail)
-                .finish(),
+                // Keep partial data available to callers, but not in diagnostics: even
+                // data accompanying an error can contain issued or reflected credentials.
+                .finish_non_exhaustive(),
             Self::InvalidCredentials() => f.write_str("InvalidCredentials"),
             Self::Serialization(error) => f.debug_tuple("Serialization").field(error).finish(),
             // The raw body and serde's message can both contain credentials.

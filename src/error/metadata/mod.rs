@@ -114,6 +114,10 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     Some(RoverErrorSuggestion::SubmitIssue),
                     Some(RoverErrorCode::E003),
                 ),
+                RoverClientError::ResponseDecode { .. } => (
+                    Some(RoverErrorSuggestion::SubmitIssue),
+                    Some(RoverErrorCode::E004),
+                ),
                 RoverClientError::SendRequest {
                     source,
                     endpoint_kind,
@@ -618,10 +622,77 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
 
 #[cfg(test)]
 mod tests {
-    use rover_client::RoverClientError;
+    use std::time::Duration;
+
+    use houston::{Credential, CredentialOrigin};
+    use rover_auth::external_token::{ExternalTokenOrigin, ExternalTokenSource};
+    use rover_client::{
+        RoverClientError,
+        blocking::StudioClient,
+        operations::config::who_am_i::{ConfigWhoAmIQuery, config_who_am_i_query},
+    };
+    use rstest::rstest;
     use speculoos::prelude::*;
 
     use crate::{RoverError, RoverErrorCode};
+
+    #[rstest]
+    #[tokio::test]
+    async fn external_auth_decode_failures_keep_legacy_metadata(
+        #[values(false, true)] external: bool,
+        #[values(false, true)] quoted: bool,
+    ) {
+        let server = httpmock::MockServer::start_async().await;
+        let token = "private-external-token";
+        let response = server.mock(|_, then| {
+            then.status(200).body(if quoted {
+                serde_json::json!(token).to_string()
+            } else {
+                format!("not-json {token}")
+            });
+        });
+        let directory = tempfile::tempdir().unwrap();
+        let mut file = tempfile::NamedTempFile::new_in(directory.path()).unwrap();
+        std::io::Write::write_all(&mut file, token.as_bytes()).unwrap();
+        let client = reqwest::Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .unwrap();
+        let studio = if external {
+            StudioClient::new_external(
+                ExternalTokenSource::new(file.path(), ExternalTokenOrigin::Option),
+                &server.url("/graphql"),
+                "test-version",
+                false,
+                client,
+                Duration::from_secs(1),
+            )
+        } else {
+            StudioClient::new(
+                Credential {
+                    api_key: "stored-key".to_string(),
+                    origin: CredentialOrigin::EnvVar,
+                    expires_at: None,
+                },
+                &server.url("/graphql"),
+                "test-version",
+                false,
+                client,
+                Duration::from_secs(1),
+            )
+        };
+
+        let result = studio
+            .post_no_retry::<ConfigWhoAmIQuery>(config_who_am_i_query::Variables {})
+            .await
+            .map_err(RoverError::new);
+        let error = &assert_that!(result).is_err().subject;
+
+        assert_that!(error.code()).is_equal_to(Some(RoverErrorCode::E004));
+        assert_that!(format!("{:?}", error.metadata.suggestions))
+            .is_equal_to("[SubmitIssue]".to_string());
+        response.assert_calls(1);
+    }
 
     #[test]
     fn a_launch_that_outlasts_the_wait_has_its_own_code_and_message() {

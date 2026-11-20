@@ -150,6 +150,7 @@ fn token_file() -> TokenFile {
 async fn errors_cannot_reflect_the_external_credential(
     token_file: TokenFile,
     #[case] transport: Transport,
+    #[values(false, true)] partial_data: bool,
 ) {
     let token = "credential/with+padding==";
     token_file.publish(token.as_bytes());
@@ -157,7 +158,7 @@ async fn errors_cannot_reflect_the_external_credential(
     let response = server.mock(|when, then| {
         when.header("authorization", format!("Bearer {token}"));
         then.status(200).body(
-            json!({"data": null, "errors": [{
+            json!({"data": if partial_data { json!({"reflected": token}) } else { Value::Null }, "errors": [{
                 "message": format!("Operation failed for {token}"),
                 "extensions": {"response": {"body": {"errors": [{
                     "message": format!("Upstream refused {token}")
@@ -171,6 +172,11 @@ async fn errors_cannot_reflect_the_external_credential(
     let result = transport.execute(&token_file.client(&server)).await;
 
     let error = &assert_that!(result).is_err().subject;
+    let expected_message = match transport {
+        Transport::Post | Transport::PostNoRetry => "Operation failed for [REDACTED]",
+        _ => "Service error",
+    };
+    assert_that!(error.to_string()).is_equal_to(expected_message.to_string());
     assert_that!(format!("{error:?}").contains("[REDACTED]")).is_equal_to(true);
     assert_that!(error.to_string().contains(token)).is_equal_to(false);
     assert_that!(format!("{error:?}").contains(token)).is_equal_to(false);
