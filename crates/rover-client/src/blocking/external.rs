@@ -25,6 +25,8 @@ struct Errors {
     errors: Option<Vec<graphql_client::Error>>,
 }
 
+/// External mode intentionally uses Rover's shared GraphQL credential-rejection classifier
+/// on every transport, including legacy calls; stored-credential classification is unchanged.
 /// A body rejection is terminal. It is deliberately outside status-rejection handling so
 /// a status rejection still gets its one opportunity to pick up an already-published token.
 #[derive(Clone)]
@@ -107,6 +109,8 @@ impl Policy<HttpRequest, HttpResponse, HttpServiceError> for LegacyRetryPolicy {
         request: &mut HttpRequest,
         result: &mut Result<HttpResponse, HttpServiceError>,
     ) -> Option<Self::Future> {
+        // External authentication counts actual sends, including its one rejection resend,
+        // so it owns RetryCount rather than this transient-failure policy.
         let eligible = match result {
             Ok(response) => is_retryable_status(response.status()),
             // Legacy response-body failures happen after the retrying send has completed.

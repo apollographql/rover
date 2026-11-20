@@ -32,6 +32,8 @@ pub struct ResponseStatus(Arc<AtomicU16>);
 impl ResponseStatus {
     /// The latest attempt's status, or `None` before its headers have arrived.
     pub fn get(&self) -> Option<http::StatusCode> {
+        // Policies read this only after the attempt future completes; no other data is
+        // published through this atomic, so the status needs no stronger ordering.
         http::StatusCode::from_u16(self.0.load(Ordering::Relaxed)).ok()
     }
 }
