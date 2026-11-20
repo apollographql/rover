@@ -628,7 +628,15 @@ impl StudioClient {
         })?;
         GraphQLClient::handle_response::<Q>(response, EndpointKind::ApolloStudio)
             .await
-            .map_err(|error| self.refine_rejected_credential_error(error))
+            .map_err(|error| match error {
+                // reqwest's decode-error Debug can quote reflected response credentials.
+                RoverClientError::SendRequest { source, .. } if source.is_decode() => {
+                    RoverClientError::ResponseDecode {
+                        msg: source.to_string(),
+                    }
+                }
+                error => self.refine_rejected_credential_error(error),
+            })
     }
 
     pub fn http_service(&self) -> Result<HttpService, RoverClientError> {
