@@ -24,6 +24,7 @@ use crate::{
     command::{CliOutput, auth::grants::revoke::error::GrantsRevokeError},
     options::JsonVersion,
     plugin::error::PluginFailure,
+    utils::external_auth::ExternalAuthDiagnostic,
 };
 
 /// A specialized `Error` type for Rover that wraps `anyhow`
@@ -106,9 +107,13 @@ impl RoverError {
             rover_studio::service::external_auth::ExternalAuthError::find_in_chain(error.as_ref())
                 .cloned()
         {
-            error = anyhow::Error::new(diagnostic);
+            error = anyhow::Error::new(ExternalAuthDiagnostic(diagnostic));
         }
-        let metadata = RoverErrorMetadata::from(error.borrow_mut());
+        let mut metadata = RoverErrorMetadata::from(error.borrow_mut());
+        if error.is::<ExternalAuthDiagnostic>() {
+            // The CLI diagnostic includes the complete source failure already.
+            metadata.skip_printing_cause = true;
+        }
 
         Self { error, metadata }
     }

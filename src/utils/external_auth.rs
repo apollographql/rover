@@ -1,5 +1,72 @@
+use std::fmt;
+
+use clap::CommandFactory;
 use rover_auth::external_token::{ExternalTokenOrigin, ExternalTokenSource};
 use rover_print::{print::Print, style::StyledText};
+use rover_studio::service::external_auth::ExternalAuthError;
+
+use crate::cli::Rover;
+
+/// Render provenance using the same names Clap uses to parse the token-file input.
+pub(crate) struct ExternalTokenOriginDisplay<'a> {
+    origin: ExternalTokenOrigin,
+    argument: &'a clap::Arg,
+}
+
+impl ExternalTokenOriginDisplay<'_> {
+    pub(crate) fn name(origin: ExternalTokenOrigin) -> String {
+        let command = Rover::command();
+        let argument = command
+            .get_arguments()
+            .find(|argument| argument.get_id() == "access_token_file")
+            .expect("the token-file argument is registered");
+        ExternalTokenOriginDisplay { origin, argument }.to_string()
+    }
+}
+
+impl fmt::Display for ExternalTokenOriginDisplay<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.origin {
+            ExternalTokenOrigin::Option => write!(
+                f,
+                "--{}",
+                self.argument
+                    .get_long()
+                    .expect("the token-file argument has a long option")
+            ),
+            ExternalTokenOrigin::Environment => f.write_str(
+                &self
+                    .argument
+                    .get_env()
+                    .expect("the token-file argument has an environment variable")
+                    .to_string_lossy(),
+            ),
+        }
+    }
+}
+
+/// Keep the structured failure available while rendering CLI-specific provenance.
+#[derive(Debug, thiserror::Error)]
+pub(crate) struct ExternalAuthDiagnostic(#[source] pub(crate) ExternalAuthError);
+
+impl fmt::Display for ExternalAuthDiagnostic {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.0 {
+            ExternalAuthError::Source(error) => {
+                write!(
+                    f,
+                    "External token source from {}",
+                    ExternalTokenOriginDisplay::name(error.origin)
+                )?;
+                if !error.path.as_os_str().is_empty() {
+                    write!(f, " at '{}'", error.path.display())?;
+                }
+                write!(f, ": {}", error.kind)
+            }
+            error => fmt::Display::fmt(error, f),
+        }
+    }
+}
 
 /// Runtime selection only. Construction neither reads the file nor rejects local commands.
 #[derive(Clone, Debug)]
@@ -37,13 +104,20 @@ impl ExternalAuthentication {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
-#[error(
-    "{origin} conflicts with {}. Remove the conflicting credential inputs to use the application-supplied token.",
-    .inputs.join(", ")
-)]
 pub(crate) struct ExternalAuthConflict {
     pub(crate) origin: ExternalTokenOrigin,
     pub(crate) inputs: Vec<&'static str>,
+}
+
+impl fmt::Display for ExternalAuthConflict {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} conflicts with {}. Remove the conflicting credential inputs to use the application-supplied token.",
+            ExternalTokenOriginDisplay::name(self.origin),
+            self.inputs.join(", ")
+        )
+    }
 }
 
 #[cfg(test)]
@@ -55,6 +129,100 @@ mod tests {
 
     use super::*;
     use crate::{RoverError, RoverErrorCode};
+
+    #[rstest]
+    #[case::option(
+        ExternalTokenOrigin::Option,
+        "--access-token-file",
+        "--application-token-file"
+    )]
+    #[case::environment(
+        ExternalTokenOrigin::Environment,
+        "APOLLO_ACCESS_TOKEN_FILE",
+        "APPLICATION_TOKEN_FILE"
+    )]
+    fn external_auth_origin_names_follow_parser_metadata(
+        #[case] origin: ExternalTokenOrigin,
+        #[case] current_name: &str,
+        #[case] renamed: &str,
+    ) {
+        let command = Rover::command().mut_arg("access_token_file", |argument| {
+            argument
+                .long("application-token-file")
+                .env("APPLICATION_TOKEN_FILE")
+        });
+        let argument = command
+            .get_arguments()
+            .find(|argument| argument.get_id() == "access_token_file")
+            .unwrap();
+
+        assert_that!((
+            ExternalTokenOriginDisplay::name(origin),
+            ExternalTokenOriginDisplay { origin, argument }.to_string(),
+        ))
+        .is_equal_to((current_name.to_string(), renamed.to_string()));
+    }
+
+    #[rstest]
+    #[case::option_empty(
+        ExternalTokenOrigin::Option,
+        "",
+        ExternalTokenFailure::EmptyLocation,
+        RoverErrorCode::E066,
+        "External token source from --access-token-file: the location is empty; supply the path to the application's token file"
+    )]
+    #[case::environment_empty(
+        ExternalTokenOrigin::Environment,
+        "",
+        ExternalTokenFailure::EmptyLocation,
+        RoverErrorCode::E066,
+        "External token source from APOLLO_ACCESS_TOKEN_FILE: the location is empty; supply the path to the application's token file"
+    )]
+    #[case::option_missing(
+        ExternalTokenOrigin::Option,
+        "token-source",
+        ExternalTokenFailure::Missing,
+        RoverErrorCode::E067,
+        "External token source from --access-token-file at 'token-source': the source is missing; have the supplying application publish its token file"
+    )]
+    #[case::environment_missing(
+        ExternalTokenOrigin::Environment,
+        "token-source",
+        ExternalTokenFailure::Missing,
+        RoverErrorCode::E067,
+        "External token source from APOLLO_ACCESS_TOKEN_FILE at 'token-source': the source is missing; have the supplying application publish its token file"
+    )]
+    fn external_auth_source_diagnostics_keep_cli_names_through_wrappers(
+        #[case] origin: ExternalTokenOrigin,
+        #[case] path: &str,
+        #[case] kind: ExternalTokenFailure,
+        #[case] code: RoverErrorCode,
+        #[case] message: &str,
+        #[values(false, true)] wrapped: bool,
+    ) {
+        let diagnostic = ExternalAuthError::Source(ExternalTokenError {
+            origin,
+            path: path.into(),
+            kind,
+        });
+        let error = if wrapped {
+            anyhow::Error::new(rover_client::RoverClientError::studio_service(
+                rover_graphql::GraphQLServiceError::<()>::UpstreamService(Box::new(
+                    diagnostic.into_http_error(),
+                )),
+            ))
+        } else {
+            anyhow::Error::new(diagnostic)
+        };
+        let error = RoverError::new(error.context("Unsafe outer context: private-credential"));
+
+        assert_that!(error.outcome()).is_equal_to(sputnik::Outcome::UserError);
+        let text = temp_env::with_var("NO_COLOR", Some("1"), || error.to_string());
+        assert_that!(text).is_equal_to(format!("error[{code}]: {message}\n"));
+        assert_that!(serde_json::to_value(error).unwrap()).is_equal_to(serde_json::json!({
+            "code": code, "message": message,
+        }));
+    }
 
     #[rstest]
     fn external_auth_conflicts_keep_their_code_through_anyhow_context() {
