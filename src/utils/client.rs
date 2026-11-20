@@ -430,6 +430,9 @@ impl StudioClientConfig {
     pub fn get_authenticated_client(&self, profile_opt: &ProfileOpt) -> Result<StudioClient> {
         if let Some(selection) = &self.external_authentication {
             selection.validate()?;
+            // Preserve the legacy --client-timeout deadline rather than shortening an
+            // existing check or publish just because its credential comes from a file.
+            // Operation-specific constructors can supply a shorter per-attempt timeout.
             return Ok(StudioClient::new_external(
                 selection.source.clone(),
                 &self.uri,

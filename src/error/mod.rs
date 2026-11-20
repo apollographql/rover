@@ -100,6 +100,8 @@ impl RoverError {
     {
         let mut error = error.into();
         // Transport wrappers must not turn an external failure into API-key/login guidance.
+        // Deliberately discard their outer command context too, keeping this diagnostic
+        // self-contained and preventing an outer wrapper from revealing a credential.
         if let Some(diagnostic) =
             crate::utils::external_auth::external_auth_failure(&error).cloned()
         {

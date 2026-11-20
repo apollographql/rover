@@ -76,6 +76,21 @@ mod tests {
     use crate::{RoverError, RoverErrorCode};
 
     #[rstest]
+    fn external_auth_conflicts_keep_their_code_through_anyhow_context() {
+        let conflict = ExternalAuthConflict {
+            origin: ExternalTokenOrigin::Option,
+            inputs: vec!["APOLLO_KEY"],
+        };
+        let error = RoverError::new(anyhow::Error::new(conflict).context("Publishing a subgraph"));
+
+        assert_that!(serde_json::to_value(error).unwrap()).is_equal_to(serde_json::json!({
+            "code": "E079",
+            "message": "Publishing a subgraph",
+            "causes": ["--access-token-file conflicts with APOLLO_KEY. Remove the conflicting credential inputs to use the application-supplied token."]
+        }));
+    }
+
+    #[rstest]
     #[case::empty(ExternalTokenFailure::EmptyLocation, RoverErrorCode::E066)]
     #[case::missing(ExternalTokenFailure::Missing, RoverErrorCode::E067)]
     #[case::unreadable(ExternalTokenFailure::Unreadable, RoverErrorCode::E068)]

@@ -8,7 +8,7 @@ use futures::{
 };
 use houston::{Config, Profile};
 use rover_client::RoverClientError;
-use rover_print::{print::Print, style::StyledText};
+use rover_print::print::{Print, PrintExt};
 use rover_std::{RoverStdError, debugln, errln, infoln, warnln};
 use rover_studio::types::GraphRef;
 use timber::Level;
@@ -293,9 +293,9 @@ impl RunRouter<state::Run> {
             && (external_without_key || !self.has_usable_graph_ref(graph_ref_from_setting))
             && !already_warned
         {
-            stderr.print(&StyledText::plain(
+            stderr.infoln(
                 "Running without GraphOS credentials. GraphOS Router Enterprise features and @connect are disabled. Pass --graph-ref, set APOLLO_KEY/APOLLO_GRAPH_REF, or pass --license to enable them."
-            ));
+            );
         }
     }
 
@@ -762,6 +762,7 @@ mod tests {
     #[rstest::rstest]
     #[case::graph_ref_without_key(true, None, false, true, true)]
     #[case::no_graph_ref_or_key(false, None, false, true, true)]
+    #[case::stored_mode_without_credentials(false, None, false, false, true)]
     #[case::offline_license(true, Some("router-license"), false, true, false)]
     #[case::earlier_warning(true, None, true, true, false)]
     #[case::router_key_and_graph_ref(true, None, false, false, false)]
@@ -788,7 +789,7 @@ mod tests {
 
         let expected = if expected_notice {
             vec![
-            "Running without GraphOS credentials. GraphOS Router Enterprise features and @connect are disabled. Pass --graph-ref, set APOLLO_KEY/APOLLO_GRAPH_REF, or pass --license to enable them.".to_string(),
+            "==> Running without GraphOS credentials. GraphOS Router Enterprise features and @connect are disabled. Pass --graph-ref, set APOLLO_KEY/APOLLO_GRAPH_REF, or pass --license to enable them.".to_string(),
         ]
         } else {
             vec![]
