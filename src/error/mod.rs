@@ -100,6 +100,8 @@ impl RoverError {
     {
         let mut error = error.into();
         // Transport wrappers must not turn an external failure into API-key/login guidance.
+        // Deliberately discard their outer command context too, keeping this diagnostic
+        // self-contained and preventing an outer wrapper from revealing a credential.
         if let Some(diagnostic) =
             rover_studio::service::external_auth::ExternalAuthError::find_in_chain(error.as_ref())
                 .cloned()
