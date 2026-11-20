@@ -214,17 +214,21 @@ impl ExternalTokenSource {
 
     /// Opens, checks, and reads the source anew, without changing it or caching a token.
     ///
-    /// Requires a Tokio runtime. The complete open/check/read sequence runs on
-    /// one blocking worker, never on an async runtime worker. Dropping the
-    /// future does not stop a blocking operation that has already started.
+    /// Returns an unreadable-source error if no Tokio runtime is available.
+    /// The complete open/check/read sequence runs on one blocking worker, never
+    /// on an async runtime worker. Dropping the future does not stop a blocking
+    /// operation that has already started.
     pub async fn read(&self) -> Result<ExternalAccessToken, ExternalTokenError> {
+        let runtime = tokio::runtime::Handle::try_current()
+            .map_err(|_| self.error(ExternalTokenFailure::Unreadable))?;
         let source = self.clone();
-        tokio::task::spawn_blocking(move || {
-            let file = source.open_checked().map_err(|kind| source.error(kind))?;
-            ExternalAccessToken::read_from(file).map_err(|kind| source.error(kind))
-        })
-        .await
-        .map_err(|_| self.error(ExternalTokenFailure::Unreadable))?
+        runtime
+            .spawn_blocking(move || {
+                let file = source.open_checked().map_err(|kind| source.error(kind))?;
+                ExternalAccessToken::read_from(file).map_err(|kind| source.error(kind))
+            })
+            .await
+            .map_err(|_| self.error(ExternalTokenFailure::Unreadable))?
     }
 
     fn error(&self, kind: ExternalTokenFailure) -> ExternalTokenError {
