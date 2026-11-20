@@ -16,7 +16,8 @@ use rover_client::{
     blocking::{StudioClient, StudioCredentialOrigin},
     RoverClientError,
 };
-use rover_graphql::{GraphQLRequest, GraphQLService};
+use rover_graphql::{GraphQLRequest, GraphQLService, GraphQLServiceError};
+use rover_http::HttpServiceError;
 use rstest::{fixture, rstest};
 use serde_json::{json, Value};
 use speculoos::prelude::*;
@@ -413,9 +414,33 @@ async fn operations_without_transient_retries_do_not_gain_them(
 
     let result = transport.execute(&token_file.client(&server)).await;
 
-    assert_that!(result.map_err(|_| ()))
-        .is_err()
-        .is_equal_to(());
+    let error = &assert_that!(result).is_err().subject;
+    match transport {
+        Transport::PostNoRetry => {
+            let RoverClientError::SendRequest { source, .. } = error else {
+                panic!("Expected the HTTP status error, got {error:?}");
+            };
+            assert_that!(source.status())
+                .is_some()
+                .is_equal_to(http::StatusCode::SERVICE_UNAVAILABLE);
+        }
+        _ => {
+            let RoverClientError::Service { source, .. } = error else {
+                panic!("Expected the GraphQL response error, got {error:?}");
+            };
+            assert_that!(source.downcast_ref::<GraphQLServiceError<Value>>())
+                .is_some()
+                .matches(|error| {
+                    matches!(error, GraphQLServiceError::NoData(errors)
+                        if errors.len() == 1
+                            && errors[0].message == "temporary failure"
+                            && errors[0].locations.is_none()
+                            && errors[0].path.is_none()
+                            && errors[0].extensions.is_none())
+                });
+            assert_that!(source.to_string()).is_equal_to("No data field provided".to_string());
+        }
+    }
     transient.assert_calls(1);
 }
 
@@ -501,16 +526,21 @@ async fn truncated_response_bodies_follow_the_status_and_retry_rules(
             Duration::from_secs(2)
         });
 
-    let (result, peer) = tokio::join!(
-        transport.execute(&client),
-        tokio::time::timeout(Duration::from_secs(3), peer)
-    );
-
-    if expects_second_attempt {
-        assert_that!(peer.unwrap().map_err(|error| error.to_string()))
-            .is_ok()
-            .is_equal_to(());
-    }
+    let result = tokio::time::timeout(Duration::from_secs(3), async {
+        let operation = transport.execute(&client);
+        tokio::pin!(operation);
+        tokio::select! {
+            result = &mut operation => result,
+            result = peer => {
+                assert_that!(result.map_err(|error| error.to_string()))
+                    .is_ok()
+                    .is_equal_to(());
+                operation.await
+            }
+        }
+    })
+    .await
+    .unwrap();
     let mut expected = vec![(
         Some("Bearer A".to_string()),
         Some("rover=retries:0".to_string()),
@@ -524,9 +554,33 @@ async fn truncated_response_bodies_follow_the_status_and_retry_rules(
             .is_ok()
             .is_equal_to(json!({"value": "accepted"}));
     } else {
-        assert_that!(result.map_err(|_| ()))
-            .is_err()
-            .is_equal_to(());
+        let error = &assert_that!(result).is_err().subject;
+        let RoverClientError::Service { source, .. } = error else {
+            panic!("Expected a response body failure, got {error:?}");
+        };
+        let graphql_error = source.downcast_ref::<GraphQLServiceError<()>>();
+        let GraphQLServiceError::UpstreamService(source) =
+            assert_that!(graphql_error).is_some().subject
+        else {
+            panic!("Expected an upstream HTTP service error, got {source:?}");
+        };
+        assert_that!(source.downcast_ref::<HttpServiceError>())
+            .is_some()
+            .matches(|error| {
+                if slow_body {
+                    matches!(error, HttpServiceError::TimedOut)
+                } else {
+                    matches!(error, HttpServiceError::Body(_))
+                }
+            });
+        assert_that!(source.to_string()).is_equal_to(
+            if slow_body {
+                "Request timed out"
+            } else {
+                "Body error"
+            }
+            .to_string(),
+        );
     }
     assert_that!(requests).is_equal_to(expected);
 }
