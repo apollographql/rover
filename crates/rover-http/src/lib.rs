@@ -15,10 +15,12 @@ pub mod body;
 mod error;
 pub mod error_on_status;
 pub mod extend_headers;
+#[cfg(any(test, feature = "test"))]
+pub mod mock;
 mod reqwest;
 pub mod retry;
 #[cfg(any(test, feature = "test"))]
-pub mod test;
+pub use mock as test;
 pub mod timeout;
 pub mod trace;
 

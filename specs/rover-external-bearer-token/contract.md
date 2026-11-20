@@ -24,11 +24,13 @@ Rover checks several of these conditions, as a second line of defense, and fails
 ### 2.3 The token file
 
 - **IR5:** The location must name a regular file, not a symbolic link. Symbolic links in the directories above it are allowed.
-- **IR6:** On a filesystem that enforces Unix file permissions, the file must be owned by the user running Rover and must not be readable or writable by anyone else.
-- **IR7:** On such a filesystem, the directory that holds the file must be owned by the user running Rover or by the system administrator, and must not be writable by its group or by other users. A directory that anyone can write to, such as `/tmp`, is refused even when it has the sticky bit set.
+- **IR6:** On Unix platforms, the file must be owned by the user running Rover and must not be readable or writable by anyone else.
+- **IR7:** On Unix platforms, the directory that holds the file must be owned by the user running Rover or by the system administrator, and must not be writable by its group or by other users. A directory that anyone can write to, such as `/tmp`, is refused even when it has the sticky bit set.
 - **IR8:** The file must contain exactly one token and nothing else. The token must be made only of the characters of an RFC 6750 `b64token`: one or more letters, digits, or `-`, `.`, `_`, `~`, `+`, `/`, followed by any number of `=`. It may end with one LF or one CRLF. It must not contain a `Bearer` prefix, an `Authorization` header, other lines, other whitespace, or a byte order mark.
 - **IR9:** The file must not be larger than 16 KiB.
 - **IR10:** The token may be a JWT, but Rover does not inspect it. It sends the token as it is, including an expired one, and the Platform API decides whether it is acceptable.
+
+On Unix, the application must choose a location whose reported ownership and permission bits satisfy the checks, even on filesystems that emulate those bits or report fixed values. Rover does not exempt a source based on filesystem type or mount options. On Windows, Rover does not apply the Unix ownership and permission checks.
 
 ### 2.4 Replacing and removing the token
 
@@ -36,6 +38,8 @@ Rover checks several of these conditions, as a second line of defense, and fails
 - **IR12:** The application must refresh the token before it expires and publish the replacement in time for the next attempt. Rover never receives or stores a refresh token, never refreshes the token itself, and never revokes it.
 - **IR13:** The application owns the file's cleanup. Rover never creates, modifies, or deletes it. If the application removes the file or makes it invalid while a Rover process is running, Rover's next attempt fails and does not fall back to another credential.
 - **IR14:** The token must be one the Platform API accepts. This depends on the OAuth client that issued it.
+
+On Windows, the application must support replacing a token file while Rover has it open for a read. Use atomic replacement semantics that allow an open destination, or retry a replacement that fails because of a temporary sharing conflict. A failed replacement has not published the new token. Keep the old file available until replacement succeeds, and do not fall back to rewriting it in place.
 
 ## 3. When an obligation is not met
 

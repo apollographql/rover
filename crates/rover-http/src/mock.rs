@@ -1,4 +1,4 @@
-//! Provides testing infrastructure for rover-http consumers
+//! Provides mock services for rover-http consumers.
 
 use rover_tower::mock_service;
 

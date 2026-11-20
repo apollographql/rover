@@ -291,8 +291,8 @@ mod tests {
     use futures::future;
     use http::{HeaderMap, HeaderValue, StatusCode};
     use rover_tower::{
+        mock::MockCloneService,
         poll_retry::{poll_until_complete, SimplePollOutcome},
-        test::MockCloneService,
     };
     use rstest::{fixture, rstest};
     use speculoos::prelude::*;
@@ -307,8 +307,8 @@ mod tests {
         TRACEPARENT,
     };
     use crate::{
+        mock::MockHttpService,
         retry::{RetryCount, RetryPolicy},
-        test::MockHttpService,
         timeout::TimeoutLayer,
         Full, HttpRequest, HttpResponse, HttpServiceError,
     };
