@@ -39,6 +39,8 @@ On Unix, the application must choose a location whose reported ownership and per
 - **IR13:** The application owns the file's cleanup. Rover never creates, modifies, or deletes it. If the application removes the file or makes it invalid while a Rover process is running, Rover's next attempt fails and does not fall back to another credential.
 - **IR14:** The token must be one the Platform API accepts. This depends on the OAuth client that issued it.
 
+On Windows, the application must support replacing a token file while Rover has it open for a read. Use atomic replacement semantics that allow an open destination, or retry a replacement that fails because of a temporary sharing conflict. A failed replacement has not published the new token. Keep the old file available until replacement succeeds, and do not fall back to rewriting it in place.
+
 ## 3. When an obligation is not met
 
 | If the application… | Rover… |
