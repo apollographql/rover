@@ -28,7 +28,7 @@ use tower::{
 };
 use url::Url;
 
-use super::external::ExternalTokenCapture;
+use super::external::{ExternalTokenCapture, RedactReflectedToken};
 use crate::{
     blocking::{GraphQLClient, CLIENT_NAME},
     error::EndpointKind,
@@ -548,17 +548,19 @@ impl StudioClient {
         // Authentication needs only the status of a rejection, so its body is not read.
         let read_body: fn(http::StatusCode) -> bool =
             |status| !matches!(status.as_u16(), 401 | 403 | 406);
-        let attempts = ServiceBuilder::new()
-            .layer(ExternalAuthLayer::new(source.clone(), uri))
-            .layer(TimeoutLayer::new(attempt_timeout))
-            .layer(TraceparentLayer::new(self.trace_id))
-            .service(
-                ReqwestService::builder()
-                    .client(self.reqwest_client.clone())
-                    .build()?
-                    .with_response_body_filter(read_body),
-            )
-            .boxed_clone();
+        let attempts = RedactReflectedToken::new(
+            ServiceBuilder::new()
+                .layer(ExternalAuthLayer::new(source.clone(), uri))
+                .layer(TimeoutLayer::new(attempt_timeout))
+                .layer(TraceparentLayer::new(self.trace_id))
+                .service(
+                    ReqwestService::builder()
+                        .client(self.reqwest_client.clone())
+                        .build()?
+                        .with_response_body_filter(read_body),
+                ),
+        )
+        .boxed_clone();
         // Source reads stay outside the timeout, and each resend has its own timeout.
         // That requires authentication between retry and timeout, rather than their
         // adjacent placement in `retry_with_attempt_timeout`.
@@ -622,7 +624,15 @@ impl StudioClient {
         })?;
         GraphQLClient::handle_response::<Q>(response, EndpointKind::ApolloStudio)
             .await
-            .map_err(|error| self.refine_rejected_credential_error(error))
+            .map_err(|error| match error {
+                // reqwest's decode-error Debug can quote reflected response credentials.
+                RoverClientError::SendRequest { source, .. } if source.is_decode() => {
+                    RoverClientError::ClientError {
+                        msg: source.to_string(),
+                    }
+                }
+                error => self.refine_rejected_credential_error(error),
+            })
     }
 
     pub fn http_service(&self) -> Result<HttpService, RoverClientError> {
