@@ -4,8 +4,8 @@ pub use pastey as paste_;
 #[macro_export]
 macro_rules! mock_service {
     ($name:ident, $request:ty, $response:ty, $error:ty) => {
-        $crate::test::paste_::paste! {
-            $crate::test::mockall_::mock! {
+        $crate::mock::paste_::paste! {
+            $crate::mock::mockall_::mock! {
                 #[allow(dead_code)]
                 #[derive(Debug)]
                 pub [<$name Service>] {}

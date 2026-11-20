@@ -2,11 +2,13 @@ use std::pin::Pin;
 
 use futures::Future;
 
+#[cfg(any(test, feature = "test"))]
+pub mod mock;
 pub mod poll_retry;
 pub mod retry;
 pub mod service;
 #[cfg(any(test, feature = "test"))]
-pub mod test;
+pub use mock as test;
 
 pub type ResponseFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
 
