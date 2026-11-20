@@ -391,5 +391,21 @@ impl UnixPermissions {
     }
 }
 
+/// Mock token sources for consumers and tests.
+#[cfg(any(test, feature = "testing"))]
+pub mod mock {
+    use super::{ExternalAccessToken, ExternalTokenError};
+
+    /// Request accepted by an external token source.
+    pub type TokenSourceRequest = ();
+
+    rover_tower::mock_service!(
+        TokenSource,
+        TokenSourceRequest,
+        ExternalAccessToken,
+        ExternalTokenError
+    );
+}
+
 #[cfg(test)]
 mod tests;
