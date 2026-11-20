@@ -206,6 +206,31 @@ async fn malformed_responses_cannot_expose_the_external_token_in_error_debug(
     let result = transport.execute(&token_file.client(&server)).await;
 
     let error = &assert_that!(result).is_err().subject;
+    let message = match error {
+        RoverClientError::ResponseDecode { msg } => msg.clone(),
+        RoverClientError::Service { source, .. } => {
+            assert_that!(source.downcast_ref::<GraphQLServiceError<Value>>())
+                .is_some()
+                .matches(|error| {
+                    matches!(error, GraphQLServiceError::Deserialization { status_code, .. }
+                        if *status_code == http::StatusCode::OK)
+                });
+            source.to_string()
+        }
+        _ => panic!("Expected a response decoding error, got {error:?}"),
+    };
+    let expected_message = match transport {
+        Transport::Legacy | Transport::LegacyNoRetry => {
+            "error decoding response body for url (http://no.url.provided.local/)"
+        }
+        _ if quoted => {
+            "Deserialization error: the response (HTTP 200 OK) had a data error at line 1, column 31"
+        }
+        _ => {
+            "Deserialization error: the response (HTTP 200 OK) had a syntax error at line 1, column 2"
+        }
+    };
+    assert_that!(message).is_equal_to(expected_message.to_string());
     assert_that!(format!("{error:?}").contains(token)).is_equal_to(false);
     assert_that!(error.to_string().contains(token)).is_equal_to(false);
     response.assert_calls(1);

@@ -347,15 +347,13 @@ mod tests {
     #[tokio::test]
     async fn binary_response_headers_are_sensitive(endpoint: Uri) {
         let mut source = MockTokenService::new();
-        source
-            .expect_poll_ready()
-            .returning(|_| Poll::Ready(Ok(())));
+        expect_poll_ready!(source);
         source
             .expect_call()
             .once()
             .return_once(|_| ready(Ok(ExternalAccessToken::parse(b"private-token").unwrap())));
         let mut http = MockHttpService::new();
-        http.expect_poll_ready().returning(|_| Poll::Ready(Ok(())));
+        expect_poll_ready!(http);
         http.expect_call().once().return_once(|_| {
             ready(Ok(Response::builder()
                 .header(
