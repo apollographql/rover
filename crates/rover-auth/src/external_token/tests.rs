@@ -14,15 +14,7 @@ use speculoos::prelude::*;
 use tempfile::{NamedTempFile, TempDir};
 use tower::ServiceExt;
 
-use super::*;
-
-type TokenSourceRequest = ();
-rover_tower::mock_service!(
-    TokenSource,
-    TokenSourceRequest,
-    ExternalAccessToken,
-    ExternalTokenError
-);
+use super::{mock::MockTokenSourceService, *};
 
 struct TokenFile {
     directory: TempDir,
