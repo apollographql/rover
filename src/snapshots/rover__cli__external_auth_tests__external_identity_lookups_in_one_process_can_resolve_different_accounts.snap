@@ -1,0 +1,30 @@
+---
+source: src/cli_external_auth_tests.rs
+expression: "vec![JsonOutput::from(&a), JsonOutput::from(&b)]"
+---
+[
+  {
+    "json_version": "1",
+    "data": {
+      "actor_type": "User",
+      "id": "account-a",
+      "graph_title": null,
+      "origin": "--access-token-file",
+      "access_token": "[REDACTED]",
+      "success": true
+    },
+    "error": null
+  },
+  {
+    "json_version": "1",
+    "data": {
+      "actor_type": "User",
+      "id": "account-b",
+      "graph_title": null,
+      "origin": "--access-token-file",
+      "access_token": "[REDACTED]",
+      "success": true
+    },
+    "error": null
+  }
+]

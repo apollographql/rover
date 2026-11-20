@@ -1,0 +1,14 @@
+---
+source: tests/integration/external_auth.rs
+expression: "serde_json::from_slice::<Value>(&output.stdout).unwrap()"
+---
+{
+  "json_version": "1",
+  "data": {
+    "success": false
+  },
+  "error": {
+    "message": "--access-token-file conflicts with APOLLO_CLIENT_ID. Remove the conflicting credential inputs to use the application-supplied token.",
+    "code": "E079"
+  }
+}

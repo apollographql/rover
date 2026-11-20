@@ -1,0 +1,14 @@
+---
+source: tests/integration/external_auth.rs
+expression: "serde_json::from_slice::<Value>(&output.stdout).unwrap()"
+---
+{
+  "json_version": "1",
+  "data": {
+    "success": false
+  },
+  "error": {
+    "message": "The application-supplied credential does not have permission for this operation.",
+    "code": "E080"
+  }
+}
