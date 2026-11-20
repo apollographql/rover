@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use rover_auth::external_token::ExternalAccessToken;
 use rover_client::{
     RoverClientError,
@@ -17,6 +16,14 @@ use crate::{
     utils::{client::StudioClientConfig, external_auth::ExternalTokenOriginDisplay, table},
 };
 
+#[derive(Debug, thiserror::Error)]
+enum ExternalIdentityError {
+    #[error("An external credential source was not selected.")]
+    MissingSource,
+    #[error("The successful identity lookup did not capture its credential.")]
+    MissingCapturedToken,
+}
+
 /// Shared Platform API identity output, with no inferred OAuth grant type.
 #[derive(Debug)]
 pub(crate) struct ExternalIdentityOutput {
@@ -32,12 +39,13 @@ impl ExternalIdentityOutput {
         insecure_unmask_key: bool,
     ) -> RoverResult<Self> {
         let client = client_config.get_authenticated_client(profile)?;
-        let origin = ExternalTokenOriginDisplay::name(
+        let origin = ExternalTokenOriginDisplay::new(
             client
                 .external_token_source()
-                .ok_or_else(|| anyhow!("An external credential source was not selected."))?
+                .ok_or(ExternalIdentityError::MissingSource)?
                 .origin(),
-        );
+        )?
+        .to_string();
         let capture = insecure_unmask_key.then(ExternalTokenCapture::default);
         let service = match &capture {
             Some(capture) => client.studio_graphql_service_with_external_token_capture(
@@ -57,9 +65,9 @@ impl ExternalIdentityOutput {
             })?;
         let unmasked_token = capture
             .map(|capture| {
-                capture.take().ok_or_else(|| {
-                    anyhow!("The successful identity lookup did not capture its credential.")
-                })
+                capture
+                    .take()
+                    .ok_or(ExternalIdentityError::MissingCapturedToken)
             })
             .transpose()?;
         Ok(Self {
@@ -165,5 +173,27 @@ mod tests {
             "ExternalIdentityOutput { identity: RegistryIdentity { id: \"account-id\", graph_title: None, key_actor_type: USER, credential_origin: ExternalTokenFileOption }, origin: \"--access-token-file\", unmasked_token: Some(ExternalAccessToken([REDACTED])) }".to_string()
         );
         assert_that!(output.access_token()).is_equal_to("private-credential");
+    }
+
+    #[rstest]
+    #[case::missing_source(
+        ExternalIdentityError::MissingSource,
+        "An external credential source was not selected."
+    )]
+    #[case::missing_capture(
+        ExternalIdentityError::MissingCapturedToken,
+        "The successful identity lookup did not capture its credential."
+    )]
+    fn external_identity_invariant_errors_have_safe_cli_diagnostics(
+        #[case] error: ExternalIdentityError,
+        #[case] message: &str,
+    ) {
+        let error = crate::RoverError::new(error);
+
+        assert_that!(error.outcome()).is_equal_to(sputnik::Outcome::InternalError);
+        assert_that!(serde_json::to_value(error).unwrap()).is_equal_to(serde_json::json!({
+            "code": null,
+            "message": message,
+        }));
     }
 }
