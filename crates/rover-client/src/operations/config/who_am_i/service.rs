@@ -6,7 +6,7 @@ use rover_graphql::{GraphQLRequest, GraphQLServiceError};
 use tower::Service;
 
 use super::{
-    config_who_am_i_query, types::QueryVariables, Actor, ConfigWhoAmIInput, ConfigWhoAmIQuery,
+    config_who_am_i_query, Actor, ConfigWhoAmIInput, ConfigWhoAmIQuery, QueryVariables,
     RegistryIdentity,
 };
 use crate::RoverClientError;
