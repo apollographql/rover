@@ -464,7 +464,7 @@ impl Rover {
         if self.command.can_authenticate()
             && let Some(selection) = self.external_authentication()?
         {
-            selection.warn(&rover_print::print::stderr::default());
+            selection.warn(&rover_print::print::stderr::default())?;
         }
         // A project file that names a credential or spells one setting both
         // ways fails every command run in the project before it sends any

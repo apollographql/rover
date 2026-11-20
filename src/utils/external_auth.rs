@@ -20,7 +20,7 @@ pub(crate) fn external_auth_failure(error: &anyhow::Error) -> Option<&ExternalAu
         .or_else(|| {
             error
                 .downcast_ref::<ExternalAuthDiagnostic>()
-                .map(|diagnostic| &diagnostic.0)
+                .map(|diagnostic| &diagnostic.error)
         })
         .or_else(|| match error.downcast_ref::<RoverClientError>()? {
             RoverClientError::ExternalAuth(error) => Some(error),
@@ -29,62 +29,94 @@ pub(crate) fn external_auth_failure(error: &anyhow::Error) -> Option<&ExternalAu
 }
 
 /// Render provenance using the same names Clap uses to parse the token-file input.
-pub(crate) struct ExternalTokenOriginDisplay<'a> {
-    origin: ExternalTokenOrigin,
-    argument: &'a clap::Arg,
-}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct ExternalTokenOriginDisplay(String);
 
-impl ExternalTokenOriginDisplay<'_> {
-    pub(crate) fn name(origin: ExternalTokenOrigin) -> String {
-        let command = Rover::command();
+impl ExternalTokenOriginDisplay {
+    pub(crate) fn new(origin: ExternalTokenOrigin) -> Result<Self, ExternalTokenOriginError> {
+        Self::from_command(origin, &Rover::command())
+    }
+
+    fn from_command(
+        origin: ExternalTokenOrigin,
+        command: &clap::Command,
+    ) -> Result<Self, ExternalTokenOriginError> {
         let argument = command
             .get_arguments()
             .find(|argument| argument.get_id() == "access_token_file")
-            .expect("the token-file argument is registered");
-        ExternalTokenOriginDisplay { origin, argument }.to_string()
+            .ok_or(ExternalTokenOriginError::ArgumentNotRegistered)?;
+        let name = match origin {
+            ExternalTokenOrigin::Option => format!(
+                "--{}",
+                argument
+                    .get_long()
+                    .ok_or(ExternalTokenOriginError::MissingLongOption)?
+            ),
+            ExternalTokenOrigin::Environment => argument
+                .get_env()
+                .ok_or(ExternalTokenOriginError::MissingEnvironmentVariable)?
+                .to_string_lossy()
+                .into_owned(),
+        };
+        Ok(Self(name))
     }
 }
 
-impl fmt::Display for ExternalTokenOriginDisplay<'_> {
+impl fmt::Display for ExternalTokenOriginDisplay {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.origin {
-            ExternalTokenOrigin::Option => write!(
-                f,
-                "--{}",
-                self.argument
-                    .get_long()
-                    .expect("the token-file argument has a long option")
-            ),
-            ExternalTokenOrigin::Environment => f.write_str(
-                &self
-                    .argument
-                    .get_env()
-                    .expect("the token-file argument has an environment variable")
-                    .to_string_lossy(),
-            ),
-        }
+        f.write_str(&self.0)
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+pub(crate) enum ExternalTokenOriginError {
+    #[error("The external token-file argument is missing from the CLI parser.")]
+    ArgumentNotRegistered,
+    #[error("The external token-file argument has no long option in the CLI parser.")]
+    MissingLongOption,
+    #[error("The external token-file argument has no environment variable in the CLI parser.")]
+    MissingEnvironmentVariable,
 }
 
 /// Keep the structured failure available while rendering CLI-specific provenance.
 #[derive(Debug, thiserror::Error)]
-pub(crate) struct ExternalAuthDiagnostic(#[source] pub(crate) ExternalAuthError);
+pub(crate) struct ExternalAuthDiagnostic {
+    #[source]
+    error: ExternalAuthError,
+    origin: Option<ExternalTokenOriginDisplay>,
+}
+
+impl ExternalAuthDiagnostic {
+    pub(crate) fn new(error: ExternalAuthError) -> Result<Self, ExternalTokenOriginError> {
+        Self::from_command(error, &Rover::command())
+    }
+
+    fn from_command(
+        error: ExternalAuthError,
+        command: &clap::Command,
+    ) -> Result<Self, ExternalTokenOriginError> {
+        let origin = match &error {
+            ExternalAuthError::Source(error) => Some(ExternalTokenOriginDisplay::from_command(
+                error.origin,
+                command,
+            )?),
+            _ => None,
+        };
+        Ok(Self { error, origin })
+    }
+}
 
 impl fmt::Display for ExternalAuthDiagnostic {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.0 {
-            ExternalAuthError::Source(error) => {
-                write!(
-                    f,
-                    "External token source from {}",
-                    ExternalTokenOriginDisplay::name(error.origin)
-                )?;
+        match (&self.error, &self.origin) {
+            (ExternalAuthError::Source(error), Some(origin)) => {
+                write!(f, "External token source from {origin}")?;
                 if !error.path.as_os_str().is_empty() {
                     write!(f, " at '{}'", error.path.display())?;
                 }
                 write!(f, ": {}", error.kind)
             }
-            error => fmt::Display::fmt(error, f),
+            (error, _) => fmt::Display::fmt(error, f),
         }
     }
 }
@@ -101,44 +133,45 @@ impl ExternalAuthentication {
         Self { source, conflicts }
     }
 
-    pub(crate) fn validate(&self) -> Result<(), ExternalAuthConflict> {
-        match self.conflict() {
+    pub(crate) fn validate(&self) -> Result<(), ExternalAuthenticationError> {
+        match self.conflict()? {
             Some(error) => Err(error),
             None => Ok(()),
         }
     }
 
-    pub(crate) fn warn(&self, stderr: &impl Print) {
-        if let Some(conflict) = self.conflict() {
+    pub(crate) fn warn(&self, stderr: &impl Print) -> Result<(), ExternalTokenOriginError> {
+        if let Some(conflict) = self.conflict()? {
             stderr.print(&StyledText::plain(format!(
                 "Warning: {conflict} Authentication will fail when an authenticated operation starts."
             )));
         }
+        Ok(())
     }
 
-    fn conflict(&self) -> Option<ExternalAuthConflict> {
-        (!self.conflicts.is_empty()).then(|| ExternalAuthConflict {
-            origin: self.source.origin(),
+    fn conflict(&self) -> Result<Option<ExternalAuthenticationError>, ExternalTokenOriginError> {
+        if self.conflicts.is_empty() {
+            return Ok(None);
+        }
+        Ok(Some(ExternalAuthenticationError::Conflict {
+            origin: ExternalTokenOriginDisplay::new(self.source.origin())?,
             inputs: self.conflicts.clone(),
-        })
+        }))
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
-pub(crate) struct ExternalAuthConflict {
-    pub(crate) origin: ExternalTokenOrigin,
-    pub(crate) inputs: Vec<&'static str>,
-}
-
-impl fmt::Display for ExternalAuthConflict {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{} conflicts with {}. Remove the conflicting credential inputs to use the application-supplied token.",
-            ExternalTokenOriginDisplay::name(self.origin),
-            self.inputs.join(", ")
-        )
-    }
+pub(crate) enum ExternalAuthenticationError {
+    #[error(transparent)]
+    Origin(#[from] ExternalTokenOriginError),
+    #[error(
+        "{origin} conflicts with {}. Remove the conflicting credential inputs to use the application-supplied token.",
+        .inputs.join(", ")
+    )]
+    Conflict {
+        origin: ExternalTokenOriginDisplay,
+        inputs: Vec<&'static str>,
+    },
 }
 
 #[cfg(test)]
@@ -174,16 +207,113 @@ mod tests {
                 .long("application-token-file")
                 .env("APPLICATION_TOKEN_FILE")
         });
-        let argument = command
-            .get_arguments()
-            .find(|argument| argument.get_id() == "access_token_file")
-            .unwrap();
-
         assert_that!((
-            ExternalTokenOriginDisplay::name(origin),
-            ExternalTokenOriginDisplay { origin, argument }.to_string(),
+            ExternalTokenOriginDisplay::new(origin).unwrap().to_string(),
+            ExternalTokenOriginDisplay::from_command(origin, &command)
+                .unwrap()
+                .to_string(),
         ))
         .is_equal_to((current_name.to_string(), renamed.to_string()));
+    }
+
+    #[rstest]
+    #[case::missing_argument(
+        ExternalTokenOrigin::Option,
+        None,
+        ExternalTokenOriginError::ArgumentNotRegistered,
+        "The external token-file argument is missing from the CLI parser."
+    )]
+    #[case::missing_environment_argument(
+        ExternalTokenOrigin::Environment,
+        None,
+        ExternalTokenOriginError::ArgumentNotRegistered,
+        "The external token-file argument is missing from the CLI parser."
+    )]
+    #[case::missing_long_option(
+        ExternalTokenOrigin::Option,
+        Some(clap::Arg::new("access_token_file").env("APPLICATION_TOKEN_FILE")),
+        ExternalTokenOriginError::MissingLongOption,
+        "The external token-file argument has no long option in the CLI parser."
+    )]
+    #[case::missing_environment_variable(
+        ExternalTokenOrigin::Environment,
+        Some(clap::Arg::new("access_token_file").long("application-token-file")),
+        ExternalTokenOriginError::MissingEnvironmentVariable,
+        "The external token-file argument has no environment variable in the CLI parser."
+    )]
+    fn external_auth_missing_parser_metadata_returns_typed_errors(
+        #[case] origin: ExternalTokenOrigin,
+        #[case] argument: Option<clap::Arg>,
+        #[case] expected: ExternalTokenOriginError,
+        #[case] message: &str,
+        #[values(false, true)] selection_error: bool,
+    ) {
+        let mut command = clap::Command::new("rover");
+        if let Some(argument) = argument {
+            command = command.arg(argument);
+        }
+        assert_that!(ExternalTokenOriginDisplay::from_command(origin, &command))
+            .is_err()
+            .is_equal_to(expected.clone());
+
+        let result = ExternalAuthDiagnostic::from_command(
+            ExternalAuthError::Source(ExternalTokenError {
+                origin,
+                path: "token-source".into(),
+                kind: ExternalTokenFailure::Missing,
+            }),
+            &command,
+        );
+        let error = assert_that!(result).is_err().subject.clone();
+        assert_that!(error).is_equal_to(expected);
+        let error = if selection_error {
+            RoverError::new(ExternalAuthenticationError::from(error))
+        } else {
+            RoverError::new(error)
+        };
+        assert_that!(error.outcome()).is_equal_to(sputnik::Outcome::InternalError);
+        assert_that!(serde_json::to_value(error).unwrap()).is_equal_to(serde_json::json!({
+            "code": null,
+            "message": message,
+        }));
+    }
+
+    #[rstest]
+    #[case::option(
+        ExternalTokenOrigin::Option,
+        clap::Arg::new("access_token_file").long("application-token-file"),
+        "--application-token-file"
+    )]
+    #[case::environment(
+        ExternalTokenOrigin::Environment,
+        clap::Arg::new("access_token_file").env("APPLICATION_TOKEN_FILE"),
+        "APPLICATION_TOKEN_FILE"
+    )]
+    fn external_auth_origin_requires_only_its_selected_parser_metadata(
+        #[case] origin: ExternalTokenOrigin,
+        #[case] argument: clap::Arg,
+        #[case] expected: &str,
+    ) {
+        let command = clap::Command::new("rover").arg(argument);
+        assert_that!(
+            ExternalTokenOriginDisplay::from_command(origin, &command)
+                .unwrap()
+                .to_string()
+        )
+        .is_equal_to(expected.to_string());
+    }
+
+    #[rstest]
+    #[case::rejected(ExternalAuthError::Rejected)]
+    #[case::permission_denied(ExternalAuthError::PermissionDenied)]
+    fn external_auth_status_diagnostics_do_not_require_parser_metadata(
+        #[case] error: ExternalAuthError,
+    ) {
+        let expected = error.to_string();
+        let diagnostic =
+            ExternalAuthDiagnostic::from_command(error, &clap::Command::new("rover")).unwrap();
+
+        assert_that!(diagnostic.to_string()).is_equal_to(expected);
     }
 
     #[rstest]
@@ -249,8 +379,8 @@ mod tests {
 
     #[rstest]
     fn external_auth_conflicts_keep_their_code_through_anyhow_context() {
-        let conflict = ExternalAuthConflict {
-            origin: ExternalTokenOrigin::Option,
+        let conflict = ExternalAuthenticationError::Conflict {
+            origin: ExternalTokenOriginDisplay::new(ExternalTokenOrigin::Option).unwrap(),
             inputs: vec!["APOLLO_KEY"],
         };
         let error = RoverError::new(anyhow::Error::new(conflict).context("Publishing a subgraph"));

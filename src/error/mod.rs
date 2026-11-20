@@ -106,7 +106,10 @@ impl RoverError {
         if let Some(diagnostic) =
             crate::utils::external_auth::external_auth_failure(&error).cloned()
         {
-            error = anyhow::Error::new(ExternalAuthDiagnostic(diagnostic));
+            error = match ExternalAuthDiagnostic::new(diagnostic) {
+                Ok(diagnostic) => anyhow::Error::new(diagnostic),
+                Err(error) => anyhow::Error::new(error),
+            };
         }
         let mut metadata = RoverErrorMetadata::from(error.borrow_mut());
         if error.is::<ExternalAuthDiagnostic>() {
