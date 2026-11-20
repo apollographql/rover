@@ -631,7 +631,7 @@ impl StudioClient {
             .map_err(|error| match error {
                 // reqwest's decode-error Debug can quote reflected response credentials.
                 RoverClientError::SendRequest { source, .. } if source.is_decode() => {
-                    RoverClientError::ClientError {
+                    RoverClientError::ResponseDecode {
                         msg: source.to_string(),
                     }
                 }
