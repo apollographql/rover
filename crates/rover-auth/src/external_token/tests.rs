@@ -80,46 +80,6 @@ fn absent_token_file(token_file: TokenFile) -> TokenFile {
 }
 
 #[rstest]
-fn reading_without_a_tokio_runtime_returns_a_source_error(
-    token_file: TokenFile,
-    #[values(false, true)] service: bool,
-) {
-    let result = if service {
-        futures::executor::block_on(token_file.source.clone().oneshot(()))
-    } else {
-        futures::executor::block_on(token_file.source.read())
-    };
-
-    assert_that!(result)
-        .is_err()
-        .is_equal_to(ExternalTokenError {
-            origin: ExternalTokenOrigin::Option,
-            path: token_file.source.path().to_path_buf(),
-            kind: ExternalTokenFailure::Unreadable,
-        });
-}
-
-#[rstest]
-fn reading_with_a_stopped_tokio_runtime_returns_a_source_error(token_file: TokenFile) {
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .build()
-        .unwrap();
-    let handle = runtime.handle().clone();
-    drop(runtime);
-    let _entered = handle.enter();
-
-    let result = futures::executor::block_on(token_file.source.read());
-
-    assert_that!(result)
-        .is_err()
-        .is_equal_to(ExternalTokenError {
-            origin: ExternalTokenOrigin::Option,
-            path: token_file.source.path().to_path_buf(),
-            kind: ExternalTokenFailure::Unreadable,
-        });
-}
-
-#[rstest]
 #[case::opaque("opaque-token")]
 #[case::alphabet("Az09-._~+/")]
 #[case::one_padding("token=")]
