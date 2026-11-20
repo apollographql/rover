@@ -9,7 +9,7 @@ pub use suggestion::RoverErrorSuggestion;
 use crate::{
     options::{JsonVersion, ProjectSettingsError, SettingValueError},
     plugin,
-    utils::env::RoverEnvKey,
+    utils::{env::RoverEnvKey, external_auth::ExternalAuthenticationError},
 };
 
 mod code;
@@ -44,7 +44,10 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 .map(RoverErrorCode::from)
                 .or_else(|| {
                     error
-                        .downcast_ref::<crate::utils::external_auth::ExternalAuthConflict>()
+                        .downcast_ref::<ExternalAuthenticationError>()
+                        .filter(|error| {
+                            matches!(error, ExternalAuthenticationError::Conflict { .. })
+                        })
                         .map(|_| RoverErrorCode::E079)
                 });
         if let Some(code) = external_code {

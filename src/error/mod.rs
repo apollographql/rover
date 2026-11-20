@@ -107,7 +107,10 @@ impl RoverError {
             rover_studio::service::external_auth::ExternalAuthError::find_in_chain(error.as_ref())
                 .cloned()
         {
-            error = anyhow::Error::new(ExternalAuthDiagnostic(diagnostic));
+            error = match ExternalAuthDiagnostic::new(diagnostic) {
+                Ok(diagnostic) => anyhow::Error::new(diagnostic),
+                Err(error) => anyhow::Error::new(error),
+            };
         }
         let mut metadata = RoverErrorMetadata::from(error.borrow_mut());
         if error.is::<ExternalAuthDiagnostic>() {

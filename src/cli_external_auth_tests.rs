@@ -309,7 +309,8 @@ fn external_auth_warnings_name_inputs_but_not_values(
         .external_authentication()
         .unwrap()
         .unwrap()
-        .warn(&capture);
+        .warn(&capture)
+        .unwrap();
 
     let expected = if expected_warning {
         vec!["Warning: --access-token-file conflicts with APOLLO_KEY. Remove the conflicting credential inputs to use the application-supplied token. Authentication will fail when an authenticated operation starts.".to_string()]
