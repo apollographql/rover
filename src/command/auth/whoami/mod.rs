@@ -16,7 +16,7 @@ use self::output::{AuthWhoAmILegacyOutput, AuthWhoAmIOutput, GrantTypeReport};
 use super::OauthConfig;
 use crate::{
     RoverError, RoverOutput, RoverResult,
-    command::config::whoami::LegacyWhoami,
+    command::{config::whoami::LegacyWhoami, external_identity::ExternalIdentityOutput},
     options::{ProfileOpt, SettingName},
     utils::client::StudioClientConfig,
 };
@@ -53,9 +53,16 @@ impl WhoAmI {
     pub async fn run(
         &self,
         client_config: StudioClientConfig,
-        oauth_config: OauthConfig,
+        oauth_config: impl FnOnce() -> RoverResult<OauthConfig>,
         profile: &ProfileOpt,
     ) -> RoverResult<RoverOutput> {
+        if client_config.has_external_authentication() {
+            return Ok(RoverOutput::CliOutput(Box::new(
+                ExternalIdentityOutput::fetch(&client_config, profile, self.insecure_unmask_key)
+                    .await?,
+            )));
+        }
+        let oauth_config = oauth_config()?;
         let credential =
             Profile::new(&profile.profile_name, &client_config.config).get_credential()?;
 

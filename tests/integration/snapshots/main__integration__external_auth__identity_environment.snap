@@ -1,0 +1,16 @@
+---
+source: tests/integration/external_auth.rs
+expression: json
+---
+{
+  "json_version": "1",
+  "data": {
+    "actor_type": "User",
+    "id": "external-account",
+    "graph_title": null,
+    "origin": "APOLLO_ACCESS_TOKEN_FILE",
+    "access_token": "[REDACTED]",
+    "success": true
+  },
+  "error": null
+}

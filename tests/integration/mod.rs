@@ -7,6 +7,7 @@ mod config;
 mod connector;
 mod dev;
 mod explain;
+mod external_auth;
 mod graph;
 mod help;
 mod info;

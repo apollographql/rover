@@ -1,0 +1,13 @@
+---
+source: src/command/external_identity.rs
+expression: text
+---
+┌──────────────┬─────────────────────┐
+│ Actor Type   ┆ User                │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Identity ID  ┆ account-id          │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Origin       ┆ --access-token-file │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Access Token ┆ [REDACTED]          │
+└──────────────┴─────────────────────┘

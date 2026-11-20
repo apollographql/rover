@@ -507,7 +507,7 @@ impl Rover {
                 command
                     .run(
                         self.get_client_config().await?,
-                        self.get_oauth_config(&command.oauth_settings_used())?,
+                        || self.get_oauth_config(&command.oauth_settings_used()),
                         &profile_opt,
                         &self.output_opts,
                     )

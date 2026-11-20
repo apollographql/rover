@@ -11,6 +11,7 @@ use rover_print::{print::Print, style::StyledText};
 
 use crate::{
     RoverError, RoverOutput, RoverResult,
+    command::external_identity::ExternalIdentityOutput,
     options::ProfileOpt,
     utils::{client::StudioClientConfig, env::RoverEnvKey},
 };
@@ -36,6 +37,13 @@ impl WhoAmI {
         stderr.print(&StyledText::plain(
             "note: `rover config whoami` is being replaced by `rover auth whoami` - consider switching over.",
         ));
+
+        if client_config.has_external_authentication() {
+            return Ok(RoverOutput::CliOutput(Box::new(
+                ExternalIdentityOutput::fetch(&client_config, profile, self.insecure_unmask_key)
+                    .await?,
+            )));
+        }
 
         let identity = LegacyWhoami {
             profile: profile.clone(),
