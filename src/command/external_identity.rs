@@ -14,7 +14,7 @@ use crate::{
     RoverResult,
     command::CliOutput,
     options::ProfileOpt,
-    utils::{client::StudioClientConfig, table},
+    utils::{client::StudioClientConfig, external_auth::ExternalTokenOriginDisplay, table},
 };
 
 /// Shared Platform API identity output, with no inferred OAuth grant type.
@@ -32,11 +32,12 @@ impl ExternalIdentityOutput {
         insecure_unmask_key: bool,
     ) -> RoverResult<Self> {
         let client = client_config.get_authenticated_client(profile)?;
-        let origin = client
-            .external_token_source()
-            .ok_or_else(|| anyhow!("An external credential source was not selected."))?
-            .origin()
-            .to_string();
+        let origin = ExternalTokenOriginDisplay::name(
+            client
+                .external_token_source()
+                .ok_or_else(|| anyhow!("An external credential source was not selected."))?
+                .origin(),
+        );
         let capture = insecure_unmask_key.then(ExternalTokenCapture::default);
         let service = match &capture {
             Some(capture) => client.studio_graphql_service_with_external_token_capture(
