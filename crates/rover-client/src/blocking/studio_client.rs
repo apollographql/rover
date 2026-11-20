@@ -6,7 +6,9 @@ use reqwest::{
     header::{HeaderMap, HeaderValue},
     Client as ReqwestClient,
 };
-use rover_auth::external_token::{ExternalTokenOrigin, ExternalTokenSource};
+use rover_auth::external_token::{
+    ExternalAccessToken, ExternalTokenError, ExternalTokenOrigin, ExternalTokenSource,
+};
 use rover_graphql::{GraphQLLayer, GraphQLService, GraphQLServiceError};
 use rover_http::{
     retry::{retry_with_attempt_timeout, RetryPolicy},
@@ -20,10 +22,12 @@ use rover_studio::service::{
     rejected_credential::RejectedCredentialLayer,
     HttpStudioServiceError, HttpStudioServiceLayer,
 };
-use tower::{retry::RetryLayer, util::BoxCloneServiceLayer, Layer, ServiceBuilder, ServiceExt};
+use tower::{
+    retry::RetryLayer, util::BoxCloneServiceLayer, Layer, Service, ServiceBuilder, ServiceExt,
+};
 use url::Url;
 
-use super::external::{ExternalGraphQL, LegacyRetryPolicy};
+use super::external::{ExternalGraphQL, ExternalTokenCapture, LegacyRetryPolicy};
 use crate::{
     blocking::{GraphQLClient, CLIENT_NAME},
     error::EndpointKind,
@@ -407,6 +411,31 @@ impl StudioClient {
         Ok(service)
     }
 
+    /// Observes the actual external token for an explicitly unmasked identity lookup.
+    ///
+    /// Make a fresh `capture` for each lookup and expose it only after success. Ordinary
+    /// operations must use the non-capturing constructors. Stored credentials are unchanged.
+    pub fn studio_graphql_service_with_external_token_capture(
+        &self,
+        capture: ExternalTokenCapture,
+        attempt_timeout: Duration,
+    ) -> Result<GraphQLService<HttpService>, InitStudioServiceError> {
+        match &self.credential {
+            StudioCredential::External(source) => {
+                let source = source
+                    .clone()
+                    .map_response(move |token| capture.observe(token));
+                Ok(GraphQLService::new(
+                    None,
+                    self.external_service(&source, ExternalRetry::Standard, attempt_timeout)?,
+                ))
+            }
+            StudioCredential::Stored(_) => {
+                self.studio_graphql_service_with_attempt_timeout(attempt_timeout)
+            }
+        }
+    }
+
     /// A Studio GraphQL service bounded by a single per-attempt `timeout`, with **no retry** -
     /// for a non-idempotent mutation where a retried attempt could double the effect of a
     /// request the server already committed (e.g. `createOAuthClient`, `rotateOAuthClientSecret`,
@@ -491,12 +520,19 @@ impl StudioClient {
         }
     }
 
-    fn external_service(
+    fn external_service<T>(
         &self,
-        source: &ExternalTokenSource,
+        source: &T,
         retry: ExternalRetry,
         attempt_timeout: Duration,
-    ) -> Result<HttpService, InitStudioServiceError> {
+    ) -> Result<HttpService, InitStudioServiceError>
+    where
+        T: Service<(), Response = ExternalAccessToken, Error = ExternalTokenError>
+            + Clone
+            + Send
+            + 'static,
+        T::Future: Send,
+    {
         let endpoint = Url::parse(&self.graphql_endpoint)?;
         let uri = endpoint
             .as_str()

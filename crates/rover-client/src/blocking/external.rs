@@ -3,11 +3,13 @@
 use std::{
     future::Future,
     pin::Pin,
+    sync::{Arc, Mutex},
     task::{Context, Poll},
     time::{Duration, Instant},
 };
 
 use backon::BackoffBuilder;
+use rover_auth::external_token::ExternalAccessToken;
 use rover_graphql::is_credential_rejection;
 use rover_http::{
     retry::is_retryable_status, BodyExt, HttpRequest, HttpResponse, HttpServiceError,
@@ -18,6 +20,43 @@ use serde::Deserialize;
 use tower::{retry::Policy, Service};
 
 use super::client::{get_source_error_type, GraphQLClient, REJECTED_CREDENTIAL_MESSAGE};
+
+/// Opt-in, short-lived capture for deliberate identity credential unmasking.
+///
+/// Use a fresh capture for each identity lookup, and inspect it only after that lookup
+/// succeeds. It observes reads made by authentication, never supplies credentials to it,
+/// and does not reread the file after the server has answered.
+/// Clones share one slot; never share a capture between overlapping lookups.
+#[derive(Clone, Default)]
+pub struct ExternalTokenCapture(Arc<Mutex<Option<ExternalAccessToken>>>);
+
+impl std::fmt::Debug for ExternalTokenCapture {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("ExternalTokenCapture([REDACTED])")
+    }
+}
+
+impl ExternalTokenCapture {
+    /// Removes the last observed token, which authenticates the final attempt on success.
+    ///
+    /// The caller must check that its lookup succeeded before calling this: observing a
+    /// source read does not prove the server accepted the token. Stored-credential services
+    /// do not populate the capture.
+    pub fn take(&self) -> Option<ExternalAccessToken> {
+        self.0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take()
+    }
+
+    pub(super) fn observe(&self, token: ExternalAccessToken) -> ExternalAccessToken {
+        *self
+            .0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(token.clone());
+        token
+    }
+}
 
 /// Recognizes authentication errors without allocating or deserializing the response's data.
 #[derive(Deserialize)]
