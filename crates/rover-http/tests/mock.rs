@@ -36,5 +36,7 @@ fn http_mock_is_available_to_consumers() {
         })
         .map_err(|error| error.to_string());
 
-    assert_that!(response).is_equal_to(Ok((StatusCode::OK, Bytes::from_static(b"mock-response"))));
+    assert_that!(response)
+        .is_ok()
+        .is_equal_to((StatusCode::OK, Bytes::from_static(b"mock-response")));
 }
