@@ -21,19 +21,10 @@ pub const MAX_TOKEN_FILE_BYTES: usize = 16 * 1024;
 /// The runtime input that supplied a token-file location.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ExternalTokenOrigin {
-    /// The global `--access-token-file` option.
+    /// A command-line option.
     Option,
-    /// The `APOLLO_ACCESS_TOKEN_FILE` environment variable.
+    /// An environment variable.
     Environment,
-}
-
-impl fmt::Display for ExternalTokenOrigin {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            Self::Option => "--access-token-file",
-            Self::Environment => "APOLLO_ACCESS_TOKEN_FILE",
-        })
-    }
 }
 
 /// A token read from an external source, with redacted debug output.
@@ -164,7 +155,7 @@ pub struct ExternalTokenError {
 
 impl fmt::Display for ExternalTokenError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "External token source from {}", self.origin)?;
+        f.write_str("External token source")?;
         if !self.path.as_os_str().is_empty() {
             write!(f, " at '{}'", self.path.display())?;
         }

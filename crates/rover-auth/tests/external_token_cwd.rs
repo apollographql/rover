@@ -85,7 +85,7 @@ mod unix {
             .is_err()
             .is_equal_to(&expected);
         assert_that!(expected.to_string()).is_equal_to(
-            "External token source from APOLLO_ACCESS_TOKEN_FILE at 'access-token': the location cannot be resolved from the initial working directory; supply a valid absolute token-file path or invoke Rover from an accessible directory".to_string(),
+            "External token source at 'access-token': the location cannot be resolved from the initial working directory; supply a valid absolute token-file path or invoke Rover from an accessible directory".to_string(),
         );
         env::set_current_dir(working_directory.directory.path()).unwrap();
         // Recovering cwd must not redirect the original source.
