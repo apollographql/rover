@@ -20,6 +20,7 @@ use std::{
 use http::{header::AUTHORIZATION, HeaderValue, StatusCode, Uri};
 use rover_auth::external_token::{ExternalAccessToken, ExternalTokenError};
 use rover_http::{retry::RetryCount, HttpRequest, HttpResponse, HttpServiceError};
+use rover_tower::service::replace_ready_service;
 use tower::{Layer, Service, ServiceExt};
 
 /// Terminal external-authentication failures, distinct from transient transport failures.
@@ -186,9 +187,7 @@ where
             return Box::pin(self.inner.call(request));
         }
 
-        // Move the ready service into the future, rather than calling its unready clone.
-        let clone = self.inner.clone();
-        let mut inner = std::mem::replace(&mut self.inner, clone);
+        let mut inner = replace_ready_service(&mut self.inner);
         let source = self.source.clone();
         let state = request
             .extensions()
@@ -258,7 +257,7 @@ mod tests {
         timeout::TimeoutLayer,
         trace::{new_trace_id, TraceparentLayer},
     };
-    use rover_tower::mock::MockCloneService;
+    use rover_tower::{expect_poll_ready, mock::MockCloneService};
     use rstest::{fixture, rstest};
     use speculoos::prelude::*;
     use tower::{retry::RetryLayer, ServiceBuilder};
@@ -527,9 +526,7 @@ mod tests {
     async fn readiness_does_not_read_the_source(endpoint: Uri) {
         let source = MockTokenService::new();
         let mut http = MockHttpService::new();
-        http.expect_poll_ready()
-            .once()
-            .returning(|_| Poll::Ready(Ok(())));
+        expect_poll_ready!(http);
         let mut service = ExternalAuthLayer::new(MockCloneService::new(source), endpoint)
             .layer(MockCloneService::new(http));
 
@@ -539,14 +536,12 @@ mod tests {
     }
 
     #[rstest]
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn concurrent_operations_have_independent_resends_and_attempt_counters(endpoint: Uri) {
         let reads = Arc::new(AtomicU32::new(0));
         let captured_reads = reads.clone();
         let mut source = MockTokenService::new();
-        source
-            .expect_poll_ready()
-            .returning(|_| Poll::Ready(Ok(())));
+        expect_poll_ready!(source, 8);
         source.expect_call().times(8).returning(move |_| {
             ready(Ok(ExternalAccessToken::parse(
                 format!("token-{}", captured_reads.fetch_add(1, Ordering::Relaxed)).as_bytes(),
@@ -557,7 +552,7 @@ mod tests {
         let captured = attempts.clone();
         let mut counts = HashMap::<String, usize>::new();
         let mut http = MockHttpService::new();
-        http.expect_poll_ready().returning(|_| Poll::Ready(Ok(())));
+        expect_poll_ready!(http, 8);
         http.expect_call().times(8).returning(move |request| {
             let operation = request.headers()["operation"].to_str().unwrap().to_owned();
             let count = counts.entry(operation.clone()).or_default();
@@ -576,14 +571,19 @@ mod tests {
                 .body(Full::default())
                 .unwrap()))
         });
+        let http = MockCloneService::new(http).map_future(|future| async move {
+            let response = future.await;
+            tokio::time::sleep(Duration::from_millis(1)).await;
+            response
+        });
         let service = ServiceBuilder::new()
             .layer(ExternalAuthOperationLayer)
             .layer(ExternalAuthLayer::new(
                 MockCloneService::new(source),
                 endpoint.clone(),
             ))
-            .service(MockCloneService::new(http));
-        let results = stream::iter(0..4)
+            .service(http);
+        let mut results = stream::iter(0..4)
             .map(|operation| {
                 service.clone().oneshot(
                     Request::builder()
@@ -598,9 +598,23 @@ mod tests {
                 result
                     .map(|response| response.status())
                     .map_err(|error| error.to_string())
-            })
-            .collect::<Vec<_>>()
-            .await;
+            });
+
+        assert_that!(results.next().now_or_never()).is_none();
+        let mut first_attempts = attempts
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(operation, attempt, _)| (operation.clone(), *attempt))
+            .collect::<Vec<_>>();
+        first_attempts.sort();
+        assert_that!(first_attempts).is_equal_to(
+            (0..4)
+                .map(|operation| (operation.to_string(), 0))
+                .collect::<Vec<_>>(),
+        );
+
+        let results = results.collect::<Vec<_>>().await;
         let mut actual = attempts
             .lock()
             .unwrap()
@@ -632,9 +646,7 @@ mod tests {
             ExternalAccessToken::parse(b"B").unwrap(),
         ]);
         let mut source = MockTokenService::new();
-        source
-            .expect_poll_ready()
-            .returning(|_| Poll::Ready(Ok(())));
+        expect_poll_ready!(source, 2);
         source
             .expect_call()
             .times(2)
@@ -645,7 +657,7 @@ mod tests {
         });
         let mut statuses = VecDeque::from([StatusCode::UNAUTHORIZED, StatusCode::OK]);
         let mut http = MockHttpService::new();
-        http.expect_poll_ready().returning(|_| Poll::Ready(Ok(())));
+        expect_poll_ready!(http, 2);
         http.expect_call().times(2).returning(move |_| {
             ready(Ok(Response::builder()
                 .status(statuses.pop_front().unwrap())
