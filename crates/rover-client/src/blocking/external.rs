@@ -9,6 +9,7 @@ use rover_auth::external_token::ExternalAccessToken;
 /// Use a fresh capture for each identity lookup, and inspect it only after that lookup
 /// succeeds. It observes reads made by authentication, never supplies credentials to it,
 /// and does not reread the file after the server has answered.
+/// Clones share one slot; never share a capture between overlapping lookups.
 #[derive(Clone, Default)]
 pub struct ExternalTokenCapture(Arc<Mutex<Option<ExternalAccessToken>>>);
 
@@ -19,9 +20,11 @@ impl std::fmt::Debug for ExternalTokenCapture {
 }
 
 impl ExternalTokenCapture {
-    /// Removes the token used by the lookup's final successful attempt.
+    /// Removes the last observed token, which authenticates the final attempt on success.
     ///
-    /// A failed lookup must not expose the captured value.
+    /// The caller must check that its lookup succeeded before calling this: observing a
+    /// source read does not prove the server accepted the token. Stored-credential services
+    /// do not populate the capture.
     pub fn take(&self) -> Option<ExternalAccessToken> {
         self.0
             .lock()
