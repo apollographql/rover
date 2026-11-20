@@ -21,6 +21,11 @@ use crate::{
     utils::client::StudioClientConfig,
 };
 
+/// Prefix of the id `fetch_mcp_template` gives a base template combined with add-mcp.
+pub(crate) const MCP_TEMPLATE_ID_PREFIX: &str = "mcp-";
+/// Suffix of the display name `fetch_mcp_template` gives a base template combined with add-mcp.
+pub(crate) const MCP_TEMPLATE_DISPLAY_NAME_SUFFIX: &str = " + AI tools";
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TemplateManifest {
     pub templates: Vec<Template>,
@@ -260,8 +265,11 @@ impl InitTemplateFetcher {
 
         // Create MCP template metadata
         let mcp_template = Template {
-            id: TemplateId(format!("mcp-{}", base_template_id)),
-            display_name: format!("{} + AI tools", base_template.display_name),
+            id: TemplateId(format!("{MCP_TEMPLATE_ID_PREFIX}{base_template_id}")),
+            display_name: format!(
+                "{}{MCP_TEMPLATE_DISPLAY_NAME_SUFFIX}",
+                base_template.display_name
+            ),
             path: base_template.path.clone(),
             language: base_template.language.clone(),
             federation_version: base_template.federation_version.clone(),
