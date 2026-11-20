@@ -24,6 +24,7 @@ use crate::{
     command::{CliOutput, auth::grants::revoke::error::GrantsRevokeError},
     options::JsonVersion,
     plugin::error::PluginFailure,
+    utils::external_auth::ExternalAuthDiagnostic,
 };
 
 /// A specialized `Error` type for Rover that wraps `anyhow`
@@ -99,7 +100,23 @@ impl RoverError {
         E: Into<anyhow::Error>,
     {
         let mut error = error.into();
-        let metadata = RoverErrorMetadata::from(error.borrow_mut());
+        // Transport wrappers must not turn an external failure into API-key/login guidance.
+        // Deliberately discard their outer command context too, keeping this diagnostic
+        // self-contained and preventing an outer wrapper from revealing a credential.
+        if let Some(diagnostic) =
+            rover_studio::service::external_auth::ExternalAuthError::find_in_chain(error.as_ref())
+                .cloned()
+        {
+            error = match ExternalAuthDiagnostic::new(diagnostic) {
+                Ok(diagnostic) => anyhow::Error::new(diagnostic),
+                Err(error) => anyhow::Error::new(error),
+            };
+        }
+        let mut metadata = RoverErrorMetadata::from(error.borrow_mut());
+        if error.is::<ExternalAuthDiagnostic>() {
+            // The CLI diagnostic includes the complete source failure already.
+            metadata.skip_printing_cause = true;
+        }
 
         Self { error, metadata }
     }

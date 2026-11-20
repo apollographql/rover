@@ -331,6 +331,26 @@ mod tests {
         .is_equal_to(expected);
     }
 
+    #[rstest::rstest]
+    #[case::option(false)]
+    #[case::environment(true)]
+    fn external_auth_locations_are_not_reported(#[case] environment: bool) {
+        let location = "/private/application/session/access-token";
+        let rover = if environment {
+            parse_with_matches_env(
+                &[PKG_NAME, "config", "list"],
+                &[("APOLLO_ACCESS_TOKEN_FILE", location)],
+            )
+        } else {
+            parse_with_matches(&[PKG_NAME, "config", "list", "--access-token-file", location])
+        };
+
+        assert_that!(rover.serialize_command().unwrap().arguments).is_equal_to(HashMap::from([(
+            "access-token-file".to_string(),
+            serde_json::Value::Null,
+        )]));
+    }
+
     #[test]
     fn allowlisted_flag_values_are_reported() {
         let mut expected = HashMap::new();

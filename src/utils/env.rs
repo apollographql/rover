@@ -28,6 +28,10 @@ impl RoverEnv {
         } else {
             let mut env_store = HashMap::new();
             for key in RoverEnvKey::iter() {
+                // Clap owns this OS-native path. Do not require a Unicode copy in this cache.
+                if matches!(key, RoverEnvKey::AccessTokenFile) {
+                    continue;
+                }
                 let key_str = key.to_string();
 
                 match env::var(&key_str) {
@@ -92,6 +96,7 @@ impl RoverEnv {
 /// For example, `RoverEnvKey::ConfigHome.to_string()` becomes `APOLLO_CONFIG_HOME`
 #[derive(Debug, Copy, Clone, EnumIter)]
 pub enum RoverEnvKey {
+    AccessTokenFile,
     ClientId,
     ClientSecret,
     ConfigHome,

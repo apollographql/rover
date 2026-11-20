@@ -26,6 +26,10 @@ pub enum Command {
 }
 
 impl Supergraph {
+    pub(crate) const fn can_authenticate(&self) -> bool {
+        !matches!(self.command, Command::Config(_))
+    }
+
     pub async fn run(
         &self,
         override_install_path: Option<Utf8PathBuf>,
