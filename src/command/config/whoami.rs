@@ -18,11 +18,11 @@ use crate::{
 
 #[derive(Debug, Parser)]
 pub struct WhoAmI {
-    /// Unmask the API key that will be sent to Apollo Studio
+    /// Unmask the credential that will be sent to authenticate this request
     ///
     /// You should think very carefully before using this flag.
     ///
-    /// If you are sharing your screen your API key could be compromised
+    /// If you are sharing your screen your credential could be compromised
     #[arg(long)]
     insecure_unmask_key: bool,
 }

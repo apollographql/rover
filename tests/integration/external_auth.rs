@@ -318,6 +318,8 @@ fn external_auth_rejections_and_permissions_have_distinct_safe_diagnostics(
     #[case] status: u16,
     #[case] body: Value,
     #[case] snapshot: &str,
+    #[values("auth", "config")] noun: &str,
+    #[values(false, true)] unmask: bool,
 ) {
     let server = MockServer::start();
     let platform = server.mock(|when, then| {
@@ -326,11 +328,12 @@ fn external_auth_rejections_and_permissions_have_distinct_safe_diagnostics(
         then.status(status).json_body(body);
     });
 
-    let output = external_context
-        .authenticated_command(&server)
-        .args(["auth", "whoami"])
-        .output()
-        .unwrap();
+    let mut command = external_context.authenticated_command(&server);
+    command.args([noun, "whoami"]);
+    if unmask {
+        command.arg("--insecure-unmask-key");
+    }
+    let output = command.output().unwrap();
 
     assert_that!(output.status.code()).is_equal_to(Some(1));
     insta::assert_json_snapshot!(
