@@ -110,6 +110,8 @@ impl StudioClient {
     ///
     /// `client` must have redirects disabled so credentials cannot follow a redirect away
     /// from the configured Platform API endpoint.
+    /// Set [`Self::with_external_attempt_timeout`] from the caller's configured network
+    /// timeout when it differs from the conservative 30-second default.
     pub fn new_external(
         source: ExternalTokenSource,
         graphql_endpoint: &str,
