@@ -88,7 +88,13 @@ pub(crate) struct ExternalAuthDiagnostic {
 
 impl ExternalAuthDiagnostic {
     pub(crate) fn new(error: ExternalAuthError) -> Result<Self, ExternalTokenOriginError> {
-        Self::from_command(error, &Rover::command())
+        match error {
+            ExternalAuthError::Source(_) => Self::from_command(error, &Rover::command()),
+            _ => Ok(Self {
+                error,
+                origin: None,
+            }),
+        }
     }
 
     fn from_command(
@@ -310,6 +316,8 @@ mod tests {
         #[case] error: ExternalAuthError,
     ) {
         let expected = error.to_string();
+        let diagnostic = ExternalAuthDiagnostic::new(error.clone()).unwrap();
+        assert_that!(diagnostic.to_string()).is_equal_to(expected.clone());
         let diagnostic =
             ExternalAuthDiagnostic::from_command(error, &clap::Command::new("rover")).unwrap();
 

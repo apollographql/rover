@@ -10,7 +10,10 @@ use speculoos::prelude::*;
 use tempfile::{NamedTempFile, TempDir};
 
 use super::Rover;
-use crate::{RoverError, RoverErrorCode, utils::env::RoverEnvKey};
+use crate::{
+    RoverError, RoverErrorCode,
+    utils::{client::StudioClientConfig, env::RoverEnvKey},
+};
 
 struct ExternalContext {
     directory: TempDir,
@@ -323,13 +326,13 @@ fn external_auth_warnings_name_inputs_but_not_values(
 }
 
 #[rstest]
-#[case::plain("plain")]
-#[case::download("download")]
-#[case::plugin_version("plugin-version")]
+#[case::plain(StudioClientConfig::service)]
+#[case::download(StudioClientConfig::download_service)]
+#[case::plugin_version(StudioClientConfig::plugin_version_service)]
 #[tokio::test]
 async fn external_auth_is_not_added_to_unrelated_http_services(
     external_context: ExternalContext,
-    #[case] kind: &str,
+    #[case] create_service: fn(&StudioClientConfig) -> anyhow::Result<rover_http::HttpService>,
 ) {
     use tower::ServiceExt;
 
@@ -349,13 +352,7 @@ async fn external_auth_is_not_added_to_unrelated_http_services(
         .insert_env_var(RoverEnvKey::ClientSecret, "private-secret")
         .unwrap();
     let config = rover.get_client_config().await.unwrap();
-    let service = match kind {
-        "plain" => config.service(),
-        "download" => config.download_service(),
-        "plugin-version" => config.plugin_version_service(),
-        _ => unreachable!("unknown service"),
-    }
-    .unwrap();
+    let service = create_service(&config).unwrap();
     let request = http::Request::get(server.url("/unrelated"))
         .body(http_body_util::Full::new(bytes::Bytes::new()))
         .unwrap();
