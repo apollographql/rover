@@ -28,7 +28,9 @@ When no application-managed token file is selected, Rover uses the first of thes
 2. The access token from exchanging `APOLLO_CLIENT_ID` and `APOLLO_CLIENT_SECRET`, if both are set. Setting only one of them is an error.
 3. The credential stored on the profile in use: an OAuth login or a personal API key. A profile holds one credential at a time, so `rover auth login` replaces a personal API key stored on that profile, and `rover config auth` replaces an OAuth login.
 
-To see which credential a command uses, run `rover auth whoami` or `rover config whoami`. Their `Origin` row reads `$APOLLO_KEY`, `$APOLLO_CLIENT_ID`, `--profile <name> (OAuth)` for an OAuth login, or `--profile <name>` for a personal API key. `rover config show` reports only whether a credential is present and whether it came from the `environment` or the `profile`.
+Selecting an application-managed token file replaces this list. Combining it with a non-empty `APOLLO_KEY` or any `APOLLO_CLIENT_ID` or `APOLLO_CLIENT_SECRET` is an error, except for the router's separate `APOLLO_KEY` in [`rover dev`](/rover/commands/dev#starting-a-router-session).
+
+To see which credential a command uses, run `rover auth whoami` or `rover config whoami`. Their `Origin` row reads `$APOLLO_KEY`, `$APOLLO_CLIENT_ID`, `--profile <name> (OAuth)` for an OAuth login, `--profile <name>` for a personal API key, or `--access-token-file` or `APOLLO_ACCESS_TOKEN_FILE` for an application-managed token. `rover config show` reports only whether a credential is present and whether it came from the `environment` or the `profile`.
 
 This order is separate from [how Rover chooses a setting's value](#how-rover-chooses-a-settings-value). Credentials never come from the [project file](#project-settings).
 
@@ -40,37 +42,66 @@ An application that already manages an Apollo OAuth session can supply its curre
 rover graph fetch my-graph@current --access-token-file /private/app-session/access-token
 ```
 
-Alternatively, set `APOLLO_ACCESS_TOKEN_FILE` to that file's location. The option wins when both are present. Supply a **path, not a token**. An empty path is an error when authentication starts. Relative paths remain relative to Rover's initial working directory; applications should use an absolute path. The location cannot be stored in a profile or project file.
+Alternatively, set `APOLLO_ACCESS_TOKEN_FILE` to that file's location. The option wins when both are present. Supply a path, not a token. An empty path is an error when authentication starts. Relative paths remain relative to Rover's initial working directory. Use an absolute path when integrating an application. The location cannot be stored in a profile or project file.
 
-The external source replaces profile credentials for Platform API operations, while the selected profile's non-credential settings still apply. Do not also set a non-empty `APOLLO_KEY`, or any `APOLLO_CLIENT_ID` or `APOLLO_CLIENT_SECRET`, even an empty or partial client-credentials pair. Rover warns when an authenticated-capable command starts and rejects the conflicting inputs at its first authenticated operation. Local commands don't warn or read the file.
+The external source replaces profile credentials for Platform API operations, while the selected profile's non-credential settings still apply. Do not also set a non-empty `APOLLO_KEY`, or any `APOLLO_CLIENT_ID` or `APOLLO_CLIENT_SECRET`, even an empty or partial client-credentials pair. Rover warns when a command that can contact GraphOS starts and rejects the conflicting inputs at its first authenticated operation. Local commands don't warn or read the file.
 
-In `rover dev`, `APOLLO_KEY` is an exception: it is passed only to the router, while Rover uses the external token for its own Platform API requests. Without `APOLLO_KEY`, Rover gives the router neither a profile credential nor the external token and reports that the router has no GraphOS credentials.
+`rover dev` keeps the router's `APOLLO_KEY` separate from Rover's token. See [application-managed credentials in a router session](/rover/commands/dev#starting-a-router-session).
 
 #### File format and security
 
-The supplying application must publish a regular file containing one raw, non-empty UTF-8 bearer token. Accepted characters are letters, digits, `-`, `.`, `_`, `~`, `+`, and `/`, optionally followed by `=` padding. The file may end with one LF or CRLF, but must not include other whitespace, extra lines, a byte order mark, an `Authorization` header, or a `Bearer` prefix. The maximum size is **16,384 bytes**, including the optional line ending. Rover doesn't inspect JWT claims, including expiration.
+The supplying application must publish a regular file containing one raw, non-empty UTF-8 bearer token. Accepted characters are letters, digits, `-`, `.`, `_`, `~`, `+`, and `/`, optionally followed by `=` padding. The file may end with one LF or CRLF, but must not include other whitespace, extra lines, a byte order mark, an `Authorization` header, or a `Bearer` prefix. The maximum size is 16,384 bytes, including the optional line ending. Rover doesn't inspect JWT claims, including expiration.
 
 The file itself must not be a symbolic link; symbolic links in parent directories are allowed. On Unix:
 
 - The file must belong to the user running Rover, with no group or other read/write permissions, for example mode `600`.
 - Its immediate directory must belong to that user or root, with no group or other write permissions, for example mode `700`.
-- A world-writable directory such as `/tmp` is refused even with the sticky bit set. These checks use the filesystem's reported bits, including emulated or fixed permission bits.
+- A world-writable directory such as `/tmp` is refused even with the sticky bit set.
+
+These checks also apply on mounted and FUSE filesystems. For example, a mount that reports every file as mode `777` is refused. Choose a location that reports acceptable ownership and permissions, even if the filesystem emulates those values.
 
 Windows applies the file-type, symbolic-link, size, and same-file checks, but not the Unix ownership and permission checks. Rover doesn't verify Windows ACLs; the application is responsible for protecting the file.
 
 #### Rotation and application ownership
 
-Rover reads the source before **every outgoing Platform API attempt**, including retries and polls. Publish replacements atomically: write a new protected file in the same directory, then rename it over the source. Don't rewrite the existing file in place, because Rover can read a truncated but syntactically valid token.
+Rover reads the source before every outgoing Platform API attempt, including retries and polls.
 
-The application owns token acquisition, refresh, file security, and cleanup. Rover never writes or deletes the source, persists its token, refreshes it, or revokes it. The application must keep the token on the **same account for the lifetime of each Rover process**. Rover doesn't enforce this: if the file switches accounts, later operations use the new account.
+<Caution>
+
+Publish replacements atomically: write a new protected file in the same directory, then rename it over the source. Don't rewrite the existing file in place, because Rover can read a truncated but syntactically valid token.
+
+On Windows, use atomic replacement semantics that allow an open destination, or retry replacement after a temporary sharing conflict. A failed replacement hasn't published the new token. Keep the old file available until replacement succeeds.
+
+</Caution>
+
+The application owns token acquisition, refresh, file security, and cleanup. Rover never writes or deletes the source, persists its token, refreshes it, or revokes it.
+
+<Caution>
+
+Keep the token on the same account for the lifetime of each Rover process. Rover doesn't enforce this: if the file switches accounts, later operations use the new account.
+
+</Caution>
 
 After HTTP 401 or 406, Rover rereads the file once and resends the same request once only if the token changed. An unchanged token or second rejection fails immediately; Rover never waits for a replacement. A body-level authentication rejection is not replayed, and HTTP 403 remains a permission failure. Existing transient-retry rules are otherwise unchanged.
 
 A missing, invalid, insecure, or unreadable source prevents the affected attempt without falling back to a profile credential or login. Commands that already continue after independent operation failures may use a repaired source on their next operation. The external token is not added to introspection, plugin downloads, OAuth requests, telemetry, or unrelated subprocesses.
 
-Both identity commands use the Platform API, report `--access-token-file` or `APOLLO_ACCESS_TOKEN_FILE` as the origin, and redact the token as `[REDACTED]`. They don't infer its grant type or require OAuth userinfo. Explicit `--insecure-unmask-key` shows only the token used by the successful lookup. `rover auth login` and `rover auth logout` still manage the selected profile independently and leave the external source untouched.
+Both identity commands use the Platform API, report `--access-token-file` or `APOLLO_ACCESS_TOKEN_FILE` as the origin, and redact the token as `[REDACTED]`. They don't infer its grant type or require OAuth userinfo. Passing `--insecure-unmask-key` shows only the token used by the successful lookup. See the [external identity JSON fields](/rover/commands/auth#auth-whoami) before adapting scripts that read API-key or stored-login output. `rover auth login` and `rover auth logout` still manage the selected profile independently and leave the external source untouched.
 
-For JSON callers, `error.code` distinguishes source failures (`E066` through `E077`, a separate code for each check), rejection (`E078`), conflicting inputs (`E079`), and permission denial (`E080`). Renew rejected credentials in the supplying application; correct source checks or conflicting inputs rather than logging Rover in.
+For JSON callers, `error.code` identifies what to correct:
+
+| Code | Meaning | What to do |
+| --- | --- | --- |
+| `E066` | Empty location | Supply a file path. |
+| `E067` | Missing source | Have the application publish the file. |
+| `E068`, `E069` | Unreadable source or unresolvable location | Check the location and Rover's access to it. |
+| `E070` | File larger than 16,384 bytes | Publish only the token and optional line ending. |
+| `E071` | Invalid contents | Follow the token format above. |
+| `E072`, `E073` | Symbolic link or non-regular file | Publish a regular file at the selected location. |
+| `E074`–`E077` | File or directory ownership or permissions refused | Correct the Unix ownership and permissions described above. |
+| `E078` | Credential rejected | Renew it in the supplying application, not by logging Rover in. |
+| `E079` | Conflicting authentication inputs | Remove the conflicting credential variables. |
+| `E080` | Permission denied | Give the authenticated account access to the operation. |
 
 ### Via the `auth` command
 

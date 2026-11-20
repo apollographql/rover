@@ -27,8 +27,6 @@ This includes settings-only profiles created by [`config set`](#config-set). If 
 
 The `config whoami` command checks the credential Rover uses against GraphOS and displays its identity:
 
-When an [application-managed token file](/rover/configuring#with-an-application-managed-token-file) is selected, it uses the same external identity output as `rover auth whoami`: actor type, identity ID, optional graph title, source origin, and a fully redacted access token. It doesn't require a stored credential or OAuth userinfo request.
-
 ```
 rover config whoami
 
@@ -48,7 +46,9 @@ note: OAuth authentication is now available - consider running `rover auth login
 
 `Key Type` is `User`, `Graph`, or `Service Account`. A graph API key shows `Graph ID` and `Graph Title` rows instead of `User ID`. `Origin` shows where the credential came from: `$APOLLO_KEY`, `$APOLLO_CLIENT_ID`, `--profile <name> (OAuth)`, or `--profile <name>`. See [Which credential Rover uses](/rover/configuring#which-credential-rover-uses). The OAuth note appears only when the credential is an API key. `rover auth whoami` reports the same identity and also covers OAuth logins in detail.
 
-If the profile holds settings but no credential, and no credential is set in the environment, `config whoami` and every other command that needs a credential fail:
+When an [application-managed token file](/rover/configuring#with-an-application-managed-token-file) is selected, it uses the same external identity output as `rover auth whoami`: actor type, identity ID, optional graph title, source origin, and an access token set to `[REDACTED]`. It doesn't require a stored credential or OAuth userinfo request. Its JSON `data` object has a different shape from API-key output. See the [external identity fields](/rover/commands/auth#auth-whoami).
+
+If the profile holds settings but no credential, no credential is set in the environment, and no application-managed token file is selected, `config whoami` and every other command that needs a credential fail:
 
 ```
 error[E055]: Profile `staging` has settings but no credential. Run `rover auth login --profile staging`, or set `APOLLO_KEY` in the environment.
