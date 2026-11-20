@@ -27,6 +27,8 @@ This includes settings-only profiles created by [`config set`](#config-set). If 
 
 The `config whoami` command checks the credential Rover uses against GraphOS and displays its identity:
 
+When an [application-managed token file](/rover/configuring#with-an-application-managed-token-file) is selected, it uses the same external identity output as `rover auth whoami`: actor type, identity ID, optional graph title, source origin, and a fully redacted access token. It doesn't require a stored credential or OAuth userinfo request.
+
 ```
 rover config whoami
 
