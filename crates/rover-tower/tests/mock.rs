@@ -23,9 +23,8 @@ fn mock_helpers_are_available_to_consumers() {
         .return_once(|request| ready(Ok(request)));
     let service: rover_tower::test::MockCloneService<_> = MockCloneService::new(service);
 
-    assert_that!(service
-        .oneshot("mock-request".to_string())
-        .now_or_never()
-        .unwrap())
-    .is_equal_to(Ok("mock-request".to_string()));
+    assert_that!(service.oneshot("mock-request".to_string()).now_or_never())
+        .is_some()
+        .is_ok()
+        .is_equal_to("mock-request".to_string());
 }

@@ -228,7 +228,8 @@ async fn construction_does_not_open_or_require_the_file(
             .await
             .map(|source| source.path().to_path_buf())
     )
-    .is_equal_to(Ok(token_file.source.path().to_path_buf()));
+    .is_ok()
+    .is_equal_to(token_file.source.path().to_path_buf());
     assert_that!(source.read().await)
         .is_err()
         .is_equal_to(source.error(ExternalTokenFailure::Missing));
@@ -244,7 +245,9 @@ async fn consumers_can_use_file_sources_as_services(token_file: TokenFile) {
         .map_response(|token| token.secret().to_owned())
         .oneshot(())
         .await;
-    assert_that!(result).is_equal_to(Ok("opaque-token".to_string()));
+    assert_that!(result)
+        .is_ok()
+        .is_equal_to("opaque-token".to_string());
 }
 
 #[tokio::test]
@@ -261,7 +264,9 @@ async fn consumers_can_use_in_memory_sources_as_services() {
         .map_response(|token| token.secret().to_owned())
         .oneshot(())
         .await;
-    assert_that!(result).is_equal_to(Ok("opaque-token".to_string()));
+    assert_that!(result)
+        .is_ok()
+        .is_equal_to("opaque-token".to_string());
 }
 
 #[rstest]
@@ -558,7 +563,7 @@ mod unix {
             owner: 0,
             mode: 0o755,
         };
-        assert_that!(root.check_directory()).is_equal_to(Ok(()));
+        assert_that!(root.check_directory()).is_ok().is_equal_to(());
     }
 
     #[rstest]
