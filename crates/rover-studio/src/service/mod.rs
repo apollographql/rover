@@ -42,6 +42,33 @@ impl HttpStudioServiceLayer {
         client_version: String,
         is_sudo: bool,
     ) -> Result<HttpStudioServiceLayer, HttpStudioServiceError> {
+        let mut layer = Self::without_credential(url, client_version, is_sudo)?;
+        match &credential.origin {
+            CredentialOrigin::OauthAuthorizationPkce(_)
+            | CredentialOrigin::OauthClientCredentials
+            | CredentialOrigin::ExternalTokenFileOption
+            | CredentialOrigin::ExternalTokenFileEnvironment => {
+                let mut auth = HeaderValue::from_str(&format!("Bearer {}", credential.api_key))?;
+                auth.set_sensitive(true);
+                layer.headers.insert(http::header::AUTHORIZATION, auth);
+            }
+            CredentialOrigin::EnvVar | CredentialOrigin::ConfigFile(_) => {
+                let mut api_key = HeaderValue::from_str(&credential.api_key)?;
+                api_key.set_sensitive(true);
+                layer.headers.insert("x-api-key", api_key);
+            }
+        }
+        Ok(layer)
+    }
+
+    /// Configures the endpoint and client-awareness headers without a static credential.
+    ///
+    /// Use this above per-attempt authentication when an application owns token rotation.
+    pub fn without_credential(
+        url: Url,
+        client_version: String,
+        is_sudo: bool,
+    ) -> Result<HttpStudioServiceLayer, HttpStudioServiceError> {
         let mut headers = HeaderMap::new();
 
         // The headers "apollographql-client-name" and "apollographql-client-version"
@@ -56,20 +83,6 @@ impl HttpStudioServiceLayer {
         tracing::debug!(?client_version);
         let client_version = HeaderValue::from_str(&client_version)?;
         headers.insert("apollographql-client-version", client_version);
-
-        match &credential.origin {
-            CredentialOrigin::OauthAuthorizationPkce(_)
-            | CredentialOrigin::OauthClientCredentials => {
-                let mut auth = HeaderValue::from_str(&format!("Bearer {}", credential.api_key))?;
-                auth.set_sensitive(true);
-                headers.insert(http::header::AUTHORIZATION, auth);
-            }
-            CredentialOrigin::EnvVar | CredentialOrigin::ConfigFile(_) => {
-                let mut api_key = HeaderValue::from_str(&credential.api_key)?;
-                api_key.set_sensitive(true);
-                headers.insert("x-api-key", api_key);
-            }
-        }
 
         if is_sudo {
             headers.insert("apollo-sudo", HeaderValue::from_static("true"));

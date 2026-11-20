@@ -25,7 +25,7 @@ pub mod timeout;
 pub mod trace;
 
 pub use error::HttpServiceError;
-pub use reqwest::{ReqwestService, ReqwestServiceFactory};
+pub use reqwest::{ReqwestService, ReqwestServiceFactory, ResponseStatus};
 
 /// Ease-of-use synonym for the request type this crate operates on
 pub type HttpRequest = http::Request<Full<Bytes>>;

@@ -143,6 +143,10 @@ impl LegacyWhoami {
             CredentialOrigin::OauthAuthorizationPkce(path) => format!("--profile {} (OAuth)", path),
             CredentialOrigin::EnvVar => format!("${}", RoverEnvKey::Key),
             CredentialOrigin::OauthClientCredentials => format!("${}", RoverEnvKey::ClientId),
+            CredentialOrigin::ExternalTokenFileOption => "--access-token-file".to_owned(),
+            CredentialOrigin::ExternalTokenFileEnvironment => {
+                "$APOLLO_ACCESS_TOKEN_FILE".to_owned()
+            }
         }
     }
 

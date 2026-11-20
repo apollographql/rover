@@ -6,25 +6,42 @@ use reqwest::{
     header::{HeaderMap, HeaderValue},
     Client as ReqwestClient,
 };
-use rover_graphql::{GraphQLLayer, GraphQLService};
+use rover_auth::external_token::{ExternalTokenOrigin, ExternalTokenSource};
+use rover_graphql::{GraphQLLayer, GraphQLService, GraphQLServiceError};
 use rover_http::{
     retry::{retry_with_attempt_timeout, RetryPolicy},
     timeout::TimeoutLayer,
     trace::{process_trace_id, TraceId, TraceparentLayer},
-    HttpService, ReqwestService,
+    BodyExt, HttpRequest, HttpService, ReqwestService, ResponseStatus,
 };
 use rover_studio::service::{
-    permission_denied::PermissionDeniedLayer, rejected_credential::RejectedCredentialLayer,
+    external_auth::{ExternalAuthError, ExternalAuthLayer, ExternalAuthOperationLayer},
+    permission_denied::PermissionDeniedLayer,
+    rejected_credential::RejectedCredentialLayer,
     HttpStudioServiceError, HttpStudioServiceLayer,
 };
-use tower::{retry::RetryLayer, util::BoxCloneServiceLayer, ServiceBuilder, ServiceExt};
+use tower::{retry::RetryLayer, util::BoxCloneServiceLayer, Layer, ServiceBuilder, ServiceExt};
 use url::Url;
 
+use super::external::{ExternalGraphQL, LegacyRetryPolicy};
 use crate::{
     blocking::{GraphQLClient, CLIENT_NAME},
     error::EndpointKind,
     RoverClientError,
 };
+
+enum StudioCredential {
+    Stored(Credential),
+    External(ExternalTokenSource),
+}
+
+#[derive(Clone, Copy)]
+enum ExternalRetry {
+    Standard,
+    Legacy,
+    LegacyNoRetry,
+    Never,
+}
 
 #[derive(thiserror::Error, Debug)]
 pub enum InitStudioServiceError {
@@ -44,7 +61,7 @@ impl From<InitStudioServiceError> for RoverClientError {
 
 /// Represents a client for making GraphQL requests to Apollo Studio.
 pub struct StudioClient {
-    pub credential: Credential,
+    credential: StudioCredential,
     graphql_endpoint: String,
     client: GraphQLClient,
     reqwest_client: ReqwestClient,
@@ -52,6 +69,7 @@ pub struct StudioClient {
     is_sudo: bool,
     retry_period: Duration,
     trace_id: TraceId,
+    external_attempt_timeout: Duration,
 }
 
 impl StudioClient {
@@ -59,6 +77,48 @@ impl StudioClient {
     /// For use in Rover, the `uri` is usually going to be to Apollo Studio
     pub fn new(
         credential: Credential,
+        graphql_endpoint: &str,
+        version: &str,
+        is_sudo: bool,
+        client: ReqwestClient,
+        retry_period: Duration,
+    ) -> StudioClient {
+        Self::with_credential(
+            StudioCredential::Stored(credential),
+            graphql_endpoint,
+            version,
+            is_sudo,
+            client,
+            retry_period,
+        )
+    }
+
+    /// Constructs a client without reading or caching the application-owned token.
+    ///
+    /// `client` must have redirects disabled so credentials cannot follow a redirect away
+    /// from the configured Platform API endpoint.
+    /// Set [`Self::with_external_attempt_timeout`] from the caller's configured network
+    /// timeout when it differs from the conservative 30-second default.
+    pub fn new_external(
+        source: ExternalTokenSource,
+        graphql_endpoint: &str,
+        version: &str,
+        is_sudo: bool,
+        client: ReqwestClient,
+        retry_period: Duration,
+    ) -> StudioClient {
+        Self::with_credential(
+            StudioCredential::External(source),
+            graphql_endpoint,
+            version,
+            is_sudo,
+            client,
+            retry_period,
+        )
+    }
+
+    fn with_credential(
+        credential: StudioCredential,
         graphql_endpoint: &str,
         version: &str,
         is_sudo: bool,
@@ -76,7 +136,15 @@ impl StudioClient {
             is_sudo,
             retry_period,
             trace_id,
+            external_attempt_timeout: DEFAULT_ATTEMPT_TIMEOUT,
         }
+    }
+
+    /// Sets the default external-authentication network deadline, without timing source reads.
+    /// Explicit operation-specific timeouts take precedence.
+    pub const fn with_external_attempt_timeout(mut self, timeout: Duration) -> Self {
+        self.external_attempt_timeout = timeout;
+        self
     }
 
     /// Sends `trace_id` on this client's requests instead of the process's own trace ID, so a
@@ -99,6 +167,11 @@ impl StudioClient {
         &self,
         variables: Q::Variables,
     ) -> Result<Q::ResponseData, RoverClientError> {
+        if let StudioCredential::External(source) = &self.credential {
+            return self
+                .post_external::<Q>(source, variables, ExternalRetry::Legacy)
+                .await;
+        }
         let mut header_map = self.build_studio_headers()?;
         self.client
             .post::<Q>(variables, &mut header_map, EndpointKind::ApolloStudio)
@@ -114,6 +187,11 @@ impl StudioClient {
         &self,
         variables: Q::Variables,
     ) -> Result<Q::ResponseData, RoverClientError> {
+        if let StudioCredential::External(source) = &self.credential {
+            return self
+                .post_external::<Q>(source, variables, ExternalRetry::LegacyNoRetry)
+                .await;
+        }
         let mut header_map = self.build_studio_headers()?;
         self.client
             .post_no_retry::<Q>(variables, &mut header_map, EndpointKind::ApolloStudio)
@@ -142,11 +220,18 @@ impl StudioClient {
         &self,
         err: RoverClientError,
     ) -> RoverClientError {
-        match err {
-            RoverClientError::InvalidKey if self.credential.has_malformed_api_key() => {
+        match (&self.credential, err) {
+            (StudioCredential::Stored(credential), RoverClientError::InvalidKey)
+                if credential.has_malformed_api_key() =>
+            {
                 RoverClientError::MalformedKey
             }
-            err => err,
+            (StudioCredential::External(_), RoverClientError::InvalidKey) => {
+                RoverClientError::studio_service(GraphQLServiceError::<()>::UpstreamService(
+                    Box::new(ExternalAuthError::Rejected.into_http_error()),
+                ))
+            }
+            (_, err) => err,
         }
     }
 
@@ -172,18 +257,22 @@ impl StudioClient {
         let client_version = HeaderValue::from_str(&self.version)?;
         headers.insert("apollographql-client-version", client_version);
 
-        match &self.credential.origin {
-            CredentialOrigin::OauthAuthorizationPkce(_)
-            | CredentialOrigin::OauthClientCredentials => {
-                let mut auth =
-                    HeaderValue::from_str(&format!("Bearer {}", self.credential.api_key))?;
-                auth.set_sensitive(true);
-                headers.insert(reqwest::header::AUTHORIZATION, auth);
-            }
-            CredentialOrigin::EnvVar | CredentialOrigin::ConfigFile(_) => {
-                let mut api_key = HeaderValue::from_str(&self.credential.api_key)?;
-                api_key.set_sensitive(true);
-                headers.insert("x-api-key", api_key);
+        if let StudioCredential::Stored(credential) = &self.credential {
+            match &credential.origin {
+                CredentialOrigin::OauthAuthorizationPkce(_)
+                | CredentialOrigin::OauthClientCredentials
+                | CredentialOrigin::ExternalTokenFileOption
+                | CredentialOrigin::ExternalTokenFileEnvironment => {
+                    let mut auth =
+                        HeaderValue::from_str(&format!("Bearer {}", credential.api_key))?;
+                    auth.set_sensitive(true);
+                    headers.insert(reqwest::header::AUTHORIZATION, auth);
+                }
+                CredentialOrigin::EnvVar | CredentialOrigin::ConfigFile(_) => {
+                    let mut api_key = HeaderValue::from_str(&credential.api_key)?;
+                    api_key.set_sensitive(true);
+                    headers.insert("x-api-key", api_key);
+                }
             }
         }
 
@@ -195,7 +284,21 @@ impl StudioClient {
     }
 
     pub fn get_credential_origin(&self) -> CredentialOrigin {
-        self.credential.origin.clone()
+        match &self.credential {
+            StudioCredential::Stored(credential) => credential.origin.clone(),
+            StudioCredential::External(source) => match source.origin() {
+                ExternalTokenOrigin::Option => CredentialOrigin::ExternalTokenFileOption,
+                ExternalTokenOrigin::Environment => CredentialOrigin::ExternalTokenFileEnvironment,
+            },
+        }
+    }
+
+    /// The external source, if selected. Inspecting it does not read its file.
+    pub const fn external_token_source(&self) -> Option<&ExternalTokenSource> {
+        match &self.credential {
+            StudioCredential::Stored(_) => None,
+            StudioCredential::External(source) => Some(source),
+        }
     }
 
     /// A Studio GraphQL service that retries on transient failures (timeouts, 5xx, a dropped
@@ -204,6 +307,19 @@ impl StudioClient {
     pub fn studio_graphql_service(
         &self,
     ) -> Result<GraphQLService<HttpService>, InitStudioServiceError> {
+        let credential = match &self.credential {
+            StudioCredential::Stored(credential) => credential,
+            StudioCredential::External(source) => {
+                return Ok(GraphQLService::new(
+                    None,
+                    self.external_service(
+                        source,
+                        ExternalRetry::Standard,
+                        self.external_attempt_timeout,
+                    )?,
+                ));
+            }
+        };
         let service = ServiceBuilder::new()
             .layer(GraphQLLayer::default())
             .layer(BoxCloneServiceLayer::new(
@@ -213,11 +329,11 @@ impl StudioClient {
                 ServiceBuilder::new()
                     .layer(HttpStudioServiceLayer::new(
                         Url::from_str(&self.graphql_endpoint)?,
-                        self.credential.clone(),
+                        credential.clone(),
                         self.version.to_string(),
                         self.is_sudo,
                     )?)
-                    .layer(RejectedCredentialLayer::new(self.credential.clone()))
+                    .layer(RejectedCredentialLayer::new(credential.clone()))
                     .into_inner(),
             ))
             .layer(RetryLayer::new(RetryPolicy::new(self.retry_period)))
@@ -250,6 +366,15 @@ impl StudioClient {
         &self,
         attempt_timeout: Duration,
     ) -> Result<GraphQLService<HttpService>, InitStudioServiceError> {
+        let credential = match &self.credential {
+            StudioCredential::Stored(credential) => credential,
+            StudioCredential::External(source) => {
+                return Ok(GraphQLService::new(
+                    None,
+                    self.external_service(source, ExternalRetry::Standard, attempt_timeout)?,
+                ));
+            }
+        };
         let service = ServiceBuilder::new()
             .layer(GraphQLLayer::default())
             .layer(BoxCloneServiceLayer::new(
@@ -259,11 +384,11 @@ impl StudioClient {
                 ServiceBuilder::new()
                     .layer(HttpStudioServiceLayer::new(
                         Url::from_str(&self.graphql_endpoint)?,
-                        self.credential.clone(),
+                        credential.clone(),
                         self.version.to_string(),
                         self.is_sudo,
                     )?)
-                    .layer(RejectedCredentialLayer::new(self.credential.clone()))
+                    .layer(RejectedCredentialLayer::new(credential.clone()))
                     .layer(PermissionDeniedLayer)
                     .into_inner(),
             ))
@@ -292,6 +417,15 @@ impl StudioClient {
         &self,
         timeout: Duration,
     ) -> Result<GraphQLService<HttpService>, InitStudioServiceError> {
+        let credential = match &self.credential {
+            StudioCredential::Stored(credential) => credential,
+            StudioCredential::External(source) => {
+                return Ok(GraphQLService::new(
+                    None,
+                    self.external_service(source, ExternalRetry::Never, timeout)?,
+                ));
+            }
+        };
         let service = ServiceBuilder::new()
             .layer(GraphQLLayer::default())
             .layer(BoxCloneServiceLayer::new(
@@ -305,11 +439,11 @@ impl StudioClient {
                 ServiceBuilder::new()
                     .layer(HttpStudioServiceLayer::new(
                         Url::from_str(&self.graphql_endpoint)?,
-                        self.credential.clone(),
+                        credential.clone(),
                         self.version.to_string(),
                         self.is_sudo,
                     )?)
-                    .layer(RejectedCredentialLayer::new(self.credential.clone()))
+                    .layer(RejectedCredentialLayer::new(credential.clone()))
                     .layer(PermissionDeniedLayer)
                     .into_inner(),
             ))
@@ -326,6 +460,141 @@ impl StudioClient {
         Ok(service)
     }
 
+    /// An authenticated HTTP service without transient retries.
+    ///
+    /// External credentials still allow the one safe resend following a status rejection.
+    /// Each call is an independent operation; callers must not wrap it in another retry layer.
+    pub fn authenticated_http_service(
+        &self,
+        attempt_timeout: Duration,
+    ) -> Result<HttpService, InitStudioServiceError> {
+        match &self.credential {
+            StudioCredential::External(source) => {
+                self.external_service(source, ExternalRetry::Never, attempt_timeout)
+            }
+            StudioCredential::Stored(credential) => Ok(ServiceBuilder::new()
+                .layer(HttpStudioServiceLayer::new(
+                    Url::parse(&self.graphql_endpoint)?,
+                    credential.clone(),
+                    self.version.clone(),
+                    self.is_sudo,
+                )?)
+                .layer(RejectedCredentialLayer::new(credential.clone()))
+                .layer(TimeoutLayer::new(attempt_timeout))
+                .layer(TraceparentLayer::new(self.trace_id))
+                .service(
+                    ReqwestService::builder()
+                        .client(self.reqwest_client.clone())
+                        .build()?,
+                )
+                .boxed_clone()),
+        }
+    }
+
+    fn external_service(
+        &self,
+        source: &ExternalTokenSource,
+        retry: ExternalRetry,
+        attempt_timeout: Duration,
+    ) -> Result<HttpService, InitStudioServiceError> {
+        let endpoint = Url::parse(&self.graphql_endpoint)?;
+        let uri = endpoint
+            .as_str()
+            .parse()
+            .map_err(HttpStudioServiceError::from)?;
+        // The legacy client decides error statuses before consuming their bodies. The
+        // Tower client normally buffers them, except when authentication needs only status.
+        let read_body: fn(http::StatusCode) -> bool = match retry {
+            ExternalRetry::Legacy | ExternalRetry::LegacyNoRetry => {
+                |status| !status.is_client_error() && !status.is_server_error()
+            }
+            ExternalRetry::Standard | ExternalRetry::Never => {
+                |status| !matches!(status.as_u16(), 401 | 403 | 406)
+            }
+        };
+        let attempts = ExternalGraphQL::new(
+            ServiceBuilder::new()
+                .layer(ExternalAuthLayer::new(source.clone(), uri))
+                .layer(TimeoutLayer::new(attempt_timeout))
+                .layer(TraceparentLayer::new(self.trace_id))
+                .service(
+                    ReqwestService::builder()
+                        .client(self.reqwest_client.clone())
+                        .build()?
+                        .with_response_body_filter(read_body),
+                ),
+        )
+        .boxed_clone();
+        // Source reads stay outside the timeout, and each resend has its own timeout.
+        // That requires authentication between retry and timeout, rather than their
+        // adjacent placement in `retry_with_attempt_timeout`.
+        let attempts = match retry {
+            ExternalRetry::Standard => RetryLayer::new(RetryPolicy::new(self.retry_period))
+                .layer(attempts)
+                .boxed_clone(),
+            ExternalRetry::Legacy => RetryLayer::new(LegacyRetryPolicy::new(self.retry_period))
+                .layer(attempts)
+                .boxed_clone(),
+            ExternalRetry::Never | ExternalRetry::LegacyNoRetry => attempts,
+        };
+        Ok(ServiceBuilder::new()
+            .map_request(move |mut request: HttpRequest| {
+                if matches!(retry, ExternalRetry::Legacy) {
+                    request.extensions_mut().insert(ResponseStatus::default());
+                }
+                request
+            })
+            .layer(HttpStudioServiceLayer::without_credential(
+                endpoint,
+                self.version.clone(),
+                self.is_sudo,
+            )?)
+            .layer(ExternalAuthOperationLayer)
+            .service(attempts)
+            .boxed_clone())
+    }
+
+    async fn post_external<Q: GraphQLQuery>(
+        &self,
+        source: &ExternalTokenSource,
+        variables: Q::Variables,
+        retry: ExternalRetry,
+    ) -> Result<Q::ResponseData, RoverClientError> {
+        let body = serde_json::to_vec(&Q::build_query(variables))?;
+        let request = http::Request::builder()
+            .method(http::Method::POST)
+            .header(http::header::CONTENT_TYPE, "application/json")
+            .body(http_body_util::Full::new(bytes::Bytes::from(body)))
+            .map_err(|error| RoverClientError::ServiceReady(Box::new(error)))?;
+        let response = self
+            .external_service(source, retry, self.external_attempt_timeout)?
+            .oneshot(request)
+            .await
+            .map_err(|error| {
+                RoverClientError::studio_service(GraphQLServiceError::<()>::UpstreamService(
+                    Box::new(error),
+                ))
+            })?;
+        let (parts, body) = response.into_parts();
+        let bytes = body
+            .collect()
+            .await
+            .map_err(|error| RoverClientError::ServiceReady(Box::new(error)))?
+            .to_bytes();
+        let response = reqwest::Response::from(http::Response::from_parts(
+            parts,
+            reqwest::Body::from(bytes),
+        ))
+        .error_for_status()
+        .map_err(|source| RoverClientError::SendRequest {
+            source,
+            endpoint_kind: EndpointKind::ApolloStudio,
+        })?;
+        GraphQLClient::handle_response::<Q>(response, EndpointKind::ApolloStudio)
+            .await
+            .map_err(|error| self.refine_rejected_credential_error(error))
+    }
+
     pub fn http_service(&self) -> Result<HttpService, RoverClientError> {
         let service = ServiceBuilder::new()
             .layer(TraceparentLayer::new(self.trace_id))
@@ -339,6 +608,9 @@ impl StudioClient {
         Ok(service)
     }
 }
+
+// Without operation-specific latency data, retain the CLI's conservative standard timeout.
+const DEFAULT_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[cfg(test)]
 mod tests {

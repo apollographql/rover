@@ -45,8 +45,17 @@ struct SimplifiedErrorList {
     errors: Vec<String>,
 }
 
-impl From<&Vec<graphql_client::Error>> for SimplifiedErrorList {
-    fn from(errors: &Vec<graphql_client::Error>) -> Self {
+impl SimplifiedErrorList {
+    fn rejects_credentials(&self) -> bool {
+        self.errors.iter().any(|message| {
+            let message = message.to_lowercase();
+            message.contains("unauthorized") || message.contains("invalid credentials")
+        })
+    }
+}
+
+impl From<&[graphql_client::Error]> for SimplifiedErrorList {
+    fn from(errors: &[graphql_client::Error]) -> Self {
         Self {
             errors: errors
                 .iter()
@@ -75,6 +84,13 @@ impl From<&Vec<graphql_client::Error>> for SimplifiedErrorList {
                 .collect(),
         }
     }
+}
+
+/// Whether GraphQL errors contain Rover's recognized authentication-rejection messages.
+///
+/// Includes both top-level messages and the nested upstream response messages Rover reports.
+pub fn is_credential_rejection(errors: &[graphql_client::Error]) -> bool {
+    SimplifiedErrorList::from(errors).rejects_credentials()
 }
 
 /// Re-export / renamed type alias for [`graphql_client::Response`]
@@ -273,19 +289,17 @@ where
                 })?;
 
             if let Some(errors) = graphql_response.errors {
-                let friendly_errors_detail = SimplifiedErrorList::from(&errors).errors;
+                let simplified = SimplifiedErrorList::from(errors.as_slice());
 
                 // Checked once, regardless of whether the response also carried a
                 // `data` field - a credential rejection is a credential rejection
                 // whether or not the server happened to include `"data": null` or
                 // omit the field entirely.
-                if friendly_errors_detail.iter().any(|message| {
-                    let message = message.to_lowercase();
-                    message.contains("unauthorized") || message.contains("invalid credentials")
-                }) {
+                if simplified.rejects_credentials() {
                     return Err(GraphQLServiceError::InvalidCredentials {});
                 }
 
+                let friendly_errors_detail = simplified.errors;
                 match graphql_response.data {
                     Some(data) => Err(GraphQLServiceError::PartialError {
                         data,

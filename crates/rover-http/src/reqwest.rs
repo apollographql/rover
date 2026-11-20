@@ -1,5 +1,9 @@
 use std::{
     pin::Pin,
+    sync::{
+        atomic::{AtomicU16, Ordering},
+        Arc,
+    },
     task::{Context, Poll},
     time::Duration,
 };
@@ -16,6 +20,23 @@ use crate::{
 };
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(90);
+
+/// Optional request extension observing whether a response's headers have arrived.
+///
+/// Insert a fresh observer at an operation boundary. Clones share its status; the transport
+/// clears it before each attempt. Retry policies can distinguish a send timeout from a
+/// timeout while consuming an already-received response body.
+#[derive(Clone, Debug, Default)]
+pub struct ResponseStatus(Arc<AtomicU16>);
+
+impl ResponseStatus {
+    /// The latest attempt's status, or `None` before its headers have arrived.
+    pub fn get(&self) -> Option<http::StatusCode> {
+        // Policies read this only after the attempt future completes; no other data is
+        // published through this atomic, so the status needs no stronger ordering.
+        http::StatusCode::from_u16(self.0.load(Ordering::Relaxed)).ok()
+    }
+}
 
 /// Constructs [`HttpService`]s
 #[derive(Clone, Debug)]
@@ -41,6 +62,7 @@ impl HttpServiceFactory for ReqwestServiceFactory {
 pub struct ReqwestService {
     client: reqwest::Client,
     timeout: Duration,
+    read_response_body: fn(http::StatusCode) -> bool,
 }
 
 #[buildstructor]
@@ -62,7 +84,24 @@ impl ReqwestService {
                 .build()?,
         };
         let timeout = config.timeout().unwrap_or(DEFAULT_TIMEOUT);
-        Ok(ReqwestService { client, timeout })
+        Ok(ReqwestService {
+            client,
+            timeout,
+            read_response_body: |_| true,
+        })
+    }
+
+    /// Selects which response bodies to buffer, preserving status and headers in all cases.
+    ///
+    /// Returning `false` drops the body without reading it. Use this when a status alone
+    /// determines the outcome, so a broken or slow error body cannot hide that status.
+    /// The default reads every body.
+    pub const fn with_response_body_filter(
+        mut self,
+        predicate: fn(http::StatusCode) -> bool,
+    ) -> Self {
+        self.read_response_body = predicate;
+        self
     }
 }
 
@@ -95,6 +134,11 @@ impl Service<HttpRequest> for ReqwestService {
     fn call(&mut self, req: HttpRequest) -> Self::Future {
         let client = self.client.clone();
         let timeout = self.timeout;
+        let read_response_body = self.read_response_body;
+        let observed_status = req.extensions().get::<ResponseStatus>().cloned();
+        if let Some(status) = &observed_status {
+            status.0.store(0, Ordering::Relaxed);
+        }
         let fut = async move {
             // `Request::try_from` doesn't do any processing that reqwest runs at builder-construction time.
             // We instead go through its builder interface which retains all that internal logic.
@@ -122,6 +166,12 @@ impl Service<HttpRequest> for ReqwestService {
             };
 
             let mut resp = http::Response::from(response);
+            if let Some(status) = observed_status {
+                status.0.store(resp.status().as_u16(), Ordering::Relaxed);
+            }
+            if !read_response_body(resp.status()) {
+                return Ok(resp.map(|_| Full::default()));
+            }
             let bytes = body_to_bytes(&mut resp)
                 .await
                 .map_err(|err| HttpServiceError::Body(Box::new(err)))?;

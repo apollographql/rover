@@ -371,6 +371,8 @@ fn resolve_credential(
                 origin: Some(match credential.origin {
                     CredentialOrigin::ConfigFile(_)
                     | CredentialOrigin::OauthAuthorizationPkce(_) => "profile",
+                    CredentialOrigin::ExternalTokenFileOption => "option",
+                    CredentialOrigin::ExternalTokenFileEnvironment => "environment",
                     // already handled by the environment checks above
                     CredentialOrigin::EnvVar | CredentialOrigin::OauthClientCredentials => {
                         "environment"
