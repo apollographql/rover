@@ -77,6 +77,29 @@ impl<S> ExternalGraphQL<S> {
     pub(super) const fn new(inner: S) -> Self {
         Self { inner }
     }
+
+    fn redact(value: &mut serde_json::Value, token: &ExternalAccessToken) {
+        match value {
+            serde_json::Value::String(value) => {
+                *value = value.replace(token.secret(), "[REDACTED]");
+            }
+            serde_json::Value::Array(values) => {
+                values
+                    .iter_mut()
+                    .for_each(|value| Self::redact(value, token));
+            }
+            serde_json::Value::Object(values) => {
+                *values = std::mem::take(values)
+                    .into_iter()
+                    .map(|(key, mut value)| {
+                        Self::redact(&mut value, token);
+                        (key.replace(token.secret(), "[REDACTED]"), value)
+                    })
+                    .collect();
+            }
+            _ => {}
+        }
+    }
 }
 
 impl<S> Service<HttpRequest> for ExternalGraphQL<S>
@@ -95,19 +118,37 @@ where
     fn call(&mut self, request: HttpRequest) -> Self::Future {
         let future = self.inner.call(request);
         Box::pin(async move {
-            let response = future.await?;
+            let mut response = future.await?;
+            let token = response.extensions_mut().remove::<ExternalAccessToken>();
             let bytes = response.body().clone().collect().await?.to_bytes();
-            if serde_json::from_slice::<Errors>(&bytes)
+            if let Some(errors) = serde_json::from_slice::<Errors>(&bytes)
                 .ok()
                 .and_then(|body| body.errors)
-                .is_some_and(|errors| {
-                    is_credential_rejection(&errors)
-                        || errors
-                            .iter()
-                            .any(|error| error.message == REJECTED_CREDENTIAL_MESSAGE)
-                })
             {
-                return Err(ExternalAuthError::Rejected.into_http_error());
+                if is_credential_rejection(&errors)
+                    || errors
+                        .iter()
+                        .any(|error| error.message == REJECTED_CREDENTIAL_MESSAGE)
+                {
+                    return Err(ExternalAuthError::Rejected.into_http_error());
+                }
+                if let Some(token) = token {
+                    let encoded = serde_json::to_string(&errors)
+                        .map_err(|error| HttpServiceError::Unexpected(Box::new(error)))?;
+                    if encoded.contains(token.secret()) {
+                        // Parse data only in the exceptional case of a reflected credential.
+                        // serde_json's normal depth limit also bounds the redaction traversal.
+                        let mut body: serde_json::Value = serde_json::from_slice(&bytes)
+                            .map_err(|error| HttpServiceError::Unexpected(Box::new(error)))?;
+                        if let Some(errors) = body.get_mut("errors") {
+                            Self::redact(errors, &token);
+                        }
+                        let bytes = serde_json::to_vec(&body)
+                            .map_err(|error| HttpServiceError::Unexpected(Box::new(error)))?;
+                        *response.body_mut() = http_body_util::Full::new(bytes::Bytes::from(bytes));
+                        response.headers_mut().remove(http::header::CONTENT_LENGTH);
+                    }
+                }
             }
             Ok(response)
         })
