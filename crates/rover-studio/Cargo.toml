@@ -19,7 +19,7 @@ houston = { workspace = true }
 mockall = { workspace = true, optional = true }
 rover-auth = { workspace = true }
 rover-http = { workspace = true }
-rover-tower = { workspace = true, optional = true }
+rover-tower = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }
 tower = { workspace = true }
