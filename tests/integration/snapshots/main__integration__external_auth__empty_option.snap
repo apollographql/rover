@@ -1,0 +1,14 @@
+---
+source: tests/integration/external_auth.rs
+expression: json
+---
+{
+  "json_version": "1",
+  "data": {
+    "success": false
+  },
+  "error": {
+    "message": "External token source from --access-token-file: the location is empty; supply the path to the application's token file",
+    "code": "E066"
+  }
+}

@@ -1,0 +1,16 @@
+---
+source: tests/integration/external_auth.rs
+expression: "serde_json::from_slice::<Value>(&output.stdout).unwrap()"
+---
+{
+  "json_version": "1",
+  "data": {
+    "actor_type": "User",
+    "id": "external-account",
+    "graph_title": null,
+    "origin": "--access-token-file",
+    "access_token": "rotated-private-access-token",
+    "success": true
+  },
+  "error": null
+}

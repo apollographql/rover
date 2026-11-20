@@ -126,9 +126,15 @@ mod tests {
     fn external_config() -> (StudioClientConfig, TempDir) {
         let directory = tempfile::tempdir().unwrap();
         let config = Config::new(Some(&directory.path().to_str().unwrap()), None).unwrap();
-        Profile::new("stored", &config)
-            .set_api_key("stored-profile-key")
-            .unwrap();
+        let profile = config.home.join("profiles/stored");
+        std::fs::create_dir_all(&profile).unwrap();
+        // Seed the legacy fallback directly: set_api_key can write the user's native
+        // credential store, whose profile-name namespace ignores this temporary home.
+        std::fs::write(
+            profile.join(".sensitive"),
+            "api_key = \"stored-profile-key\"",
+        )
+        .unwrap();
         let config = StudioClientConfig::new(
             None,
             config,

@@ -360,3 +360,92 @@ async fn external_auth_is_not_added_to_unrelated_http_services(
     assert_that!(response.status()).is_equal_to(http::StatusCode::OK);
     unrelated.assert_calls(1);
 }
+
+#[rstest]
+#[tokio::test]
+async fn external_identity_lookups_in_one_process_can_resolve_different_accounts(
+    external_context: ExternalContext,
+) {
+    use crate::options::JsonOutput;
+
+    let server = MockServer::start_async().await;
+    let first = server.mock(|when, then| {
+        when.header("authorization", "Bearer account-a-token");
+        then.status(200)
+            .json_body(serde_json::json!({"data": {"me": {
+                "__typename": "User", "id": "account-a", "asActor": {"type": "USER"},
+            }}}));
+    });
+    let second = server.mock(|when, then| {
+        when.header("authorization", "Bearer account-b-token");
+        then.status(200)
+            .json_body(serde_json::json!({"data": {"me": {
+                "__typename": "User", "id": "account-b", "asActor": {"type": "USER"},
+            }}}));
+    });
+    let rover = external_context.rover(&[
+        "--access-token-file",
+        external_context.token.to_str().unwrap(),
+        "--registry-url",
+        &server.url("/graphql"),
+        "auth",
+        "whoami",
+    ]);
+
+    external_context.publish(b"account-a-token");
+    let a = rover.execute_command().await.unwrap();
+    external_context.publish(b"account-b-token");
+    let b = rover.execute_command().await.unwrap();
+
+    insta::assert_json_snapshot!(vec![JsonOutput::from(&a), JsonOutput::from(&b)]);
+    first.assert_calls(1);
+    second.assert_calls(1);
+}
+
+#[cfg(feature = "composition-js")]
+#[rstest]
+#[case::user("USER", None)]
+#[case::service_account("SERVICE_ACCOUNT", Some(RoverErrorCode::E080))]
+#[case::graph("GRAPH", Some(RoverErrorCode::E080))]
+#[tokio::test]
+async fn external_auth_init_uses_platform_identity_without_storing_a_credential(
+    external_context: ExternalContext,
+    #[case] actor: &str,
+    #[case] code: Option<RoverErrorCode>,
+) {
+    use crate::command::init::states::UserAuthenticated;
+
+    external_context.publish(b"application-token");
+    let server = MockServer::start_async().await;
+    let identity = server.mock(|when, then| {
+        when.header("authorization", "Bearer application-token")
+            .header_missing("x-api-key");
+        then.status(200)
+            .json_body(serde_json::json!({"data": {"me": {
+                "__typename": "User", "id": "account-id", "asActor": {"type": actor},
+            }}}));
+    });
+    let rover = external_context.rover(&[
+        "--access-token-file",
+        external_context.token.to_str().unwrap(),
+        "--registry-url",
+        &server.url("/graphql"),
+        "init",
+    ]);
+    let config = rover.get_client_config().await.unwrap();
+
+    let result = UserAuthenticated::new()
+        .check_authentication(&config, &rover.get_profile_opt())
+        .await;
+
+    match code {
+        Some(code) => {
+            assert_that!(assert_that!(result).is_err().subject.code()).is_equal_to(Some(code))
+        }
+        None => assert_that!(result.map(|_| ()).map_err(|error| error.to_string()))
+            .is_ok()
+            .is_equal_to(()),
+    }
+    assert_that!(external_context.home.join("profiles").exists()).is_equal_to(false);
+    identity.assert_calls(1);
+}

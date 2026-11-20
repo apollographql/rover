@@ -12,6 +12,7 @@ mod contract;
 mod dev;
 mod docs;
 mod explain;
+mod external_identity;
 mod graph;
 mod graph_artifact;
 mod info;

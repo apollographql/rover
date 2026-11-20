@@ -1,0 +1,16 @@
+---
+source: src/command/external_identity.rs
+expression: "JsonOutput::from(&output)"
+---
+{
+  "json_version": "1",
+  "data": {
+    "actor_type": "User",
+    "id": "account-id",
+    "graph_title": null,
+    "origin": "--access-token-file",
+    "access_token": "[REDACTED]",
+    "success": true
+  },
+  "error": null
+}
