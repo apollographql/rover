@@ -204,13 +204,10 @@ fn read_errors_do_not_retain_untrusted_error_text() {
 }
 
 #[rstest]
-#[case::option(ExternalTokenOrigin::Option, "--access-token-file")]
-#[case::environment(ExternalTokenOrigin::Environment, "APOLLO_ACCESS_TOKEN_FILE")]
+#[case::option(ExternalTokenOrigin::Option)]
+#[case::environment(ExternalTokenOrigin::Environment)]
 #[tokio::test]
-async fn empty_sources_fail_on_read_with_their_provenance(
-    #[case] origin: ExternalTokenOrigin,
-    #[case] name: &str,
-) {
+async fn empty_sources_fail_on_read_with_their_provenance(#[case] origin: ExternalTokenOrigin) {
     let source = ExternalTokenSource::new("", origin);
     assert_that!(source.origin()).is_equal_to(origin);
     assert_that!(source.path()).is_equal_to(Path::new(""));
@@ -221,9 +218,9 @@ async fn empty_sources_fail_on_read_with_their_provenance(
         path: PathBuf::new(),
         kind: ExternalTokenFailure::EmptyLocation,
     });
-    assert_that!(error.to_string()).is_equal_to(format!(
-        "External token source from {name}: the location is empty; supply the path to the application's token file"
-    ));
+    assert_that!(error.to_string()).is_equal_to(
+        "External token source: the location is empty; supply the path to the application's token file".to_string()
+    );
 }
 
 #[rstest]
@@ -321,7 +318,7 @@ async fn source_diagnostics_do_not_expose_contents(token_file: TokenFile) {
     let result = token_file.source.read().await;
     let error = assert_that!(result).is_err().subject;
     assert_that!(error.to_string()).is_equal_to(format!(
-        "External token source from --access-token-file at '{}': invalid contents; supply one raw bearer token with only an optional final LF or CRLF",
+        "External token source at '{}': invalid contents; supply one raw bearer token with only an optional final LF or CRLF",
         token_file.source.path().display()
     ));
     assert_that!(format!("{error:?}")).is_equal_to(format!(
