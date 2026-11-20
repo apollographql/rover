@@ -18,5 +18,8 @@ fn external_auth_mock_is_available_to_consumers() {
         .once()
         .return_once(|_: TokenRequest| ready(Ok(response)));
 
-    assert_that!(source.oneshot(()).now_or_never().unwrap()).is_equal_to(Ok(token));
+    assert_that!(source.oneshot(()).now_or_never())
+        .is_some()
+        .is_ok()
+        .is_equal_to(token);
 }
