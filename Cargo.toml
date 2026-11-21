@@ -184,7 +184,7 @@ lazycell = "1"
 lazy_static = "1"
 mockall = "0.15.0"
 nix = "0.32.0"
-notify = "8"
+notify = "9"
 oauth2 = { version = "5.0.0", default-features = false }
 opener = "0.9"
 opentelemetry = { version = "0.33", default-features = false, features = ["trace"] }
