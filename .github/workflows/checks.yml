@@ -33,7 +33,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: jdx/mise-action@90f833d396d0cc3674b631d2d225e306476c303a # v5.2.10
+      - uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
         with:
           # Save caches from main only: other PRs can't reuse a PR's cache, and it evicts main's (10 GB repo limit).
           cache_save: ${{ github.ref == 'refs/heads/main' }}
@@ -139,7 +139,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: jdx/mise-action@90f833d396d0cc3674b631d2d225e306476c303a # v5.2.10
+      - uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
         with:
           # Save caches from main only: other PRs can't reuse a PR's cache, and it evicts main's (10 GB repo limit).
           cache_save: ${{ github.ref == 'refs/heads/main' }}
@@ -186,7 +186,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: jdx/mise-action@90f833d396d0cc3674b631d2d225e306476c303a # v5.2.10
+      - uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
         with:
           # rustup, not mise's data directory, holds the toolchain, so there's nothing to cache.
           cache: false
@@ -289,7 +289,7 @@ jobs:
     # pinned toolchain the default keeps rust-toolchain.toml the one place it's set.
     - name: Make the pinned toolchain the rustup default
       run: rustup default "$(rustup show active-toolchain | awk '{print $1}')"
-    - uses: jdx/mise-action@90f833d396d0cc3674b631d2d225e306476c303a # v5.2.10
+    - uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
       with:
         # rustup, not mise's data directory, holds the toolchain, so there's nothing to cache.
         cache: false
