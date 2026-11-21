@@ -30,11 +30,11 @@ const REVOKE_TIMEOUT: Duration = Duration::from_secs(30);
 struct RevokeHttpError(tower::BoxError);
 
 // Required by `RevokeToken`'s `S::Error: From<B::Error>` bound (`B` is
-// `Full<Bytes>`, whose body error type is `Infallible`) - unreachable in
-// practice, the same way `rover_http::HttpServiceError` handles it.
+// `Full<Bytes>`, whose body error type is `Infallible`). An `Infallible` value
+// can't exist, so this conversion never runs.
 impl From<std::convert::Infallible> for RevokeHttpError {
     fn from(error: std::convert::Infallible) -> Self {
-        RevokeHttpError(Box::new(error))
+        match error {}
     }
 }
 

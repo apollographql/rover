@@ -100,11 +100,8 @@ impl Service<HttpRequest> for ReqwestService {
             // We instead go through its builder interface which retains all that internal logic.
             let (parts, body) = req.into_parts();
 
-            let bytes = body
-                .collect()
-                .await
-                .map_err(|err| HttpServiceError::Body(Box::new(err)))?
-                .to_bytes();
+            let Ok(collected) = body.collect().await;
+            let bytes = collected.to_bytes();
 
             let mut builder = client
                 .request(parts.method, parts.uri.to_string())
