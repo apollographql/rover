@@ -167,7 +167,7 @@ flate2 = "1"
 fs-mistrust = "0.16.0"
 futures = "0.3"
 git2 = { version = "0.21", default-features = false }
-gix-url = "0.40"
+gix-url = "0.41"
 graphql_client = "0.16"
 heck = "0.5"
 hmac = "0.13"
