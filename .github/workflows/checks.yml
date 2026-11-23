@@ -253,7 +253,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
-    container: ghcr.io/apollographql/ci-utility-docker-images/apollo-rust-builder:0.30.16
+    container: ghcr.io/apollographql/ci-utility-docker-images/apollo-rust-builder:0.30.18
     # Each job installs only the mise tools it uses, listed in `install_args`
     # (which is also part of mise-action's cache key, so jobs with different
     # tool sets don't share a cache). `mise run` would otherwise install every
