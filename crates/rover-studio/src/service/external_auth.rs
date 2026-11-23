@@ -64,14 +64,15 @@ struct OperationState {
     attempts: AtomicU32,
 }
 
-/// Applies a caller-supplied token and attempt number immediately before sending.
+/// Applies its token and the shared attempt count immediately before sending.
 #[derive(Clone)]
 struct Authorize<S> {
     inner: S,
+    token: ExternalAccessToken,
     state: Arc<OperationState>,
 }
 
-impl<S> Service<(HttpRequest, &ExternalAccessToken)> for Authorize<S>
+impl<S> Service<HttpRequest> for Authorize<S>
 where
     S: Service<HttpRequest, Response = HttpResponse, Error = HttpServiceError>,
     S::Future: Send + 'static,
@@ -84,8 +85,8 @@ where
         self.inner.poll_ready(cx)
     }
 
-    fn call(&mut self, (mut request, token): (HttpRequest, &ExternalAccessToken)) -> Self::Future {
-        let mut value = match HeaderValue::from_str(&format!("Bearer {}", token.secret())) {
+    fn call(&mut self, mut request: HttpRequest) -> Self::Future {
+        let mut value = match HeaderValue::from_str(&format!("Bearer {}", self.token.secret())) {
             Ok(value) => value,
             Err(error) => {
                 return Box::pin(std::future::ready(Err(http::Error::from(error).into())));
@@ -219,10 +220,7 @@ where
             .get::<Arc<OperationState>>()
             .cloned()
             .unwrap_or_default();
-        let mut inner = Authorize {
-            inner: replace_ready_service(&mut self.inner),
-            state: state.clone(),
-        };
+        let inner = replace_ready_service(&mut self.inner);
 
         Box::pin(async move {
             let token = source
@@ -230,7 +228,12 @@ where
                 .oneshot(())
                 .await
                 .map_err(ExternalAuthError::from)?;
-            let response = inner.call((request.clone(), &token)).await?;
+            let mut inner = Authorize {
+                inner,
+                token,
+                state: state.clone(),
+            };
+            let response = inner.call(request.clone()).await?;
             if !matches!(
                 response.status(),
                 StatusCode::UNAUTHORIZED | StatusCode::NOT_ACCEPTABLE
@@ -241,11 +244,15 @@ where
                 return Err(ExternalAuthError::Rejected.into());
             }
             let replacement = source.oneshot(()).await.map_err(ExternalAuthError::from)?;
-            if replacement == token {
+            if replacement == inner.token {
                 return Err(ExternalAuthError::Rejected.into());
             }
-            Self::classify(inner.oneshot((request, &replacement)).await?)
-                .map_err(HttpServiceError::from)
+            let mut inner = Authorize {
+                token: replacement,
+                ..inner
+            };
+            let response = inner.ready().await?.call(request).await?;
+            Self::classify(response).map_err(HttpServiceError::from)
         })
     }
 }
@@ -344,7 +351,7 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn authorization_service_uses_each_calls_token_and_shared_attempt_count(endpoint: Uri) {
+    async fn authorization_service_uses_its_token_and_shared_attempt_count(endpoint: Uri) {
         let attempts = Arc::new(Mutex::new(Vec::new()));
         let captured = attempts.clone();
         let mut http = MockHttpService::new();
@@ -376,6 +383,7 @@ mod tests {
         });
         let service = Authorize {
             inner: MockCloneService::new(http),
+            token: ExternalAccessToken::parse(b"first-token").unwrap(),
             state: state.clone(),
         };
         let mut request = Request::builder()
@@ -389,18 +397,19 @@ mod tests {
             .body(Full::new(Bytes::from_static(b"original request body")))
             .unwrap();
         request.extensions_mut().insert(RetryCount(99));
-        let first_token = ExternalAccessToken::parse(b"first-token").unwrap();
-        let second_token = ExternalAccessToken::parse(b"second-token").unwrap();
 
         let first = service
             .clone()
-            .oneshot((request.clone(), &first_token))
+            .oneshot(request.clone())
             .await
             .map(|response| response.status());
-        let second = service
-            .oneshot((request, &second_token))
-            .await
-            .map(|response| response.status());
+        let second = Authorize {
+            token: ExternalAccessToken::parse(b"second-token").unwrap(),
+            ..service
+        }
+        .oneshot(request)
+        .await
+        .map(|response| response.status());
         let expected = [("Bearer first-token", 7), ("Bearer second-token", 8)]
             .map(|(authorization, attempt)| {
                 (
@@ -448,6 +457,7 @@ mod tests {
         let state = Arc::new(OperationState::default());
         let mut service = Authorize {
             inner: http,
+            token: ExternalAccessToken::parse(b"private-token").unwrap(),
             state: state.clone(),
         };
 
