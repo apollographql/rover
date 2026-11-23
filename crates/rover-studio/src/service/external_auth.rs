@@ -257,7 +257,7 @@ mod tests {
         timeout::TimeoutLayer,
         trace::{new_trace_id, TraceparentLayer},
     };
-    use rover_tower::{expect_poll_ready, mock::MockCloneService};
+    use rover_tower::{expect_poll_ready, test::MockCloneService};
     use rstest::{fixture, rstest};
     use speculoos::prelude::*;
     use tower::{retry::RetryLayer, ServiceBuilder};
