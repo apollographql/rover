@@ -17,6 +17,11 @@ pub struct CheckWorkflowResponse {
     // The status of the build check, when the workflow includes one.
     #[serde(skip)]
     pub maybe_core_schema_status: Option<CheckTaskStatus>,
+    // Whether the API schema the check proposes differs from the base one, from the API schema
+    // hashes GraphOS reports for the check. None when either hash is missing: the build hasn't
+    // succeeded yet, or the check has no build step (`graph check`).
+    #[serde(skip)]
+    pub maybe_api_schema_modified: Option<bool>,
     // TODO: I didn't have time to refactor this into a list with
     // a common task abstraction.
     pub maybe_operations_response: Option<OperationCheckResponse>,
@@ -484,6 +489,7 @@ mod tests {
             default_target_url: "https://studio.example/checks".to_string(),
             maybe_core_schema_modified: Some(false),
             maybe_core_schema_status: Some(CheckTaskStatus::FAILED),
+            maybe_api_schema_modified: None,
             maybe_operations_response: None,
             maybe_lint_response: None,
             maybe_proposals_response: None,

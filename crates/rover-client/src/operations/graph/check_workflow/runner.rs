@@ -207,6 +207,7 @@ fn get_check_response_from_data(
         default_target_url,
         maybe_core_schema_modified: None,
         maybe_core_schema_status: None,
+        maybe_api_schema_modified: None,
         maybe_operations_response: get_operations_response_from_result(
             operations_target_url,
             number_of_checked_operations,

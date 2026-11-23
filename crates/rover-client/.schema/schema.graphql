@@ -1,4 +1,3 @@
-"""GraphQL Error"""
 interface Error {
   """The error message"""
   message: String!
@@ -129,7 +128,6 @@ type OrganizationMutation {
   requestAuditExport(actors: [ActorInput!], from: Timestamp!, graphIds: [String!], to: Timestamp!): Organization
 }
 
-"""GraphQL mutations"""
 type Mutation {
   """
   Add a tag to a specific graph artifact.
@@ -210,7 +208,6 @@ type PermissionError implements Error {
   message: String!
 }
 
-"""Queries defined by this subgraph"""
 type Query {
   """Get the graph artifact associated with a given digest (SHA)"""
   graphArtifactByDigest(
@@ -324,912 +321,6 @@ scalar Timestamp
 """Always null"""
 scalar Void
 
-"""Invalid input error"""
-type CloudInvalidInputError {
-  """Argument related to the error"""
-  argument: String!
-  """Location of the error"""
-  location: String
-  """Reason for the error"""
-  reason: String!
-}
-
-"""Cloud Router tiers"""
-enum CloudTier {
-  """Serverless tier"""
-  SERVERLESS
-  """Dedicated tier"""
-  DEDICATED
-  """Enterprise Cloud tier"""
-  ENTERPRISE
-}
-
-"""Validation result"""
-union CloudValidationResult = CloudValidationSuccess | InvalidInputErrors | InternalServerError
-
-"""Config validation success"""
-type CloudValidationSuccess {
-  message: String!
-}
-
-"""
-Implement the DateTime<Utc> scalar
-
-The input/output is a string in RFC3339 format.
-"""
-scalar DateTime @specifiedBy(url: "https://datatracker.ietf.org/doc/html/rfc3339")
-
-"""
-Generic server error. This should only ever return 'internal server error' as a message
-"""
-type InternalServerError implements Error {
-  """Message related to the internal error"""
-  message: String!
-}
-
-"""Generic input error"""
-type InvalidInputErrors implements Error {
-  errors: [CloudInvalidInputError!]!
-  message: String!
-}
-
-"""Level of the log entry"""
-enum LogLevel {
-  """Debug log entry"""
-  DEBUG
-  """Informational log entry"""
-  INFO
-  """Warning log entry"""
-  WARN
-  """Error log entry"""
-  ERROR
-}
-
-"""Order log message"""
-type LogMessage {
-  """Timestamp in UTC"""
-  timestamp: DateTime!
-  """Log message contents"""
-  message: String!
-  """Log level"""
-  level: LogLevel!
-}
-
-"""
-ISO 8601 combined date and time without timezone.
-
-# Examples
-
-* `2015-07-01T08:59:60.123`,
-"""
-scalar NaiveDateTime
-
-"""Cloud Router order"""
-type Order {
-  """Order identifier"""
-  id: ID!
-  """Order type"""
-  orderType: OrderType!
-  """Order status"""
-  status: OrderStatus!
-  """Reason for ERRORED or ROLLING_BACK orders"""
-  reason: String
-  """
-  Completion percentage of the order (between 0 and 100)
-
-  This will only return data for IN_PROGRESS, COMPLETED, or SUPERSEDED states
-  """
-  completionPercentage: Int
-  """When this Order was created"""
-  createdAt: NaiveDateTime!
-  """Last time this Order was updated"""
-  updatedAt: NaiveDateTime
-  logs: [LogMessage!]!
-  """Router associated with this Order"""
-  router: Router!
-}
-
-"""Return an Order or an error"""
-union OrderOrError = Order
-
-"""Represents the different status for an order"""
-enum OrderStatus {
-  """New Order in progress"""
-  PENDING
-  """Order was successfully completed"""
-  COMPLETED
-  """
-  Order is currently rolling back
-
-  All resources created as part of this Order are being deleted
-  """
-  ROLLING_BACK
-  """Order was unsuccessful"""
-  ERRORED
-  """
-  Order has been superseded by another, more recent order
-
-  This can happen if two update orders arrive in close succession and we already
-  started to process the newer order first.
-  """
-  SUPERSEDED
-}
-
-"""Represents the different types of order"""
-enum OrderType {
-  """Create a new Cloud Router"""
-  CREATE_ROUTER
-  """Destroy an existing Cloud Router"""
-  DESTROY_ROUTER
-  """Update an existing Cloud Router"""
-  UPDATE_ROUTER
-}
-
-type Router {
-  """Return the GraphVariant associated with this Router"""
-  graphVariant: GraphVariant
-  """Date when the Cloud Router was created"""
-  createdAt: NaiveDateTime!
-  """
-  Last time when the Cloud Router was updated
-
-  If the Cloud Router was never updated, this value will be null
-  """
-  updatedAt: NaiveDateTime
-  """Current status of the Cloud Router"""
-  status: RouterStatus!
-  """
-  Current version of the Cloud Router
-
-  This will be null if the Cloud Router is in a deleted status.
-  """
-  routerVersion: RouterVersion
-  """
-  Cloud Router version applied for the next launch
-
-  If this value is not null, any subsequent launch will use this version instead of the
-  current one. This can happen when a new STABLE version is available, but we could not
-  automatically update this Cloud Router, for example due to configuration issues.
-  """
-  nextRouterVersion: RouterVersion
-  """
-  URL where the Cloud Router can be found
-
-  This will be null if the Cloud Router is in a deleted status
-  """
-  routerUrl: String @deprecated(reason: "use Router.endpoints instead")
-  """
-  Custom URLs that can be used to reach the Cloud Router
-
-  This will be null if the Cloud Router is in a deleted status or does not support custom
-  domains.
-  """
-  customDomains: [String!] @deprecated(reason: "use Router.endpoints instead")
-  """Set of endpoints that can be used to reach a Cloud Router"""
-  endpoints: RouterEndpoints!
-  """Retrieves a specific Order related to this Cloud Router"""
-  order(orderId: ID!): Order
-  """Retrieves all Orders related to this Cloud Router"""
-  orders(first: Int, offset: Int): [Order!]!
-  """
-  Return the list of secrets for this Cloud Router with their hash values
-  """
-  secrets: [Secret!]!
-  """
-  Number of Graph Compute Units (GCUs) associated with this Cloud Router
-
-  This value is not present for Cloud Routers on the `SERVERLESS` tier.
-  """
-  gcus: Int
-}
-
-"""Router configuration input"""
-input RouterConfigInput {
-  """Router version for the Cloud Router"""
-  routerVersion: String
-  """Configuration for the Cloud Router"""
-  routerConfig: String
-  """Graph composition ID, also known as launch ID"""
-  graphCompositionId: String
-  """
-  Number of GCUs allocated for the Cloud Router
-
-  This is ignored for serverless Cloud Routers
-  """
-  gcus: Int
-}
-
-"""
-List of endpoints for Cloud Router
-
-## Endpoint states
-
-If a Router is in the `DELETED` state, all the fields on this object will return `null`.
-
-For all other states, this table list all the possible valid states, and the mutations that can
-be performed on them.
-
-| Default Enabled? | Primary Endpoint | Custom Endpoints | Allowed endpoint mutations                                           |
-| Yes              | Default          | null             | N/A (this Router does not support custom endpoints)                  |
-| Yes              | Default          | []               | addCustomDomain, enableDefaultEndpoint, resetPrimaryEndpoint         |
-| Yes              | Default          | ["1", "2", "3"]  | addCustomDomain, enableDefaultEndpoint, removeCustomDomain("1", "2", or "3"), resetPrimaryEndpoint, setPrimaryEndpoint ("1", "2", or "3") |
-| Yes              | Custom 1         | ["1", "2", "3"]  | addCustomDomain, disableDefaultEndpoint, enableDefaultEndpoint, removeCustomDomain("2" or "3"), resetPrimaryEndpoint, setPrimaryEndpoint ("1", "2", or "3") |
-| No               | Custom 1         | ["1", "2", "3"]  | addCustomDomain, disableDefaultEndpoint, enableDefaultEndpoint, removeCustomDomain("2" or "3"), setPrimaryEndpoint ("1", "2", or "3") |
-"""
-type RouterEndpoints {
-  """
-  Default Cloud Router endpoint
-
-  This is null if the cloud router is in a deleted state.
-  """
-  default: String
-  """
-  Whether the default Cloud Router endpoint is enabled
-
-  If the default endpoint is not enabled (`false`), this Cloud Router cannot receive traffic
-  on the default endpoint.
-
-  This is null if the cloud router is in a deleted state.
-  """
-  defaultEnabled: Boolean
-  """
-  Set of custom Cloud Router endpoints
-
-  This is null if the cloud router is in a deleted state, or if it does not support
-  custom endpoints.
-  """
-  custom: [String!]
-  """
-  Primary Cloud Router endpoint
-
-  This is null if the cloud router is in a deleted state.
-  """
-  primary: String
-}
-
-"""Represents the possible outcomes of an endpoint mutation"""
-union RouterEndpointsResult = RouterEndpointsSuccess | InvalidInputErrors | InternalServerError
-
-"""Successe branch of  an addEndpoint or removeEndpoint mutation"""
-type RouterEndpointsSuccess {
-  endpoints: RouterEndpoints!
-}
-
-"""Represents the possible outcomes of a setGcus mutation"""
-union RouterGcusResult = RouterGcusSuccess | InvalidInputErrors | InternalServerError
-
-"""Success branch of a setGcus mutation"""
-type RouterGcusSuccess {
-  order: Order!
-}
-
-type RouterMutation {
-  """Set secrets for this Cloud Router"""
-  setSecrets(input: RouterSecretsInput!): RouterSecretsResult!
-  """Set the number of GCUs associated with this Router"""
-  setGcus(gcus: Int!): RouterGcusResult!
-  """Add a custom domain for this Cloud Router"""
-  addCustomDomain(customDomain: String!): RouterEndpointsResult!
-  """Remove a custom domain for this Cloud Router"""
-  removeCustomDomain(customDomain: String!): RouterEndpointsResult!
-}
-
-"""User input for a RouterSecrets mutation"""
-input RouterSecretsInput {
-  """Secrets to create or update"""
-  secrets: [SecretInput!]
-  """Secrets to remove"""
-  unsetSecrets: [String!]
-}
-
-"""Represents the possible outcomes of a RouterSecrets mutation"""
-union RouterSecretsResult = RouterSecretsSuccess | InvalidInputErrors | InternalServerError
-
-"""Success branch of a RouterSecrets mutation."""
-type RouterSecretsSuccess {
-  secrets: [Secret!]!
-}
-
-"""Current status of Cloud Routers"""
-enum RouterStatus {
-  """Cloud Router is not yet provisioned"""
-  CREATING
-  """Cloud Router is running, but currently being updated"""
-  UPDATING
-  """
-  Cloud Router is running, but currently being deleted
-
-  This is the only mutation state that doesn't support rollback. If we fail to
-  delete a Router, the workflows are configured to stop and keep the router into
-  the Deleting status.
-  """
-  DELETING
-  """
-  Current order is rolling back to the last known good state
-
-  After a RollingBack state, a Router can move either into Running state (from a
-  Update order) or Deleted (from a Create order).
-
-  If we fail to roll back, the workflows are configured to stop and keep the router
-  into the RollingBack status.
-  """
-  ROLLING_BACK
-  """Current router is running and able to server requests"""
-  RUNNING
-  """
-  Router has been put to sleep. This state should only be possible for Serverless routers
-  """
-  SLEEPING
-  """Router has been deleted"""
-  DELETED
-}
-
-"""Router Version"""
-type RouterVersion {
-  """Version identifier"""
-  version: String!
-  """Core version identifier"""
-  core: String!
-  """Build number"""
-  build: String!
-  """Status of a router version"""
-  status: Status!
-  """Config version for this router version"""
-  configVersion: String!
-  """
-  JSON schema for validating the router configuration for this router version
-  """
-  configSchema: String!
-}
-
-"""Cloud Router secret"""
-type Secret {
-  """When the secret was created"""
-  createdAt: DateTime!
-  """Name of the secret"""
-  name: String!
-  """Hash of the secret"""
-  hash: String!
-}
-
-"""Input for creating or updating secrets"""
-input SecretInput {
-  """Name of the secret"""
-  name: String!
-  """
-  Value for that secret
-
-  This can only be used for input, as it is not possible to retrieve the value of secrets.
-  """
-  value: String!
-}
-
-"""Possible status of a Cloud Router version"""
-enum Status {
-  """Cloud Router Version is ready to be used by end users"""
-  STABLE
-  """
-  Upcoming or experimental version of a Cloud Router
-
-  This should only be used internally, or to preview new features to
-  customers.
-  """
-  NEXT
-  """
-  Deprecated version of a Cloud Router
-
-  New Cloud Routers should not use this version, and this will not be
-  supported at some point in the future.
-  """
-  DEPRECATED
-}
-
-"""A graph variant"""
-type GraphVariant {
-  """The variant's global identifier in the form `graphID@variant`."""
-  id: ID!
-  """The variant's name (e.g., `staging`)."""
-  name: String!
-  """Router associated with this graph variant"""
-  router: Router
-  """Validate router configuration for this graph variant"""
-  validateRouter(config: RouterConfigInput!): CloudValidationResult!
-  checkConfiguration: VariantCheckConfiguration!
-  """Custom check configuration for this graph."""
-  customCheckConfiguration: CustomCheckConfiguration
-  """The graph that this variant belongs to."""
-  graph: Graph!
-  """
-  Get a specific graph artifact tag assigned to a graph artifact of the associated variant.
-  If the tag is assigned to another variant of the same graph, this field will return 'null'.
-  For example, querying graph 'MyGraph', variant 'prod' for tag 'v1' would return null if tag `v1` is currently assigned to the `dev` variant.
-  """
-  graphArtifactTag(
-    """The name of the tag"""
-    tag: String!,
-  ): GraphArtifactTag
-  """
-  The graph artifact tags currently assigned to graph artifacts of this variant
-  """
-  graphArtifactTags(
-    """The cursor to start pagination after (for forward pagination)"""
-    after: String,
-    """
-    The number of tags to return (for forward pagination), defaults to 10, maximum is 20
-    """
-    first: Int,
-  ): GraphArtifactTagConnection!
-  """The graph artifacts associated with a specific graph variant"""
-  graphArtifacts(
-    """The cursor to start pagination after (for forward pagination)"""
-    after: String,
-    """
-    The number of artifacts to return (for forward pagination), defaults to 10, maximum is 20
-    """
-    first: Int,
-  ): GraphArtifactConnection!
-  """
-  Returns the current state of every schema coordinate (object field, input object field, and enum value) for this variant, describing whether each coordinate is used and whether it is deprecated. Unlike the timeseries reports, this returns a single snapshot row per coordinate rather than metrics bucketed over time. A coordinate is reported as 'used' if it was referenced or executed at any point since the 'since' timestamp. The report can be filtered by coordinate kind, used status, deprecation status, and client. Using the groupByClient input flag will cause the report to output one record per combination of schema coordinate, client, and version name instead of one record per schema coordinate. Note that insights on enum values and input object types are only supported if extended reference reporting is enabled (see https://www.apollographql.com/docs/graphos/routing/configuration/yaml#extended-reference-reporting).
-  """
-  schemaCoordinateInsightsUsageReport(
-    """
-    Filtering criteria for the results. Defaults to showing all unfiltered results.
-    """
-    filters: SchemaCoordinateInsightsUsageReportFilterInput,
-    """
-    When false (default), each row represents a single schema coordinate aggregated across all clients.
-    When true, each row represents a single (coordinate, client name, client version) combination with per-client metrics.
-    """
-    groupByClient: Boolean! = false,
-    """Maximum number of records to return (default: 1000, max 100000)."""
-    limit: Int! = 1000,
-    """
-    Sorting criteria for the results. Defaults to ordering by coordinate kind, then named type, then named attribute.
-    """
-    orderBy: SchemaCoordinateInsightsUsageReportOrderByInput,
-    """
-    The lower bound of the usage window. A schema coordinate is reported as 'used' if it was referenced or executed at any point at or after this timestamp. Must be within the last 90 days and in the format: 2025-01-01T00:00:00Z (ISO 8601).
-    """
-    since: Timestamp!,
-  ): SchemaCoordinateInsightsUsageReportResult!
-  """
-  Returns a list of the top operations reported for this variant within a given time range. This API is rate limited,
-  and will return an error if too many requests are made for a graph.
-  """
-  topOperationsReport(
-    """Optional filters to refine the results"""
-    filter: TopOperationsReportVariantFilterInput,
-    """
-    The starting timestamp for the report.
-
-    - Must be in the format: 2025-01-01T00:00:00Z (ISO 8601).
-      - Must be within the last 549 days.
-      - The duration between 'from' and 'to' must not exceed 31 days.
-    """
-    from: Timestamp!,
-    """Maximum number of records to return (default: 10)"""
-    limit: Int! = 10,
-    """Sorting criteria for the report"""
-    orderBy: TopOperationsReportOrderByInput,
-    """
-    The ending timestamp for the report.
-
-    - Must be in the format: 2025-01-01T08:00:00Z (ISO 8601).
-    - Must be at least 6 hours from the current time.
-      - The duration between 'from' and 'to' must not exceed 31 days.
-    """
-    to: Timestamp!,
-  ): [TopOperationRecord!]!
-  """
-  Compose and filter preview contract schema built from this source variant.
-  """
-  composeAndFilterPreview(
-    """
-    The filter configuration of a hypothetical contract variant on this variant. Null indicates that filtering should be skipped/not run, in which case ComposeAndFilterPreviewSuccess.filterResults will be null.
-    """
-    filterConfig: FilterConfigInput,
-    """
-    Any hypothetical changes desired for the subgraphs of this variant. Null is the same as the empty list.
-    """
-    subgraphChanges: [ComposeAndFilterPreviewSubgraphChange!],
-  ): ComposeAndFilterPreviewResult @deprecated(reason: "Use the composeAndFilterPreviewAsync mutation and poll composeAndFilterPreviewStatus instead.")
-  """
-  Poll the status and result of an async composeAndFilterPreview build started on this variant. Null if no such build exists.
-  """
-  composeAndFilterPreviewStatus(
-    """The build ID returned by composeAndFilterPreviewAsync."""
-    buildID: ID!,
-  ): ComposeAndFilterPreviewStatus
-  """
-  The filter configuration used to build a contract schema. The configuration consists of lists of tags for schema elements to include or exclude in the resulting schema.
-  """
-  contractFilterConfig: FilterConfig
-  """
-  A human-readable description of the filter configuration of this contract variant, or null if this isn't a contract
-  variant.
-  """
-  contractFilterConfigDescription: String
-  """
-  Poll the status and result of an async contractPreviewAsync build started on this variant. Null if no such build exists.
-  """
-  contractPreviewStatus(
-    """The build ID returned by contractPreviewAsync."""
-    buildID: ID!,
-  ): ContractPreviewAsyncStatus
-  """Time the variant was created"""
-  createdAt: Timestamp!
-  """Federation version this variant uses"""
-  federationVersion: String
-  """Represents whether this variant is a Proposal."""
-  isProposal: Boolean
-  """
-  Latest approved launch for the variant, and what is served through Uplink.
-  """
-  latestApprovedLaunch: Launch
-  """Latest launch for the variant, whether successful or not."""
-  latestLaunch: Launch
-  """Retrieve a launch for this variant by ID."""
-  launch(id: ID!): Launch
-  """
-  A list of launches metadata ordered by date, asc or desc depending on orderBy. The maximum limit is 100.
-  """
-  launchSummaries(limit: Int! = 100, offset: Int! = 0, orderBy: LaunchHistoryOrder! = CREATED_DESC): [LaunchSummary!]
-  """
-  Which permissions the current user has for interacting with this variant
-  """
-  permissions: GraphVariantPermissions!
-  readme: Readme!
-  """
-  The variant this variant is derived from. This property currently only exists on contract variants.
-  """
-  sourceVariant: GraphVariant
-  """
-  The default collection MCP servers will use if no explicit collection is provided. Auto-creates a collection if it does not exist.
-  """
-  mcpDefaultCollection: McpDefaultCollectionResult!
-  """
-  A list of the saved [operation collections](https://www.apollographql.com/docs/studio/explorer/operation-collections/) associated with this variant.
-  This field accepts up to 400 requests per minute. This rate may be temporarily adjusted based on system conditions.
-  """
-  operationCollections: [OperationCollection!]!
-  """The Persisted Query List linked to this variant, if any."""
-  persistedQueryList: PersistedQueryList
-  """
-  Returns the proposal-related fields for this graph variant if the variant is a proposal; otherwise, returns null. This field accepts up to 1000 requests per minute. This rate may be temporarily adjusted based on system conditions.
-  """
-  proposal: Proposal
-  """
-  The URL of the variant's GraphQL endpoint for query and mutation operations. For subscription operations, use `subscriptionUrl`.
-  """
-  url: String
-  """The URL of the variant's GraphQL endpoint for subscription operations."""
-  subscriptionUrl: String
-  """The details of the variant's most recent publication."""
-  latestPublication: SchemaPublication
-  """
-  A list of the subgraphs included in this variant. This value is null for non-federated variants. Set `includeDeleted` to `true` to include deleted subgraphs.
-  """
-  subgraphs(includeDeleted: Boolean! = false): [GraphVariantSubgraph!]
-  """
-  A list of the subgraphs that have been published to since the variant was created.
-  Does not include subgraphs that were created & deleted since the variant was created.
-
-  TODO: @deprecated(reason: "use GraphVariant.updatedSubgraphsSinceCreation instead")
-  """
-  updatedSubgraphs: [GraphVariantSubgraph!]
-  """
-  Returns the details of the subgraph with the provided `name`, or null if this variant doesn't include a subgraph with that name.
-  """
-  subgraph(name: ID!): GraphVariantSubgraph
-  routerConfig: String
-}
-
-"""
-Modifies a variant of a graph, also called a schema tag in parts of our product.
-"""
-type GraphVariantMutation {
-  """Gets the router attached to a graph variant"""
-  router: RouterMutation
-  """
-  Callback mutation for submitting custom check results once your validation has run.
-  Results are returned with the SUCCESS or FAILURE of your validations, the task and workflow ids
-  to associate results, with and an optional list of violations to provide more details to users.
-  The Schema Check will wait for this response for 10 minutes and not complete until the results are returned.
-  After 10 minutes have passed without a callback request being received, the task will be marked as timed out.
-  """
-  customCheckCallback(input: CustomCheckCallbackInput!): CustomCheckCallbackResult!
-  setCustomCheckConfiguration(input: SetCustomCheckConfigurationInput!): CustomCheckConfigurationResult!
-  """
-  Start an asynchronous compose and filter preview build from this source variant. Returns a build ID; poll composeAndFilterPreviewStatus with it to retrieve the result.
-  """
-  composeAndFilterPreviewAsync(
-    """
-    The filter configuration of a hypothetical contract variant on this variant. Null indicates that filtering should be skipped/not run.
-    """
-    filterConfig: FilterConfigInput,
-    """
-    Any hypothetical changes desired for the subgraphs of this variant. Null is the same as the empty list.
-    """
-    subgraphChanges: [ComposeAndFilterPreviewSubgraphChange!],
-  ): ComposeAndFilterPreviewAsyncBuild!
-  """
-  _Asynchronously_ previews a Contract schema built from this source variant.
-
-  Enqueues a Temporal workflow and returns immediately with a `ContractPreviewAsyncBuild`
-  containing a build ID. Poll `contractPreviewStatus` with that ID for the result.
-  """
-  contractPreviewAsync(filters: FilterConfigInput!): ContractPreviewAsyncBuild!
-  """
-  _Asynchronously_ kicks off operation checks for a proposed non-federated
-  schema change against its associated graph.
-
-  Returns a `CheckRequestSuccess` object with a workflow ID that you can use
-  to check status, or an error object if the checks workflow failed to start.
-
-  Rate limited to 3000 per min. Schema checks cannot be performed on contract variants.
-  """
-  submitCheckSchemaAsync(input: CheckSchemaAsyncInput!): CheckRequestResult!
-  """
-   _Asynchronously_ kicks off composition and operation checks for all proposed subgraphs schema changes against its associated supergraph.
-
-   Returns a `CheckRequestSuccess` object with a workflow ID that you can use
-   to check status, or an error object if the checks workflow failed to start.
-
-  Rate limited to 3000 per min. Subgraph checks cannot be performed on contract variants.
-  """
-  submitMultiSubgraphCheckAsync(input: MultiSubgraphCheckAsyncInput!): CheckRequestResult!
-  """
-  _Asynchronously_ kicks off composition and operation checks for a proposed subgraph schema change against its associated supergraph.
-
-  Returns a `CheckRequestSuccess` object with a workflow ID that you can use
-  to check status, or an error object if the checks workflow failed to start.
-
-  Rate limited to 3000 per min. Subgraph checks cannot be performed on contract variants.
-  """
-  submitSubgraphCheckAsync(input: SubgraphCheckAsyncInput!): CheckRequestResult!
-  updateCheckConfigurationCustomChecks(
-    """
-    Whether custom checks is enabled for this variant. If the useGraphSettings argument is true, this argument is ignored. If the useGraphSettings argument is false and this argument is null, defaults to false.
-    """
-    enableCustomChecks: Boolean,
-    """
-    When this argument is true, indicates that graph-level configuration is used for this variant setting.
-    """
-    useGraphSettings: Boolean!,
-  ): VariantCheckConfiguration!
-  updateCheckConfigurationDowngradeChecks(
-    """
-    During operation checks, when this argument is true, the check will not fail or
-      mark any operations as broken/changed if the default value has changed, only
-      if the default value is removed completely. If this argument is null, the
-    value is unchanged.
-    """
-    downgradeDefaultValueChange: Boolean,
-    """
-    During operation checks, when this argument is true, it evaluates a check
-      run against zero operations as a pass instead of a failure. If this argument
-    is null, the value is unchanged.
-    """
-    downgradeStaticChecks: Boolean,
-    """
-    When this argument is true, indicates that graph-level configuration is used for this variant
-    setting.
-    """
-    useGraphSettings: Boolean!,
-  ): VariantCheckConfiguration!
-  updateCheckConfigurationDownstreamVariants(
-    """
-    During downstream checks, this variant's check workflow will wait for all downstream check
-    workflows for <blockingDownstreamVariants> variants to complete, and if any of them fail, then
-    this variant's check workflow will fail. If this argument is null, the value is unchanged.
-    """
-    blockingDownstreamVariants: [String!],
-  ): VariantCheckConfiguration!
-  updateCheckConfigurationEnableOperationsCheck(enabled: Boolean!): VariantCheckConfiguration
-  updateCheckConfigurationExcludedClients(
-    """
-    When this argument is true, indicates that graph-level configuration is appended to the
-    variant-level configuration.
-    """
-    appendGraphSettings: Boolean!,
-    """
-    During operation checks, ignore clients matching any of the <excludedClients> filters. If this
-    argument is null, the value is unchanged.
-    """
-    excludedClients: [ClientFilterInput!],
-  ): VariantCheckConfiguration!
-  updateCheckConfigurationExcludedOperations(
-    """
-    When this argument is true, indicates that graph-level configuration is appended to the
-    variant-level configuration.
-    """
-    appendGraphSettings: Boolean!,
-    """
-    During operation checks, ignore operations matching any of the <excludedOperationNames>
-    filters. If this argument is null, the value is unchanged.
-    """
-    excludedOperationNames: [OperationNameFilterInput!],
-    """
-    During operation checks, ignore operations matching any of the <excludedOperations> filters. If
-    this argument is null, the value is unchanged.
-    """
-    excludedOperations: [OperationInfoFilterInput!],
-  ): VariantCheckConfiguration!
-  updateCheckConfigurationIncludedVariants(
-    """
-    During operation checks, fetch operations from the metrics data for <includedVariants>
-    variants. If the useGraphSettings argument is true, this argument is ignored. If the
-    useGraphSettings argument is false and this argument is null, the value is unchanged (if
-    useGraphSettings was previously true, the default of a list containing just this variant is
-    used instead).
-    """
-    includedVariants: [String!],
-    """
-    When this argument is true, indicates that graph-level configuration is used for this variant
-    setting.
-    """
-    useGraphSettings: Boolean!,
-  ): VariantCheckConfiguration!
-  updateCheckConfigurationProposalChangeMismatchSeverity(
-    """
-    How submitted build input diffs are handled when they match (or don't) a Proposal at the variant level.
-    """
-    proposalChangeMismatchSeverity: ProposalChangeMismatchSeverity,
-    """
-    When this argument is true, indicates that graph-level configuration is used for this variant setting.
-    """
-    useGraphSettings: Boolean @deprecated(reason: "Graph-level configuration is no longer supported"),
-  ): VariantCheckConfiguration!
-  updateCheckConfigurationTimeRange(
-    """
-    During operation checks, ignore operations that executed less than <operationCountThreshold>
-    times in the time range. If the useGraphSettings argument is true, this argument is ignored. If
-    the useGraphSettings argument is false and this argument is null, the value is unchanged (if
-    useGraphSettings was previously true, the default of 1 is used instead).
-    """
-    operationCountThreshold: Int,
-    """
-    Duration operation checks, ignore operations that constituted less than
-    <operationCountThresholdPercentage>% of the operations in the time range. Expected values are
-    between 0% and 5%. If the useGraphSettings argument is true, this argument is ignored. If the
-    useGraphSettings argument is false and this argument is null, the value is unchanged (if
-    useGraphSettings was previously true, the default of 0% is used instead).
-    """
-    operationCountThresholdPercentage: Float,
-    """
-    During operation checks, fetch operations from the last <timeRangeSeconds> seconds. If the
-    useGraphSettings argument is true, this argument is ignored. If the useGraphSettings argument
-    is false and this argument is null, the value is unchanged (if useGraphSettings was previously
-    true, the default of 7 days is used instead).
-    """
-    timeRangeSeconds: Long,
-    """
-    When this argument is true, indicates that graph-level configuration is used for this variant
-    setting.
-    """
-    useGraphSettings: Boolean!,
-  ): VariantCheckConfiguration!
-  """
-  Updates the [federation version](https://www.apollographql.com/docs/graphos/reference/router/federation-version-support) of this variant
-  """
-  updateVariantFederationVersion(federationVersion: FederationVersion, version: BuildPipelineTrack): GraphVariant
-  """
-  Updates the [README](https://www.apollographql.com/docs/studio/org/graphs/#the-readme-page) of this variant.
-  """
-  updateVariantReadme(
-    """The full new text of the README, as a Markdown-formatted string."""
-    readme: String!,
-  ): GraphVariant
-  """
-  Links a specified PersistedQueryList to the variant of the parent GraphVariantMutation.
-  """
-  linkPersistedQueryList(persistedQueryListId: ID!): LinkPersistedQueryListResultOrError!
-  """
-  Unlinks a specified PersistedQueryList from the variant of the parent GraphVariantMutation.
-  """
-  unlinkPersistedQueryList: UnlinkPersistedQueryListResultOrError!
-  """
-  Provides access to mutation fields for modifying a GraphOS Schema Proposal, if this GraphVariant is a proposal variant; else returns NotFoundError. Learn more at https://www.apollographql.com/docs/graphos/delivery/schema-proposals
-  """
-  proposal: ProposalMutationResult!
-  updateURL(url: String): GraphVariant
-  """Delete the variant."""
-  delete: GraphVariantDeletionResult!
-  upsertRouterConfig(configuration: String!): UpsertRouterResult
-}
-
-"""
-Represents the complete process of making a set of updates to a deployed graph variant.
-"""
-type Launch {
-  """The unique identifier for this launch."""
-  id: ID!
-  """The ID of the launch's associated graph."""
-  graphId: String!
-  """The name of the launch's associated variant."""
-  graphVariant: String!
-  """Cloud Router order for this launch ID"""
-  order: OrderOrError!
-  orders: [Order!]!
-  """The Graph Artifact created from this launch."""
-  graphArtifact: GraphArtifact
-  """The timestamp when the launch was approved."""
-  approvedAt: Timestamp
-  """
-  The associated build for this launch (a build includes schema composition and contract filtering). This value is null until the build is initiated.
-  """
-  build: Build
-  """
-  The inputs provided to this launch's associated build, including subgraph schemas and contract filters.
-  """
-  buildInput: BuildInput!
-  """
-  The timestamp when the launch completed. This value is null until the launch completes.
-  """
-  completedAt: Timestamp
-  """The timestamp when the launch was initiated."""
-  createdAt: Timestamp!
-  """Contract launches that were triggered by this launch."""
-  downstreamLaunches: [Launch!]!
-  """Whether the launch completed."""
-  isCompleted: Boolean
-  """
-  Whether the result of the launch has been published to the associated graph and variant. This is always false for a failed launch.
-  """
-  isPublished: Boolean
-  """
-  The most recent launch sequence step that has started but not necessarily completed.
-  """
-  latestSequenceStep: LaunchSequenceStep
-  """
-  The launch immediately prior to this one. If successOnly is true, returns the most recent successful launch; if false, returns the most recent launch, regardless of success. If no such previous launch exists, returns null.
-  """
-  previousLaunch(
-    """Controls if only successful launches are returned. Defaults to false."""
-    successOnly: Boolean,
-  ): Launch
-  """A specific publication of a graph variant pertaining to this launch."""
-  publication: SchemaPublication
-  """
-  A list of results from the completed launch. The items included in this list vary depending on whether the launch succeeded, failed, or was superseded.
-  """
-  results: [LaunchResult!]!
-  """
-  Cloud router configuration associated with this build event. It will be non-null for any cloud-router variant, and null for any not cloudy variant/graph.
-  """
-  routerConfig: String
-  """
-  A list of all serial steps in the launch sequence. This list can change as the launch progresses. For example, a `LaunchCompletedStep` is appended after a launch completes.
-  """
-  sequence: [LaunchSequenceStep!]!
-  """
-  A shortened version of `Launch.id` that includes only the first 8 characters.
-  """
-  shortenedID: String!
-  """
-  The launch's status. If a launch is superseded, its status remains `LAUNCH_INITIATED`. To check for a superseded launch, use `supersededAt`.
-  """
-  status: LaunchStatus!
-  """A list of subgraph changes that are included in this launch."""
-  subgraphChanges: [SubgraphChange!]
-  """
-  The timestamp when this launch was superseded by another launch. If an active launch is superseded, it terminates.
-  """
-  supersededAt: Timestamp
-  """
-  The launch that superseded this launch, if any. If an active launch is superseded, it terminates.
-  """
-  supersededBy: Launch
-  """
-  The source variant launch that caused this launch to be initiated. This value is present only for contract variant launches. Otherwise, it's null.
-  """
-  upstreamLaunch: Launch
-  """
-  Returns the proposal revision associated with this launch, if it exists. This field accepts up to 1000 requests per minute. This rate may be temporarily adjusted based on system conditions.
-  """
-  proposalRevision: ProposalRevision
-}
-
 """
 Represents an actor that performs actions in Apollo Studio. Most actors are either a `USER` or a `GRAPH` (based on a request's provided API key), and they have the corresponding `ActorType`.
 """
@@ -1285,6 +376,13 @@ enum ActorType {
   SYSTEM
   USER
 }
+
+"""
+Implement the DateTime<Utc> scalar
+
+The input/output is a string in RFC3339 format.
+"""
+scalar DateTime @specifiedBy(url: "https://scalars.graphql.org/andimarek/date-time")
 
 """
 An identity (such as a `User` or `Graph`) in Apollo Studio. See implementing types for details.
@@ -1402,9 +500,54 @@ type Graph implements Identity {
   """A list of the variants for this graph."""
   variants: [GraphVariant!]!
   """
+   Returns a timeseries of GraphQL error counts across a specified time range for this graph. This will return error
+  counts grouped by time and the specified dimensions (error code, error path, the subgraph or connector service that
+  produced the error, operation, client, etc.). Error codes and severities are only available for errors that were
+  reported with them, and are null otherwise. A sample error message can be included for each row by requesting the
+  SAMPLE_ERROR_MESSAGE dimension, but note that this will make the report slower. This API is rate limited and only allows a small
+  number of requests per minute, and will return a REQUEST_RATE_LIMITED error if too many requests are made for a graph.
+  If a request to this field times out, we recommend that you try a shorter time range or fewer dimensions.
+  """
+  errorInsightsTimeseriesReport(
+    """
+    The dimensions to group by. Must include at least one dimension other than SAMPLE_ERROR_MESSAGE, which isn't grouped on, otherwise this will return a REQUEST_INVALID error.
+    """
+    dimensions: [ErrorInsightsTimeseriesReportDimension!]!,
+    """
+    Filtering criteria for the results. Defaults to showing all unfiltered results.
+    """
+    filters: ErrorInsightsTimeseriesReportFilterInput,
+    """
+    The starting timestamp for the report. Must be in the format: 2025-01-01T00:00:00Z (ISO 8601). This timestamp cannot exceed your plan's operation-level data retention as defined in the Apollo GraphQL pricing page (https://www.apollographql.com/pricing).
+    """
+    from: Timestamp!,
+    """Maximum number of records to return (default: 100, max 10000)."""
+    limit: Int! = 100,
+    """The metrics to be returned."""
+    metrics: [ErrorInsightsTimeseriesReportMetric!]!,
+    """
+    The results will always be sorted by time, but this allows you to set a secondary sorting criteria for the results.
+    """
+    orderBy: ErrorInsightsTimeseriesReportOrderByInput,
+    """
+    The resolution of the time groups for the report. This resolution will affect the range of times that can be used for the 'from' and
+    'to' timestamps:
+    - For the MINUTE resolution, the total time between 'from' and 'to' must be no more than 1 day, and the 'from' time must be no earlier than 30 days ago.
+    - For the HOUR resolution, the total time between 'from' and 'to' must be no more than 7 days, and the 'from' time must be no earlier than 90 days ago.
+    - For the DAY, MONTH, and ENTIRE_RANGE resolutions, the 'from' time must be no earlier than 549 days ago (approx 18 months), and the 'to' time must be no later than 1 day ago.
+    - These time ranges are further constrained by your plan's operation-level data retention as defined in the Apollo GraphQL pricing page (https://www.apollographql.com/pricing).
+    If these criteria are not met, this will return a REQUEST_INVALID error.
+    """
+    resolution: TimeseriesReportResolution!,
+    """
+    The ending timestamp for the report. Must be in the format: 2025-01-01T08:00:00Z (ISO 8601). This timestamp cannot exceed your plan's operation-level data retention as defined in the Apollo GraphQL pricing page (https://www.apollographql.com/pricing).
+    """
+    to: Timestamp!,
+  ): ErrorInsightsTimeseriesReportResult!
+  """
    Returns a timeseries of operation metrics across a specified time range for this graph. This will return specified metrics (request count,
    avg latency, etc) grouped by time and the specified dimensions (query ID, query name, client name, etc). This API is rate limited and only
-   allows a small number of requests per minute, and will return a RATE_LIMIT_EXCEEDED error if too many requests are made for a graph. If a
+   allows a small number of requests per minute, and will return a REQUEST_RATE_LIMITED error if too many requests are made for a graph. If a
   request to this field times out, we recommend that you try a shorter time range or fewer dimensions.
   """
   operationInsightsTimeseriesReport(
@@ -1446,7 +589,7 @@ type Graph implements Identity {
   """
    Returns a timeseries of object field, input object field, and enum value metrics across a specified time range for this graph. This will return specified
    metrics (request count, error count, etc) grouped by time and the specified dimensions (parent type, field name, client name, etc). This API is rate
-   limited and only allows a small number of requests per minute, and will return a RATE_LIMIT_EXCEEDED error if too many requests are made for a graph. If a
+   limited and only allows a small number of requests per minute, and will return a REQUEST_RATE_LIMITED error if too many requests are made for a graph. If a
   request to this field times out, we recommend that you try a shorter time range or fewer dimensions.
   """
   schemaCoordinateInsightsTimeseriesReport(
@@ -1489,7 +632,7 @@ type Graph implements Identity {
   result in multiple fetches, depending on the operation shape and query plan. This will return specified metrics (fetch
   count, avg latency, etc.) grouped by time and the specified dimensions (fetch service ID, fetch service name, client
   name, etc.). This API is rate limited and only allows a small number of requests per minute, and will return a
-  RATE_LIMIT_EXCEEDED error if too many requests are made for a graph. If a request to this field times out, we
+  REQUEST_RATE_LIMITED error if too many requests are made for a graph. If a request to this field times out, we
   recommend that you try a shorter time range or fewer dimensions.
   """
   subgraphInsightsTimeseriesReport(
@@ -1904,6 +1047,414 @@ type FileLocation {
   end: FileCoordinate!
   start: FileCoordinate!
   subgraphName: String
+}
+
+"""A graph variant"""
+type GraphVariant {
+  checkConfiguration: VariantCheckConfiguration!
+  """Custom check configuration for this graph."""
+  customCheckConfiguration: CustomCheckConfiguration
+  """The graph that this variant belongs to."""
+  graph: Graph!
+  """The variant's global identifier in the form `graphID@variant`."""
+  id: ID!
+  """The variant's name (e.g., `staging`)."""
+  name: String!
+  """
+  Get a specific graph artifact tag assigned to a graph artifact of the associated variant.
+  If the tag is assigned to another variant of the same graph, this field will return 'null'.
+  For example, querying graph 'MyGraph', variant 'prod' for tag 'v1' would return null if tag `v1` is currently assigned to the `dev` variant.
+  """
+  graphArtifactTag(
+    """The name of the tag"""
+    tag: String!,
+  ): GraphArtifactTag
+  """
+  The graph artifact tags currently assigned to graph artifacts of this variant
+  """
+  graphArtifactTags(
+    """The cursor to start pagination after (for forward pagination)"""
+    after: String,
+    """
+    The number of tags to return (for forward pagination), defaults to 10, maximum is 20
+    """
+    first: Int,
+  ): GraphArtifactTagConnection!
+  """The graph artifacts associated with a specific graph variant"""
+  graphArtifacts(
+    """The cursor to start pagination after (for forward pagination)"""
+    after: String,
+    """
+    The number of artifacts to return (for forward pagination), defaults to 10, maximum is 20
+    """
+    first: Int,
+  ): GraphArtifactConnection!
+  """
+  Returns the current state of every schema coordinate (object field, input object field, and enum value) for this variant, describing whether each coordinate is used and whether it is deprecated. Unlike the timeseries reports, this returns a single snapshot row per coordinate rather than metrics bucketed over time. A coordinate is reported as 'used' if it was referenced or executed at any point since the 'since' timestamp. The report can be filtered by coordinate kind, used status, deprecation status, and client. Using the groupByClient input flag will cause the report to output one record per combination of schema coordinate, client, and version name instead of one record per schema coordinate. Note that insights on enum values and input object types are only supported if extended reference reporting is enabled (see https://www.apollographql.com/docs/graphos/routing/configuration/yaml#extended-reference-reporting).
+  """
+  schemaCoordinateInsightsUsageReport(
+    """
+    Filtering criteria for the results. Defaults to showing all unfiltered results.
+    """
+    filters: SchemaCoordinateInsightsUsageReportFilterInput,
+    """
+    When false (default), each row represents a single schema coordinate aggregated across all clients.
+    When true, each row represents a single (coordinate, client name, client version) combination with per-client metrics.
+    """
+    groupByClient: Boolean! = false,
+    """Maximum number of records to return (default: 1000, max 100000)."""
+    limit: Int! = 1000,
+    """
+    Sorting criteria for the results. Defaults to ordering by coordinate kind, then named type, then named attribute.
+    """
+    orderBy: SchemaCoordinateInsightsUsageReportOrderByInput,
+    """
+    The lower bound of the usage window. A schema coordinate is reported as 'used' if it was referenced or executed at any point at or after this timestamp. Must be within the last 90 days and in the format: 2025-01-01T00:00:00Z (ISO 8601).
+    """
+    since: Timestamp!,
+  ): SchemaCoordinateInsightsUsageReportResult!
+  """
+  Returns a list of the top operations reported for this variant within a given time range. This API is rate limited,
+  and will return an error if too many requests are made for a graph.
+  """
+  topOperationsReport(
+    """Optional filters to refine the results"""
+    filter: TopOperationsReportVariantFilterInput,
+    """
+    The starting timestamp for the report.
+
+    - Must be in the format: 2025-01-01T00:00:00Z (ISO 8601).
+      - Must be within the last 549 days.
+      - The duration between 'from' and 'to' must not exceed 31 days.
+    """
+    from: Timestamp!,
+    """Maximum number of records to return (default: 10)"""
+    limit: Int! = 10,
+    """Sorting criteria for the report"""
+    orderBy: TopOperationsReportOrderByInput,
+    """
+    The ending timestamp for the report.
+
+    - Must be in the format: 2025-01-01T08:00:00Z (ISO 8601).
+    - Must be at least 6 hours from the current time.
+      - The duration between 'from' and 'to' must not exceed 31 days.
+    """
+    to: Timestamp!,
+  ): [TopOperationRecord!]!
+  """
+  Compose and filter preview contract schema built from this source variant.
+  """
+  composeAndFilterPreview(
+    """
+    The filter configuration of a hypothetical contract variant on this variant. Null indicates that filtering should be skipped/not run, in which case ComposeAndFilterPreviewSuccess.filterResults will be null.
+    """
+    filterConfig: FilterConfigInput,
+    """
+    Any hypothetical changes desired for the subgraphs of this variant. Null is the same as the empty list.
+    """
+    subgraphChanges: [ComposeAndFilterPreviewSubgraphChange!],
+  ): ComposeAndFilterPreviewResult @deprecated(reason: "Use the composeAndFilterPreviewAsync mutation and poll composeAndFilterPreviewStatus instead.")
+  """
+  Poll the status and result of an async composeAndFilterPreview build started on this variant. Null if no such build exists.
+  """
+  composeAndFilterPreviewStatus(
+    """The build ID returned by composeAndFilterPreviewAsync."""
+    buildID: ID!,
+  ): ComposeAndFilterPreviewStatus
+  """
+  The filter configuration used to build a contract schema. The configuration consists of lists of tags for schema elements to include or exclude in the resulting schema.
+  """
+  contractFilterConfig: FilterConfig
+  """
+  A human-readable description of the filter configuration of this contract variant, or null if this isn't a contract
+  variant.
+  """
+  contractFilterConfigDescription: String
+  """
+  Poll the status and result of an async contractPreviewAsync build started on this variant. Null if no such build exists.
+  """
+  contractPreviewStatus(
+    """The build ID returned by contractPreviewAsync."""
+    buildID: ID!,
+  ): ContractPreviewAsyncStatus
+  """Time the variant was created"""
+  createdAt: Timestamp!
+  """Federation version this variant uses"""
+  federationVersion: String
+  """Represents whether this variant is a Proposal."""
+  isProposal: Boolean
+  """
+  Latest approved launch for the variant, and what is served through Uplink.
+  """
+  latestApprovedLaunch: Launch
+  """Latest launch for the variant, whether successful or not."""
+  latestLaunch: Launch
+  """Retrieve a launch for this variant by ID."""
+  launch(id: ID!): Launch
+  """
+  A list of launches metadata ordered by date, asc or desc depending on orderBy. The maximum limit is 100.
+  """
+  launchSummaries(limit: Int! = 100, offset: Int! = 0, orderBy: LaunchHistoryOrder! = CREATED_DESC): [LaunchSummary!]
+  """
+  Which permissions the current user has for interacting with this variant
+  """
+  permissions: GraphVariantPermissions!
+  readme: Readme!
+  """
+  The variant this variant is derived from. This property currently only exists on contract variants.
+  """
+  sourceVariant: GraphVariant
+  """
+  The default collection MCP servers will use if no explicit collection is provided. Auto-creates a collection if it does not exist.
+  """
+  mcpDefaultCollection: McpDefaultCollectionResult!
+  """
+  A list of the saved [operation collections](https://www.apollographql.com/docs/studio/explorer/operation-collections/) associated with this variant.
+  This field accepts up to 400 requests per minute. This rate may be temporarily adjusted based on system conditions.
+  """
+  operationCollections: [OperationCollection!]!
+  """The Persisted Query List linked to this variant, if any."""
+  persistedQueryList: PersistedQueryList
+  """
+  Returns the proposal-related fields for this graph variant if the variant is a proposal; otherwise, returns null. This field accepts up to 1000 requests per minute. This rate may be temporarily adjusted based on system conditions.
+  """
+  proposal: Proposal
+  """
+  The URL of the variant's GraphQL endpoint for query and mutation operations. For subscription operations, use `subscriptionUrl`.
+  """
+  url: String
+  """The URL of the variant's GraphQL endpoint for subscription operations."""
+  subscriptionUrl: String
+  """The details of the variant's most recent publication."""
+  latestPublication: SchemaPublication
+  """
+  A list of the subgraphs included in this variant. This value is null for non-federated variants. Set `includeDeleted` to `true` to include deleted subgraphs.
+  """
+  subgraphs(includeDeleted: Boolean! = false): [GraphVariantSubgraph!]
+  """
+  A list of the subgraphs that have been published to since the variant was created.
+  Does not include subgraphs that were created & deleted since the variant was created.
+
+  TODO: @deprecated(reason: "use GraphVariant.updatedSubgraphsSinceCreation instead")
+  """
+  updatedSubgraphs: [GraphVariantSubgraph!]
+  """
+  Returns the details of the subgraph with the provided `name`, or null if this variant doesn't include a subgraph with that name.
+  """
+  subgraph(name: ID!): GraphVariantSubgraph
+  routerConfig: String
+}
+
+"""
+Modifies a variant of a graph, also called a schema tag in parts of our product.
+"""
+type GraphVariantMutation {
+  """
+  Callback mutation for submitting custom check results once your validation has run.
+  Results are returned with the SUCCESS or FAILURE of your validations, the task and workflow ids
+  to associate results, with and an optional list of violations to provide more details to users.
+  The Schema Check will wait for this response for 10 minutes and not complete until the results are returned.
+  After 10 minutes have passed without a callback request being received, the task will be marked as timed out.
+  """
+  customCheckCallback(input: CustomCheckCallbackInput!): CustomCheckCallbackResult!
+  setCustomCheckConfiguration(input: SetCustomCheckConfigurationInput!): CustomCheckConfigurationResult!
+  """
+  Start an asynchronous compose and filter preview build from this source variant. Returns a build ID; poll composeAndFilterPreviewStatus with it to retrieve the result.
+  """
+  composeAndFilterPreviewAsync(
+    """
+    The filter configuration of a hypothetical contract variant on this variant. Null indicates that filtering should be skipped/not run.
+    """
+    filterConfig: FilterConfigInput,
+    """
+    Any hypothetical changes desired for the subgraphs of this variant. Null is the same as the empty list.
+    """
+    subgraphChanges: [ComposeAndFilterPreviewSubgraphChange!],
+  ): ComposeAndFilterPreviewAsyncBuild!
+  """
+  _Asynchronously_ previews a Contract schema built from this source variant.
+
+  Enqueues a Temporal workflow and returns immediately with a `ContractPreviewAsyncBuild`
+  containing a build ID. Poll `contractPreviewStatus` with that ID for the result.
+  """
+  contractPreviewAsync(filters: FilterConfigInput!): ContractPreviewAsyncBuild!
+  """
+  _Asynchronously_ kicks off operation checks for a proposed non-federated
+  schema change against its associated graph.
+
+  Returns a `CheckRequestSuccess` object with a workflow ID that you can use
+  to check status, or an error object if the checks workflow failed to start.
+
+  Rate limited to 3000 per min. Schema checks cannot be performed on contract variants.
+  """
+  submitCheckSchemaAsync(input: CheckSchemaAsyncInput!): CheckRequestResult!
+  """
+   _Asynchronously_ kicks off composition and operation checks for all proposed subgraphs schema changes against its associated supergraph.
+
+   Returns a `CheckRequestSuccess` object with a workflow ID that you can use
+   to check status, or an error object if the checks workflow failed to start.
+
+  Rate limited to 3000 per min. Subgraph checks cannot be performed on contract variants.
+  """
+  submitMultiSubgraphCheckAsync(input: MultiSubgraphCheckAsyncInput!): CheckRequestResult!
+  """
+  _Asynchronously_ kicks off composition and operation checks for a proposed subgraph schema change against its associated supergraph.
+
+  Returns a `CheckRequestSuccess` object with a workflow ID that you can use
+  to check status, or an error object if the checks workflow failed to start.
+
+  Rate limited to 3000 per min. Subgraph checks cannot be performed on contract variants.
+  """
+  submitSubgraphCheckAsync(input: SubgraphCheckAsyncInput!): CheckRequestResult!
+  updateCheckConfigurationCustomChecks(
+    """
+    Whether custom checks is enabled for this variant. If the useGraphSettings argument is true, this argument is ignored. If the useGraphSettings argument is false and this argument is null, defaults to false.
+    """
+    enableCustomChecks: Boolean,
+    """
+    When this argument is true, indicates that graph-level configuration is used for this variant setting.
+    """
+    useGraphSettings: Boolean!,
+  ): VariantCheckConfiguration!
+  updateCheckConfigurationDowngradeChecks(
+    """
+    During operation checks, when this argument is true, the check will not fail or
+      mark any operations as broken/changed if the default value has changed, only
+      if the default value is removed completely. If this argument is null, the
+    value is unchanged.
+    """
+    downgradeDefaultValueChange: Boolean,
+    """
+    During operation checks, when this argument is true, it evaluates a check
+      run against zero operations as a pass instead of a failure. If this argument
+    is null, the value is unchanged.
+    """
+    downgradeStaticChecks: Boolean,
+    """
+    When this argument is true, indicates that graph-level configuration is used for this variant
+    setting.
+    """
+    useGraphSettings: Boolean!,
+  ): VariantCheckConfiguration!
+  updateCheckConfigurationDownstreamVariants(
+    """
+    During downstream checks, this variant's check workflow will wait for all downstream check
+    workflows for <blockingDownstreamVariants> variants to complete, and if any of them fail, then
+    this variant's check workflow will fail. If this argument is null, the value is unchanged.
+    """
+    blockingDownstreamVariants: [String!],
+  ): VariantCheckConfiguration!
+  updateCheckConfigurationEnableOperationsCheck(enabled: Boolean!): VariantCheckConfiguration
+  updateCheckConfigurationExcludedClients(
+    """
+    When this argument is true, indicates that graph-level configuration is appended to the
+    variant-level configuration.
+    """
+    appendGraphSettings: Boolean!,
+    """
+    During operation checks, ignore clients matching any of the <excludedClients> filters. If this
+    argument is null, the value is unchanged.
+    """
+    excludedClients: [ClientFilterInput!],
+  ): VariantCheckConfiguration!
+  updateCheckConfigurationExcludedOperations(
+    """
+    When this argument is true, indicates that graph-level configuration is appended to the
+    variant-level configuration.
+    """
+    appendGraphSettings: Boolean!,
+    """
+    During operation checks, ignore operations matching any of the <excludedOperationNames>
+    filters. If this argument is null, the value is unchanged.
+    """
+    excludedOperationNames: [OperationNameFilterInput!],
+    """
+    During operation checks, ignore operations matching any of the <excludedOperations> filters. If
+    this argument is null, the value is unchanged.
+    """
+    excludedOperations: [OperationInfoFilterInput!],
+  ): VariantCheckConfiguration!
+  updateCheckConfigurationIncludedVariants(
+    """
+    During operation checks, fetch operations from the metrics data for <includedVariants>
+    variants. If the useGraphSettings argument is true, this argument is ignored. If the
+    useGraphSettings argument is false and this argument is null, the value is unchanged (if
+    useGraphSettings was previously true, the default of a list containing just this variant is
+    used instead).
+    """
+    includedVariants: [String!],
+    """
+    When this argument is true, indicates that graph-level configuration is used for this variant
+    setting.
+    """
+    useGraphSettings: Boolean!,
+  ): VariantCheckConfiguration!
+  updateCheckConfigurationProposalChangeMismatchSeverity(
+    """
+    How submitted build input diffs are handled when they match (or don't) a Proposal at the variant level.
+    """
+    proposalChangeMismatchSeverity: ProposalChangeMismatchSeverity,
+    """
+    When this argument is true, indicates that graph-level configuration is used for this variant setting.
+    """
+    useGraphSettings: Boolean @deprecated(reason: "Graph-level configuration is no longer supported"),
+  ): VariantCheckConfiguration!
+  updateCheckConfigurationTimeRange(
+    """
+    During operation checks, ignore operations that executed less than <operationCountThreshold>
+    times in the time range. If the useGraphSettings argument is true, this argument is ignored. If
+    the useGraphSettings argument is false and this argument is null, the value is unchanged (if
+    useGraphSettings was previously true, the default of 1 is used instead).
+    """
+    operationCountThreshold: Int,
+    """
+    Duration operation checks, ignore operations that constituted less than
+    <operationCountThresholdPercentage>% of the operations in the time range. Expected values are
+    between 0% and 5%. If the useGraphSettings argument is true, this argument is ignored. If the
+    useGraphSettings argument is false and this argument is null, the value is unchanged (if
+    useGraphSettings was previously true, the default of 0% is used instead).
+    """
+    operationCountThresholdPercentage: Float,
+    """
+    During operation checks, fetch operations from the last <timeRangeSeconds> seconds. If the
+    useGraphSettings argument is true, this argument is ignored. If the useGraphSettings argument
+    is false and this argument is null, the value is unchanged (if useGraphSettings was previously
+    true, the default of 7 days is used instead).
+    """
+    timeRangeSeconds: Long,
+    """
+    When this argument is true, indicates that graph-level configuration is used for this variant
+    setting.
+    """
+    useGraphSettings: Boolean!,
+  ): VariantCheckConfiguration!
+  """
+  Updates the [federation version](https://www.apollographql.com/docs/graphos/reference/router/federation-version-support) of this variant
+  """
+  updateVariantFederationVersion(federationVersion: FederationVersion, version: BuildPipelineTrack): GraphVariant
+  """
+  Updates the [README](https://www.apollographql.com/docs/studio/org/graphs/#the-readme-page) of this variant.
+  """
+  updateVariantReadme(
+    """The full new text of the README, as a Markdown-formatted string."""
+    readme: String!,
+  ): GraphVariant
+  """
+  Links a specified PersistedQueryList to the variant of the parent GraphVariantMutation.
+  """
+  linkPersistedQueryList(persistedQueryListId: ID!): LinkPersistedQueryListResultOrError!
+  """
+  Unlinks a specified PersistedQueryList from the variant of the parent GraphVariantMutation.
+  """
+  unlinkPersistedQueryList: UnlinkPersistedQueryListResultOrError!
+  """
+  Provides access to mutation fields for modifying a GraphOS Schema Proposal, if this GraphVariant is a proposal variant; else returns NotFoundError. Learn more at https://www.apollographql.com/docs/graphos/delivery/schema-proposals
+  """
+  proposal: ProposalMutationResult!
+  updateURL(url: String): GraphVariant
+  """Delete the variant."""
+  delete: GraphVariantDeletionResult!
+  upsertRouterConfig(configuration: String!): UpsertRouterResult
 }
 
 """
@@ -2376,6 +1927,95 @@ type GraphArtifactTotalTagsLimitError implements Error {
 type GraphNotFoundError implements Error {
   """The error message"""
   message: String!
+}
+
+"""
+Represents the complete process of making a set of updates to a deployed graph variant.
+"""
+type Launch {
+  """The Graph Artifact created from this launch."""
+  graphArtifact: GraphArtifact
+  """The unique identifier for this launch."""
+  id: ID!
+  """The timestamp when the launch was approved."""
+  approvedAt: Timestamp
+  """
+  The associated build for this launch (a build includes schema composition and contract filtering). This value is null until the build is initiated.
+  """
+  build: Build
+  """
+  The inputs provided to this launch's associated build, including subgraph schemas and contract filters.
+  """
+  buildInput: BuildInput!
+  """
+  The timestamp when the launch completed. This value is null until the launch completes.
+  """
+  completedAt: Timestamp
+  """The timestamp when the launch was initiated."""
+  createdAt: Timestamp!
+  """Contract launches that were triggered by this launch."""
+  downstreamLaunches: [Launch!]!
+  """The ID of the launch's associated graph."""
+  graphId: String!
+  """The name of the launch's associated variant."""
+  graphVariant: String!
+  """Whether the launch completed."""
+  isCompleted: Boolean
+  """
+  Whether the result of the launch has been published to the associated graph and variant. This is always false for a failed launch.
+  """
+  isPublished: Boolean
+  """
+  The most recent launch sequence step that has started but not necessarily completed.
+  """
+  latestSequenceStep: LaunchSequenceStep
+  """
+  The launch immediately prior to this one. If successOnly is true, returns the most recent successful launch; if false, returns the most recent launch, regardless of success. If no such previous launch exists, returns null.
+  """
+  previousLaunch(
+    """Controls if only successful launches are returned. Defaults to false."""
+    successOnly: Boolean,
+  ): Launch
+  """A specific publication of a graph variant pertaining to this launch."""
+  publication: SchemaPublication
+  """
+  A list of results from the completed launch. The items included in this list vary depending on whether the launch succeeded, failed, or was superseded.
+  """
+  results: [LaunchResult!]!
+  """
+  Cloud router configuration associated with this build event. It will be non-null for any cloud-router variant, and null for any not cloudy variant/graph.
+  """
+  routerConfig: String
+  """
+  A list of all serial steps in the launch sequence. This list can change as the launch progresses. For example, a `LaunchCompletedStep` is appended after a launch completes.
+  """
+  sequence: [LaunchSequenceStep!]!
+  """
+  A shortened version of `Launch.id` that includes only the first 8 characters.
+  """
+  shortenedID: String!
+  """
+  The launch's status. If a launch is superseded, its status remains `LAUNCH_INITIATED`. To check for a superseded launch, use `supersededAt`.
+  """
+  status: LaunchStatus!
+  """A list of subgraph changes that are included in this launch."""
+  subgraphChanges: [SubgraphChange!]
+  """
+  The timestamp when this launch was superseded by another launch. If an active launch is superseded, it terminates.
+  """
+  supersededAt: Timestamp
+  """
+  The launch that superseded this launch, if any. If an active launch is superseded, it terminates.
+  """
+  supersededBy: Launch
+  """
+  The source variant launch that caused this launch to be initiated. This value is present only for contract variant launches. Otherwise, it's null.
+  """
+  upstreamLaunch: Launch
+  """
+  Returns the proposal revision associated with this launch, if it exists. This field accepts up to 1000 requests per minute. This rate may be temporarily adjusted based on system conditions.
+  """
+  proposalRevision: ProposalRevision
 }
 
 """
@@ -2878,6 +2518,50 @@ input SubgraphIdentifierInput {
   variantName: String!
 }
 
+"""The type and value for an error insights timeseries report dimension."""
+type ErrorInsightsTimeseriesReportDimensionValue {
+  """The type of dimension this represents."""
+  type: ErrorInsightsTimeseriesReportDimension!
+  """
+  The string value of this dimension. Null for errors without this dimension (e.g., errors reported without an error code).
+  """
+  value: String
+}
+
+"""The type and value for an error insights timeseries report metric."""
+type ErrorInsightsTimeseriesReportMetricValue {
+  """The type of metric this represents."""
+  type: ErrorInsightsTimeseriesReportMetric!
+  """The floating point value of this metric."""
+  value: Float!
+}
+
+"""The data that is returned by the error insights timeseries report."""
+type ErrorInsightsTimeseriesReportResult {
+  """
+  A CSV representation of the results. This includes a header and rows that have a column for start and end timestamp and all requested dimensions and metrics.
+  """
+  csv: String
+  """
+  The result records, with each row having a start and end timestamp and a set of dimensions and metrics.
+  """
+  records: [ErrorInsightsTimeseriesReportRow!]!
+}
+
+"""
+A single row of data that is returned by the error insights timeseries report.
+"""
+type ErrorInsightsTimeseriesReportRow {
+  """The dimension values for this row, matching the requested dimensions."""
+  dimensions: [ErrorInsightsTimeseriesReportDimensionValue!]!
+  """The exclusive end of the time bucket for this row."""
+  endExclusiveTimestamp: Timestamp!
+  """The metric values for this row, matching the requested metrics."""
+  metrics: [ErrorInsightsTimeseriesReportMetricValue!]!
+  """The start of the time bucket for this row."""
+  startTimestamp: Timestamp!
+}
+
 """
 The type and value for an operation insights timeseries report dimension.
 """
@@ -3115,6 +2799,48 @@ enum CoordinateKind {
   OBJECT_FIELD
 }
 
+"""
+Dimensions by which the error timeseries data can be grouped, or extra values to include with each row.
+"""
+enum ErrorInsightsTimeseriesReportDimension {
+  """The client name that issued the request to the graph."""
+  CLIENT_NAME
+  """The version string of the client that issued the request to the graph."""
+  CLIENT_VERSION
+  """
+  The error code from the error's `extensions.code` field. Only available for errors reported with error codes; null otherwise.
+  """
+  ERROR_CODE
+  """
+  The response path at which the errors occurred, with list indices removed.
+  """
+  ERROR_PATH
+  """
+  The downstream subgraph or connector service that produced the errors, if attributable.
+  """
+  ERROR_SERVICE
+  """The variant of the graph serving the request."""
+  GRAPH_VARIANT
+  """The unique identifier of the operation that produced the errors."""
+  OPERATION_ID
+  """The name of the operation that produced the errors, if provided."""
+  OPERATION_NAME
+  """
+  The most recent error message from a sampled trace with errors matching the row's time bucket and other dimensions. This isn't grouped on, so it doesn't add rows. Selecting it makes the report slower, since sampled traces are queried as well as error counts. Messages longer than 1024 bytes are truncated. This is null when no sampled trace matches the row, for example because the router didn't sample a trace with these errors, or because the time bucket is more than 90 days ago (sampled traces are only kept for 90 days). Sampled traces don't record severity, so when grouping by SEVERITY the message only matches the row's other dimensions.
+  """
+  SAMPLE_ERROR_MESSAGE
+  """
+  The severity reported with the errors. Only available for errors reported with error codes; null otherwise.
+  """
+  SEVERITY
+}
+
+"""Metrics available for the error timeseries report."""
+enum ErrorInsightsTimeseriesReportMetric {
+  """The number of errors observed."""
+  ERROR_COUNT
+}
+
 enum OperationInsightsTimeseriesReportDimension {
   CLIENT_NAME
   CLIENT_VERSION
@@ -3242,6 +2968,60 @@ enum TimeseriesReportResolution {
 
 enum TopOperationsReportOrderByColumn {
   REQUEST_COUNT
+}
+
+"""
+The named type and version of the clients to include or exclude in the error timeseries report.
+"""
+input ErrorInsightsTimeseriesReportClientFilterInInput {
+  """The client name."""
+  clientName: String
+  """The client version."""
+  clientVersion: String
+}
+
+"""
+Lists of dimensions to include or exclude in the error timeseries report. Each list can have a maximum of 1000 entries.
+"""
+input ErrorInsightsTimeseriesReportFilterInInput {
+  """Include or exclude certain clients"""
+  clients: [ErrorInsightsTimeseriesReportClientFilterInInput]
+  """
+  Matches any errors whose error code is in this list. Errors reported without error codes never match an include list.
+  """
+  errorCode: [String]
+  """
+  Matches any errors produced by a downstream subgraph or connector service with a name in this list.
+  """
+  errorService: [String]
+  """Matches any errors whose operation ID is in this list."""
+  operationId: [String]
+  """Matches any errors whose operation name is in this list."""
+  operationName: [String]
+  """Matches any errors from any variant in this list."""
+  variantName: [String]
+}
+
+"""The filters available when using the error timeseries report."""
+input ErrorInsightsTimeseriesReportFilterInput {
+  """
+  Exclude errors that match a specified set of dimensions. If the same dimension exists in both 'include' and 'exclude', a REQUEST_INVALID error will be returned.
+  """
+  exclude: ErrorInsightsTimeseriesReportFilterInInput
+  """Include errors that match a specified set of dimensions."""
+  include: ErrorInsightsTimeseriesReportFilterInInput
+}
+
+"""
+The metric and direction to use as the secondary sort order for the error timeseries report. The primary sort order will always be time.
+"""
+input ErrorInsightsTimeseriesReportOrderByInput {
+  """
+  The ordering used for the metrics results. This metric must be included in the requested metrics.
+  """
+  column: ErrorInsightsTimeseriesReportMetric!
+  """The direction used to order the results."""
+  direction: Ordering!
 }
 
 """
@@ -3601,6 +3381,13 @@ type CheckRequestSuccess {
 
 type CheckWorkflow {
   """
+  The SHA256 hash of the API schema the check request provided as the base, as a hexadecimal string.
+  For composition and filter checks, other than downstream checks, it equals `CoreSchema.apiHash` of the
+  publish that was active when the check was requested. For monograph checks, it is the hash of the
+  variant's published API schema document.
+  """
+  baseApiSchemaHash: String
+  """
   The variant provided as a base to check against. Only the differences from the
   base schema will be tested in operations checks.
   """
@@ -3612,6 +3399,14 @@ type CheckWorkflow {
   The name of the implementing service that was responsible for triggering the validation.
   """
   implementingServiceName: String
+  """
+  The SHA256 hash of the API schema this check proposes, as a hexadecimal string. For composition and
+  filter checks, it equals `CoreSchema.apiHash` of the build the check produced, and is null until that build
+  succeeds. For monograph checks, it is the hash of the proposed API schema document. Equal hashes mean
+  identical API schema documents. Different hashes mean the documents differ; use the operations check for
+  the list of API changes.
+  """
+  proposedApiSchemaHash: String
   """
   If this check was created by rerunning, the original check workflow that was rerun.
   """
@@ -3721,9 +3516,12 @@ type CompositionBuildInput {
 type CompositionCheckTask implements CheckWorkflowTask {
   completedAt: Timestamp
   """
-  Whether the build's output supergraph core schema differs from that of the active publish for
-  the workflow's variant at the time this field executed (NOT at the time the check workflow
-  started).
+  Whether the build's output supergraph schema differs from the supergraph schema of the publish that
+  was active for the workflow's variant when the check was requested. Formatting-only differences do not
+  count. This compares supergraph schemas, which can change without any change to the API schema; to detect
+  API schema changes, compare `CheckWorkflow.baseApiSchemaHash` and `CheckWorkflow.proposedApiSchemaHash`.
+  False when there is nothing to compare: the variant had no publish when the check was requested, or the
+  build did not succeed.
   """
   coreSchemaModified: Boolean!
   createdAt: Timestamp!

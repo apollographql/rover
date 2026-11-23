@@ -41,6 +41,7 @@ impl CliOutput for CheckWorkflowOutput<'_> {
             } else {
                 msg.push_str(build_check_summary(
                     core_schema_modified,
+                    response.maybe_api_schema_modified,
                     response.maybe_operations_response.as_ref(),
                 ));
             }
@@ -109,28 +110,34 @@ const UNKNOWN_API_SCHEMA_CHANGES: &str = "The composed schema was modified.";
 
 /// Summarizes what the build changed, for the `Build Check` section.
 ///
-/// The composition task only reports whether the core (supergraph) schema changed. Whether the
-/// API schema changed is known only from the operations check, whose changes are the API schema
-/// diff, so a "no API schema changes" claim is made only when that check ran and found none.
+/// The composition task only reports whether the core (supergraph) schema changed, which can
+/// happen without any change to the API schema. Whether the API schema changed comes from the
+/// check's API schema hashes and from the operations check, whose changes are the API schema
+/// diff. A "no API schema changes" claim is made only when one of them says so and neither
+/// reports a change.
 fn build_check_summary(
     core_schema_modified: bool,
+    maybe_api_schema_modified: Option<bool>,
     maybe_operations_response: Option<&OperationCheckResponse>,
 ) -> &'static str {
-    // Takes precedence over `core_schema_modified`: GraphOS compares the core schema with the
-    // active publish when the field is read, not when the check started, so a matching publish
-    // during the check reports it as unchanged even though the API schema diff is not empty.
-    let api_schema_modified = maybe_operations_response
-        .is_some_and(|operations_response| !operations_response.changes.is_empty());
+    let maybe_operations_found_changes = maybe_operations_response
+        .map(|operations_response| !operations_response.changes.is_empty());
 
-    match (
-        api_schema_modified,
-        core_schema_modified,
-        maybe_operations_response,
-    ) {
-        (true, _, _) => API_SCHEMA_CHANGES,
-        (false, false, _) => NO_SCHEMA_CHANGES,
-        (false, true, Some(_)) => CORE_SCHEMA_ONLY_CHANGES,
-        (false, true, None) => UNKNOWN_API_SCHEMA_CHANGES,
+    // Either source reporting a change is enough to say the API schema changed, so the summary
+    // never contradicts the changes listed under the operations check. The hashes also cover
+    // checks where the operations check returned no result.
+    let maybe_api_schema_modified =
+        match (maybe_api_schema_modified, maybe_operations_found_changes) {
+            (Some(true), _) | (_, Some(true)) => Some(true),
+            (Some(false), _) | (_, Some(false)) => Some(false),
+            (None, None) => None,
+        };
+
+    match (maybe_api_schema_modified, core_schema_modified) {
+        (Some(true), _) => API_SCHEMA_CHANGES,
+        (_, false) => NO_SCHEMA_CHANGES,
+        (Some(false), true) => CORE_SCHEMA_ONLY_CHANGES,
+        (None, true) => UNKNOWN_API_SCHEMA_CHANGES,
     }
 }
 
@@ -633,6 +640,7 @@ mod test {
                 "https://studio.apollographql.com/graph/my-graph/checks?variant=current".to_string(),
             maybe_core_schema_modified: Some(true),
             maybe_core_schema_status: Some(CheckTaskStatus::PASSED),
+            maybe_api_schema_modified: None,
             maybe_operations_response: Some(OperationCheckResponse::try_new(
                 CheckTaskStatus::FAILED,
                 Some(
@@ -747,6 +755,7 @@ mod test {
                 "https://studio.apollographql.com/graph/my-graph/checks?variant=current".to_string(),
             maybe_core_schema_modified: Some(false),
             maybe_core_schema_status: Some(CheckTaskStatus::PASSED),
+            maybe_api_schema_modified: None,
             maybe_operations_response: None,
             maybe_lint_response: None,
             maybe_proposals_response: None,
@@ -765,6 +774,7 @@ mod test {
                     .to_string(),
             maybe_core_schema_modified: Some(false),
             maybe_core_schema_status: Some(CheckTaskStatus::FAILED),
+            maybe_api_schema_modified: None,
             maybe_operations_response: None,
             maybe_lint_response: None,
             maybe_proposals_response: None,
@@ -1385,9 +1395,8 @@ mod test {
         ]),
         API_SCHEMA_CHANGES
     )]
-    // GraphOS computes `coreSchemaModified` against the active publish when the field is read,
-    // not when the check started, so an identical schema published mid-check reports the core
-    // schema as unchanged while the operations check still lists the API changes it found.
+    // The changes the operations check lists are API schema changes, whatever the composition
+    // task reports about the core schema.
     #[case::api_schema_changes_with_core_schema_reported_unchanged(
         false,
         operations_result(vec![schema_change(ChangeSeverity::FAIL)]),
@@ -1406,6 +1415,59 @@ mod test {
         #[case] expected: &str,
     ) {
         let response = subgraph_check_response(core_schema_modified, maybe_operations_response);
+        assert_that!(build_check_body(&response)).is_equal_to(expected.to_string());
+    }
+
+    fn subgraph_check_response_with_api_schema_hashes(
+        core_schema_modified: bool,
+        maybe_api_schema_modified: Option<bool>,
+        maybe_operations_response: Option<OperationCheckResponse>,
+    ) -> CheckWorkflowResponse {
+        CheckWorkflowResponse {
+            maybe_api_schema_modified,
+            ..subgraph_check_response(core_schema_modified, maybe_operations_response)
+        }
+    }
+
+    #[rstest]
+    #[case::hashes_differ_without_an_operations_result(true, Some(true), None, API_SCHEMA_CHANGES)]
+    #[case::hashes_differ_with_core_schema_reported_unchanged(
+        false,
+        Some(true),
+        None,
+        API_SCHEMA_CHANGES
+    )]
+    #[case::hashes_differ_and_operations_check_found_no_changes(
+        true,
+        Some(true),
+        operations_result(vec![]),
+        API_SCHEMA_CHANGES
+    )]
+    #[case::hashes_match_and_only_the_core_schema_changed(
+        true,
+        Some(false),
+        None,
+        CORE_SCHEMA_ONLY_CHANGES
+    )]
+    #[case::hashes_match_and_core_schema_unchanged(false, Some(false), None, NO_SCHEMA_CHANGES)]
+    // Listed API changes are never contradicted, even by hashes that say the API schema matches.
+    #[case::operations_changes_outweigh_matching_hashes(
+        true,
+        Some(false),
+        operations_result(vec![schema_change(ChangeSeverity::FAIL)]),
+        API_SCHEMA_CHANGES
+    )]
+    fn build_check_uses_api_schema_hashes(
+        #[case] core_schema_modified: bool,
+        #[case] maybe_api_schema_modified: Option<bool>,
+        #[case] maybe_operations_response: Option<OperationCheckResponse>,
+        #[case] expected: &str,
+    ) {
+        let response = subgraph_check_response_with_api_schema_hashes(
+            core_schema_modified,
+            maybe_api_schema_modified,
+            maybe_operations_response,
+        );
         assert_that!(build_check_body(&response)).is_equal_to(expected.to_string());
     }
 
@@ -1435,6 +1497,7 @@ mod test {
     #[rstest]
     fn output_with_schema_changes_never_claims_no_changes(
         #[values(true, false)] core_schema_modified: bool,
+        #[values(None, Some(true), Some(false))] maybe_api_schema_modified: Option<bool>,
         #[values(
             vec![schema_change(ChangeSeverity::PASS)],
             vec![schema_change(ChangeSeverity::FAIL)],
@@ -1442,7 +1505,11 @@ mod test {
         )]
         changes: Vec<SchemaChange>,
     ) {
-        let response = subgraph_check_response(core_schema_modified, operations_result(changes));
+        let response = subgraph_check_response_with_api_schema_hashes(
+            core_schema_modified,
+            maybe_api_schema_modified,
+            operations_result(changes),
+        );
         let text = strip_ansi_codes(&CheckWorkflowOutput(&response).text()).to_string();
         assert_that!(text).does_not_contain("no changes detected");
     }
