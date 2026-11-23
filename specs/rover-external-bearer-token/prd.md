@@ -63,7 +63,7 @@ An absent, unreadable, empty, invalid, or refused token file fails the affected 
 
 A credential rejection from the Platform API normally fails the affected operation. There is one exception, for the case where the token went stale between Rover reading it and the server checking it (for example, a token that expired while the machine was asleep, before the application could refresh it). When the Platform API rejects the credential with an HTTP 401 or 406 status, the statuses Rover already treats as credential rejections (an HTTP 403 is a permission denial, not a rejection), Rover rereads the token file once. If the file now holds a different token, Rover retries that request once with it. If the token is unchanged, the file can't be read or fails its checks, or the retry is rejected too, the operation fails. Rover doesn't wait for a new token to appear, and doesn't retry after a rejection reported any other way, such as in the body of a successful response, because part of the operation may already have run.
 
-Existing retry behavior for transient failures remains in place, with a fresh token read for each eligible attempt.
+Operations that retry transient failures today still retry them, with a fresh token read for each attempt. With an external token they follow Rover's shared retry rules for network failures, which can retry a few failures that the same operation wouldn't retry with a stored credential. An operation that doesn't retry today still doesn't.
 
 If an existing long-running command normally continues after an operation fails, it may continue under that same policy. A later independently scheduled operation can read a repaired or refreshed token file.
 

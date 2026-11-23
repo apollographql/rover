@@ -46,7 +46,7 @@ This specification defines how Rover consumes an Apollo OAuth access token owned
 - **FR20:** A body rejection must fail the affected operation without automatic replay.
 - **FR21:** After a status rejection, Rover must read the source once more. If that read succeeds and yields a token different from the rejected one, Rover must resend the rejected request once with the new token. Rover must fail the operation if the token is unchanged, the read is a source failure, or the resent request is also rejected. Rover must not wait for the source to change, and must make at most one such resend per operation. The resend is safe only because the Platform API rejects an unauthenticated request before doing any work; this requirement depends on that behavior.
 - **FR22:** When an operation fails because of a credential rejection, Rover must explain that the application-supplied credential was rejected and direct the caller to renew it in the supplying application, not to log Rover in.
-- **FR23:** Apart from the single resend in FR21, external authentication must not add retries or change which transient failures are eligible for the command's existing retries. Each eligible retry must reread the source. A source failure must not itself trigger an automatic retry. The resend counts as an attempt of the same operation wherever Rover counts attempts, such as the retry count in its request trace headers.
+- **FR23:** Apart from the single resend in FR21, external authentication must not add retries to an operation that has none. An operation that already retries transient failures must use Rover's shared HTTP retry rules with an external source, which may retry some transport failures that the same operation would not retry with a stored credential. Each eligible retry must reread the source. A source failure must not itself trigger an automatic retry. The resend counts as an attempt of the same operation wherever Rover counts attempts, such as the retry count in its request trace headers.
 - **FR24:** An authenticated permission denial must retain permission-denied behavior. It must not trigger token refresh, credential fallback, or an authentication retry.
 - **FR25:** This feature must not introduce a new command recovery policy. Where a long-running command already permits later independent operations after an error, each later operation must read the source anew and may use a replacement supplied after the error.
 - **FR26:** In JSON output, each of the following must have its own stable `error.code`, so that a calling application can tell them apart without parsing messages: a source failure, a credential rejection, conflicting authentication inputs, and a permission denial. The kinds of source failure (the location is empty, the source is missing, unreadable, or larger than FR34 allows, has contents that do not satisfy FR12, or is refused by another token file check) must also have distinct codes.
@@ -124,7 +124,15 @@ This specification defines how Rover consumes an Apollo OAuth access token owned
 
 ### Rotation during an eligible retry
 
-**Given** a transient failure eligible for an existing retry and token A on the failed attempt, **when** the source is replaced with token B before the retry reads it, **then** the retry uses token B without adding an authentication-specific attempt.
+**Given** a transient failure that the operation retries and token A on the failed attempt, **when** the source is replaced with token B before the retry reads it, **then** the retry uses token B without adding an authentication-specific attempt.
+
+### Operations without retries
+
+**Given** an operation that does not retry transient failures, **when** an attempt with an external source fails transiently, **then** Rover fails the operation without retrying it.
+
+### Retry eligibility with an external source
+
+**Given** an operation that retries transient failures, **when** an attempt with an external source fails in a way Rover's shared HTTP retry rules treat as transient, such as an incomplete response body, **then** Rover retries it with a fresh source read, even if the same operation would not retry that failure with a stored credential.
 
 ### Concurrent requests and replacement
 
