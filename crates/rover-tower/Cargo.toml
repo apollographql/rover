@@ -17,8 +17,6 @@ tokio = { workspace = true, features = ["macros", "time"] }
 tower = { workspace = true }
 
 [dev-dependencies]
-mockall = { workspace = true }
-pastey = { workspace = true }
 rstest = { workspace = true }
 speculoos = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt", "test-util", "time"] }

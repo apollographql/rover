@@ -6,7 +6,7 @@ edition = "2021"
 publish = false
 
 [features]
-test = ["mockall", "rover-tower/test"]
+test = ["mockall"]
 
 [dependencies]
 buildstructor = { workspace = true }
@@ -28,7 +28,7 @@ reqwest = { workspace = true, features = [
     "rustls",
     "socks",
 ] }
-rover-tower = { workspace = true }
+rover-tower = { workspace = true, features = ["test"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["macros", "time"] }
 tower = { workspace = true }
@@ -38,8 +38,6 @@ tracing = { workspace = true }
 [dev-dependencies]
 anyhow = { workspace = true }
 httpmock = { workspace = true }
-mockall = { workspace = true }
-rover-tower = { workspace = true, features = ["test"] }
 rstest = { workspace = true }
 speculoos = { workspace = true }
 tokio = { workspace = true, features = ["test-util"] }
