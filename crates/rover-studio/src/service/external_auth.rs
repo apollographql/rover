@@ -39,17 +39,21 @@ pub enum ExternalAuthError {
     PermissionDenied,
 }
 
-impl ExternalAuthError {
+impl From<ExternalAuthError> for HttpServiceError {
     /// Carries a terminal failure through an HTTP service without making it retryable.
-    pub fn into_http_error(self) -> HttpServiceError {
-        HttpServiceError::Unexpected(Box::new(self))
+    fn from(error: ExternalAuthError) -> Self {
+        Self::Unexpected(Box::new(error))
     }
+}
+
+impl<'a> TryFrom<&'a HttpServiceError> for &'a ExternalAuthError {
+    type Error = &'a HttpServiceError;
 
     /// Recovers a structured external-authentication failure from a boxed HTTP service.
-    pub fn from_http_error(error: &HttpServiceError) -> Option<&Self> {
+    fn try_from(error: &'a HttpServiceError) -> Result<Self, Self::Error> {
         match error {
-            HttpServiceError::Unexpected(source) => source.downcast_ref(),
-            _ => None,
+            HttpServiceError::Unexpected(source) => source.downcast_ref().ok_or(error),
+            _ => Err(error),
         }
     }
 }
@@ -200,29 +204,24 @@ where
                 .clone()
                 .oneshot(())
                 .await
-                .map_err(|error| ExternalAuthError::Source(error).into_http_error())?;
+                .map_err(ExternalAuthError::from)?;
             state.authorize(&mut request, &token)?;
             let response = inner.call(request.clone()).await?;
             if !matches!(
                 response.status(),
                 StatusCode::UNAUTHORIZED | StatusCode::NOT_ACCEPTABLE
             ) {
-                return OperationState::classify(response)
-                    .map_err(ExternalAuthError::into_http_error);
+                return OperationState::classify(response).map_err(HttpServiceError::from);
             }
             if state.resend_used.swap(true, Ordering::Relaxed) {
-                return Err(ExternalAuthError::Rejected.into_http_error());
+                return Err(ExternalAuthError::Rejected.into());
             }
-            let replacement = source
-                .oneshot(())
-                .await
-                .map_err(|error| ExternalAuthError::Source(error).into_http_error())?;
+            let replacement = source.oneshot(()).await.map_err(ExternalAuthError::from)?;
             if replacement == token {
-                return Err(ExternalAuthError::Rejected.into_http_error());
+                return Err(ExternalAuthError::Rejected.into());
             }
             state.authorize(&mut request, &replacement)?;
-            OperationState::classify(inner.oneshot(request).await?)
-                .map_err(ExternalAuthError::into_http_error)
+            OperationState::classify(inner.oneshot(request).await?).map_err(HttpServiceError::from)
         })
     }
 }
@@ -399,7 +398,7 @@ mod tests {
                 .oneshot(request)
                 .await
                 .map(|response| response.status())
-                .map_err(|error| ExternalAuthError::from_http_error(&error).unwrap().clone());
+                .map_err(|error| <&ExternalAuthError>::try_from(&error).unwrap().clone());
             let (attempts, traceparents) = std::mem::take(&mut *attempts.lock().unwrap())
                 .into_iter()
                 .unzip();
@@ -689,13 +688,34 @@ mod tests {
     }
 
     #[rstest]
+    #[case::source(ExternalAuthError::Source(ExternalTokenError {
+        origin: ExternalTokenOrigin::Environment,
+        path: "application/access-token".into(),
+        kind: ExternalTokenFailure::Missing,
+    }))]
+    #[case::rejection(ExternalAuthError::Rejected)]
+    #[case::permission_denied(ExternalAuthError::PermissionDenied)]
+    fn external_auth_errors_round_trip_through_http_errors(#[case] diagnostic: ExternalAuthError) {
+        let error = HttpServiceError::from(diagnostic.clone());
+
+        assert_that!(matches!(&error, HttpServiceError::Unexpected(_))).is_equal_to(true);
+        assert_that!(<&ExternalAuthError>::try_from(&error))
+            .is_ok()
+            .is_equal_to(&diagnostic);
+    }
+
+    #[rstest]
     #[case::transport_timeout(HttpServiceError::TimedOut)]
     #[case::other_boxed_error(HttpServiceError::Unexpected(Box::new(std::io::Error::other(
         "unrelated"
     ))))]
+    #[case::other_wrapper(HttpServiceError::Decode(Box::new(ExternalAuthError::Rejected)))]
     fn unrelated_http_errors_are_not_external_authentication_failures(
         #[case] error: HttpServiceError,
     ) {
-        assert_that!(ExternalAuthError::from_http_error(&error)).is_none();
+        assert_that!(<&ExternalAuthError>::try_from(&error)
+            .map_err(|original| std::ptr::eq(original, &error)))
+        .is_err()
+        .is_equal_to(true);
     }
 }
