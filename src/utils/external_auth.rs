@@ -186,6 +186,7 @@ mod tests {
         external_auth::ExternalAuthError,
         external_token::{ExternalTokenError, ExternalTokenFailure},
     };
+    use rover_http::HttpServiceError;
     use rstest::rstest;
     use speculoos::prelude::*;
 
@@ -369,7 +370,7 @@ mod tests {
         let error = if wrapped {
             anyhow::Error::new(rover_client::RoverClientError::studio_service(
                 rover_graphql::GraphQLServiceError::<()>::UpstreamService(Box::new(
-                    diagnostic.into_http_error(),
+                    HttpServiceError::from(diagnostic),
                 )),
             ))
         } else {
@@ -437,7 +438,7 @@ mod tests {
         let expected_message = diagnostic.to_string();
         let error = RoverError::new(rover_client::RoverClientError::studio_service(
             rover_graphql::GraphQLServiceError::<()>::UpstreamService(Box::new(
-                diagnostic.into_http_error(),
+                HttpServiceError::from(diagnostic),
             )),
         ));
 
