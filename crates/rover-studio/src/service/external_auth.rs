@@ -8,7 +8,7 @@
 //! The HTTP transport must not follow redirects: a redirect is not another Platform API attempt.
 
 use std::{
-    future::Future,
+    future::{ready, Future, Ready},
     pin::Pin,
     sync::{
         atomic::{AtomicBool, AtomicU32, Ordering},
@@ -21,7 +21,10 @@ use http::{header::AUTHORIZATION, HeaderValue, StatusCode, Uri};
 use rover_auth::external_token::{ExternalAccessToken, ExternalTokenError};
 use rover_http::{retry::RetryCount, HttpRequest, HttpResponse, HttpServiceError};
 use rover_tower::{service::replace_ready_service, ResponseFuture};
-use tower::{Layer, Service, ServiceExt};
+use tower::{
+    retry::{Policy, Retry},
+    Layer, Service, ServiceExt,
+};
 
 /// Terminal external-authentication failures, distinct from transient transport failures.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -58,10 +61,50 @@ impl<'a> TryFrom<&'a HttpServiceError> for &'a ExternalAuthError {
     }
 }
 
-#[derive(Default)]
-struct OperationState {
-    resend_used: AtomicBool,
-    attempts: AtomicU32,
+#[derive(Clone)]
+struct AuthenticationRequest {
+    request: HttpRequest,
+    rejected_token: Option<ExternalAccessToken>,
+}
+
+struct AuthenticationResponse {
+    response: HttpResponse,
+    token: ExternalAccessToken,
+}
+
+/// Clones share one authentication resend and send counter for a logical operation.
+#[derive(Clone, Default)]
+struct AuthenticationRetryPolicy {
+    resend_used: Arc<AtomicBool>,
+    attempts: Arc<AtomicU32>,
+}
+
+impl Policy<AuthenticationRequest, AuthenticationResponse, HttpServiceError>
+    for AuthenticationRetryPolicy
+{
+    type Future = Ready<()>;
+
+    fn retry(
+        &mut self,
+        request: &mut AuthenticationRequest,
+        result: &mut Result<AuthenticationResponse, HttpServiceError>,
+    ) -> Option<Self::Future> {
+        let response = result.as_ref().ok()?;
+        if !matches!(
+            response.response.status(),
+            StatusCode::UNAUTHORIZED | StatusCode::NOT_ACCEPTABLE
+        ) || self.resend_used.swap(true, Ordering::Relaxed)
+        {
+            return None;
+        }
+
+        request.rejected_token = Some(response.token.clone());
+        Some(ready(()))
+    }
+
+    fn clone_request(&mut self, request: &AuthenticationRequest) -> Option<AuthenticationRequest> {
+        Some(request.clone())
+    }
 }
 
 /// Applies its token and the shared attempt count immediately before sending.
@@ -69,7 +112,7 @@ struct OperationState {
 struct Authorize<S> {
     inner: S,
     token: ExternalAccessToken,
-    state: Arc<OperationState>,
+    policy: AuthenticationRetryPolicy,
 }
 
 impl<S> Service<HttpRequest> for Authorize<S>
@@ -96,9 +139,85 @@ where
         request.headers_mut().remove("x-api-key");
         request.headers_mut().insert(AUTHORIZATION, value);
         request.extensions_mut().insert(RetryCount(
-            self.state.attempts.fetch_add(1, Ordering::Relaxed),
+            self.policy.attempts.fetch_add(1, Ordering::Relaxed),
         ));
         Box::pin(self.inner.call(request))
+    }
+}
+
+/// Reads and checks the token before each authentication attempt, outside the network timeout.
+struct Authenticate<S, T> {
+    inner: S,
+    source: T,
+    policy: AuthenticationRetryPolicy,
+    // Only the initial send inherits the caller's readiness reservation.
+    network_ready: bool,
+}
+
+impl<S: Clone, T: Clone> Clone for Authenticate<S, T> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+            source: self.source.clone(),
+            policy: self.policy.clone(),
+            network_ready: false,
+        }
+    }
+}
+
+impl<S, T> Service<AuthenticationRequest> for Authenticate<S, T>
+where
+    S: Service<HttpRequest, Response = HttpResponse, Error = HttpServiceError>
+        + Clone
+        + Send
+        + 'static,
+    S::Future: Send,
+    T: Service<(), Response = ExternalAccessToken, Error = ExternalTokenError>
+        + Clone
+        + Send
+        + 'static,
+    T::Future: Send,
+{
+    type Response = AuthenticationResponse;
+    type Error = HttpServiceError;
+    type Future = ResponseFuture<Result<Self::Response, Self::Error>>;
+
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        // Check replacement credentials before reserving another network send.
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, attempt: AuthenticationRequest) -> Self::Future {
+        let network_ready = std::mem::take(&mut self.network_ready);
+        let inner = replace_ready_service(&mut self.inner);
+        let source = self.source.clone();
+        let policy = self.policy.clone();
+
+        Box::pin(async move {
+            let token = source.oneshot(()).await.map_err(ExternalAuthError::from)?;
+            if attempt
+                .rejected_token
+                .as_ref()
+                .is_some_and(|rejected| rejected == &token)
+            {
+                return Err(ExternalAuthError::Rejected.into());
+            }
+
+            let mut inner = Authorize {
+                inner,
+                token,
+                policy,
+            };
+            let response = if network_ready {
+                inner.call(attempt.request).await?
+            } else {
+                inner.ready().await?.call(attempt.request).await?
+            };
+            Ok(AuthenticationResponse {
+                response,
+                token: inner.token,
+            })
+        })
     }
 }
 
@@ -134,7 +253,7 @@ impl<S: Service<HttpRequest>> Service<HttpRequest> for ExternalAuthOperation<S> 
     fn call(&mut self, mut request: HttpRequest) -> Self::Future {
         request
             .extensions_mut()
-            .insert(Arc::new(OperationState::default()));
+            .insert(AuthenticationRetryPolicy::default());
         self.inner.call(request)
     }
 }
@@ -214,44 +333,27 @@ where
             return Box::pin(self.inner.call(request));
         }
 
-        let source = self.source.clone();
-        let state = request
+        let policy = request
             .extensions()
-            .get::<Arc<OperationState>>()
+            .get::<AuthenticationRetryPolicy>()
             .cloned()
             .unwrap_or_default();
-        let inner = replace_ready_service(&mut self.inner);
+        let mut inner = Retry::new(
+            policy.clone(),
+            Authenticate {
+                inner: replace_ready_service(&mut self.inner),
+                source: self.source.clone(),
+                policy,
+                network_ready: true,
+            },
+        );
+        let response = inner.call(AuthenticationRequest {
+            request,
+            rejected_token: None,
+        });
 
         Box::pin(async move {
-            let token = source
-                .clone()
-                .oneshot(())
-                .await
-                .map_err(ExternalAuthError::from)?;
-            let mut inner = Authorize {
-                inner,
-                token,
-                state: state.clone(),
-            };
-            let response = inner.call(request.clone()).await?;
-            if !matches!(
-                response.status(),
-                StatusCode::UNAUTHORIZED | StatusCode::NOT_ACCEPTABLE
-            ) {
-                return Self::classify(response).map_err(HttpServiceError::from);
-            }
-            if state.resend_used.swap(true, Ordering::Relaxed) {
-                return Err(ExternalAuthError::Rejected.into());
-            }
-            let replacement = source.oneshot(()).await.map_err(ExternalAuthError::from)?;
-            if replacement == inner.token {
-                return Err(ExternalAuthError::Rejected.into());
-            }
-            let mut inner = Authorize {
-                token: replacement,
-                ..inner
-            };
-            let response = inner.ready().await?.call(request).await?;
+            let AuthenticationResponse { response, .. } = response.await?;
             Self::classify(response).map_err(HttpServiceError::from)
         })
     }
@@ -350,6 +452,128 @@ mod tests {
     }
 
     #[rstest]
+    #[case::unauthorized(StatusCode::UNAUTHORIZED)]
+    #[case::not_acceptable(StatusCode::NOT_ACCEPTABLE)]
+    fn authentication_retry_policy_clones_share_one_resend(
+        endpoint: Uri,
+        #[case] status: StatusCode,
+    ) {
+        let mut policy = AuthenticationRetryPolicy::default();
+        let mut cloned_policy = policy.clone();
+        let token = ExternalAccessToken::parse(b"rejected-token").unwrap();
+        let mut request = AuthenticationRequest {
+            request: Request::builder()
+                .uri(endpoint)
+                .body(Full::default())
+                .unwrap(),
+            rejected_token: None,
+        };
+        let mut result = Ok(AuthenticationResponse {
+            response: Response::builder()
+                .status(status)
+                .body(Full::default())
+                .unwrap(),
+            token: token.clone(),
+        });
+
+        let first = policy
+            .retry(&mut request, &mut result)
+            .map(FutureExt::now_or_never);
+        let second = cloned_policy
+            .retry(&mut request, &mut result)
+            .map(FutureExt::now_or_never);
+        let replay = policy.clone_request(&request);
+
+        assert_that!(first).is_some().is_some().is_equal_to(());
+        assert_that!(second).is_none();
+        assert_that!(request.rejected_token.as_ref())
+            .is_some()
+            .is_equal_to(&token);
+        assert_that!(replay.map(|request| request.rejected_token))
+            .is_some()
+            .is_some()
+            .is_equal_to(token.clone());
+        assert_that!(result.map(|response| (response.response.status(), response.token)))
+            .is_ok()
+            .is_equal_to((status, token));
+        assert_that!(policy.attempts.load(Ordering::Relaxed)).is_equal_to(0);
+    }
+
+    #[rstest]
+    #[case::source_failure(None, false)]
+    #[case::unchanged_token(Some("A"), false)]
+    #[case::network_readiness_failure(Some("B"), true)]
+    #[tokio::test]
+    async fn authentication_retry_checks_the_source_before_network_readiness(
+        endpoint: Uri,
+        source_failure: ExternalTokenError,
+        #[case] replacement: Option<&str>,
+        #[case] reaches_network_readiness: bool,
+    ) {
+        let reads = Arc::new(AtomicU32::new(0));
+        let counted_reads = reads.clone();
+        let mut tokens = VecDeque::from([
+            Ok(ExternalAccessToken::parse(b"A").unwrap()),
+            replacement
+                .map(|token| ExternalAccessToken::parse(token.as_bytes()).unwrap())
+                .ok_or_else(|| source_failure.clone()),
+        ]);
+        let mut source = MockTokenService::new();
+        source
+            .expect_poll_ready()
+            .returning(|_| Poll::Ready(Ok(())));
+        source.expect_call().times(1..=2).returning(move |_| {
+            counted_reads.fetch_add(1, Ordering::Relaxed);
+            ready(tokens.pop_front().unwrap())
+        });
+        let polls = Arc::new(AtomicU32::new(0));
+        let counted_polls = polls.clone();
+        let mut http = MockHttpService::new();
+        http.expect_poll_ready().times(1..=2).returning(move |_| {
+            if counted_polls.fetch_add(1, Ordering::Relaxed) == 0 {
+                Poll::Ready(Ok(()))
+            } else {
+                Poll::Ready(Err(HttpServiceError::TimedOut))
+            }
+        });
+        http.expect_call().once().return_once(|_| {
+            ready(Ok(Response::builder()
+                .status(StatusCode::UNAUTHORIZED)
+                .body(Full::default())
+                .unwrap()))
+        });
+        let service = ExternalAuthLayer::new(MockCloneService::new(source), endpoint.clone())
+            .layer(MockCloneService::new(http));
+
+        let result = service
+            .oneshot(
+                Request::builder()
+                    .uri(endpoint)
+                    .body(Full::default())
+                    .unwrap(),
+            )
+            .await;
+
+        if reaches_network_readiness {
+            assert_that!(result.map_err(|error| matches!(error, HttpServiceError::TimedOut)))
+                .is_err()
+                .is_equal_to(true);
+        } else {
+            let expected = match replacement {
+                Some(_) => ExternalAuthError::Rejected,
+                None => ExternalAuthError::Source(source_failure),
+            };
+            assert_that!(result.as_ref().map_err(<&ExternalAuthError>::try_from))
+                .is_err()
+                .is_ok()
+                .is_equal_to(&expected);
+        }
+        assert_that!(reads.load(Ordering::Relaxed)).is_equal_to(2);
+        assert_that!(polls.load(Ordering::Relaxed))
+            .is_equal_to(1 + u32::from(reaches_network_readiness));
+    }
+
+    #[rstest]
     #[tokio::test]
     async fn authorization_service_uses_its_token_and_shared_attempt_count(endpoint: Uri) {
         let attempts = Arc::new(Mutex::new(Vec::new()));
@@ -377,14 +601,14 @@ mod tests {
                 .body(Full::default())
                 .unwrap()))
         });
-        let state = Arc::new(OperationState {
-            resend_used: AtomicBool::new(true),
-            attempts: AtomicU32::new(7),
-        });
+        let policy = AuthenticationRetryPolicy {
+            resend_used: Arc::new(AtomicBool::new(true)),
+            attempts: Arc::new(AtomicU32::new(7)),
+        };
         let service = Authorize {
             inner: MockCloneService::new(http),
             token: ExternalAccessToken::parse(b"first-token").unwrap(),
-            state: state.clone(),
+            policy: policy.clone(),
         };
         let mut request = Request::builder()
             .method(Method::POST)
@@ -436,8 +660,8 @@ mod tests {
             .is_ok()
             .is_equal_to(StatusCode::NO_CONTENT);
         assert_that!(*attempts.lock().unwrap()).is_equal_to(expected);
-        assert_that!(state.attempts.load(Ordering::Relaxed)).is_equal_to(9);
-        assert_that!(state.resend_used.load(Ordering::Relaxed)).is_equal_to(true);
+        assert_that!(policy.attempts.load(Ordering::Relaxed)).is_equal_to(9);
+        assert_that!(policy.resend_used.load(Ordering::Relaxed)).is_equal_to(true);
     }
 
     #[rstest]
@@ -454,11 +678,11 @@ mod tests {
         http.expect_poll_ready()
             .once()
             .return_once(move |_| readiness);
-        let state = Arc::new(OperationState::default());
+        let policy = AuthenticationRetryPolicy::default();
         let mut service = Authorize {
             inner: http,
             token: ExternalAccessToken::parse(b"private-token").unwrap(),
-            state: state.clone(),
+            policy: policy.clone(),
         };
 
         let result = service
@@ -477,8 +701,8 @@ mod tests {
                 assert_that!(result).is_none();
             }
         }
-        assert_that!(state.attempts.load(Ordering::Relaxed)).is_equal_to(0);
-        assert_that!(state.resend_used.load(Ordering::Relaxed)).is_equal_to(false);
+        assert_that!(policy.attempts.load(Ordering::Relaxed)).is_equal_to(0);
+        assert_that!(policy.resend_used.load(Ordering::Relaxed)).is_equal_to(false);
     }
 
     struct Plan {
