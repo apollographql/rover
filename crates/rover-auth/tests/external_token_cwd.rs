@@ -41,17 +41,15 @@ fn working_directory() -> WorkingDirectory {
 }
 
 #[rstest]
-#[tokio::test]
+#[test]
 #[serial]
-async fn relative_locations_survive_a_working_directory_change(
-    working_directory: WorkingDirectory,
-) {
+fn relative_locations_survive_a_working_directory_change(working_directory: WorkingDirectory) {
     env::set_current_dir(working_directory.directory.path()).unwrap();
     let anchored = env::current_dir().unwrap().join("access-token");
     let source = ExternalTokenSource::new("access-token", ExternalTokenOrigin::Option);
     env::set_current_dir(&working_directory.original).unwrap();
     assert_that!(source.path()).is_equal_to(anchored.as_path());
-    assert_that!(source.read().await.unwrap().secret()).is_equal_to("opaque-token");
+    assert_that!(source.read().unwrap().secret()).is_equal_to("opaque-token");
 }
 
 #[cfg(unix)]
@@ -70,9 +68,9 @@ mod unix {
     }
 
     #[rstest]
-    #[tokio::test]
+    #[test]
     #[serial]
-    async fn construction_defers_an_unavailable_working_directory(
+    fn construction_defers_an_unavailable_working_directory(
         #[from(deleted_working_directory)] working_directory: WorkingDirectory,
     ) {
         let source = ExternalTokenSource::new("access-token", ExternalTokenOrigin::Environment);
@@ -81,40 +79,36 @@ mod unix {
             path: PathBuf::from("access-token"),
             kind: ExternalTokenFailure::UnresolvableLocation,
         };
-        assert_that!(source.read().await)
-            .is_err()
-            .is_equal_to(&expected);
+        assert_that!(source.read()).is_err().is_equal_to(&expected);
         assert_that!(expected.to_string()).is_equal_to(
             "External token source at 'access-token': the location cannot be resolved from the initial working directory; supply a valid absolute token-file path or invoke Rover from an accessible directory".to_string(),
         );
         env::set_current_dir(working_directory.directory.path()).unwrap();
         // Recovering cwd must not redirect the original source.
-        assert_that!(source.read().await)
-            .is_err()
-            .is_equal_to(expected);
+        assert_that!(source.read()).is_err().is_equal_to(expected);
     }
 
     #[rstest]
-    #[tokio::test]
+    #[test]
     #[serial]
-    async fn absolute_locations_work_without_a_working_directory(
+    fn absolute_locations_work_without_a_working_directory(
         #[from(deleted_working_directory)] working_directory: WorkingDirectory,
     ) {
         let source = ExternalTokenSource::new(
             working_directory.directory.path().join("access-token"),
             ExternalTokenOrigin::Environment,
         );
-        assert_that!(source.read().await.unwrap().secret()).is_equal_to("opaque-token");
+        assert_that!(source.read().unwrap().secret()).is_equal_to("opaque-token");
     }
 
     #[rstest]
-    #[tokio::test]
+    #[test]
     #[serial]
-    async fn empty_locations_keep_their_error_without_a_working_directory(
+    fn empty_locations_keep_their_error_without_a_working_directory(
         #[from(deleted_working_directory)] _working_directory: WorkingDirectory,
     ) {
         let source = ExternalTokenSource::new("", ExternalTokenOrigin::Environment);
-        assert_that!(source.read().await)
+        assert_that!(source.read())
             .is_err()
             .is_equal_to(ExternalTokenError {
                 origin: ExternalTokenOrigin::Environment,

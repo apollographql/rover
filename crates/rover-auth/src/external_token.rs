@@ -213,22 +213,9 @@ impl ExternalTokenSource {
     }
 
     /// Opens, checks, and reads the source anew, without changing it or caching a token.
-    ///
-    /// Returns an unreadable-source error if no Tokio runtime is available.
-    /// The complete open/check/read sequence runs on one blocking worker, never
-    /// on an async runtime worker. Dropping the future does not stop a blocking
-    /// operation that has already started.
-    pub async fn read(&self) -> Result<ExternalAccessToken, ExternalTokenError> {
-        let runtime = tokio::runtime::Handle::try_current()
-            .map_err(|_| self.error(ExternalTokenFailure::Unreadable))?;
-        let source = self.clone();
-        runtime
-            .spawn_blocking(move || {
-                let file = source.open_checked().map_err(|kind| source.error(kind))?;
-                ExternalAccessToken::read_from(file).map_err(|kind| source.error(kind))
-            })
-            .await
-            .map_err(|_| self.error(ExternalTokenFailure::Unreadable))?
+    pub fn read(&self) -> Result<ExternalAccessToken, ExternalTokenError> {
+        let file = self.open_checked().map_err(|kind| self.error(kind))?;
+        ExternalAccessToken::read_from(file).map_err(|kind| self.error(kind))
     }
 
     fn error(&self, kind: ExternalTokenFailure) -> ExternalTokenError {
@@ -350,8 +337,7 @@ impl Service<()> for ExternalTokenSource {
     rover_tower::default_poll_ready!();
 
     fn call(&mut self, (): ()) -> Self::Future {
-        let source = self.clone();
-        Box::pin(async move { source.read().await })
+        Box::pin(std::future::ready(self.read()))
     }
 }
 
