@@ -550,6 +550,7 @@ impl Init {
     async fn preview_mcp_new_project_files(
         &self,
         _project_name: &str,
+        template: &crate::command::init::template_fetcher::Template,
         template_files: &std::collections::HashMap<camino::Utf8PathBuf, Vec<u8>>,
     ) -> RoverResult<bool> {
         use dialoguer::{Confirm, console::Term};
@@ -565,9 +566,9 @@ impl Init {
 
         println!();
         println!("{}", Style::File.paint("What this template gives you"));
-        println!("- Example GraphQL schema and REST connectors");
-        println!("- Pre-configured MCP server with Docker setup");
-        println!("- Sample tools showing how to make APIs AI-callable");
+        for line in helpers::mcp_template_highlights(template) {
+            println!("- {line}");
+        }
         println!();
 
         let confirmed = Confirm::new()
@@ -977,11 +978,7 @@ impl Init {
             ))
         );
         println!();
-        println!(
-            "      → API: {} | MCP: {}",
-            Style::Link.paint("http://localhost:4000"),
-            Style::Link.paint(helpers::mcp_local_endpoint())
-        );
+        println!("      {}", helpers::mcp_local_urls_line());
         println!();
         println!("   2. For containerized deployment:");
         println!(
@@ -1143,11 +1140,7 @@ impl Init {
             )
         );
         println!();
-        println!(
-            "   → API: {} | MCP: {}",
-            Style::Link.paint("http://localhost:4000"),
-            Style::Link.paint("http://localhost:5050")
-        );
+        println!("   {}", helpers::mcp_local_urls_line());
 
         println!();
         println!("3. Try it out in Claude:");
@@ -1430,14 +1423,6 @@ impl Init {
                     &format!("-t {}-mcp", docker_tag),
                 )
                 .replace(
-                    &format!("p5050:5050 {}", project_name),
-                    &format!("p5050:5050 {}", docker_tag),
-                )
-                .replace(
-                    &format!("p5050:5050 {}-mcp", project_name),
-                    &format!("p5050:5050 {}-mcp", docker_tag),
-                )
-                .replace(
                     &format!("--env-file .env {}", project_name),
                     &format!("--env-file .env {}", docker_tag),
                 )
@@ -1471,6 +1456,7 @@ impl Init {
         let mcp_confirmed = self
             .preview_mcp_new_project_files(
                 &creation_confirmed.config.project_name.to_string(),
+                &creation_confirmed.selected_template.template,
                 &creation_confirmed.selected_template.files,
             )
             .await?;

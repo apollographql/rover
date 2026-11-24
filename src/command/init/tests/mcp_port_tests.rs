@@ -5,6 +5,7 @@ use crate::command::init::{
     GraphVariantOption,
     helpers::{
         MCP_DEFAULT_PORT, existing_graph_mcp_readme, mcp_docker_run_hint, mcp_local_endpoint,
+        mcp_local_urls_line,
     },
 };
 
@@ -27,6 +28,15 @@ fn mcp_default_port_matches_generated_config() {
 #[test]
 fn mcp_local_endpoint_uses_default_port() {
     assert_that!(mcp_local_endpoint()).is_equal_to("http://127.0.0.1:8000/mcp".to_string());
+}
+
+/// The "→ API | MCP" line shared by the new-graph and existing-graph next steps.
+#[test]
+fn mcp_local_urls_line_uses_default_port() {
+    let line = console::strip_ansi_codes(&mcp_local_urls_line()).into_owned();
+
+    assert_that!(line)
+        .is_equal_to("→ API: http://localhost:4000 | MCP: http://127.0.0.1:8000/mcp".to_string());
 }
 
 #[rstest]

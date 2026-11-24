@@ -7,6 +7,7 @@ use crate::{
     RoverResult,
     command::init::{
         GraphVariantOption, states,
+        template_fetcher::{MCP_TEMPLATE_DISPLAY_NAME_SUFFIX, MCP_TEMPLATE_ID_PREFIX, Template},
         template_operations::{PrintMode::Confirmation, print_grouped_files},
     },
 };
@@ -305,6 +306,43 @@ pub(crate) const MCP_DEFAULT_PORT: u16 = 8000;
 /// Local MCP endpoint URL for a server started from the generated config.
 pub(crate) fn mcp_local_endpoint() -> String {
     format!("http://127.0.0.1:{MCP_DEFAULT_PORT}/mcp")
+}
+
+/// "→ API: … | MCP: …" line shown in the next steps after `rover init --mcp`.
+pub(crate) fn mcp_local_urls_line() -> String {
+    format!(
+        "→ API: {} | MCP: {}",
+        Style::Link.paint("http://localhost:4000"),
+        Style::Link.paint(mcp_local_endpoint())
+    )
+}
+
+/// "What this template gives you" lines for an MCP template built by
+/// `InitTemplateFetcher::fetch_mcp_template`, based on its base template.
+pub(crate) fn mcp_template_highlights(template: &Template) -> Vec<String> {
+    let base_id = template
+        .id
+        .0
+        .strip_prefix(MCP_TEMPLATE_ID_PREFIX)
+        .unwrap_or(&template.id.0);
+    let base_name = template
+        .display_name
+        .strip_suffix(MCP_TEMPLATE_DISPLAY_NAME_SUFFIX)
+        .unwrap_or(&template.display_name);
+
+    if base_id == "connectors" {
+        vec![
+            "Example GraphQL schema and REST connectors".to_string(),
+            "Pre-configured MCP server with Docker setup".to_string(),
+            "Sample tools showing how to make APIs AI-callable".to_string(),
+        ]
+    } else {
+        vec![
+            format!("Example GraphQL schema and starter subgraph: {base_name}"),
+            "Pre-configured MCP server with Docker setup".to_string(),
+            "Sample tools showing how to make GraphQL APIs AI-callable".to_string(),
+        ]
+    }
 }
 
 /// `docker run` command for the MCP image built as `{docker_tag}-mcp`.
