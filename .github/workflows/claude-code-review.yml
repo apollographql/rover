@@ -31,20 +31,28 @@ jobs:
           fetch-depth: 1
 
       # Remember the review comments Claude left on earlier runs, before this
-      # run adds a new one, so only those get hidden afterwards. The `@claude`
-      # mention workflow posts as the same bot, so match on the heading the
-      # review command uses as well, to leave answers to people's questions
-      # alone.
+      # run adds a new one, so only those get hidden afterwards. The review
+      # command posts a pull request review whose body starts with its
+      # heading, with each finding as an inline comment on that review. The
+      # `@claude` mention workflow posts as the same bot, so take only the
+      # inline comments that belong to such a review, to leave answers to
+      # people's questions alone. GitHub can't hide a review's own body, so
+      # the earlier summary stays visible above the new one.
       - name: Snapshot previous Claude review comments
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          gh api --paginate "repos/${REPO}/issues/${PR_NUMBER}/comments" \
-            --jq '.[] | select(.user.login == "claude[bot]" and (.body | startswith("## Code review"))) | .node_id' \
+          gh api --paginate "repos/${REPO}/pulls/${PR_NUMBER}/reviews" \
+            --jq '.[] | select(.user.login == "claude[bot]" and (.body | startswith("## Code review"))) | .id' \
+            > "$RUNNER_TEMP/previous-claude-reviews.txt"
+          gh api --paginate "repos/${REPO}/pulls/${PR_NUMBER}/comments" \
+            --jq '.[] | [.pull_request_review_id, .node_id] | @tsv' \
+            | awk -F'\t' 'NR == FNR { reviews[$1]; next } $1 in reviews { print $2 }' \
+                "$RUNNER_TEMP/previous-claude-reviews.txt" - \
             > "$RUNNER_TEMP/previous-claude-comments.txt"
-          echo "Found $(wc -l < "$RUNNER_TEMP/previous-claude-comments.txt") earlier Claude review comments"
+          echo "Found $(wc -l < "$RUNNER_TEMP/previous-claude-reviews.txt") earlier Claude reviews with $(wc -l < "$RUNNER_TEMP/previous-claude-comments.txt") inline comments"
 
       - name: Run Claude Code Review
         id: claude-review
@@ -59,7 +67,13 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
-          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }} --comment'
+          # The review command stops on a pull request Claude has already
+          # reviewed, but each push here is a request to review the new head.
+          # The step after this hides the earlier review's comments.
+          prompt: |
+            /code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }} --comment
+
+            Review the current head even if Claude has already reviewed an earlier commit of this pull request: this run follows new commits, and the earlier review's comments are hidden as outdated once this one posts.
           show_full_output: true
           additional_permissions: |
             actions: read
