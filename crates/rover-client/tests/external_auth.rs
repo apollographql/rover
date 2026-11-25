@@ -120,6 +120,14 @@ impl TokenFile {
     }
 }
 
+/// The external authentication failure a client reported, if that is what it was.
+fn external_auth_error(error: &RoverClientError) -> Option<ExternalAuthError> {
+    match error {
+        RoverClientError::ExternalAuth(error) => Some(error.clone()),
+        _ => None,
+    }
+}
+
 #[fixture]
 fn token_file() -> TokenFile {
     let directory = tempfile::tempdir().unwrap();
@@ -182,7 +190,7 @@ async fn each_path_reads_replacements_and_can_recover_in_a_later_operation(
         .is_ok()
         .is_equal_to(json!({"value": "account-a"}));
     let error = assert_that!(missing).is_err().subject;
-    assert_that!(ExternalAuthError::find_in_chain(error).cloned())
+    assert_that!(external_auth_error(error))
         .is_some()
         .is_equal_to(ExternalAuthError::Source(ExternalTokenError {
             origin: ExternalTokenOrigin::Option,
@@ -257,6 +265,36 @@ async fn a_status_rejection_replays_the_same_request_once_with_an_already_publis
 #[case::tower_no_retry(Transport::TowerNoRetry)]
 #[case::authenticated_http(Transport::AuthenticatedHttp)]
 #[tokio::test]
+async fn a_status_rejection_with_an_unchanged_token_is_an_external_rejection(
+    token_file: TokenFile,
+    #[case] transport: Transport,
+    #[values(401, 406)] status: u16,
+) {
+    let server = MockServer::start_async().await;
+    let rejected = server.mock(|when, then| {
+        when.method(POST)
+            .path("/graphql")
+            .header("authorization", "Bearer A");
+        then.status(status);
+    });
+
+    let result = transport.execute(&token_file.client(&server)).await;
+
+    let error = assert_that!(result).is_err().subject;
+    assert_that!(external_auth_error(error))
+        .is_some()
+        .is_equal_to(ExternalAuthError::Rejected);
+    rejected.assert_calls(1);
+}
+
+#[rstest]
+#[case::post(Transport::Post)]
+#[case::post_no_retry(Transport::PostNoRetry)]
+#[case::tower(Transport::Tower)]
+#[case::tower_attempt_timeout(Transport::TowerAttemptTimeout)]
+#[case::tower_no_retry(Transport::TowerNoRetry)]
+#[case::authenticated_http(Transport::AuthenticatedHttp)]
+#[tokio::test]
 async fn a_body_rejection_is_not_replayed_even_when_the_token_changes(
     token_file: TokenFile,
     #[case] transport: Transport,
@@ -316,7 +354,7 @@ async fn a_permission_denial_is_distinct_and_never_replayed(
     let result = transport.execute(&token_file.client(&server)).await;
 
     let error = assert_that!(result).is_err().subject;
-    assert_that!(ExternalAuthError::find_in_chain(error).cloned())
+    assert_that!(external_auth_error(error))
         .is_some()
         .is_equal_to(ExternalAuthError::PermissionDenied);
     denied.assert_calls(1);

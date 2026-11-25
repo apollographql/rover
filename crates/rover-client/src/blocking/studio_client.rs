@@ -15,7 +15,7 @@ use rover_http::{
     retry::{retry_with_attempt_timeout, RetryPolicy},
     timeout::TimeoutLayer,
     trace::{process_trace_id, TraceId, TraceparentLayer},
-    BodyExt, HttpService, HttpServiceError, ReqwestService,
+    BodyExt, HttpService, ReqwestService,
 };
 use rover_studio::service::{
     permission_denied::PermissionDeniedLayer, rejected_credential::RejectedCredentialLayer,
@@ -240,9 +240,7 @@ impl StudioClient {
                 RoverClientError::MalformedKey
             }
             (StudioCredential::External(_), RoverClientError::InvalidKey) => {
-                RoverClientError::studio_service(GraphQLServiceError::<()>::UpstreamService(
-                    Box::new(HttpServiceError::from(ExternalAuthError::Rejected)),
-                ))
+                RoverClientError::ExternalAuth(ExternalAuthError::Rejected)
             }
             (_, err) => err,
         }

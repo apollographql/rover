@@ -64,21 +64,6 @@ impl<'a> TryFrom<&'a HttpServiceError> for &'a ExternalAuthError {
     }
 }
 
-impl ExternalAuthError {
-    /// Finds an external-authentication diagnostic through operation and HTTP wrappers.
-    pub fn find_in_chain<'a>(error: &'a (dyn std::error::Error + 'static)) -> Option<&'a Self> {
-        std::iter::successors(Some(error), |error| error.source())
-            .take(64)
-            .find_map(|error| {
-                error.downcast_ref::<Self>().or_else(|| {
-                    error
-                        .downcast_ref::<HttpServiceError>()
-                        .and_then(|error| <&Self>::try_from(error).ok())
-                })
-            })
-    }
-}
-
 #[derive(Clone)]
 struct AuthenticationRequest {
     request: HttpRequest,

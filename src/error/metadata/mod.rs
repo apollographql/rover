@@ -424,6 +424,7 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 ),
                 RoverClientError::ServiceReady(_) => (None, None),
                 RoverClientError::Service { .. } => (None, None),
+                RoverClientError::ExternalAuth(_) => (None, None),
                 RoverClientError::InvalidTimestamp(_) => (None, None),
                 RoverClientError::ApiKeyNotFound { .. } => (None, None),
                 RoverClientError::GraphCreationError { .. } => (None, None),
