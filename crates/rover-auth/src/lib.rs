@@ -17,6 +17,8 @@ pub mod oauth2;
 /// Read-only access to application-managed bearer token files.
 pub mod external_token;
 
+pub mod external_auth;
+
 /// Tower [`Service`] wrapper that implements [`oauth2::AsyncHttpClient`].
 #[derive(Clone)]
 pub(crate) struct OauthHttpClient<T, B> {

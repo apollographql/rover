@@ -20,20 +20,19 @@ const PERMISSION_DENIED_STATUS: StatusCode = StatusCode::FORBIDDEN;
 ///
 /// This message is terse on purpose - the user-facing wording belongs to whoever renders the
 /// error, matching [`super::rejected_credential::RejectedCredential`]'s own convention.
-#[derive(thiserror::Error, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(thiserror::Error, Debug, Default, Clone, Copy, PartialEq, Eq)]
 #[error("the request authenticated fine but isn't permitted")]
 pub struct PermissionDenied;
 
-impl PermissionDenied {
+impl From<PermissionDenied> for HttpServiceError {
     /// Wraps this so it can cross a boxed [`rover_http::HttpService`], whose error type is
-    /// fixed. Mirrors
-    /// [`super::rejected_credential::RejectedCredential::into_http_service_error`]:
-    /// [`HttpServiceError::Unexpected`] is the carrier, matching that sibling's choice for
-    /// consistency - not because it changes whether this gets retried. A 403 is never retried
-    /// regardless of carrier (`rover_http::retry`'s retryable-status check excludes it, and
-    /// `RetryPolicy` treats `Unexpected` as terminal either way).
-    fn into_http_service_error(self) -> HttpServiceError {
-        HttpServiceError::Unexpected(Box::new(self))
+    /// fixed. [`HttpServiceError::Unexpected`] is the carrier, matching
+    /// [`super::rejected_credential::RejectedCredential`]'s choice for consistency - not because
+    /// it changes whether this gets retried. A 403 is never retried regardless of carrier
+    /// (`rover_http::retry`'s retryable-status check excludes it, and `RetryPolicy` treats
+    /// `Unexpected` as terminal either way).
+    fn from(denial: PermissionDenied) -> Self {
+        HttpServiceError::Unexpected(Box::new(denial))
     }
 }
 
@@ -52,27 +51,53 @@ pub fn permission_denied(err: &HttpServiceError) -> Option<PermissionDenied> {
 /// [`HttpServiceError::Unexpected`] this produces is terminal to `RetryPolicy` regardless of
 /// where it's raised. Placed next to [`super::rejected_credential::RejectedCredentialLayer`] for
 /// consistency between the two closely related layers, not for that reason.
-pub struct PermissionDeniedLayer;
+#[derive(Clone, Debug, Default)]
+pub struct PermissionDeniedLayer<E = PermissionDenied> {
+    denial: E,
+}
 
-impl<S: Clone> Layer<S> for PermissionDeniedLayer {
-    type Service = PermissionDeniedService<S>;
-
-    fn layer(&self, inner: S) -> Self::Service {
-        PermissionDeniedService { inner }
+impl PermissionDeniedLayer {
+    /// Constructs a layer that reports a refusal as [`PermissionDenied`].
+    pub const fn new() -> PermissionDeniedLayer {
+        PermissionDeniedLayer {
+            denial: PermissionDenied,
+        }
     }
 }
 
-/// Middleware that turns a permission refusal from Apollo Studio into a [`PermissionDenied`]
-/// error.
+impl<E> PermissionDeniedLayer<E> {
+    /// Reports a refusal as `denial` instead of [`PermissionDenied`].
+    ///
+    /// `denial` must convert to a terminal [`HttpServiceError`], as [`PermissionDenied`] does.
+    pub const fn with_error(denial: E) -> PermissionDeniedLayer<E> {
+        PermissionDeniedLayer { denial }
+    }
+}
+
+impl<S: Clone, E: Clone> Layer<S> for PermissionDeniedLayer<E> {
+    type Service = PermissionDeniedService<S, E>;
+
+    fn layer(&self, inner: S) -> Self::Service {
+        PermissionDeniedService {
+            denial: self.denial.clone(),
+            inner,
+        }
+    }
+}
+
+/// Middleware that turns a permission refusal from Apollo Studio into the layer's error,
+/// [`PermissionDenied`] unless configured otherwise.
 #[derive(Clone)]
-pub struct PermissionDeniedService<S: Clone> {
+pub struct PermissionDeniedService<S: Clone, E = PermissionDenied> {
+    denial: E,
     inner: S,
 }
 
-impl<S> Service<HttpRequest> for PermissionDeniedService<S>
+impl<S, E> Service<HttpRequest> for PermissionDeniedService<S, E>
 where
     S: Service<HttpRequest, Response = HttpResponse, Error = HttpServiceError> + Clone,
     S::Future: Send + 'static,
+    E: Clone + Into<HttpServiceError> + Send + 'static,
 {
     type Response = S::Response;
     type Error = S::Error;
@@ -86,12 +111,13 @@ where
     }
 
     fn call(&mut self, req: HttpRequest) -> Self::Future {
+        let denial = self.denial.clone();
         let fut = self.inner.call(req);
         Box::pin(async move {
             let resp = fut.await?;
             if resp.status() == PERMISSION_DENIED_STATUS {
                 tracing::debug!(status = ?resp.status(), "the registry refused the request for lack of permission");
-                Err(PermissionDenied.into_http_service_error())
+                Err(denial.into())
             } else {
                 Ok(resp)
             }
@@ -125,7 +151,7 @@ mod tests {
                 .unwrap()))
         });
 
-        let service = PermissionDeniedLayer.layer(MockCloneService::new(mock));
+        let service = PermissionDeniedLayer::new().layer(MockCloneService::new(mock));
 
         let req = http::Request::builder()
             .uri(Url::parse("https://example.com").unwrap().to_string())
@@ -162,6 +188,47 @@ mod tests {
         assert_that!(response.map(|resp| resp.status()))
             .is_ok()
             .is_equal_to(status);
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+    #[error("an application-supplied credential lacks permission")]
+    struct ApplicationDenial;
+
+    impl From<ApplicationDenial> for HttpServiceError {
+        fn from(denial: ApplicationDenial) -> Self {
+            HttpServiceError::Unexpected(Box::new(denial))
+        }
+    }
+
+    #[rstest]
+    #[case::forbidden(StatusCode::FORBIDDEN, Some(ApplicationDenial))]
+    #[case::unauthorized(StatusCode::UNAUTHORIZED, None)]
+    #[case::ok(StatusCode::OK, None)]
+    fn a_configured_error_reports_the_same_refusal_status(
+        #[case] status: StatusCode,
+        #[case] expected: Option<ApplicationDenial>,
+    ) {
+        let mut mock = MockHttpService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call().returning(move |_| {
+            futures::future::ready(Ok(http::Response::builder()
+                .status(status)
+                .body(Full::new(Bytes::default()))
+                .unwrap()))
+        });
+        let service =
+            PermissionDeniedLayer::with_error(ApplicationDenial).layer(MockCloneService::new(mock));
+
+        let result =
+            futures::executor::block_on(service.oneshot(http::Request::new(Full::default())));
+
+        let denial = match &result {
+            Err(HttpServiceError::Unexpected(source)) => source.downcast_ref().cloned(),
+            _ => None,
+        };
+        assert_that!(denial).is_equal_to(expected.clone());
+        assert_that!(result.map(|resp| resp.status()).ok())
+            .is_equal_to(expected.is_none().then_some(status));
     }
 
     #[test]
