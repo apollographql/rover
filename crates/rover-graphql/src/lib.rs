@@ -81,7 +81,7 @@ impl From<&Vec<graphql_client::Error>> for SimplifiedErrorList {
 pub type GraphQLResponse<T> = graphql_client::Response<T>;
 
 /// Errors that may occur from using a [`GraphQLService`]
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error)]
 pub enum GraphQLServiceError<T: Send + Sync + fmt::Debug> {
     /// There was no data field provided in the response
     #[error("No data field provided")]
@@ -136,6 +136,33 @@ pub enum GraphQLServiceError<T: Send + Sync + fmt::Debug> {
     /// This shouldn't ever happen
     #[error(transparent)]
     Infallible(#[from] Infallible),
+}
+
+impl<T: Send + Sync + fmt::Debug> fmt::Debug for GraphQLServiceError<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NoData(errors) => f.debug_tuple("NoData").field(errors).finish(),
+            Self::PartialError {
+                errors,
+                friendly_errors_detail,
+                ..
+            } => f
+                .debug_struct("PartialError")
+                .field("errors", errors)
+                .field("friendly_errors_detail", friendly_errors_detail)
+                // Keep partial data available to callers, but not in diagnostics: even
+                // data accompanying an error can contain issued or reflected credentials.
+                .finish_non_exhaustive(),
+            Self::InvalidCredentials() => f.write_str("InvalidCredentials"),
+            Self::Serialization(error) => f.debug_tuple("Serialization").field(error).finish(),
+            // The raw body and serde's message can both contain credentials.
+            Self::Deserialization { .. } => fmt::Display::fmt(self, f),
+            Self::Http(error) => f.debug_tuple("Http").field(error).finish(),
+            Self::InvalidUri(error) => f.debug_tuple("InvalidUri").field(error).finish(),
+            Self::UpstreamService(error) => f.debug_tuple("UpstreamService").field(error).finish(),
+            Self::Infallible(error) => match *error {},
+        }
+    }
 }
 
 /// Wrapper around [`GraphQLQuery::Variables`]
@@ -698,6 +725,23 @@ mod tests {
             column 4"
                 .to_string(),
         );
+    }
+
+    #[rstest::rstest]
+    #[case::syntax(b"not-json private-token".as_slice())]
+    #[case::quoted_value(br#""private-token""#.as_slice())]
+    fn malformed_response_debug_does_not_print_body_or_serde_message(#[case] body: &[u8]) {
+        let result = serde_json::from_slice::<u64>(body).map_err(|error| {
+            GraphQLServiceError::<()>::Deserialization {
+                error,
+                data: Bytes::copy_from_slice(body),
+                status_code: StatusCode::OK,
+            }
+        });
+        let error = &assert_that!(result).is_err().subject;
+
+        assert_that!(format!("{error:?}")).is_equal_to(error.to_string());
+        assert_that!(format!("{error:?}").contains("private-token")).is_equal_to(false);
     }
 
     #[test]

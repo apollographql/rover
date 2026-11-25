@@ -347,7 +347,15 @@ where
         });
 
         Box::pin(async move {
-            let AuthenticationResponse { response, .. } = response.await?;
+            let AuthenticationResponse {
+                mut response,
+                token,
+            } = response.await?;
+            for value in response.headers_mut().values_mut() {
+                value.set_sensitive(true);
+            }
+            // Response-scoped only, so downstream diagnostics can redact reflected tokens.
+            response.extensions_mut().insert(token);
             Ok(response)
         })
     }
@@ -697,6 +705,44 @@ mod tests {
         }
         assert_that!(policy.attempts.load(Ordering::Relaxed)).is_equal_to(0);
         assert_that!(policy.resend_used.load(Ordering::Relaxed)).is_equal_to(false);
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn binary_response_headers_are_sensitive(endpoint: Uri) {
+        let mut source = MockTokenService::new();
+        expect_poll_ready!(source);
+        source
+            .expect_call()
+            .once()
+            .return_once(|_| ready(Ok(ExternalAccessToken::parse(b"private-token").unwrap())));
+        let mut http = MockHttpService::new();
+        expect_poll_ready!(http);
+        http.expect_call().once().return_once(|_| {
+            ready(Ok(Response::builder()
+                .header(
+                    "x-reflected-credential",
+                    HeaderValue::from_bytes(b"\x80private-token").unwrap(),
+                )
+                .body(Full::default())
+                .unwrap()))
+        });
+        let service = ExternalAuthLayer::new(MockCloneService::new(source), endpoint.clone())
+            .layer(MockCloneService::new(http));
+
+        let response = service
+            .oneshot(
+                Request::builder()
+                    .uri(endpoint)
+                    .body(Full::default())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_that!(response.headers()["x-reflected-credential"].is_sensitive()).is_equal_to(true);
+        assert_that!(format!("{:?}", response.headers()))
+            .is_equal_to("{\"x-reflected-credential\": Sensitive}".to_string());
     }
 
     struct Plan {

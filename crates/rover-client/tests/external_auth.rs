@@ -140,6 +140,171 @@ fn token_file() -> TokenFile {
 }
 
 #[rstest]
+#[case::post(Transport::Post)]
+#[case::post_no_retry(Transport::PostNoRetry)]
+#[case::tower(Transport::Tower)]
+#[case::tower_attempt_timeout(Transport::TowerAttemptTimeout)]
+#[case::tower_no_retry(Transport::TowerNoRetry)]
+#[case::authenticated_http(Transport::AuthenticatedHttp)]
+#[tokio::test]
+async fn errors_cannot_reflect_the_external_credential(
+    token_file: TokenFile,
+    #[case] transport: Transport,
+    #[values(false, true)] partial_data: bool,
+) {
+    let token = "credential/with+padding==";
+    token_file.publish(token.as_bytes());
+    let server = MockServer::start_async().await;
+    let response = server.mock(|when, then| {
+        when.header("authorization", format!("Bearer {token}"));
+        then.status(200).body(
+            json!({"data": if partial_data { json!({"reflected": token}) } else { Value::Null }, "errors": [{
+                "message": format!("Operation failed for {token}"),
+                "extensions": {"response": {"body": {"errors": [{
+                    "message": format!("Upstream refused {token}")
+                }]}}}
+            }]})
+            .to_string()
+            .replace('/', "\\u002f"),
+        );
+    });
+
+    let result = transport.execute(&token_file.client(&server)).await;
+
+    let error = &assert_that!(result).is_err().subject;
+    let expected_message = match transport {
+        Transport::Post | Transport::PostNoRetry => "Operation failed for [REDACTED]",
+        _ => "Service error",
+    };
+    assert_that!(error.to_string()).is_equal_to(expected_message.to_string());
+    assert_that!(format!("{error:?}").contains("[REDACTED]")).is_equal_to(true);
+    assert_that!(error.to_string().contains(token)).is_equal_to(false);
+    assert_that!(format!("{error:?}").contains(token)).is_equal_to(false);
+    response.assert_calls(1);
+}
+
+#[rstest]
+#[case::post_invalid_json(Transport::Post, false)]
+#[case::post_wrong_shape(Transport::Post, true)]
+#[case::post_no_retry_invalid_json(Transport::PostNoRetry, false)]
+#[case::post_no_retry_wrong_shape(Transport::PostNoRetry, true)]
+#[case::tower_invalid_json(Transport::Tower, false)]
+#[case::tower_wrong_shape(Transport::Tower, true)]
+#[case::attempt_timeout_invalid_json(Transport::TowerAttemptTimeout, false)]
+#[case::attempt_timeout_wrong_shape(Transport::TowerAttemptTimeout, true)]
+#[case::no_retry_invalid_json(Transport::TowerNoRetry, false)]
+#[case::no_retry_wrong_shape(Transport::TowerNoRetry, true)]
+#[case::authenticated_http_invalid_json(Transport::AuthenticatedHttp, false)]
+#[case::authenticated_http_wrong_shape(Transport::AuthenticatedHttp, true)]
+#[tokio::test]
+async fn malformed_responses_cannot_expose_the_external_token_in_error_debug(
+    token_file: TokenFile,
+    #[case] transport: Transport,
+    #[case] quoted: bool,
+) {
+    let token = "external-private-access-token";
+    token_file.publish(token.as_bytes());
+    let server = MockServer::start_async().await;
+    let response = server.mock(|_, then| {
+        then.status(200).body(if quoted {
+            json!(token).to_string()
+        } else {
+            format!("not-json {token}")
+        });
+    });
+
+    let result = transport.execute(&token_file.client(&server)).await;
+
+    let error = &assert_that!(result).is_err().subject;
+    let message = match error {
+        RoverClientError::ResponseDecode { msg } => msg.clone(),
+        RoverClientError::Service { source, .. } => {
+            assert_that!(source.downcast_ref::<GraphQLServiceError<Value>>())
+                .is_some()
+                .matches(|error| {
+                    matches!(error, GraphQLServiceError::Deserialization { status_code, .. }
+                        if *status_code == http::StatusCode::OK)
+                });
+            source.to_string()
+        }
+        _ => panic!("Expected a response decoding error, got {error:?}"),
+    };
+    let expected_message = match transport {
+        Transport::Post | Transport::PostNoRetry => {
+            "error decoding response body for url (http://no.url.provided.local/)"
+        }
+        _ if quoted => {
+            "Deserialization error: the response (HTTP 200 OK) had a data error at line 1, column 31"
+        }
+        _ => {
+            "Deserialization error: the response (HTTP 200 OK) had a syntax error at line 1, column 2"
+        }
+    };
+    assert_that!(message).is_equal_to(expected_message.to_string());
+    assert_that!(format!("{error:?}").contains(token)).is_equal_to(false);
+    assert_that!(error.to_string().contains(token)).is_equal_to(false);
+    response.assert_calls(1);
+}
+
+#[rstest]
+#[tokio::test]
+async fn error_redaction_preserves_data_and_marks_untrusted_headers_sensitive(
+    token_file: TokenFile,
+) {
+    use rover_http::{BodyExt, Full};
+
+    let token = "private-credential";
+    token_file.publish(token.as_bytes());
+    let server = MockServer::start_async().await;
+    let response = server.mock(|_, then| {
+        then.respond_with(move |_| {
+            http::Response::builder()
+                .header("x-reflected-credential", token)
+                .body(
+                    json!({
+                        "data": {"issued_secret": token},
+                        "errors": [{
+                            "message": format!("Rejected {token}"),
+                            "extensions": {token: [token, 42, true, null]},
+                        }],
+                    })
+                    .to_string(),
+                )
+                .unwrap()
+                .into()
+        });
+    });
+    let client = token_file.client(&server);
+
+    let received = client
+        .authenticated_http_service(Duration::from_secs(2))
+        .unwrap()
+        .oneshot(
+            http::Request::builder()
+                .uri(server.url("/graphql"))
+                .body(Full::new(bytes::Bytes::from_static(b"{}")))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_that!(received.headers()["x-reflected-credential"].is_sensitive()).is_equal_to(true);
+    assert_that!(format!("{:?}", received.headers()).contains(token)).is_equal_to(false);
+    assert_that!(serde_json::from_slice::<Value>(
+        &received.into_body().collect().await.unwrap().to_bytes(),
+    )
+    .unwrap())
+    .is_equal_to(json!({
+        "data": {"issued_secret": token},
+        "errors": [{
+            "message": "Rejected [REDACTED]",
+            "extensions": {"[REDACTED]": ["[REDACTED]", 42, true, null]},
+        }],
+    }));
+    response.assert_calls(1);
+}
+
+#[rstest]
 #[case::success(200, "A")]
 #[case::transient_retry(500, "B")]
 #[case::unauthorized(401, "B")]
