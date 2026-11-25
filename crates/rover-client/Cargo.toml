@@ -42,6 +42,7 @@ reqwest = { workspace = true, features = [
     "socks",
 ] }
 rover-graphql = { workspace = true }
+rover-auth = { workspace = true }
 rover-http = { workspace = true }
 rover-std = { workspace = true }
 rover-studio = { workspace = true }
@@ -73,6 +74,7 @@ indoc = { workspace = true }
 mockall = { workspace = true }
 httpmock = { workspace = true }
 pretty_assertions = { workspace = true }
+tempfile = { workspace = true }
 rstest = { workspace = true }
 rover-tower = { workspace = true, features = ["test"] }
 speculoos = { workspace = true }

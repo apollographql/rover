@@ -1,8 +1,7 @@
 use std::fmt::{Display, Formatter, Result};
 
-use houston::CredentialOrigin;
-
 use super::service::config_who_am_i_query;
+use crate::blocking::StudioCredentialOrigin;
 
 pub(crate) type QueryVariables = config_who_am_i_query::Variables;
 
@@ -11,7 +10,7 @@ pub struct RegistryIdentity {
     pub id: String,
     pub graph_title: Option<String>,
     pub key_actor_type: Actor,
-    pub credential_origin: CredentialOrigin,
+    pub credential_origin: StudioCredentialOrigin,
 }
 
 // Variant names deliberately mirror the platform API's `ActorType` enum values.

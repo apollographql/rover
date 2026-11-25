@@ -41,6 +41,7 @@ impl HttpServiceFactory for ReqwestServiceFactory {
 pub struct ReqwestService {
     client: reqwest::Client,
     timeout: Duration,
+    read_response_body: fn(http::StatusCode) -> bool,
 }
 
 #[buildstructor]
@@ -62,7 +63,24 @@ impl ReqwestService {
                 .build()?,
         };
         let timeout = config.timeout().unwrap_or(DEFAULT_TIMEOUT);
-        Ok(ReqwestService { client, timeout })
+        Ok(ReqwestService {
+            client,
+            timeout,
+            read_response_body: |_| true,
+        })
+    }
+
+    /// Selects which response bodies to buffer, preserving status and headers in all cases.
+    ///
+    /// Returning `false` drops the body without reading it. Use this when a status alone
+    /// determines the outcome, so a broken or slow error body cannot hide that status.
+    /// The default reads every body.
+    pub const fn with_response_body_filter(
+        mut self,
+        predicate: fn(http::StatusCode) -> bool,
+    ) -> Self {
+        self.read_response_body = predicate;
+        self
     }
 }
 
@@ -95,6 +113,7 @@ impl Service<HttpRequest> for ReqwestService {
     fn call(&mut self, req: HttpRequest) -> Self::Future {
         let client = self.client.clone();
         let timeout = self.timeout;
+        let read_response_body = self.read_response_body;
         let fut = async move {
             // `Request::try_from` doesn't do any processing that reqwest runs at builder-construction time.
             // We instead go through its builder interface which retains all that internal logic.
@@ -122,6 +141,9 @@ impl Service<HttpRequest> for ReqwestService {
             };
 
             let mut resp = http::Response::from(response);
+            if !read_response_body(resp.status()) {
+                return Ok(resp.map(|_| Full::default()));
+            }
             let bytes = body_to_bytes(&mut resp)
                 .await
                 .map_err(|err| HttpServiceError::Body(Box::new(err)))?;

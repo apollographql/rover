@@ -50,7 +50,7 @@ impl RemoteRouterConfig {
             };
             let identity = who_am_i
                 .ready()
-                .and_then(|who_am_i| who_am_i.call(WhoAmIRequest::new(credential.origin)))
+                .and_then(|who_am_i| who_am_i.call(WhoAmIRequest::new(credential.origin.into())))
                 .await;
             match identity {
                 Ok(identity) => match identity.key_actor_type {

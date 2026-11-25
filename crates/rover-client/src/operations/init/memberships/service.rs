@@ -1,12 +1,11 @@
 use std::{fmt, future::Future, pin::Pin};
 
 use graphql_client::GraphQLQuery;
-use houston::CredentialOrigin;
 use rover_graphql::{GraphQLRequest, GraphQLServiceError};
 use tower::Service;
 
 use super::types::{InitMembershipsInput, InitMembershipsResponse, Organization, QueryVariables};
-use crate::RoverClientError;
+use crate::{blocking::StudioCredentialOrigin, RoverClientError};
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -53,11 +52,11 @@ impl From<MembershipsError> for RoverClientError {
 
 pub struct MembershipsRequest {
     input: InitMembershipsInput,
-    credential_origin: CredentialOrigin,
+    credential_origin: StudioCredentialOrigin,
 }
 
 impl MembershipsRequest {
-    pub const fn new(credential_origin: CredentialOrigin) -> MembershipsRequest {
+    pub const fn new(credential_origin: StudioCredentialOrigin) -> MembershipsRequest {
         MembershipsRequest {
             input: InitMembershipsInput {},
             credential_origin,
@@ -161,7 +160,9 @@ mod tests {
         let mut memberships = Memberships::new(inner);
         let memberships = memberships.ready().await.unwrap();
 
-        let response = memberships.call(MembershipsRequest::new(CredentialOrigin::EnvVar));
+        let response = memberships.call(MembershipsRequest::new(
+            houston::CredentialOrigin::EnvVar.into(),
+        ));
 
         let json_response = json!({
             "me": {
@@ -189,7 +190,7 @@ mod tests {
                 id: "thisisfake".to_string(),
                 name: "This is Fake".to_string(),
             }],
-            credential_origin: CredentialOrigin::EnvVar,
+            credential_origin: houston::CredentialOrigin::EnvVar.into(),
         };
         assert_that!(output).is_ok().is_equal_to(expected_identity);
         resp_task.await.unwrap()

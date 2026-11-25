@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use apollo_federation_types::rover::BuildErrors;
 use itertools::Itertools;
+use rover_auth::external_auth::ExternalAuthError;
 use rover_graphql::GraphQLServiceError;
 use rover_http::HttpServiceError;
 use rover_studio::{
@@ -378,6 +379,10 @@ pub enum RoverClientError {
     #[error("The registry did not recognize the provided API key")]
     InvalidKey,
 
+    /// Authentication with an application-supplied credential failed.
+    #[error(transparent)]
+    ExternalAuth(#[from] ExternalAuthError),
+
     /// Could not parse the latest version
     #[error("Could not parse the latest release version")]
     UnparseableReleaseVersion { source: semver::Error },
@@ -588,29 +593,33 @@ impl RoverClientError {
     pub fn studio_service<T: Debug + Send + Sync + 'static>(
         err: GraphQLServiceError<T>,
     ) -> RoverClientError {
-        rejected_credential_in(&err).unwrap_or(RoverClientError::Service {
+        credential_failure_in(&err).unwrap_or(RoverClientError::Service {
             source: Box::new(err),
             endpoint_kind: EndpointKind::ApolloStudio,
         })
     }
 }
 
-/// How this failure should be reported if the registry refused the credential, covering both
-/// ways it can say so: a rejection by status, spotted by `RejectedCredentialLayer`, and one in
-/// the response body.
+/// How this failure should be reported if it was a credential failure: an external
+/// authentication failure, or the registry refusing a stored credential by status (spotted by
+/// `RejectedCredentialLayer`) or in the response body.
+///
+/// This is the one place a credential failure is recovered from the boxed HTTP error that
+/// carried it, so callers match a typed variant rather than searching the error chain.
 ///
 /// Only the layer can tell a malformed key from a merely unrecognized one, because only the
 /// layer holds the credential. A body-level rejection can only ever be the weaker answer.
-fn rejected_credential_in<T>(err: &GraphQLServiceError<T>) -> Option<RoverClientError>
+fn credential_failure_in<T>(err: &GraphQLServiceError<T>) -> Option<RoverClientError>
 where
     T: Debug + Send + Sync,
 {
     match err {
         GraphQLServiceError::UpstreamService(source) => {
-            match source
-                .downcast_ref::<HttpServiceError>()
-                .and_then(rejected_credential)?
-            {
+            let error = source.downcast_ref::<HttpServiceError>()?;
+            if let Ok(external) = <&ExternalAuthError>::try_from(error) {
+                return Some(RoverClientError::ExternalAuth(external.clone()));
+            }
+            match rejected_credential(error)? {
                 RejectedCredential::MalformedKey => Some(RoverClientError::MalformedKey),
                 RejectedCredential::InvalidKey => Some(RoverClientError::InvalidKey),
             }
@@ -623,7 +632,7 @@ where
 /// Recovers a client-credential-pair permission denial from a raw GraphQL error, for an
 /// operation whose mutation returns a plain object rather than a typed error union (see
 /// `rover_studio::service::permission_denied`'s own doc comment: for these, a permission denial
-/// can only ever arrive as a raw HTTP 403). Unlike [`rejected_credential_in`], this isn't wired
+/// can only ever arrive as a raw HTTP 403). Unlike [`credential_failure_in`], this isn't wired
 /// into the blanket [`From<GraphQLServiceError<T>>`] conversion below - it takes
 /// `organization_id`, which that conversion has no way to know, so each pair operation's own
 /// `service.rs` calls this directly on its inner call's error before falling back to `.into()`.
@@ -706,7 +715,7 @@ where
 
 impl<T: Debug + Send + Sync> From<GraphQLServiceError<T>> for RoverClientError {
     fn from(value: GraphQLServiceError<T>) -> Self {
-        if let Some(rejection) = rejected_credential_in(&value) {
+        if let Some(rejection) = credential_failure_in(&value) {
             return rejection;
         }
         match value {
