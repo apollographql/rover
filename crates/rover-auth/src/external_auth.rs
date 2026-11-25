@@ -5,34 +5,29 @@
 //! authentication so it bounds each network send, not source reads or a pair of sends.
 //! The operation layer shares only an attempt counter and a resend allowance across
 //! request clones, never a cached credential.
-//! Authentication passes the final response through unchanged. Report rejection and
-//! permission statuses with [`RejectedCredentialLayer`] and [`PermissionDeniedLayer`],
-//! configured with [`ExternalAuthError`], above the retry middleware.
+//! Authentication passes the final response through unchanged. The caller reports rejection
+//! and permission statuses above the retry middleware, as [`ExternalAuthError`] values.
 //! The HTTP transport must not follow redirects: a redirect is not another Platform API attempt.
 
 use std::{
-    future::{ready, Future, Ready},
+    future::{Future, Ready, ready},
     pin::Pin,
     sync::{
-        atomic::{AtomicBool, AtomicU32, Ordering},
         Arc,
+        atomic::{AtomicBool, AtomicU32, Ordering},
     },
     task::{Context, Poll},
 };
 
-use http::{header::AUTHORIZATION, HeaderValue, StatusCode, Uri};
-use rover_auth::external_token::{ExternalAccessToken, ExternalTokenError};
-use rover_http::{retry::RetryCount, HttpRequest, HttpResponse, HttpServiceError};
-use rover_tower::{service::replace_ready_service, ResponseFuture};
+use http::{HeaderValue, StatusCode, Uri, header::AUTHORIZATION};
+use rover_http::{HttpRequest, HttpResponse, HttpServiceError, retry::RetryCount};
+use rover_tower::{ResponseFuture, service::replace_ready_service};
 use tower::{
-    retry::{Policy, Retry},
     Layer, Service, ServiceExt,
+    retry::{Policy, Retry},
 };
 
-#[cfg(doc)]
-use super::{
-    permission_denied::PermissionDeniedLayer, rejected_credential::RejectedCredentialLayer,
-};
+use crate::external_token::{ExternalAccessToken, ExternalTokenError};
 
 /// Terminal external-authentication failures, distinct from transient transport failures.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -358,10 +353,10 @@ where
     }
 }
 
-/// Mock token sources for external authentication consumers and tests.
-#[cfg(any(test, feature = "testing"))]
-pub mod mock {
-    use rover_auth::external_token::{ExternalAccessToken, ExternalTokenError};
+/// Mock token sources for this module's tests.
+#[cfg(test)]
+mod mock {
+    use crate::external_token::{ExternalAccessToken, ExternalTokenError};
 
     /// Request accepted by the authentication middleware's token source.
     pub type TokenRequest = ();
@@ -378,25 +373,22 @@ mod tests {
     };
 
     use bytes::Bytes;
-    use futures::{future::ready, stream, FutureExt, StreamExt};
+    use futures::{FutureExt, StreamExt, future::ready, stream};
     use http::{HeaderMap, HeaderName, Method, Request, Response};
-    use http_body_util::{BodyExt, Full};
-    use rover_auth::external_token::{ExternalTokenFailure, ExternalTokenOrigin};
     use rover_http::{
+        BodyExt, Full,
         retry::RetryPolicy,
         test::MockHttpService,
         timeout::TimeoutLayer,
-        trace::{new_trace_id, TraceparentLayer},
+        trace::{TraceparentLayer, new_trace_id},
     };
     use rover_tower::{expect_poll_ready, test::MockCloneService};
     use rstest::{fixture, rstest};
     use speculoos::prelude::*;
-    use tower::{retry::RetryLayer, ServiceBuilder};
+    use tower::{ServiceBuilder, retry::RetryLayer};
 
     use super::{mock::MockTokenService, *};
-    use crate::service::{
-        permission_denied::PermissionDeniedLayer, rejected_credential::RejectedCredentialLayer,
-    };
+    use crate::external_token::{ExternalTokenFailure, ExternalTokenOrigin};
 
     #[derive(Debug, PartialEq, Eq)]
     struct Attempt {
@@ -766,12 +758,6 @@ mod tests {
 
             let service = ServiceBuilder::new()
                 .layer(ExternalAuthOperationLayer)
-                .layer(RejectedCredentialLayer::with_error(
-                    ExternalAuthError::Rejected,
-                ))
-                .layer(PermissionDeniedLayer::with_error(
-                    ExternalAuthError::PermissionDenied,
-                ))
                 // Authentication must sit between retry and timeout: a source read is
                 // not a network attempt, and each of the two possible sends is bounded.
                 .layer(RetryLayer::new(RetryPolicy::new(Duration::from_secs(5))))
@@ -811,13 +797,13 @@ mod tests {
     #[case::unchanged_not_acceptable(&["A", "A"], &[406], Err(ExternalAuthError::Rejected), &["A"])]
     #[case::rotated_unauthorized(&["A", "B"], &[401, 200], Ok(StatusCode::OK), &["A", "B"])]
     #[case::rotated_not_acceptable(&["A", "B"], &[406, 200], Ok(StatusCode::OK), &["A", "B"])]
-    #[case::second_rejection(&["A", "B"], &[401, 406], Err(ExternalAuthError::Rejected), &["A", "B"])]
-    #[case::permission_denied(&["A"], &[403], Err(ExternalAuthError::PermissionDenied), &["A"])]
-    #[case::resend_permission_denied(&["A", "B"], &[401, 403], Err(ExternalAuthError::PermissionDenied), &["A", "B"])]
+    #[case::second_rejection(&["A", "B"], &[401, 406], Ok(StatusCode::NOT_ACCEPTABLE), &["A", "B"])]
+    #[case::permission_denied(&["A"], &[403], Ok(StatusCode::FORBIDDEN), &["A"])]
+    #[case::resend_permission_denied(&["A", "B"], &[401, 403], Ok(StatusCode::FORBIDDEN), &["A", "B"])]
     #[case::transient_rotation(&["A", "B"], &[503, 200], Ok(StatusCode::OK), &["A", "B"])]
     #[case::rejection_after_retry(&["A", "B", "C"], &[503, 401, 200], Ok(StatusCode::OK), &["A", "B", "C"])]
     #[case::retry_after_resend(&["A", "B", "C"], &[401, 503, 200], Ok(StatusCode::OK), &["A", "B", "C"])]
-    #[case::resend_allowance_survives_retry(&["A", "B", "C"], &[401, 503, 401], Err(ExternalAuthError::Rejected), &["A", "B", "C"])]
+    #[case::resend_allowance_survives_retry(&["A", "B", "C"], &[401, 503, 401], Ok(StatusCode::UNAUTHORIZED), &["A", "B", "C"])]
     #[tokio::test(start_paused = true)]
     async fn authenticates_each_attempt_without_expanding_the_resend_allowance(
         endpoint: Uri,
@@ -864,60 +850,6 @@ mod tests {
             .collect::<HashSet<_>>();
         assert_that!(trace_ids.len()).is_equal_to(1);
         assert_that!(span_ids.len()).is_equal_to(sent_tokens.len());
-    }
-
-    #[rstest]
-    #[case::permission_denied(&["A"], &[403])]
-    #[case::second_rejection(&["A", "B"], &[401, 406])]
-    #[tokio::test]
-    async fn final_responses_are_returned_unchanged_for_shared_status_reporting(
-        endpoint: Uri,
-        #[case] tokens: &'static [&'static str],
-        #[case] statuses: &'static [u16],
-    ) {
-        let mut tokens = tokens
-            .iter()
-            .map(|token| ExternalAccessToken::parse(token.as_bytes()).unwrap())
-            .collect::<VecDeque<_>>();
-        let mut source = MockTokenService::new();
-        source
-            .expect_poll_ready()
-            .returning(|_| Poll::Ready(Ok(())));
-        source
-            .expect_call()
-            .times(tokens.len())
-            .returning(move |_| ready(Ok(tokens.pop_front().unwrap())));
-        let mut responses = statuses.iter().copied().collect::<VecDeque<_>>();
-        let mut http = MockHttpService::new();
-        http.expect_poll_ready().returning(|_| Poll::Ready(Ok(())));
-        http.expect_call()
-            .times(statuses.len())
-            .returning(move |_| {
-                ready(Ok(Response::builder()
-                    .status(responses.pop_front().unwrap())
-                    .body(Full::default())
-                    .unwrap()))
-            });
-        let service = ServiceBuilder::new()
-            .layer(ExternalAuthOperationLayer)
-            .layer(ExternalAuthLayer::new(
-                MockCloneService::new(source),
-                endpoint.clone(),
-            ))
-            .service(MockCloneService::new(http));
-
-        let result = service
-            .oneshot(
-                Request::builder()
-                    .uri(endpoint)
-                    .body(Full::default())
-                    .unwrap(),
-            )
-            .await;
-
-        assert_that!(result.map(|response| response.status().as_u16()))
-            .is_ok()
-            .is_equal_to(*statuses.last().unwrap());
     }
 
     #[rstest]
@@ -1162,8 +1094,10 @@ mod tests {
     fn unrelated_http_errors_are_not_external_authentication_failures(
         #[case] error: HttpServiceError,
     ) {
-        assert_that!(<&ExternalAuthError>::try_from(&error)
-            .map_err(|original| std::ptr::eq(original, &error)))
+        assert_that!(
+            <&ExternalAuthError>::try_from(&error)
+                .map_err(|original| std::ptr::eq(original, &error))
+        )
         .is_err()
         .is_equal_to(true);
     }

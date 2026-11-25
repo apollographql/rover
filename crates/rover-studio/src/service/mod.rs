@@ -1,6 +1,5 @@
 //! Provides middleware that injects studio headers into all requests
 
-pub mod external_auth;
 pub mod permission_denied;
 pub mod rejected_credential;
 
