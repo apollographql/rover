@@ -45,6 +45,8 @@ rover dev --name products --schema ./products.graphql --url http://localhost:400
 
 This works with no GraphOS credentials at all: composing and running a local router session against local or directly reachable subgraphs never requires a graph API key, a graph ref, or an offline license.
 
+With an [application-managed token file](/rover/configuring#with-an-application-managed-token-file), Rover authenticates its own Platform API requests with that token. A separate `APOLLO_KEY` is allowed and passed to the router only. Without `APOLLO_KEY`, the router receives neither the external token nor a stored profile key, and Rover reports that it is running without GraphOS credentials.
+
 <Note>
 
 Credentials are only needed to *opt in* to additional functionality: [GraphOS Router features](/graphos/routing/graphos-features#graphos-router-features) or the `@connect` directive in your schema. You can unlock these independently via any one of the following:
