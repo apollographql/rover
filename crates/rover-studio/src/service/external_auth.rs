@@ -5,6 +5,9 @@
 //! authentication so it bounds each network send, not source reads or a pair of sends.
 //! The operation layer shares only an attempt counter and a resend allowance across
 //! request clones, never a cached credential.
+//! Authentication passes the final response through unchanged. Report rejection and
+//! permission statuses with [`RejectedCredentialLayer`] and [`PermissionDeniedLayer`],
+//! configured with [`ExternalAuthError`], above the retry middleware.
 //! The HTTP transport must not follow redirects: a redirect is not another Platform API attempt.
 
 use std::{
@@ -24,6 +27,11 @@ use rover_tower::{service::replace_ready_service, ResponseFuture};
 use tower::{
     retry::{Policy, Retry},
     Layer, Service, ServiceExt,
+};
+
+#[cfg(doc)]
+use super::{
+    permission_denied::PermissionDeniedLayer, rejected_credential::RejectedCredentialLayer,
 };
 
 /// Terminal external-authentication failures, distinct from transient transport failures.
@@ -288,23 +296,14 @@ impl<S, T: Clone> Layer<S> for ExternalAuthLayer<T> {
 }
 
 /// Per-attempt authentication and the single immediate resend after a status rejection.
+///
+/// A rejection that the resend cannot address is returned as the server's response.
+/// The only rejection this reports itself is an unchanged token, which is never sent.
 #[derive(Clone)]
 pub struct ExternalAuth<S, T> {
     inner: S,
     source: T,
     endpoint: Uri,
-}
-
-impl<S, T> ExternalAuth<S, T> {
-    fn classify(response: HttpResponse) -> Result<HttpResponse, ExternalAuthError> {
-        match response.status() {
-            StatusCode::UNAUTHORIZED | StatusCode::NOT_ACCEPTABLE => {
-                Err(ExternalAuthError::Rejected)
-            }
-            StatusCode::FORBIDDEN => Err(ExternalAuthError::PermissionDenied),
-            _ => Ok(response),
-        }
-    }
 }
 
 impl<S, T> Service<HttpRequest> for ExternalAuth<S, T>
@@ -354,7 +353,7 @@ where
 
         Box::pin(async move {
             let AuthenticationResponse { response, .. } = response.await?;
-            Self::classify(response).map_err(HttpServiceError::from)
+            Ok(response)
         })
     }
 }
@@ -395,6 +394,9 @@ mod tests {
     use tower::{retry::RetryLayer, ServiceBuilder};
 
     use super::{mock::MockTokenService, *};
+    use crate::service::{
+        permission_denied::PermissionDeniedLayer, rejected_credential::RejectedCredentialLayer,
+    };
 
     #[derive(Debug, PartialEq, Eq)]
     struct Attempt {
@@ -764,6 +766,12 @@ mod tests {
 
             let service = ServiceBuilder::new()
                 .layer(ExternalAuthOperationLayer)
+                .layer(RejectedCredentialLayer::with_error(
+                    ExternalAuthError::Rejected,
+                ))
+                .layer(PermissionDeniedLayer::with_error(
+                    ExternalAuthError::PermissionDenied,
+                ))
                 // Authentication must sit between retry and timeout: a source read is
                 // not a network attempt, and each of the two possible sends is bounded.
                 .layer(RetryLayer::new(RetryPolicy::new(Duration::from_secs(5))))
@@ -856,6 +864,60 @@ mod tests {
             .collect::<HashSet<_>>();
         assert_that!(trace_ids.len()).is_equal_to(1);
         assert_that!(span_ids.len()).is_equal_to(sent_tokens.len());
+    }
+
+    #[rstest]
+    #[case::permission_denied(&["A"], &[403])]
+    #[case::second_rejection(&["A", "B"], &[401, 406])]
+    #[tokio::test]
+    async fn final_responses_are_returned_unchanged_for_shared_status_reporting(
+        endpoint: Uri,
+        #[case] tokens: &'static [&'static str],
+        #[case] statuses: &'static [u16],
+    ) {
+        let mut tokens = tokens
+            .iter()
+            .map(|token| ExternalAccessToken::parse(token.as_bytes()).unwrap())
+            .collect::<VecDeque<_>>();
+        let mut source = MockTokenService::new();
+        source
+            .expect_poll_ready()
+            .returning(|_| Poll::Ready(Ok(())));
+        source
+            .expect_call()
+            .times(tokens.len())
+            .returning(move |_| ready(Ok(tokens.pop_front().unwrap())));
+        let mut responses = statuses.iter().copied().collect::<VecDeque<_>>();
+        let mut http = MockHttpService::new();
+        http.expect_poll_ready().returning(|_| Poll::Ready(Ok(())));
+        http.expect_call()
+            .times(statuses.len())
+            .returning(move |_| {
+                ready(Ok(Response::builder()
+                    .status(responses.pop_front().unwrap())
+                    .body(Full::default())
+                    .unwrap()))
+            });
+        let service = ServiceBuilder::new()
+            .layer(ExternalAuthOperationLayer)
+            .layer(ExternalAuthLayer::new(
+                MockCloneService::new(source),
+                endpoint.clone(),
+            ))
+            .service(MockCloneService::new(http));
+
+        let result = service
+            .oneshot(
+                Request::builder()
+                    .uri(endpoint)
+                    .body(Full::default())
+                    .unwrap(),
+            )
+            .await;
+
+        assert_that!(result.map(|response| response.status().as_u16()))
+            .is_ok()
+            .is_equal_to(*statuses.last().unwrap());
     }
 
     #[rstest]

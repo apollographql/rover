@@ -39,14 +39,16 @@ impl RejectedCredential {
             RejectedCredential::InvalidKey
         }
     }
+}
 
+impl From<RejectedCredential> for HttpServiceError {
     /// Wraps this so it can cross a boxed [`rover_http::HttpService`], whose error type is fixed.
     ///
     /// [`HttpServiceError::Unexpected`] is the carrier on purpose: it's the one variant
     /// [`rover_http::retry::RetryPolicy`] treats as terminal, and routing this through
     /// [`HttpServiceError::Request`] would make the retry policy replay a refused credential.
-    fn into_http_service_error(self) -> HttpServiceError {
-        HttpServiceError::Unexpected(Box::new(self))
+    fn from(rejection: RejectedCredential) -> Self {
+        HttpServiceError::Unexpected(Box::new(rejection))
     }
 }
 
@@ -64,41 +66,54 @@ pub fn rejected_credential(err: &HttpServiceError) -> Option<RejectedCredential>
 ///
 /// Place this **above** the retry middleware: below it, a credential the registry has already
 /// refused would be handed to the retry policy and sent again.
-pub struct RejectedCredentialLayer {
-    credential: Credential,
+pub struct RejectedCredentialLayer<E = RejectedCredential> {
+    rejection: E,
 }
 
 impl RejectedCredentialLayer {
     /// Constructs a new [`RejectedCredentialLayer`] over the credential requests are
     /// authenticated with, consulted only to decide whether a rejection is the key's format.
-    pub const fn new(credential: Credential) -> RejectedCredentialLayer {
-        RejectedCredentialLayer { credential }
+    pub fn new(credential: Credential) -> RejectedCredentialLayer {
+        RejectedCredentialLayer {
+            rejection: RejectedCredential::for_credential(&credential),
+        }
     }
 }
 
-impl<S: Clone> Layer<S> for RejectedCredentialLayer {
-    type Service = RejectedCredentialService<S>;
+impl<E> RejectedCredentialLayer<E> {
+    /// Reports a rejection as `rejection`, for a credential that isn't a stored API key.
+    ///
+    /// `rejection` must convert to a terminal [`HttpServiceError`], as [`RejectedCredential`]
+    /// does, so retry middleware never replays a refused credential.
+    pub const fn with_error(rejection: E) -> RejectedCredentialLayer<E> {
+        RejectedCredentialLayer { rejection }
+    }
+}
+
+impl<S: Clone, E: Clone> Layer<S> for RejectedCredentialLayer<E> {
+    type Service = RejectedCredentialService<S, E>;
 
     fn layer(&self, inner: S) -> Self::Service {
         RejectedCredentialService {
-            rejection: RejectedCredential::for_credential(&self.credential),
+            rejection: self.rejection.clone(),
             inner,
         }
     }
 }
 
-/// Middleware that turns a credential rejection from Apollo Studio into a
-/// [`RejectedCredential`] error.
+/// Middleware that turns a credential rejection from Apollo Studio into the layer's error,
+/// [`RejectedCredential`] unless configured otherwise.
 #[derive(Clone)]
-pub struct RejectedCredentialService<S: Clone> {
-    rejection: RejectedCredential,
+pub struct RejectedCredentialService<S: Clone, E = RejectedCredential> {
+    rejection: E,
     inner: S,
 }
 
-impl<S> Service<HttpRequest> for RejectedCredentialService<S>
+impl<S, E> Service<HttpRequest> for RejectedCredentialService<S, E>
 where
     S: Service<HttpRequest, Response = HttpResponse, Error = HttpServiceError> + Clone,
     S::Future: Send + 'static,
+    E: Clone + Into<HttpServiceError> + Send + 'static,
 {
     type Response = S::Response;
     type Error = S::Error;
@@ -112,13 +127,13 @@ where
     }
 
     fn call(&mut self, req: HttpRequest) -> Self::Future {
-        let rejection = self.rejection;
+        let rejection = self.rejection.clone();
         let fut = self.inner.call(req);
         Box::pin(async move {
             let resp = fut.await?;
             if CREDENTIAL_REJECTED_STATUSES.contains(&resp.status()) {
                 tracing::debug!(status = ?resp.status(), "the registry rejected our credential");
-                Err(rejection.into_http_service_error())
+                Err(rejection.into())
             } else {
                 Ok(resp)
             }
@@ -222,6 +237,48 @@ mod tests {
         assert_that!(response.map(|resp| resp.status()))
             .is_ok()
             .is_equal_to(status);
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+    #[error("an application-supplied credential was rejected")]
+    struct ApplicationRejection;
+
+    impl From<ApplicationRejection> for HttpServiceError {
+        fn from(rejection: ApplicationRejection) -> Self {
+            HttpServiceError::Unexpected(Box::new(rejection))
+        }
+    }
+
+    #[rstest]
+    #[case::unauthorized(StatusCode::UNAUTHORIZED, Some(ApplicationRejection))]
+    #[case::not_acceptable(StatusCode::NOT_ACCEPTABLE, Some(ApplicationRejection))]
+    #[case::forbidden(StatusCode::FORBIDDEN, None)]
+    #[case::ok(StatusCode::OK, None)]
+    fn a_configured_error_reports_the_same_rejection_statuses(
+        #[case] status: StatusCode,
+        #[case] expected: Option<ApplicationRejection>,
+    ) {
+        let mut mock = MockHttpService::new();
+        expect_poll_ready!(mock);
+        mock.expect_call().returning(move |_| {
+            futures::future::ready(Ok(http::Response::builder()
+                .status(status)
+                .body(Full::new(Bytes::default()))
+                .unwrap()))
+        });
+        let service = RejectedCredentialLayer::with_error(ApplicationRejection)
+            .layer(MockCloneService::new(mock));
+
+        let result =
+            futures::executor::block_on(service.oneshot(http::Request::new(Full::default())));
+
+        let rejection = match &result {
+            Err(HttpServiceError::Unexpected(source)) => source.downcast_ref().cloned(),
+            _ => None,
+        };
+        assert_that!(rejection).is_equal_to(expected.clone());
+        assert_that!(result.map(|resp| resp.status()).ok())
+            .is_equal_to(expected.is_none().then_some(status));
     }
 
     #[test]

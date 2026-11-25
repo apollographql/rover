@@ -264,7 +264,7 @@ impl StudioClient {
                         self.is_sudo,
                     )?)
                     .layer(RejectedCredentialLayer::new(self.credential.clone()))
-                    .layer(PermissionDeniedLayer)
+                    .layer(PermissionDeniedLayer::new())
                     .into_inner(),
             ))
             .layer(retry_with_attempt_timeout(
@@ -310,7 +310,7 @@ impl StudioClient {
                         self.is_sudo,
                     )?)
                     .layer(RejectedCredentialLayer::new(self.credential.clone()))
-                    .layer(PermissionDeniedLayer)
+                    .layer(PermissionDeniedLayer::new())
                     .into_inner(),
             ))
             // No retry layer is present, so unlike `studio_graphql_service`, there's no ordering
