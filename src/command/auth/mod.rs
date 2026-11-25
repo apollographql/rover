@@ -60,19 +60,19 @@ impl Auth {
     pub async fn run(
         &self,
         client_config: StudioClientConfig,
-        oauth_config: OauthConfig,
+        oauth_config: impl FnOnce() -> RoverResult<OauthConfig>,
         profile: &ProfileOpt,
         output_opts: &OutputOpts,
     ) -> RoverResult<crate::RoverOutput> {
         match &self.command {
             AuthCommand::Login(command) => {
                 command
-                    .run(client_config.config, oauth_config, profile)
+                    .run(client_config.config, oauth_config()?, profile)
                     .await
             }
             AuthCommand::Logout(command) => {
                 command
-                    .run(client_config.config, oauth_config, profile)
+                    .run(client_config.config, oauth_config()?, profile)
                     .await
             }
             AuthCommand::Whoami(command) => command.run(client_config, oauth_config, profile).await,
@@ -80,7 +80,7 @@ impl Auth {
                 command
                     .run(
                         client_config,
-                        &oauth_config,
+                        &oauth_config()?,
                         profile,
                         output_opts.format_kind == RoverOutputFormatKind::Json,
                     )

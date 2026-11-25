@@ -1,0 +1,15 @@
+---
+source: src/command/external_identity.rs
+expression: text
+---
+┌──────────────┬─────────────────────┐
+│ Actor Type   ┆ Graph               │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Identity ID  ┆ graph-id            │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Graph Title  ┆ Graph title         │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Origin       ┆ --access-token-file │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Access Token ┆ [REDACTED]          │
+└──────────────┴─────────────────────┘

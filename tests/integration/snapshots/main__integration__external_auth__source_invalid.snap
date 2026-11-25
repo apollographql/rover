@@ -1,0 +1,14 @@
+---
+source: tests/integration/external_auth.rs
+expression: external_context.normalize_error(json)
+---
+{
+  "json_version": "1",
+  "data": {
+    "success": false
+  },
+  "error": {
+    "message": "External token source from --access-token-file at '[TOKEN_FILE]': invalid contents; supply one raw bearer token with only an optional final LF or CRLF",
+    "code": "E071"
+  }
+}
