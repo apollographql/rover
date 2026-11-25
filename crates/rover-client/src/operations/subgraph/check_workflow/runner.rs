@@ -119,6 +119,14 @@ fn get_check_response_from_data(
             graph_ref: graph_ref.clone(),
         })?;
 
+    let maybe_api_schema_modified = match (
+        check_workflow.base_api_schema_hash.as_deref(),
+        check_workflow.proposed_api_schema_hash.as_deref(),
+    ) {
+        (Some(base), Some(proposed)) => Some(base != proposed),
+        _ => None,
+    };
+
     let mut core_schema_modified = false;
     let mut core_schema_status: Option<CheckTaskStatus> = None;
     let mut composition_errors = Vec::new();
@@ -253,6 +261,7 @@ fn get_check_response_from_data(
         default_target_url,
         maybe_core_schema_modified: Some(core_schema_modified),
         maybe_core_schema_status: core_schema_status,
+        maybe_api_schema_modified,
         maybe_operations_response: get_operations_response_from_result(
             operations_target_url,
             number_of_checked_operations,
@@ -644,6 +653,37 @@ mod tests {
             }
             _ => panic!("Expected CheckWorkflowFailure error"),
         }
+    }
+
+    #[rstest]
+    #[case::hashes_differ(json!("aaa"), json!("bbb"), Some(true))]
+    #[case::hashes_match(json!("aaa"), json!("aaa"), Some(false))]
+    #[case::build_not_yet_succeeded(json!("aaa"), json!(null), None)]
+    #[case::no_base_hash(json!(null), json!("bbb"), None)]
+    fn test_get_check_response_compares_api_schema_hashes(
+        graph_ref: GraphRef,
+        #[case] base_api_schema_hash: serde_json::Value,
+        #[case] proposed_api_schema_hash: serde_json::Value,
+        #[case] expected: Option<bool>,
+    ) {
+        let data: QueryResponseData = serde_json::from_value(json!({
+            "graph": {
+                "checkWorkflow": {
+                    "id": "test-workflow",
+                    "status": CheckWorkflowStatus::PASSED,
+                    "baseApiSchemaHash": base_api_schema_hash,
+                    "proposedApiSchemaHash": proposed_api_schema_hash,
+                    "tasks": []
+                }
+            }
+        }))
+        .unwrap();
+
+        let response =
+            get_check_response_from_data(data, graph_ref, "test-subgraph".to_string(), true)
+                .unwrap();
+
+        assert_eq!(response.maybe_api_schema_modified, expected);
     }
 
     #[rstest]

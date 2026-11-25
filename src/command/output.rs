@@ -1236,6 +1236,7 @@ mod tests {
             default_target_url: "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1".to_string(),
             maybe_core_schema_modified: Some(true),
             maybe_core_schema_status: Some(CheckTaskStatus::PASSED),
+            maybe_api_schema_modified: None,
             maybe_operations_response: Some(OperationCheckResponse::try_new(
                 CheckTaskStatus::PASSED,
                 Some("https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1".to_string()),
@@ -1384,6 +1385,7 @@ mod tests {
                     .to_string(),
             maybe_core_schema_modified: Some(true),
             maybe_core_schema_status: Some(CheckTaskStatus::PASSED),
+            maybe_api_schema_modified: None,
             maybe_operations_response: Some(OperationCheckResponse::try_new(
                 CheckTaskStatus::PASSED,
                 Some(
@@ -1448,6 +1450,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
                 .to_string(),
             maybe_core_schema_modified: None,
             maybe_core_schema_status: None,
+            maybe_api_schema_modified: None,
             maybe_operations_response: Some(OperationCheckResponse::try_new(
                 CheckTaskStatus::PASSED,
                 None,
@@ -1480,6 +1483,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
                 .to_string(),
             maybe_core_schema_modified: None,
             maybe_core_schema_status: None,
+            maybe_api_schema_modified: None,
             maybe_operations_response: Some(OperationCheckResponse::try_new(
                 CheckTaskStatus::PASSED,
                 None,
@@ -1517,6 +1521,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
             default_target_url: String::new(),
             maybe_core_schema_modified: Some(false),
             maybe_core_schema_status: Some(CheckTaskStatus::BLOCKED),
+            maybe_api_schema_modified: None,
             maybe_operations_response: None,
             maybe_lint_response: None,
             maybe_proposals_response: None,
@@ -1545,6 +1550,7 @@ View custom check details at: https://studio.apollographql.com/graph/my-graph/va
                 "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1".to_string(),
             maybe_core_schema_modified: Some(false),
             maybe_core_schema_status: Some(CheckTaskStatus::PASSED),
+            maybe_api_schema_modified: None,
             maybe_operations_response: Some(OperationCheckResponse::try_new(
                 CheckTaskStatus::FAILED,
                 Some("https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1".to_string()),
