@@ -534,12 +534,20 @@ impl StudioClient {
             ExternalRetry::Never => attempts,
         };
         Ok(ServiceBuilder::new()
+            // One logical operation: every resend and retry below shares its allowance.
+            .layer(ExternalAuthOperationLayer)
             .layer(HttpStudioServiceLayer::without_credential(
                 endpoint,
                 self.version.clone(),
                 self.is_sudo,
             )?)
-            .layer(ExternalAuthOperationLayer)
+            // Above retry, like the stored-credential stack, so a refused credential is final.
+            .layer(RejectedCredentialLayer::with_error(
+                ExternalAuthError::Rejected,
+            ))
+            .layer(PermissionDeniedLayer::with_error(
+                ExternalAuthError::PermissionDenied,
+            ))
             .service(attempts)
             .boxed_clone())
     }
