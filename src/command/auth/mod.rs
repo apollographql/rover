@@ -33,6 +33,13 @@ pub enum AuthCommand {
 }
 
 impl Auth {
+    pub(crate) const fn can_authenticate(&self) -> bool {
+        matches!(
+            self.command,
+            AuthCommand::Whoami(_) | AuthCommand::Grants(_)
+        )
+    }
+
     /// The OAuth settings this invocation's subcommand sends a request to -
     /// the only ones whose override notices may fire (FR60: "uses" is not
     /// "resolves"). Decided per subcommand, not per code path, so it can

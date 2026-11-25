@@ -22,6 +22,13 @@ impl RemoteRouterConfig {
         home_override: Option<String>,
         api_key_override: Option<String>,
     ) -> RemoteRouterConfig {
+        if client_config.has_external_authentication() {
+            // The router's key is independent of Rover's external identity.
+            return RemoteRouterConfig {
+                graph_ref,
+                api_key: api_key_override.filter(|key| !key.is_empty()),
+            };
+        }
         if let Ok(credential) =
             Self::establish_credentials(&profile, home_override, api_key_override)
         {
@@ -99,5 +106,73 @@ impl RemoteRouterConfig {
             &Config::new(home_override.as_ref(), api_key_override)?,
         )
         .get_credential()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rover_auth::external_token::{ExternalTokenOrigin, ExternalTokenSource};
+    use rstest::{fixture, rstest};
+    use speculoos::prelude::*;
+    use tempfile::TempDir;
+
+    use super::*;
+    use crate::utils::{
+        client::{ClientBuilder, ClientTimeout},
+        external_auth::ExternalAuthentication,
+    };
+
+    #[fixture]
+    fn external_config() -> (StudioClientConfig, TempDir) {
+        let directory = tempfile::tempdir().unwrap();
+        let config = Config::new(Some(&directory.path().to_str().unwrap()), None).unwrap();
+        Profile::new("stored", &config)
+            .set_api_key("stored-profile-key")
+            .unwrap();
+        let config = StudioClientConfig::new(
+            None,
+            config,
+            false,
+            ClientBuilder::new(),
+            ClientTimeout::default(),
+        )
+        .with_external_authentication(Some(ExternalAuthentication::new(
+            ExternalTokenSource::new(
+                directory.path().join("missing-token"),
+                ExternalTokenOrigin::Option,
+            ),
+            vec![],
+        )));
+        (config, directory)
+    }
+
+    #[rstest]
+    #[case::without_key(None, None)]
+    #[case::empty_key(Some(""), None)]
+    #[case::with_router_key(Some("router-key"), Some("router-key"))]
+    #[tokio::test]
+    async fn external_auth_remote_config_never_loads_a_profile_key_or_external_identity(
+        external_config: (StudioClientConfig, TempDir),
+        #[case] key: Option<&str>,
+        #[case] expected: Option<&str>,
+    ) {
+        let (config, directory) = external_config;
+        let graph_ref: GraphRef = "example@current".parse().unwrap();
+        let profile = ProfileOpt {
+            profile_name: "stored".to_string(),
+            ..ProfileOpt::default()
+        };
+
+        let remote = RemoteRouterConfig::load(
+            config,
+            profile,
+            graph_ref.clone(),
+            Some(directory.path().to_str().unwrap().to_string()),
+            key.map(str::to_string),
+        )
+        .await;
+
+        assert_that!((remote.graph_ref, remote.api_key))
+            .is_equal_to((graph_ref, expected.map(str::to_string)));
     }
 }

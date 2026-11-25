@@ -64,6 +64,17 @@ impl UserAuthenticated {
         client_config: &StudioClientConfig,
         profile: &ProfileOpt,
     ) -> RoverResult<Welcome> {
+        if client_config.has_external_authentication() {
+            let client = client_config.get_authenticated_client(profile)?;
+            let identity = who_am_i::run(&client).await?;
+            return if matches!(identity.key_actor_type, who_am_i::Actor::USER) {
+                Ok(Welcome::new())
+            } else {
+                Err(RoverError::new(
+                    rover_auth::external_auth::ExternalAuthError::PermissionDenied,
+                ))
+            };
+        }
         match client_config.get_authenticated_client(profile) {
             Ok(_) => {
                 let is_user_api_key = self.check_is_user_api_key(client_config, profile)?;

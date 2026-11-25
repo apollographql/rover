@@ -12,6 +12,7 @@ use config::{Config, Profile};
 use houston as config;
 use lazycell::{AtomicLazyCell, LazyCell};
 use reqwest::Client;
+use rover_auth::external_token::{ExternalTokenOrigin, ExternalTokenSource};
 use rover_client::shared::GitContext;
 use rover_std::Style;
 use rover_studio::types::GraphRef;
@@ -28,6 +29,7 @@ use crate::{
     utils::{
         client::{ClientBuilder, ClientTimeout, StudioClientConfig},
         env::{RoverEnv, RoverEnvKey},
+        external_auth::ExternalAuthentication,
         lifecycle::{self, Finish},
         version,
     },
@@ -118,6 +120,19 @@ pub struct Rover {
     // literally can be told apart from omitting the flag.
     #[arg(long = "profile", global = true)]
     profile_name: Option<String>,
+
+    /// Read an application-managed OAuth access token before each Platform API attempt.
+    #[arg(
+        long = "access-token-file",
+        global = true,
+        env = "APOLLO_ACCESS_TOKEN_FILE",
+        value_name = "PATH",
+        value_parser = clap::builder::OsStringValueParser::new()
+    )]
+    access_token_file: Option<std::ffi::OsString>,
+
+    #[arg(skip)]
+    external_source: std::sync::OnceLock<ExternalTokenSource>,
 
     #[clap(flatten)]
     output_opts: OutputOpts,
@@ -380,6 +395,7 @@ impl Rover {
     }
 
     pub async fn run(&self) -> RoverResult<()> {
+        self.external_token_source();
         // A `rover dev` `.env` has already been loaded, by `run_from_args`, ahead of
         // anything that reads an environment variable: the arguments, and the telemetry
         // session below.
@@ -444,6 +460,12 @@ impl Rover {
     }
 
     pub async fn execute_command(&self) -> RoverResult<RoverOutput> {
+        self.external_token_source();
+        if self.command.can_authenticate()
+            && let Some(selection) = self.external_authentication()?
+        {
+            selection.warn(&rover_print::print::stderr::default())?;
+        }
         // A project file that names a credential or spells one setting both
         // ways fails every command run in the project before it sends any
         // request - the update check's included (FR70, FR73). One that's
@@ -661,7 +683,52 @@ impl Rover {
     /// Keep what clap matched on the command line, for telemetry.
     pub(crate) fn with_arg_matches(mut self, matches: clap::ArgMatches) -> Self {
         self.arg_matches = Some(matches);
+        self.external_token_source();
         self
+    }
+
+    fn external_token_source(&self) -> Option<&ExternalTokenSource> {
+        self.access_token_file.as_ref().map(|path| {
+            self.external_source.get_or_init(|| {
+                let origin = match self
+                    .arg_matches()
+                    .and_then(|matches| matches.value_source("access_token_file"))
+                {
+                    Some(clap::parser::ValueSource::EnvVariable) => {
+                        ExternalTokenOrigin::Environment
+                    }
+                    _ => ExternalTokenOrigin::Option,
+                };
+                ExternalTokenSource::new(path, origin)
+            })
+        })
+    }
+
+    fn external_authentication(&self) -> RoverResult<Option<ExternalAuthentication>> {
+        let Some(source) = self.external_token_source() else {
+            return Ok(None);
+        };
+        let conflicts = [
+            (
+                !matches!(self.command, Command::Dev(_))
+                    && self
+                        .get_env_var(RoverEnvKey::Key)?
+                        .is_some_and(|value| !value.is_empty()),
+                "APOLLO_KEY",
+            ),
+            (
+                self.get_env_var(RoverEnvKey::ClientId)?.is_some(),
+                "APOLLO_CLIENT_ID",
+            ),
+            (
+                self.get_env_var(RoverEnvKey::ClientSecret)?.is_some(),
+                "APOLLO_CLIENT_SECRET",
+            ),
+        ]
+        .into_iter()
+        .filter_map(|(present, name)| present.then_some(name))
+        .collect();
+        Ok(Some(ExternalAuthentication::new(source.clone(), conflicts)))
     }
 
     /// What clap matched on the command line, if `Rover` was built from it.
@@ -1398,8 +1465,9 @@ impl Rover {
         // though the notice's once-per-process gate kept it from actually
         // re-printing).
         let client_timeout = self.get_client_timeout()?;
+        let external_authentication = self.external_authentication()?;
         let mut config = self.get_rover_config()?;
-        if config.override_api_key.is_none() {
+        if external_authentication.is_none() && config.override_api_key.is_none() {
             config.override_client_credentials_token = self
                 .resolve_client_credentials_token(client_timeout)
                 .await?;
@@ -1410,7 +1478,8 @@ impl Rover {
             is_sudo,
             self.get_reqwest_client_builder(client_timeout)?,
             client_timeout.unwrap_or_default(),
-        );
+        )
+        .with_external_authentication(external_authentication);
         // Downloads should honor the client timeout if resolved (from a flag,
         // env var, or profile) despite having a different default
         let client_config = match client_timeout {
@@ -1815,6 +1884,38 @@ impl Rover {
     }
 }
 
+impl Command {
+    const fn can_authenticate(&self) -> bool {
+        match self {
+            Self::Auth(command) => command.can_authenticate(),
+            Self::Config(command) => command.can_authenticate(),
+            Self::Graph(command) => command.can_authenticate(),
+            Self::Subgraph(command) => command.can_authenticate(),
+            Self::Supergraph(command) => command.can_authenticate(),
+            Self::Client(command) => command.can_authenticate(),
+            Self::PersistedQueries(command) => command.requires_client_config(),
+            Self::Init(_)
+            | Self::ApiKeys(_)
+            | Self::Contract(_)
+            | Self::Dev(_)
+            | Self::Readme(_)
+            | Self::License(_)
+            | Self::GraphArtifact(_) => true,
+            #[cfg(feature = "composition-js")]
+            Self::Connector(_) | Self::Lsp(_) => true,
+            Self::Completion(_)
+            | Self::Schema(_)
+            | Self::Template(_)
+            | Self::Docs(_)
+            | Self::Update(_)
+            | Self::Install(_)
+            | Self::Plugin(_)
+            | Self::Info(_)
+            | Self::Explain(_) => false,
+        }
+    }
+}
+
 #[derive(Debug, Parser)]
 pub enum Command {
     /// Initialize a federated graph in your current directory
@@ -2051,6 +2152,10 @@ fn global_only_on_failure(
         },
     }
 }
+
+#[cfg(test)]
+#[path = "cli_external_auth_tests.rs"]
+mod external_auth_tests;
 
 #[cfg(test)]
 mod tests {

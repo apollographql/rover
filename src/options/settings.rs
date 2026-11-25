@@ -286,11 +286,16 @@ const BOOTSTRAP: &str = "It decides where Rover looks for profiles, so a profile
 const PLUGIN_VERSION: &str =
     "It picks a plugin version for one `rover dev` run rather than describing an environment.";
 
-/// Every FR1 setting that's neither profile- nor project-eligible. None is
+/// Runtime inputs that are neither profile- nor project-eligible. None is
 /// a [`SettingName`] variant - nothing reads them from a store - so they're
 /// listed here only so a store naming one is told why it doesn't apply,
 /// rather than that Rover doesn't recognize it.
-pub(crate) const UNSTORABLE_SETTINGS: [UnstorableSetting; 13] = [
+pub(crate) const UNSTORABLE_SETTINGS: [UnstorableSetting; 14] = [
+    UnstorableSetting {
+        name: "APOLLO_ACCESS_TOKEN_FILE",
+        flag: "--access-token-file",
+        reason: "The supplying application selects its token source for this invocation.",
+    },
     UnstorableSetting {
         name: "APOLLO_LOG_LEVEL",
         flag: "--log",
