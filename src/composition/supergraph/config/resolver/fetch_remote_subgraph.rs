@@ -1,6 +1,6 @@
 //! Service and objects related to fetching a subgraph from Studio
 
-use std::{convert::Infallible, pin::Pin};
+use std::pin::Pin;
 
 use buildstructor::Builder;
 use derive_getters::Getters;
@@ -54,8 +54,7 @@ impl Service<()> for MakeFetchRemoteSubgraph {
         &mut self,
         _cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), Self::Error>> {
-        std::task::Poll::Ready(Ok::<_, Infallible>(()))
-            .map_err(|err| MakeFetchRemoteSubgraphError::ReadyFailed(Box::new(err)))
+        std::task::Poll::Ready(Ok(()))
     }
 
     fn call(&mut self, _req: ()) -> Self::Future {

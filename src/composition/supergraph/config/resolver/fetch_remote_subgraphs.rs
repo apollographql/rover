@@ -1,6 +1,6 @@
 //! Provides services and utilities to fetch subgraphs from Studio
 
-use std::{collections::BTreeMap, convert::Infallible, pin::Pin};
+use std::{collections::BTreeMap, pin::Pin};
 
 use apollo_federation_types::config::SubgraphConfig;
 use buildstructor::Builder;
@@ -45,8 +45,7 @@ impl Service<()> for MakeFetchRemoteSubgraphs {
         &mut self,
         _cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), Self::Error>> {
-        std::task::Poll::Ready(Ok::<_, Infallible>(()))
-            .map_err(|err| MakeFetchRemoteSubgraphsError::ReadyFailed(Box::new(err)))
+        std::task::Poll::Ready(Ok(()))
     }
 
     fn call(&mut self, _req: ()) -> Self::Future {

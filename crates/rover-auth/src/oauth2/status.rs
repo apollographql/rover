@@ -121,9 +121,7 @@ where
                     format!("unexpected HTTP status: {s}"),
                 )))),
                 _ => {
-                    let body = body_to_bytes(resp.body_mut())
-                        .await
-                        .map_err(|err| WhoamiError::Http(Box::new(err)))?;
+                    let Ok(body) = body_to_bytes(resp.body_mut()).await;
                     let resp = serde_json::from_slice(&body).map_err(WhoamiError::Deserialize)?;
                     Ok(resp)
                 }
