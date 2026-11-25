@@ -1,4 +1,4 @@
-//! OAuth2 authentication services for rover.
+//! Authentication services and credential sources for rover.
 
 #![warn(missing_docs)]
 
@@ -13,6 +13,9 @@ use tower::Service;
 
 /// Core OAuth2 service types for rover.
 pub mod oauth2;
+
+/// Read-only access to application-managed bearer token files.
+pub mod external_token;
 
 /// Tower [`Service`] wrapper that implements [`oauth2::AsyncHttpClient`].
 #[derive(Clone)]
