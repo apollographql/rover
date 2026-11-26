@@ -101,11 +101,15 @@ Requirements are tagged with the PRD requirement they realize, e.g. `(R1)`.
   `requested` records the version form that produced this entry, so a reader can see whether a floating alias was resolved. `checksum` records the verified artifact digest (FR69) and is omitted for entries locked before checksums were published.
 - **FR14**: A level's lockfile is the record of what is installed at that level. The project lockfile records the project's plugins, the global lockfile records the machine's.
 - **FR15**: Rover must update a level's lockfile on every successful install or removal at that level, and at no other time. An ordinary plugin-using run must never write a lockfile.
+
+  A successful install records nothing when it resolved nothing, or was told not to record. That covers an install under `--no-save` (FR38), a floating request satisfied from what is installed under `--no-download`, a fallback to an installed release when the registry couldn't be reached, and an install into an npm-managed install root, which belongs to no level. Locking any of the middle three would pass off what happened to be on disk as what the request resolves to.
 - **FR16**: Installing one plugin must not re-resolve any other. A floating alias already recorded in the lockfile keeps its `resolved` version unless it is named on the command line or `rover plugin resolve` is run (FR37). This is what makes a committed project lockfile stable.
 - **FR17**: A lockfile whose `version` Rover does not recognize must fail with an error stating the file was written by a newer Rover, not be ignored or overwritten.
 - **FR18**: When a manifest and its sibling lockfile disagree — a plugin is declared but absent from the lock, or a declared exact version differs from the locked `resolved` version — a plugin-using command must fail rather than silently re-resolving.
 
   An absent lockfile is not drift. A manifest with no sibling lockfile is a valid state: its declarations resolve normally, exactly as they would with no manifest at all (FR8). Drift is only possible once a lockfile exists, so a hand-authored `rover.yaml` works before anything has ever been installed from it.
+
+  A lockfile entry for a plugin no declaration names is not drift either. Plugin-using commands ignore it, since a lockfile only pins a request its own manifest made (FR31); `rover plugin install` with nothing named still installs it (FR35); and only `rover plugin resolve` removes it (FR37).
 
   Required text:
   > The plugin lockfile is out of date with `rover.yaml`: `router` is declared as `=2.2.0` but locked at `2.1.0`. Run `rover plugin install router@=2.2.0` to update it.
@@ -162,22 +166,61 @@ The duplication this implies is accepted. `rover plugin install` is not a prereq
   - `rover plugin uninstall <name>[@=<version>]...` — remove installed plugins (FR43).
   - `rover plugin resolve` — re-resolve floating aliases and rewrite the lockfile (FR37).
 
-  Each verb accepts `--global`/`-g` (FR24), `--manifest-path`/`-m` (FR25), and `--format json`. `install` and `resolve` additionally accept `--no-download` (FR48). `uninstall` never touches the network under any flag.
+  Each verb accepts `--global`/`-g` (FR24), `--manifest-path`/`-m` (FR25), and `--format json`. `install` additionally accepts `--no-download` (FR48) and `--no-save` (FR38). `resolve` must reach the registry by definition and accepts neither (FR37). `uninstall` never touches the network under any flag.
 - **FR34**: `rover install --plugin <name>@<version>` must keep working as a deprecated alias for `rover plugin install <name>@<version>`, including its ELv2 acceptance flags, and must emit one deprecation warning naming the replacement. Bare `rover install`, which installs Rover itself, is untouched by this spec.
 
   Required text:
   > Warning: `rover install --plugin` is deprecated. Use `rover plugin install supergraph@=2.9.3` instead.
+
+  The alias records what it installed in the lockfile only, as it did at 1.0. It never writes `rover.yaml` (FR38): scripts written for it don't expect Rover to edit a file people write by hand.
 
 - **FR35**: `rover plugin install` must accept any number of `<name>@<version>` positional arguments, installing each in one invocation. With none, and a manifest or lockfile in scope, it must install every plugin declared there. Naming the same plugin more than once must be rejected before anything is installed, since a level's lockfile records one release per plugin.
 
   Required text:
   > `router` is named more than once. Name each plugin once.
 - **FR36**: With a lockfile in scope, `rover plugin install` installs exactly the `resolved` versions it records and makes no resolution request to the registry, the way `npm ci` does. A locked version the registry no longer serves fails per FR61; Rover must not silently substitute a neighbouring version.
-- **FR37**: `rover plugin resolve` must re-resolve every floating alias in the in-scope manifest against the registry, install the results, and rewrite the lockfile at the target level. It is the only operation that rewrites a lockfile wholesale. Because it must reach the registry by definition, `rover plugin resolve --no-download` is a contradiction and must be rejected before any work begins.
-- **FR38**: A named `rover plugin install <name>@<version>` must record what it installed at the target level, as `npm install <pkg>` does: the plugin and its requested version are written to that level's `rover.yaml`, and the resolved exact version to its `plugin-versions.lock`. Both files are created if absent, along with the `.rover/` directory and its `.gitignore` (FR27). `--no-save` must suppress the manifest write while still updating the lockfile.
+- **FR37**: `rover plugin resolve` must rebuild the target level's lockfile from that level's `rover.yaml`. Every declared floating alias is re-resolved against the registry, every declared exact version is carried as written, the results are installed at that level, and the lockfile is rewritten to record exactly those plugins. It is the only operation that rewrites a lockfile wholesale.
 
-  The lockfile write ships at 1.0; the manifest write, and `--no-save` with it, follow after. Rover authors the lockfile outright, so writing it preserves nothing, but `rover.yaml` is hand-authored and a write must not destroy the comments and formatting its author put there — which needs a round-tripping YAML reader Rover does not have today. Until then a user declares plugins by hand, and FR18's absent-lockfile allowance is what makes that a working state.
-- **FR39**: Installing an exact version already present at the target level must be a no-op that says so and exits 0.
+  It takes no plugin names, since a named install already re-resolves a single plugin (FR16). It reads no other level's declarations, since each lockfile pins only its own level's requests (FR31). It must run when the manifest and lockfile disagree (FR18), because it is how that disagreement is fixed. Releases it moves away from stay installed; `rover plugin uninstall` removes them. It never creates a project root (FR22).
+
+  The command resolves the manifest's intent, not the lockfile's contents. A lockfile entry for a plugin that `rover.yaml` does not declare, such as one left by a named install from before installs declared what they installed, must be removed with a warning that names the install that would keep it, built from the entry's `requested` version.
+
+  Required text:
+  > Warning: removed `router` from `plugin-versions.lock` because `rover.yaml` doesn't declare it. To keep it, run `rover plugin install router@2`.
+
+  Each plugin is reported as a batch install reports it (FR41). When the release the lockfile records for a plugin changes, or the lockfile did not record the plugin, Rover then says what it locked.
+
+  Required text:
+  > Locked `router` at v2.3.0 (was v2.1.0).
+
+  > Locked `router` at v2.3.0.
+
+  A plugin that fails keeps the entry the lockfile already had for it, so a re-run has only the failures left to do. The plugins that succeeded are recorded whatever happens to the others. In `--format json`, `data.plugins` is as for an install (FR57), and `data.dropped` lists each entry removed from the lockfile with its `name`, `requested`, and `resolved`, empty when none was.
+
+  With nothing declared at the target level, because there is no `rover.yaml` or it has no `plugins:`, the command installs nothing, still removes any lockfile entries as above, and exits 0.
+
+  Required text:
+  > No plugins are declared in this project's `rover.yaml`.
+
+  > No plugins are declared in the global `rover.yaml`.
+
+  Because it must reach the registry, `rover plugin resolve` must not accept `--no-download`, and `APOLLO_ROVER_NO_DOWNLOAD` must make it fail before any work begins.
+
+  Required text:
+  > `rover plugin resolve` needs the plugin registry, but `APOLLO_ROVER_NO_DOWNLOAD` disables downloads. Unset it and re-run.
+- **FR38**: A named `rover plugin install <name>@<version>` must record what it installed at the target level, as `npm install <pkg>` does: the plugin and its requested version are written to that level's `rover.yaml`, and the resolved exact version to its `plugin-versions.lock`. Either file is created if absent, along with a `.rover/` directory that `--manifest-path` is creating and its `.gitignore` (FR27). Naming an exact version that is already installed (FR39) still declares it: naming a plugin declares it, whatever is on disk. An install with nothing named installs what is already declared and writes no declaration.
+
+  The declaration is written in the current spelling of the request, always quoted, so `latest-2` is written as `"2"` and `v2.9.3` as `"=2.9.3"`. An existing entry for the plugin is replaced where it stands. A new entry is added at the end of `plugins:`, which is added if the file has none. Everything else in the file is left as its author wrote it, as for an uninstall (FR45). A manifest whose `plugins:` entry Rover cannot edit that way must fail the install before anything is downloaded, naming the file and suggesting `--no-save`. In a batch, each plugin is declared as it installs, and a plugin that fails is not declared (FR41). The declaration is written exactly when the lockfile entry is: an install that records nothing in the lockfile (FR15) declares nothing either, since a plugin declared but not locked is the drift FR18 refuses.
+
+  When the write changes the file, Rover says so on stderr after the plugin's own report. A declaration that already matches prints nothing.
+
+  Required text:
+  > Declared `router` as `2` in this project's `rover.yaml`.
+
+  > Declared `router` as `2` in the global `rover.yaml`.
+
+  `--no-save` must suppress both writes: the plugin is installed and neither `rover.yaml` nor `plugin-versions.lock` changes, as `npm install --no-save` leaves both `package.json` and `package-lock.json` alone. A copy installed this way is found (FR26) and listed (FR42) like any other, and `rover plugin uninstall` removes it. `--no-save` with nothing named must be rejected before anything installs, since such an install writes no declaration, and so must `--no-save` with a `--manifest-path` that doesn't exist yet, since it would create a project with nothing in it.
+- **FR39**: Installing an exact version already present at the target level must download nothing, say so, and exit 0. It still records the request at that level, in the lockfile and in `rover.yaml` (FR38), unless `--no-save` is given, so that naming a plugin has the same effect on both files whatever was already on disk.
 
   Required text:
   > `supergraph` v2.9.3 is already installed in this project.
@@ -378,10 +421,28 @@ Given a project with a committed `rover.yaml` declaring `supergraph: "2"` and a 
 Given a project lockfile recording `supergraph: 2.9.3` (requested `2`) and `router: 2.1.0` (requested `latest`), and newer releases of both available, when `rover plugin install router@latest` runs, then `router` is re-resolved and updated and `supergraph`'s locked `2.9.3` is untouched.
 
 **Explicit resolution rewrites the lock**
-Given the same project, when `rover plugin resolve` runs, then every floating alias is re-resolved, the plugins are installed into the project root, and `plugin-versions.lock` is rewritten with each `requested` and `resolved` pair.
+Given the same project, declaring both plugins in `rover.yaml`, when `rover plugin resolve` runs, then every floating alias is re-resolved, the plugins are installed into the project root, `plugin-versions.lock` is rewritten with each `requested` and `resolved` pair, the FR37 "Locked … (was …)" text is printed for each plugin whose release changed, the releases it moved away from are still installed, and `rover.yaml` is unchanged.
+
+**Resolution follows the manifest**
+Given a project `rover.yaml` declaring only `supergraph: "2"` and a lockfile recording `supergraph` and `router` (requested `2`), when `rover plugin resolve` runs, then the `router` entry is removed from the lockfile with the FR37 warning naming `rover plugin install router@2`, the `router` binary is still installed, and `--format json` lists it under `data.dropped`.
+
+**Resolution fixes drift**
+Given a `rover.yaml` declaring `router: "=2.2.0"` and a lockfile recording `2.1.0`, when `rover plugin resolve` runs, then `2.2.0` is installed and locked, and a following plugin-using command no longer fails with the FR18 text.
+
+**A failed plugin keeps its locked release**
+Given a project declaring `supergraph: "2"` and `router: "2"`, both locked, and newer releases of both of which the registry refuses the `router` artifact, when `rover plugin resolve` runs, then `supergraph`'s new release is installed and locked, `router` keeps its locked entry, and the command fails with the FR41 summary naming `router`.
+
+**Resolution needs the registry**
+Given `APOLLO_ROVER_NO_DOWNLOAD=1`, when `rover plugin resolve` runs, then it fails with the FR37 text before any request reaches the registry, and the lockfile is unchanged. `rover plugin resolve --no-download` is rejected as an unknown option.
+
+**A named install declares what it installed**
+Given a project `rover.yaml` with comments, a `settings:` section, and `router: "2"` declared, when `rover plugin install router@=2.1.0 supergraph@latest-2` runs, then the file differs from before only by `router`'s value becoming `"=2.1.0"` and a `supergraph: "2"` line at the end of `plugins:`, and the FR38 text is printed for each. Given `supergraph` v2.9.3 already installed in the project and not declared, when `rover plugin install supergraph@=2.9.3` runs, then nothing is downloaded and `rover.yaml` gains `supergraph: "=2.9.3"`. Given `plugins:` written as a flow mapping instead, then the install fails naming the file before anything is downloaded.
 
 **`--no-save`**
-Given a project, when `rover plugin install router@2 --no-save` runs, then the binary is installed and the lockfile updated, and `rover.yaml` is not modified.
+Given a project, when `rover plugin install router@2 --no-save` runs, then the binary is installed and neither `rover.yaml` nor `plugin-versions.lock` is modified. `rover plugin install --no-save` with no plugin named is rejected before anything installs.
+
+**The deprecated alias records only to the lockfile**
+Given a project, when `rover install --plugin router@=2.1.0` runs, then the lockfile records `2.1.0` and `rover.yaml` is not modified.
 
 **Floating alias without a lock**
 Given a `rover.yaml` declaring `supergraph: "2"` and no lockfile, when `rover supergraph compose` runs, then the alias is resolved against the registry, the newest 2.x is used, no lockfile is written, and the run prints `Using the supergraph plugin v<resolved> (downloaded).`
@@ -553,6 +614,11 @@ Decisions taken while drafting and their reasoning are provided here.
 - **Per-invocation controls outrank the standing opt-in** (FR79), over letting a manifest re-enable downloads a command was told not to make.
 - **A `plugin` noun with `install`, `list`, `uninstall`, `resolve`** (FR33), over flags on `rover install`. `rover install --plugin` survives as a deprecated alias (FR34).
 - **`uninstall` has no `--no-save`** (FR45), over mirroring `npm uninstall --no-save` for symmetry with `install`. Keeping the manifest entry while removing the binary and lockfile entry leaves exactly the drift state that every plugin-using command refuses to run in (FR18), so the flag's only outcome would be a broken project. The wants it might serve are already covered: removing a level's `bin/` and re-running `rover plugin install` restores it (FR28), and `--force` replaces a binary in place (FR40).
+- **`--no-save` writes neither file** (FR38), over writing the lockfile alone. npm's `--no-save` leaves `package-lock.json` alone as well as `package.json`. Writing the lockfile would record a plugin nothing declares, which `rover plugin resolve` would then remove.
+- **`resolve` follows the manifest, not the lockfile** (FR37), over re-resolving undeclared entries from their recorded `requested` or declaring them in `rover.yaml`. The command states an intention to lock what `rover.yaml` declares, so after it the lockfile is a function of the manifest alone. Lockfiles written before installs declared what they installed hold undeclared entries, and removing one changes what a no-name `rover plugin install` installs, so each removal is warned with the command that keeps it. Nothing else removes them: plugin-using commands ignore them and a no-name install still installs them.
+- **A failed plugin keeps its locked release in `resolve`** (FR37), over npm's all-or-nothing rollback. It matches batch install (FR41): what succeeded is recorded, and a re-run retries only the failures.
+- **Naming an installed release still declares it** (FR38), over keeping FR39 a pure no-op. As with `npm install <pkg>`, naming a plugin is the statement of intent, and what happens to be on disk shouldn't change what gets declared.
+- **The deprecated `rover install --plugin` doesn't declare** (FR34), over making it a pure synonym. Scripts written for it predate manifest writes and don't expect Rover to edit a file people write by hand.
 - **Project-local installs, global when no project is in scope** (FR23), over Cargo's global-first default and over npm's "invent a project in the working directory." Rover never creates a project root on its own (FR22), which is what keeps the change non-breaking (FR74).
 - **Yanked versions get their own error code** (FR61), over folding them into general resolution failure, so a script can distinguish a version that never existed from one withdrawn.
 - **Version flags per command follow the plugin chain** (FR7), over giving every command all three flags or defining flags only for `rover dev`. `compose`, `connector`, and `lsp` run only `supergraph`, so they get only `--federation-version`; `dev` runs all three plugins and gets all three flags. Raised in spec review.
